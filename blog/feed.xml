@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Ketuna blog</title>
+    <link>https://ketuna.online/blog/index.html</link>
+    <atom:link href="https://ketuna.online/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <description>Practical articles on chips, firmware and products from Ketuna.</description>
+    <language>en-in</language>
+    <lastBuildDate>Thu, 26 Nov 2026 20:13:26 +0000</lastBuildDate>
+    <item>
+      <title>Writing an interrupt-safe ring buffer for UART receive</title>
+      <link>https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</description>
+    </item>
+    <item>
+      <title>What NavIC is, and what it takes to build a receiver for it</title>
+      <link>https://ketuna.online/blog/what-is-navic.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-is-navic.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.</description>
+    </item>
+    <item>
+      <title>Setup and hold time, explained with one flip-flop and a clock edge</title>
+      <link>https://ketuna.online/blog/setup-and-hold-time-explained.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/setup-and-hold-time-explained.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Digital &amp; VLSI design</category>
+      <description>A flip-flop needs its input to sit still for a short window around the clock edge. Here is what that window is, why missing it breaks a design, and how to work out the fastest safe clock by hand.</description>
+    </item>
+  </channel>
+</rss>

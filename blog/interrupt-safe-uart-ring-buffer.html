@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing an interrupt-safe ring buffer for UART receive · Ketuna blog</title>
+  <meta name="description" content="A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing an interrupt-safe ring buffer for UART receive · Ketuna blog">
+  <meta property="og:description" content="A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.">
+  <link rel="canonical" href="https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html">
+  <meta property="og:url" content="https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing an interrupt-safe ring buffer for UART receive",
+  "description": "A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "interrupts, uart, ring buffer, concurrency, embedded c",
+  "articleSection": "Embedded systems",
+  "wordCount": 977,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Writing an interrupt-safe ring buffer for UART receive</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-writer-per-variable">One writer per variable</a></li><li><a href="#free-running-indices">Free-running indices</a></li><li><a href="#the-code">The code</a></li><li><a href="#why-the-memory-ordering-matters">Why the memory ordering matters</a></li><li><a href="#pitfalls-worth-checking">Pitfalls worth checking</a></li><li><a href="#sizing-the-buffer">Sizing the buffer</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Almost every firmware project has the same small problem. Bytes arrive on a UART at a rate you do not control, and the code that parses them runs whenever the main loop gets round to it. The standard answer is a ring buffer: the receive interrupt writes into it and the main loop reads from it. The idea fits in a sentence, yet it is a common source of rare, hard-to-reproduce bugs. This article builds one that is correct, and explains why each line is there.</p>
+<h2 id="one-writer-per-variable">One writer per variable</h2>
+<p>The design rests on a single rule: <strong>every shared variable has exactly one writer.</strong></p>
+<ul>
+<li>The interrupt service routine (ISR) is the <em>producer</em>. It writes the data slots and the <code>head</code> index.</li>
+<li>The main loop is the <em>consumer</em>. It writes only the <code>tail</code> index.</li>
+</ul>
+<p>Each side may read the other's index, but never writes it. Because no variable is written from two places, there is no read-modify-write race and no lock is needed. This is the classic single-producer, single-consumer (SPSC) queue.</p>
+<p>Compare a design with a shared <code>count</code> variable that the ISR increments and the main loop decrements. <code>count--</code> compiles to load, subtract, store. If the interrupt fires between the load and the store, the main loop writes back a stale value and one byte is silently lost or duplicated. That bug might appear once a week under load, which is the worst kind.</p>
+<h2 id="free-running-indices">Free-running indices</h2>
+<p>Instead of wrapping <code>head</code> and <code>tail</code> at the buffer size, let them count up forever and wrap only when you index the array:</p>
+<ul>
+<li>the number of bytes waiting is <code>head - tail</code>;</li>
+<li>the buffer is empty when <code>head == tail</code>;</li>
+<li>the buffer is full when <code>head - tail == SIZE</code>;</li>
+<li>the slot for an index is <code>index &amp; (SIZE - 1)</code>.</li>
+</ul>
+<p>Unsigned subtraction in C is defined modulo 2<sup>32</sup> for a 32-bit type, so <code>head - tail</code> stays correct even after <code>head</code> wraps past the largest value, as long as <code>SIZE</code> divides 2<sup>32</sup>. That is one reason the size must be a power of two; the other is that the mask is cheaper than a modulo. A bonus of this scheme is that all <code>SIZE</code> slots are usable, unlike the "leave one slot empty" approach needed when indices wrap early.</p>
+<h2 id="the-code">The code</h2>
+<p>This version uses C11 atomics, which GCC supports on RISC-V and other common targets. On a 32-bit core, aligned 32-bit loads and stores are single instructions, so these atomics cost little more than ordinary accesses plus ordering.</p>
+<pre><code class="language-c">#include &lt;stdatomic.h&gt;
+#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+#define RB_SIZE 256u                    /* must be a power of two */
+#define RB_MASK (RB_SIZE - 1u)
+
+typedef struct {
+    uint8_t     buf[RB_SIZE];
+    atomic_uint head;                   /* written only by the ISR       */
+    atomic_uint tail;                   /* written only by the main loop */
+    uint32_t    overflows;              /* written only by the ISR       */
+} ringbuf_t;
+
+static ringbuf_t rx;
+
+/* Producer: called from the UART receive interrupt. */
+void uart_rx_isr(void)
+{
+    uint8_t byte = uart_read_data();    /* reading the data register usually clears the RX flag */
+    unsigned head = atomic_load_explicit(&amp;rx.head, memory_order_relaxed);
+    unsigned tail = atomic_load_explicit(&amp;rx.tail, memory_order_acquire);
+
+    if (head - tail == RB_SIZE) {       /* full: drop the new byte and count it */
+        rx.overflows++;
+        return;
+    }
+    rx.buf[head &amp; RB_MASK] = byte;
+    atomic_store_explicit(&amp;rx.head, head + 1u, memory_order_release);
+}
+
+/* Consumer: called from the main loop. Returns false when empty. */
+bool rb_get(uint8_t *out)
+{
+    unsigned tail = atomic_load_explicit(&amp;rx.tail, memory_order_relaxed);
+    unsigned head = atomic_load_explicit(&amp;rx.head, memory_order_acquire);
+
+    if (head == tail)
+        return false;
+    *out = rx.buf[tail &amp; RB_MASK];
+    atomic_store_explicit(&amp;rx.tail, tail + 1u, memory_order_release);
+    return true;
+}
+</code></pre>
+<p>Here <code>uart_read_data()</code> stands in for your driver's register read.</p>
+<h2 id="why-the-memory-ordering-matters">Why the memory ordering matters</h2>
+<p>The data slot <code>buf[...]</code> is an ordinary array. Without guidance, the compiler is free to move the store to <code>buf</code> <em>after</em> the store to <code>head</code>, because to a single thread the order looks irrelevant. If that happens, the main loop can see the new <code>head</code>, read the slot and get stale data.</p>
+<p>The <strong>release</strong> store on <code>head</code> forbids that: every write before it, including the data byte, must be visible before the new <code>head</code> is. The <strong>acquire</strong> load of <code>head</code> in <code>rb_get</code> is the matching half, so reads of the slot cannot be hoisted above it. The same pairing on <code>tail</code> protects the producer from overwriting a slot the consumer is still reading.</p>
+<p>You will often see this written with <code>volatile</code> indices instead. <code>volatile</code> stops the compiler from caching the index in a register, which is necessary, but it does not order the non-volatile array accesses around it. If you use <code>volatile</code>, add a compiler barrier such as <code>__asm__ volatile ("" ::: "memory")</code> before publishing <code>head</code>. On a simple single-core microcontroller that is enough; on parts with caches, DMA or several cores, prefer the atomics, which also emit any hardware fences the target needs.</p>
+<h2 id="pitfalls-worth-checking">Pitfalls worth checking</h2>
+<ul>
+<li><strong>Index width on small cores.</strong> On an 8-bit microcontroller a 32-bit index is not read in one instruction, so the main loop can read half of an old value and half of a new one. Use 8-bit indices with a size of at most 128, or briefly mask interrupts around the read.</li>
+<li><strong>Overflow policy.</strong> "Overwrite the oldest byte" sounds friendly, but it means the ISR must move <code>tail</code>, which breaks the one-writer rule. Drop the new byte and count overflows instead, then size the buffer so the counter stays at zero.</li>
+<li><strong>Error flags.</strong> Framing, parity and overrun errors are usually reported in a status register. Read and clear them in the ISR, or the interrupt may keep firing.</li>
+</ul>
+<h2 id="sizing-the-buffer">Sizing the buffer</h2>
+<p>With the common 8N1 format, each byte takes 10 bit times on the wire: start bit, 8 data bits, stop bit. At 115200 baud that is at most 11,520 bytes per second. If the main loop can be away for 10 ms in the worst case, up to about 116 bytes can arrive in that gap. A 256-byte buffer covers it with roughly two times margin. Measure the real worst-case loop time rather than guessing; the <code>overflows</code> counter tells you if you got it wrong.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile the buffer for your laptop with <code>gcc</code> and write host unit tests: fill it to exactly full, check that the next byte is dropped, drain it, and repeat. Start <code>head</code> and <code>tail</code> near <code>UINT32_MAX</code> so the wrap is exercised in the first few operations.</li>
+<li>Simulate an interrupt arriving at the worst moment by calling <code>uart_rx_isr()</code> between the steps of <code>rb_get()</code> in a test, using a fake <code>uart_read_data()</code>.</li>
+<li>Run it on an emulated board. <strong>QEMU</strong>'s RISC-V <code>virt</code> machine has a 16550-style UART, and <strong>Renode</strong> can script long streams of input. Send bursts larger than the buffer and confirm that the overflow count matches what you expect.</li>
+</ol>
+<p>Write the buffer by hand first. Then ask an AI assistant to write one and review its output against the one-writer rule and the ordering rules above; it is a good test of both the tool and your understanding.</p>
+        <ul class="tags" aria-label="Tags"><li>interrupts</li><li>uart</li><li>ring buffer</li><li>concurrency</li><li>embedded c</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        
+      </div>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

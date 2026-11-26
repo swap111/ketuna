@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Resources · Ketuna</title>
-  <meta name="description" content="The open-source toolchain, the 100 study guides in 8 areas, the labs by track, the quiz bank and the slide decks behind Ketuna's programs.">
+  <meta name="description" content="Ketuna's open-source toolchain grouped by job, 100 study guides in 8 areas, labs by track, quizzes, slides, the admission test format and the blog.">
   <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Ketuna">
   <meta property="og:title" content="Resources · Ketuna">
-  <meta property="og:description" content="The open-source toolchain, the 100 study guides in 8 areas, the labs by track, the quiz bank and the slide decks behind Ketuna's programs.">
+  <meta property="og:description" content="Ketuna's open-source toolchain grouped by job, 100 study guides in 8 areas, labs by track, quizzes, slides, the admission test format and the blog.">
   <link rel="canonical" href="https://ketuna.online/resources.html">
   <meta property="og:url" content="https://ketuna.online/resources.html">
   <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
@@ -29,6 +29,7 @@
         <a href="about.html">About</a>
         <a href="programs.html">Programs</a>
         <a href="projects.html">Projects</a>
+        <a href="blog/index.html">Blog</a>
         <a href="mentoring.html">Mentoring</a>
         <a href="partners.html">Partners</a>
         <a href="workshop.html">Free workshop</a>
@@ -42,111 +43,142 @@
         <div>
           <p class="eyebrow">Resources</p>
           <h1>What the programs are built on</h1>
-          <p class="lede">An open-source toolchain, 100 study guides, labs with automated checks, a quiz bank and slide decks. The course materials themselves are given to enrolled students and partner institutions; this page describes what is in them.</p>
-          <div class="cta-row">
-            <a class="btn btn-ghost" href="#toolchain">Toolchain</a>
-            <a class="btn btn-ghost" href="#guides">Guides</a>
-            <a class="btn btn-ghost" href="#labs">Labs</a>
-            <a class="btn btn-ghost" href="#quizzes">Quizzes and slides</a>
-          </div>
+          <p class="lede">Open-source tools you can keep, 100 study guides, labs with automated checks, quizzes and slides. The materials go to enrolled students and partner institutions; this page shows what is in them.</p>
         </div>
       </div>
     </section>
 
-    <section class="section" id="toolchain">
+    <nav class="pillnav" aria-label="On this page">
+      <div class="wrap">
+        <ul>
+          <li><a href="#toolchain">Toolchain</a></li>
+          <li><a href="#guides">Guides</a></li>
+          <li><a href="#labs">Labs</a></li>
+          <li><a href="#practice">Practice</a></li>
+          <li><a href="#blog">Blog</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <section class="section tight" id="toolchain">
       <div class="wrap">
         <span class="kicker" aria-hidden="true"></span>
-        <h2>The open-source toolchain</h2>
-        <p class="section-intro">Everything you learn on, you can install at home and keep. No licences, no licence servers.</p>
-
-        <h3>Foundations</h3>
-        <dl class="toollist">
-          <div><dt>Linux (native or WSL2)</dt><dd>The shell every engineering flow runs in.</dd></div>
-          <div><dt>Git</dt><dd>Version control, pull requests and code review; the base of your portfolio.</dd></div>
-          <div><dt>Python 3</dt><dd>Scripting, testbenches, reference models, checkers and plots.</dd></div>
-          <div><dt>Docker</dt><dd>The pinned lab image, so everyone runs the same tool versions.</dd></div>
-        </dl>
-
-        <h3 class="mt">Design and verification</h3>
-        <dl class="toollist">
-          <div><dt>Icarus Verilog</dt><dd>Fast event-driven Verilog simulator for everyday labs.</dd></div>
-          <div><dt>Verilator</dt><dd>Lint and high-speed simulation of synthesizable RTL.</dd></div>
-          <div><dt>GTKWave / Surfer</dt><dd>Waveform viewers for debugging simulations.</dd></div>
-          <div><dt>cocotb</dt><dd>Testbenches written in Python, with coroutines and scoreboards.</dd></div>
-          <div><dt>pyuvm</dt><dd>UVM concepts (sequences, drivers, monitors) in Python.</dd></div>
-          <div><dt>SymbiYosys</dt><dd>Formal verification: prove properties, find counterexamples.</dd></div>
-          <div><dt>Verible</dt><dd>SystemVerilog style linting and formatting.</dd></div>
-        </dl>
-
-        <h3 class="mt">Physical design and tape-out</h3>
-        <dl class="toollist">
-          <div><dt>Yosys</dt><dd>Logic synthesis from RTL to standard cells.</dd></div>
-          <div><dt>OpenROAD</dt><dd>Floorplanning, placement, clock tree and routing.</dd></div>
-          <div><dt>LibreLane</dt><dd>The complete RTL-to-GDS flow that ties the tools together.</dd></div>
-          <div><dt>OpenSTA</dt><dd>Static timing analysis: setup, hold and corners.</dd></div>
-          <div><dt>Magic</dt><dd>Layout editing, DRC and extraction.</dd></div>
-          <div><dt>KLayout</dt><dd>Layout viewing and DRC.</dd></div>
-          <div><dt>Netgen</dt><dd>LVS: does the layout match the netlist?</dd></div>
-          <div><dt>Open PDKs (sky130, gf180, IHP SG13G2)</dt><dd>Real process design kits you can tape out on.</dd></div>
-          <div><dt>Tiny Tapeout flow</dt><dd>Shared-shuttle templates that harden a small design in CI.</dd></div>
-        </dl>
-
-        <h3 class="mt">Analog and mixed-signal <span class="tag planned">Coming later</span></h3>
-        <dl class="toollist">
-          <div><dt>Xschem</dt><dd>Schematic capture for analog circuits.</dd></div>
-          <div><dt>ngspice</dt><dd>Circuit simulation: DC, AC, transient, corners.</dd></div>
-        </dl>
-
-        <h3 class="mt">Embedded and edge AI</h3>
-        <dl class="toollist">
-          <div><dt>GCC for RISC-V</dt><dd>Compiler and linker for bare-metal firmware.</dd></div>
-          <div><dt>QEMU</dt><dd>Emulated RISC-V boards for firmware without hardware.</dd></div>
-          <div><dt>Renode</dt><dd>Whole-system simulation for firmware testing.</dd></div>
-          <div><dt>Zephyr</dt><dd>RTOS with devicetree, Kconfig and a driver model.</dd></div>
-          <div><dt>FreeRTOS</dt><dd>A small, widely used RTOS kernel to compare against.</dd></div>
-          <div><dt>OpenOCD</dt><dd>On-chip debugging and flashing over JTAG/SWD.</dd></div>
-          <div><dt>KiCad</dt><dd>Schematic capture and PCB layout.</dd></div>
-          <div><dt>TensorFlow Lite Micro, PyTorch, numpy</dt><dd>Train, quantize and run small models on microcontrollers.</dd></div>
-          <div><dt>Yosys + nextpnr</dt><dd>Open FPGA flow for the capstone board.</dd></div>
-        </dl>
-
-        <h3 class="mt">Systems and product</h3>
-        <dl class="toollist">
-          <div><dt>Eclipse Capella</dt><dd>Model-based systems engineering (optional).</dd></div>
-          <div><dt>draw.io</dt><dd>Architecture and block diagrams.</dd></div>
-          <div><dt>LibreOffice</dt><dd>Budgets, BOMs and documents.</dd></div>
-          <div><dt>OpenProject / Taiga</dt><dd>Sprint boards and burndown for the professional layer.</dd></div>
-        </dl>
+        <h2>Toolchain, by job</h2>
+        <p class="section-intro">Everything is open source and installs at home; one pinned Docker image keeps everyone on the same versions.</p>
+        <div class="toolgrid">
+          <div class="table-wrap tooltable"><table>
+            <caption>Simulate &amp; lint</caption>
+            <tbody>
+              <tr><th scope="row">Icarus Verilog</th><td>Everyday Verilog simulation</td></tr>
+              <tr><th scope="row">Verilator</th><td>Lint and fast RTL simulation</td></tr>
+              <tr><th scope="row">GTKWave / Surfer</th><td>Waveform viewing</td></tr>
+              <tr><th scope="row">Verible</th><td>SystemVerilog lint and formatting</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Verify</caption>
+            <tbody>
+              <tr><th scope="row">cocotb</th><td>Testbenches in Python</td></tr>
+              <tr><th scope="row">pyuvm</th><td>UVM structure in Python</td></tr>
+              <tr><th scope="row">Python 3</th><td>Reference models, checkers, plots</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Synthesise &amp; formal</caption>
+            <tbody>
+              <tr><th scope="row">Yosys</th><td>Synthesis to standard cells</td></tr>
+              <tr><th scope="row">SymbiYosys</th><td>Formal proofs and counterexamples</td></tr>
+              <tr><th scope="row">Yosys + nextpnr</th><td>Open FPGA flow for the capstone board</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Physical design &amp; PDKs</caption>
+            <tbody>
+              <tr><th scope="row">LibreLane</th><td>The complete RTL-to-GDS flow</td></tr>
+              <tr><th scope="row">OpenROAD</th><td>Floorplan, place, clock tree, route</td></tr>
+              <tr><th scope="row">OpenSTA</th><td>Timing: setup, hold, corners</td></tr>
+              <tr><th scope="row">Magic</th><td>Layout, DRC, extraction</td></tr>
+              <tr><th scope="row">KLayout</th><td>Layout viewing and DRC</td></tr>
+              <tr><th scope="row">Netgen</th><td>LVS: layout vs netlist</td></tr>
+              <tr><th scope="row">sky130, gf180, IHP SG13G2</th><td>Open PDKs you can tape out on</td></tr>
+              <tr><th scope="row">Tiny Tapeout flow</th><td>Shared-shuttle template, hardened in CI</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Analog <span class="tag planned">Coming later</span></caption>
+            <tbody>
+              <tr><th scope="row">Xschem</th><td>Schematic capture</td></tr>
+              <tr><th scope="row">ngspice</th><td>DC, AC, transient and corner simulation</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Embedded &amp; RTOS</caption>
+            <tbody>
+              <tr><th scope="row">GCC for RISC-V</th><td>Compile and link bare-metal firmware</td></tr>
+              <tr><th scope="row">QEMU</th><td>Emulated RISC-V boards</td></tr>
+              <tr><th scope="row">Renode</th><td>Whole-system simulation for firmware tests</td></tr>
+              <tr><th scope="row">Zephyr</th><td>RTOS with devicetree and Kconfig</td></tr>
+              <tr><th scope="row">FreeRTOS</th><td>A small RTOS kernel to compare against</td></tr>
+              <tr><th scope="row">OpenOCD</th><td>Debug and flash over JTAG/SWD</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Edge AI</caption>
+            <tbody>
+              <tr><th scope="row">PyTorch</th><td>Train small models</td></tr>
+              <tr><th scope="row">numpy</th><td>Quantization maths and reference checks</td></tr>
+              <tr><th scope="row">TensorFlow Lite Micro</th><td>Run models on microcontrollers</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Product &amp; PCB</caption>
+            <tbody>
+              <tr><th scope="row">KiCad</th><td>Schematic and PCB layout</td></tr>
+              <tr><th scope="row">Eclipse Capella</th><td>Model-based systems engineering (optional)</td></tr>
+              <tr><th scope="row">OpenProject / Taiga</th><td>Sprint boards and burndown</td></tr>
+            </tbody>
+          </table></div>
+          <div class="table-wrap tooltable"><table>
+            <caption>Everyday engineering</caption>
+            <tbody>
+              <tr><th scope="row">Linux / WSL2</th><td>The shell every flow runs in</td></tr>
+              <tr><th scope="row">Git</th><td>Version control and code review</td></tr>
+              <tr><th scope="row">Docker</th><td>The pinned lab image</td></tr>
+              <tr><th scope="row">draw.io</th><td>Block and architecture diagrams</td></tr>
+              <tr><th scope="row">LibreOffice</th><td>Budgets, BOMs, documents</td></tr>
+            </tbody>
+          </table></div>
+        </div>
       </div>
     </section>
 
-    <section class="section alt" id="guides">
+    <section class="section tight alt" id="guides">
       <div class="wrap">
         <span class="kicker" aria-hidden="true"></span>
         <h2>100 study guides in 8 areas</h2>
-        <p class="section-intro">Short, self-contained guides behind the labs, about two pages each: what it is, a diagram, key ideas, a worked example, common mistakes and "check yourself" questions. Mentors assign them as pre-reading; they double as interview preparation.</p>
-        <div class="grid grid-2">
-          <div class="card"><span class="tag">15 guides</span><h3>01 Digital design</h3><p class="small">Number systems, Boolean algebra, adders, setup and hold, FSMs, synthesizable Verilog, reset strategies, clock domain crossing, FIFOs, pipelining, low-power design.</p></div>
-          <div class="card"><span class="tag">10 guides</span><h3>02 Computer architecture and RISC-V</h3><p class="small">ISA basics, RV32I, single-cycle to pipelined CPUs, hazards and forwarding, branch prediction, caches, virtual memory, interrupts and CSRs, on-chip buses, SoC memory maps.</p></div>
-          <div class="card"><span class="tag">20 guides</span><h3>03 Verification</h3><p class="small">Verification planning, testbench architecture, constrained-random testing, functional and code coverage, cocotb, UVM and pyuvm, scoreboards, assertions, formal, equivalence checking, gate-level simulation, UPF.</p></div>
-          <div class="card"><span class="tag">15 guides</span><h3>04 Physical design, timing and test</h3><p class="small">RTL to GDS, synthesis, STA and SDC, floorplanning, placement, clock trees, routing, physical verification, sign-off, IR drop, DFT and scan, MBIST and JTAG, open PDKs, tape-out and bring-up.</p></div>
-          <div class="card"><span class="tag">10 guides</span><h3>05 Devices, analog and process</h3><p class="small">The MOSFET, the CMOS inverter, fabrication, PVT corners, current mirrors and amplifiers, op-amps and comparators, data converters, PLLs, analog layout, packaging and chiplets.</p></div>
-          <div class="card"><span class="tag">15 guides</span><h3>06 Embedded systems</h3><p class="small">MCU architecture, embedded C, boot and startup, linker scripts, interrupts, UART/SPI/I2C, timers and watchdogs, DMA, RTOS concepts, Zephyr, drivers, low-power firmware, bootloaders, debugging, firmware testing.</p></div>
-          <div class="card"><span class="tag">5 guides</span><h3>07 Edge AI and hardware for ML</h3><p class="small">Neural networks for hardware engineers, quantization, TinyML on microcontrollers, MAC and systolic arrays, hardware/software co-design.</p></div>
-          <div class="card"><span class="tag">10 guides</span><h3>08 Systems engineering and professional skills</h3><p class="small">Requirements and traceability, MBSE, FMEA, product lifecycle and DFM, agile for hardware, estimation and risk, technical writing, design reviews, Git collaboration, using AI tools responsibly.</p></div>
+        <p class="section-intro">About two pages each: a diagram, key ideas, a worked example, common mistakes and check-yourself questions.</p>
+        <div class="grid grid-4">
+          <div class="card areacard"><h3>Digital design <span class="count">15</span></h3><ul><li>Setup, hold and metastability</li><li>Clock domain crossing</li><li>Synthesizable Verilog style</li></ul></div>
+          <div class="card areacard"><h3>Architecture &amp; RISC-V <span class="count">10</span></h3><ul><li>RV32I and extensions</li><li>Pipeline hazards and forwarding</li><li>Caches</li></ul></div>
+          <div class="card areacard"><h3>Verification <span class="count">20</span></h3><ul><li>Verification planning</li><li>Functional coverage</li><li>Formal and assertions</li></ul></div>
+          <div class="card areacard"><h3>Physical design, timing &amp; test <span class="count">15</span></h3><ul><li>Static timing and SDC</li><li>Clock tree synthesis</li><li>Tape-out and bring-up</li></ul></div>
+          <div class="card areacard"><h3>Devices, analog &amp; process <span class="count">10</span></h3><ul><li>MOSFET and CMOS inverter</li><li>PVT corners</li><li>Data converters</li></ul></div>
+          <div class="card areacard"><h3>Embedded systems <span class="count">15</span></h3><ul><li>Boot and linker scripts</li><li>Interrupts and DMA</li><li>Zephyr devicetree</li></ul></div>
+          <div class="card areacard"><h3>Edge AI &amp; ML hardware <span class="count">5</span></h3><ul><li>Quantization</li><li>TinyML on microcontrollers</li><li>MAC and systolic arrays</li></ul></div>
+          <div class="card areacard"><h3>Systems &amp; professional <span class="count">10</span></h3><ul><li>Requirements and traceability</li><li>FMEA</li><li>Design reviews</li></ul></div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="labs">
+    <section class="section tight" id="labs">
       <div class="wrap">
         <span class="kicker" aria-hidden="true"></span>
         <h2>Labs by track</h2>
-        <p class="section-intro">Each lab is done by hand, then with AI, and checked automatically. Titles only; the labs are given to enrolled students.</p>
-        <div class="grid grid-3">
-          <div class="card">
-            <h3>Common core</h3>
-            <ul class="ticks small">
+        <p class="section-intro">Each lab is done by hand, then with AI, and checked automatically. Titles only.</p>
+        <div class="labtracks">
+          <details>
+            <summary>Common core <span class="count">7 labs</span></summary>
+            <ol>
               <li>Warm-up: shell, Git and Python</li>
               <li>8-bit ALU, tested exhaustively</li>
               <li>Parameterized counter</li>
@@ -154,84 +186,100 @@
               <li>UART transmitter</li>
               <li>Synchronous FIFO</li>
               <li>Single-cycle RV32I core and SoC</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3>Track A · Design and verification</h3>
-            <ul class="ticks small">
+            </ol>
+          </details>
+          <details>
+            <summary>Track A · Design &amp; verification <span class="count">6 labs</span></summary>
+            <ol>
               <li>Dual-clock FIFO and CDC</li>
               <li>UART TX/RX coverage closure</li>
               <li>APB register block with pyuvm</li>
               <li>Formal proofs of FIFO properties</li>
               <li>ISA tests with a lockstep reference</li>
               <li>Timer peripheral: lint, regression, CI</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3>Track B · Physical design</h3>
-            <ul class="ticks small">
+            </ol>
+          </details>
+          <details>
+            <summary>Track B · Physical design <span class="count">6 labs</span></summary>
+            <ol>
               <li>Synthesis to sky130 standard cells</li>
               <li>Floorplan, power grid and placement</li>
               <li>Clock tree, routing and timing repair</li>
               <li>Static timing across corners</li>
               <li>DRC and LVS with seeded errors</li>
               <li>Tape-out readiness and precheck</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3>Track D · Embedded and edge AI</h3>
-            <ul class="ticks small">
+            </ol>
+          </details>
+          <details>
+            <summary>Track C · Analog &amp; mixed-signal <span class="tag planned">Coming later</span></summary>
+            <ol>
+              <li>Labs arrive with the track, in a later cohort</li>
+            </ol>
+          </details>
+          <details>
+            <summary>Track D · Embedded &amp; edge AI <span class="count">6 labs</span></summary>
+            <ol>
               <li>Bare-metal startup and UART</li>
               <li>Interrupts and a lock-free ring buffer</li>
               <li>Preemptive scheduling and response-time analysis</li>
               <li>PCB design review</li>
               <li>TinyML: int8 inference in C</li>
               <li>Firmware unit tests, mutation testing, CI</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3>Track E · Systems and product</h3>
-            <ul class="ticks small">
+            </ol>
+          </details>
+          <details>
+            <summary>Track E · Systems &amp; product <span class="count">6 labs</span></summary>
+            <ol>
               <li>Requirements and traceability</li>
               <li>Trade study and architecture</li>
               <li>Power, latency, mass and cost budgets</li>
               <li>FMEA</li>
               <li>BOM costing and test strategy</li>
               <li>V&amp;V plan and product review</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3>Also included</h3>
-            <ul class="ticks small">
+            </ol>
+          </details>
+          <details>
+            <summary>Also included</summary>
+            <ol>
               <li>8 bug-hunt exercises: find, prove, fix</li>
               <li>4 capstone kits with data sets and reference models</li>
-              <li>Advanced electives: gate-level simulation, portable stimulus, UPF</li>
+              <li>Electives: gate-level simulation, portable stimulus, UPF</li>
               <li>Templates: spec, test plan, review checklist, AI log, status, postmortem</li>
               <li>Interview question bank</li>
-            </ul>
-          </div>
+            </ol>
+          </details>
         </div>
-        <p class="small muted mt">Track C (analog and mixed-signal) labs come with the track, in a later cohort.</p>
       </div>
     </section>
 
-    <section class="section alt" id="quizzes">
+    <section class="section tight alt" id="practice">
       <div class="wrap">
         <span class="kicker" aria-hidden="true"></span>
-        <h2>Quiz bank and slide decks</h2>
-        <div class="grid grid-2">
+        <h2>Practice</h2>
+        <div class="grid grid-3">
           <div class="card">
-            <h3>400-question quiz bank</h3>
-            <p>Four auto-graded questions per guide, built from its "check yourself" questions, core ideas and worked example. Weekly quizzes per track, taken in the terminal or on paper. Every wrong answer comes back with a one-line explanation. Single-choice, select-all and numeric questions.</p>
+            <h3>Quiz bank</h3>
+            <p class="small muted">400 auto-graded questions, four per guide. Weekly quizzes in the terminal or on paper; every wrong answer comes back with a one-line reason.</p>
           </div>
           <div class="card">
             <h3>Slide decks</h3>
-            <p>One deck per teaching day, written as text so they live next to the labs and guides they teach, with detail kept in speaker notes. The twelve common-core days are ready; track decks follow.</p>
+            <p class="small muted">One deck per teaching day, kept as text next to its lab and guides. The 12 common-core days are ready; track decks follow.</p>
+          </div>
+          <div class="card">
+            <h3>Admission test</h3>
+            <p class="small muted">60 minutes, 100 marks: digital logic, C and Python, a small Verilog module and a Python function. No AI tools. <a href="programs.html#admissions">Format</a></p>
           </div>
         </div>
-        <div class="note">
-          <p><strong>Getting the materials.</strong> The content is not published for download. Enrolled students receive everything for their program, and partner institutions receive what their program uses. To ask about access for your college or company, use the <a href="partners.html#interest">partner form</a>.</p>
-        </div>
+        <p class="small muted mt">Materials are not published for download. Colleges and companies can ask about access through the <a href="partners.html#interest">partner form</a>.</p>
+      </div>
+    </section>
+
+    <section class="section tight" id="blog">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>Blog</h2>
+        <p class="section-intro">Free, practical articles in ten areas, from chip design to careers, each with something to try on open-source tools.</p>
+        <p><a class="btn btn-ghost" href="blog/index.html">Read the blog</a></p>
       </div>
     </section>
   </main>
@@ -250,6 +298,7 @@
         <a href="about.html">About</a>
         <a href="programs.html">Programs</a>
         <a href="projects.html">Projects</a>
+        <a href="blog/index.html">Blog</a>
         <a href="mentoring.html">Mentoring</a>
         <a href="partners.html">Partners</a>
         <a href="workshop.html">Free workshop</a>

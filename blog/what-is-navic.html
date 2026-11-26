@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What NavIC is, and what it takes to build a receiver for it · Ketuna blog</title>
+  <meta name="description" content="NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What NavIC is, and what it takes to build a receiver for it · Ketuna blog">
+  <meta property="og:description" content="NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-is-navic.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-is-navic.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What NavIC is, and what it takes to build a receiver for it",
+  "description": "NavIC is India's regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "navic, satellite navigation, receivers, rf, signal processing",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1059,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-is-navic.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>What NavIC is, and what it takes to build a receiver for it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#regional-not-global">Regional, not global</a></li><li><a href="#how-any-satellite-receiver-finds-its-position">How any satellite receiver finds its position</a></li><li><a href="#from-antenna-to-position-the-receiver-chain">From antenna to position: the receiver chain</a></li><li><a href="#what-building-a-navic-receiver-chip-involves">What building a NavIC receiver chip involves</a></li><li><a href="#why-it-matters">Why it matters</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When your phone shows your position on a map, it is listening to satellites. Most people say "GPS", but GPS is only one of several satellite navigation systems. India operates its own: <strong>NavIC</strong>, short for <em>Navigation with Indian Constellation</em>. It was developed by the Indian Space Research Organisation and was earlier known as IRNSS, the Indian Regional Navigation Satellite System. This article explains what makes NavIC different, how satellite positioning works in general, and what an engineer has to build to receive it.</p>
+<h2 id="regional-not-global">Regional, not global</h2>
+<p>GPS, Galileo, GLONASS and BeiDou are <strong>global</strong> systems: their satellites circle the Earth in medium orbits so that enough of them are visible from anywhere. NavIC is <strong>regional</strong>. It is designed to serve India and a region around it, and its satellites sit in geostationary and inclined geosynchronous orbits. Seen from the ground, such satellites stay over roughly the same part of the sky instead of rising and setting, so across the service area they are visible all day, often high above the horizon where buildings and terrain block them less.</p>
+<p>The trade-off is coverage: far outside the region, NavIC satellites are low on the horizon or not visible. That is why receivers usually combine NavIC with one or more global systems rather than using it alone.</p>
+<p>NavIC provides an open <strong>Standard Positioning Service</strong> for everyone and a <strong>Restricted Service</strong> for authorised users. Its original signals are in two bands: <strong>L5</strong>, centred at 1176.45 MHz, and <strong>S band</strong>, centred at 2492.028 MHz. Newer satellites also add a signal in the <strong>L1</strong> band, the band most consumer receivers already listen to, which makes it easier to add NavIC support to existing designs.</p>
+<h2 id="how-any-satellite-receiver-finds-its-position">How any satellite receiver finds its position</h2>
+<p>Every navigation satellite broadcasts a signal that carries precise timing plus data describing its own orbit. A receiver measures <em>when</em> each signal arrived. Multiplying the travel time by the speed of light gives a distance to that satellite.</p>
+<p>There is a catch: the receiver's own clock is cheap and not synchronised to the satellites, so every measured distance is off by the same unknown clock error. These biased distances are called <strong>pseudoranges</strong>. The receiver therefore has four unknowns, its three position coordinates plus its clock error, and needs at least four satellites to solve for them. More satellites make the solution more robust, which is another reason to combine systems.</p>
+<p>Using two frequencies helps too. The ionosphere delays radio signals by an amount that depends on frequency, so a receiver that measures the same satellite on two bands, such as NavIC's L5 and S, can estimate that delay and remove much of it.</p>
+<h2 id="from-antenna-to-position-the-receiver-chain">From antenna to position: the receiver chain</h2>
+<p>A NavIC receiver, whether on a dedicated chip or inside a larger system-on-chip, goes through the same stages as any satellite receiver:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What it does</th>
+<th>Usually built as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Antenna and low-noise amplifier</td>
+<td>Picks up signals that arrive far below the noise floor and amplifies them with minimal added noise</td>
+<td>Analog RF</td>
+</tr>
+<tr>
+<td>Filtering and down-conversion</td>
+<td>Selects each band and shifts it to a low intermediate frequency</td>
+<td>Analog RF</td>
+</tr>
+<tr>
+<td>Analog-to-digital converter</td>
+<td>Samples the signal, often with only a few bits</td>
+<td>Mixed-signal</td>
+</tr>
+<tr>
+<td>Acquisition</td>
+<td>Searches for each satellite's code timing and Doppler shift</td>
+<td>Digital hardware</td>
+</tr>
+<tr>
+<td>Tracking</td>
+<td>Keeps code and carrier locked as the satellite and receiver move</td>
+<td>Hardware correlators plus firmware loops</td>
+</tr>
+<tr>
+<td>Data decoding and solution</td>
+<td>Reads orbit and time data, then computes position, velocity and time</td>
+<td>Firmware on a processor</td>
+</tr>
+</tbody>
+</table></div>
+<p>The signal is buried in noise when it arrives. What makes reception possible is that each satellite spreads its signal with a known pseudo-random <strong>ranging code</strong>. Multiplying the incoming samples by a local copy of the code and summing, which is called correlation, adds up the tiny signal coherently while the noise averages out. The correlation peaks only when the local copy lines up with the received code, and that alignment gives the timing measurement.</p>
+<p>You can see the effect in a few lines of Python. The code below uses a random ±1 sequence as a stand-in for a ranging code; it is not a real NavIC code.</p>
+<pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(1)
+N = 1023                                   # chips in one code period
+code = rng.choice([-1.0, 1.0], N)          # stand-in code, not a real NavIC code
+true_shift = 357
+rx = np.roll(code, true_shift) + rng.normal(0.0, 3.0, N)   # signal weaker than the noise
+
+# circular correlation against every code phase at once, using the FFT
+corr = np.fft.ifft(np.fft.fft(rx) * np.conj(np.fft.fft(code))).real
+peak = int(np.argmax(corr))
+print(peak, round(corr[peak] / np.std(np.delete(corr, peak)), 1))
+</code></pre>
+<p>Each received sample is mostly noise, yet the script prints <code>357 9.6</code>: it finds the right code phase, with a peak about ten times the spread of the other correlation values. A real receiver must also search over Doppler frequency, because satellite motion shifts the carrier, so acquisition is a two-dimensional search over code phase and frequency.</p>
+<h2 id="what-building-a-navic-receiver-chip-involves">What building a NavIC receiver chip involves</h2>
+<p>Designing such a chip touches almost every discipline in electronics:</p>
+<ul>
+<li><strong>RF and analog:</strong> low-noise front ends for L5 and S band, and L1 if supported, with filters, mixers, a frequency synthesiser and ADCs.</li>
+<li><strong>Digital design:</strong> many parallel correlator channels running at the sample rate, plus acquisition engines. These are classic RTL blocks that need careful verification.</li>
+<li><strong>Firmware:</strong> tracking loops, navigation message decoding and the position solution, often on a small embedded processor such as a RISC-V core.</li>
+<li><strong>Systems work:</strong> power budgets for battery devices, time to first fix, and testing against recorded or simulated signals.</li>
+</ul>
+<p>That breadth is why a NavIC receiver chip is one of the ten projects on Ketuna's projects page. Like the others it is a work-in-progress concept that starts on a board, moves to an FPGA and points towards a chip.</p>
+<h2 id="why-it-matters">Why it matters</h2>
+<p>A regional system run from within the country gives India a navigation and timing service under its own control, tuned for its region. Timing is as important as position: power grids, telecom networks and financial systems all depend on accurate time, and satellite receivers are a common way to get it. For engineers, NavIC is also a reason to learn RF, signal processing, digital design and firmware together, on a problem with a clear national context.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then add a carrier frequency offset to <code>rx</code> and extend the search over a grid of trial frequencies. Watch the peak vanish when the trial frequency is wrong.</li>
+<li>Read the source of an open-source software receiver such as <strong>GNSS-SDR</strong>. It implements acquisition, tracking and the position solution for global systems, and the structure maps directly onto a NavIC receiver.</li>
+<li>If you have a software-defined radio, record raw samples and experiment with <strong>GNU Radio</strong>. Check that your antenna and front end actually cover the band you want before drawing conclusions from silence.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>navic</li><li>satellite navigation</li><li>receivers</li><li>rf</li><li>signal processing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        
+      </div>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>
