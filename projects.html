@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects · Ketuna</title>
+  <meta name="description" content="Ten India-relevant product projects Ketuna is developing as the backbone of capstones, mentored student work and partner collaborations. Each climbs from a board to an FPGA to a dedicated chip. Work in progress.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Projects · Ketuna">
+  <meta property="og:description" content="Ten India-relevant product projects Ketuna is developing as the backbone of capstones, mentored student work and partner collaborations. Each climbs from a board to an FPGA to a dedicated chip. Work in progress.">
+  <link rel="canonical" href="https://ketuna.online/projects.html">
+  <meta property="og:url" content="https://ketuna.online/projects.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="projects.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="logo-panel"><img src="assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="programs.html">Programs</a>
+        <a href="projects.html" aria-current="page">Projects</a>
+        <a href="mentoring.html">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html">Free workshop</a>
+        <a href="resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+    <main id="main">
+    <section class="hero page-hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Projects</p>
+          <h1>India-relevant product projects</h1>
+          <p><span class="wip">Work in progress</span></p>
+          <p class="lede">Ten build-it-for-real projects that Ketuna is developing as the backbone of its capstones, mentored student work and partner collaborations. Each one starts as a board built from parts you can buy, and climbs towards a dedicated chip.</p>
+          <div class="note"><p><strong>Status, honestly:</strong> these are concepts and plans, being shaped into project briefs. None is a finished product, and we claim no customers, partners or funding for any of them.</p></div>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#list">See the ten projects</a>
+            <a class="btn btn-ghost" href="#with-us">Work on a project with us</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ladder">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>One ladder for every project</h2>
+        <p class="section-intro">Every project climbs the same three steps, the way many real products grow: from available parts, to programmable logic, to silicon made for the job.</p>
+        <figure class="diagram">
+          <svg class="dg-wide" viewBox="0 0 960 200" role="img" aria-labelledby="ld-t ld-d">
+            <title id="ld-t">The project ladder</title>
+            <desc id="ld-d">Every project climbs the same three steps. Step 1, start with a board: available parts such as a microcontroller, sensors and radio modules, to prove the product works. Step 2, FPGA or prototype: move the demanding part into logic and measure speed, power and cost. Step 3, a dedicated chip: an ASIC, SoC or mixed-signal chip, designed with open-source tools.</desc>
+            <defs><marker id="ld-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="dg-arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+            <rect class="dg-core" x="20" y="70" width="270" height="110" rx="12"/>
+            <rect class="dg-track" x="345" y="45" width="270" height="135" rx="12"/>
+            <rect class="dg-cap" x="670" y="20" width="270" height="160" rx="12"/>
+            <path class="dg-line" d="M292 125H341" marker-end="url(#ld-ar)"/>
+            <path class="dg-line" d="M617 112H666" marker-end="url(#ld-ar)"/>
+            <circle class="dg-amber" cx="48" cy="98" r="15"/><text class="dg-amber-text" x="48" y="103" font-size="15" font-weight="700" text-anchor="middle">1</text>
+            <circle class="dg-amber" cx="373" cy="73" r="15"/><text class="dg-amber-text" x="373" y="78" font-size="15" font-weight="700" text-anchor="middle">2</text>
+            <circle class="dg-amber" cx="698" cy="48" r="15"/><text class="dg-amber-text" x="698" y="53" font-size="15" font-weight="700" text-anchor="middle">3</text>
+            <text class="dg-text" x="72" y="104" font-size="17" font-weight="700">Start with a board</text>
+            <text class="dg-muted" x="40" y="138" font-size="13.5">Available parts: MCU, sensors, radios</text>
+            <text class="dg-muted" x="40" y="160" font-size="13.5">Prove the product works</text>
+            <text class="dg-text" x="397" y="79" font-size="17" font-weight="700">FPGA / prototype</text>
+            <text class="dg-muted" x="365" y="113" font-size="13.5">Move the demanding part into logic</text>
+            <text class="dg-muted" x="365" y="135" font-size="13.5">Measure speed, power and cost</text>
+            <text class="dg-muted" x="365" y="157" font-size="13.5">Verify against a reference model</text>
+            <text class="dg-cap-text" x="722" y="54" font-size="17" font-weight="700">Dedicated chip</text>
+            <text class="dg-cap-text" x="690" y="88" font-size="13.5">ASIC, SoC or mixed-signal</text>
+            <text class="dg-cap-text" x="690" y="110" font-size="13.5">Open-source flow, open PDKs</text>
+            <text class="dg-cap-text" x="690" y="132" font-size="13.5">Lower power and cost,</text>
+            <text class="dg-cap-text" x="690" y="154" font-size="13.5">made for the use case</text>
+          </svg>
+          <svg class="dg-narrow" viewBox="0 0 360 470" role="img" aria-labelledby="ldn-t ldn-d">
+            <title id="ldn-t">The project ladder</title>
+            <desc id="ldn-d">Step 1, start with a board using available parts and prove the product. Step 2, FPGA or prototype: move the demanding part into logic and measure it. Step 3, a dedicated ASIC, SoC or mixed-signal chip.</desc>
+            <defs><marker id="ldn-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="dg-arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+            <rect class="dg-core" x="10" y="10" width="340" height="120" rx="12"/>
+            <rect class="dg-track" x="10" y="170" width="340" height="130" rx="12"/>
+            <rect class="dg-cap" x="10" y="340" width="340" height="120" rx="12"/>
+            <path class="dg-line" d="M180 132V166" marker-end="url(#ldn-ar)"/>
+            <path class="dg-line" d="M180 302V336" marker-end="url(#ldn-ar)"/>
+            <circle class="dg-amber" cx="40" cy="40" r="15"/><text class="dg-amber-text" x="40" y="45" font-size="15" font-weight="700" text-anchor="middle">1</text>
+            <circle class="dg-amber" cx="40" cy="200" r="15"/><text class="dg-amber-text" x="40" y="205" font-size="15" font-weight="700" text-anchor="middle">2</text>
+            <circle class="dg-amber" cx="40" cy="370" r="15"/><text class="dg-amber-text" x="40" y="375" font-size="15" font-weight="700" text-anchor="middle">3</text>
+            <text class="dg-text" x="66" y="46" font-size="18" font-weight="700">Start with a board</text>
+            <text class="dg-muted" x="28" y="82" font-size="15">Available parts: MCU, sensors, radios</text>
+            <text class="dg-muted" x="28" y="106" font-size="15">Prove the product works</text>
+            <text class="dg-text" x="66" y="206" font-size="18" font-weight="700">FPGA / prototype</text>
+            <text class="dg-muted" x="28" y="242" font-size="15">Move the demanding part into logic</text>
+            <text class="dg-muted" x="28" y="266" font-size="15">Measure speed, power and cost</text>
+            <text class="dg-cap-text" x="66" y="376" font-size="18" font-weight="700">Dedicated chip</text>
+            <text class="dg-cap-text" x="28" y="412" font-size="15">ASIC, SoC or mixed-signal</text>
+            <text class="dg-cap-text" x="28" y="436" font-size="15">Open-source flow, open PDKs</text>
+          </svg>
+          <figcaption>Board first, so the product is proven with parts you can buy; FPGA next, so the hard part is measured in logic; a chip last, once the board has shown what the chip must do.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section alt" id="list">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>The ten projects</h2>
+        <p class="section-intro">Each card says why the problem matters in India, where it starts, where it goes next, what you learn, and which Ketuna tracks it draws on: A design and verification, B physical design, C analog and mixed-signal (coming later), D embedded and edge AI, E systems and product.</p>
+        <div class="js-filter" hidden>
+          <p class="small muted" id="filter-label">Filter by domain</p>
+          <ul class="chips" aria-labelledby="filter-label">
+            <li><button type="button" data-filter="all" aria-pressed="true">All</button></li>
+            <li><button type="button" data-filter="Agriculture" aria-pressed="false">Agriculture</button></li>
+            <li><button type="button" data-filter="Energy" aria-pressed="false">Energy</button></li>
+            <li><button type="button" data-filter="Health" aria-pressed="false">Health</button></li>
+            <li><button type="button" data-filter="Mobility" aria-pressed="false">Mobility</button></li>
+            <li><button type="button" data-filter="Navigation" aria-pressed="false">Navigation</button></li>
+            <li><button type="button" data-filter="Industry" aria-pressed="false">Industry</button></li>
+          </ul>
+          <p class="sr-only" aria-live="polite" id="filter-status"></p>
+        </div>
+        <div class="projects">
+          <article class="card project" id="p1" data-domain="Agriculture Mobility">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="15" y="16" width="10" height="8" rx="2"/><path d="M15 17l-6-5M25 17l6-5M15 23l-6 5M25 23l6 5"/><ellipse cx="8" cy="11" rx="5" ry="2"/><ellipse cx="32" cy="11" rx="5" ry="2"/><ellipse cx="8" cy="29" rx="5" ry="2"/><ellipse cx="32" cy="29" rx="5" ry="2"/></svg>
+              <div>
+                <span class="project-num">Project 01</span>
+                <h3>Low-cost, low-power drone controller chip</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Agriculture</span><span class="tag">Mobility</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>India is pushing hard for locally built drones, for agricultural spraying, survey, defence and delivery.</dd></div>
+              <div><dt>Start: board</dt><dd>A flight-controller board: IMU sensor fusion, motor PWM and ESC control, GPS and NavIC.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A dedicated low-power control SoC.</dd></div>
+              <div><dt>What you learn</dt><dd>Real-time control, sensor fusion and CPU design.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p2" data-domain="Agriculture Mobility Industry">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="12" width="24" height="17" rx="3"/><circle cx="17" cy="20.5" r="5"/><path d="M29 17l6-3v13l-6-3"/></svg>
+              <div>
+                <span class="project-num">Project 02</span>
+                <h3>Simple, low-cost vision camera sensor</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Agriculture</span><span class="tag">Mobility</span><span class="tag">Industry</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Useful in agriculture, traffic, retail, security and factory inspection.</dd></div>
+              <div><dt>Start: board</dt><dd>A camera module and a small processor doing basic detection: motion, counting, defects.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>An image-processing pipeline in an FPGA, then an ASIC.</dd></div>
+              <div><dt>What you learn</dt><dd>Image pipelines, low-power AI and interfaces.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI</p>
+          </article>
+          <article class="card project" id="p3" data-domain="Industry Health">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20c3-8 6-8 9 0s6 8 9 0"/><path d="M24 12h4v4h4v4h4"/><rect x="22" y="24" width="14" height="10" rx="2"/><path d="M26 29h6"/></svg>
+              <div>
+                <span class="project-num">Project 03</span>
+                <h3>ADC array for a sensor-fusion controller</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Industry</span><span class="tag">Health</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Many Indian industrial and medical products need multi-channel, precise, low-cost sensing.</dd></div>
+              <div><dt>Start: board</dt><dd>A board with an external ADC array and a microcontroller doing the fusion.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A mixed-signal chip: an ADC array plus a digital fusion engine.</dd></div>
+              <div><dt>What you learn</dt><dd>Analog and mixed-signal design, a skill that is rare and valuable in India.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Analog / mixed-signal (coming later), Embedded &amp; edge AI</p>
+          </article>
+          <article class="card project" id="p4" data-domain="Navigation Mobility">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="20" cy="20" r="14"/><path d="M20 9l4 11-4 11-4-11z"/><circle cx="20" cy="20" r="1.5"/></svg>
+              <div>
+                <span class="project-num">Project 04</span>
+                <h3>NavIC receiver chip</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Navigation</span><span class="tag">Mobility</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>NavIC is India's own navigation system, and the government wants it in phones, vehicles and devices. Very few low-cost NavIC chips exist.</dd></div>
+              <div><dt>Start: board</dt><dd>A software-defined-radio (SDR) NavIC receiver on an FPGA.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A baseband chip.</dd></div>
+              <div><dt>What you learn</dt><dd>Signal processing and receiver design, from FPGA to silicon, on a strategic and visible problem.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI</p>
+          </article>
+          <article class="card project" id="p5" data-domain="Energy">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="5" width="24" height="30" rx="3"/><rect x="12" y="10" width="16" height="8" rx="1.5"/><path d="M21 22l-4 6h5l-3 5"/></svg>
+              <div>
+                <span class="project-num">Project 05</span>
+                <h3>Smart energy meter SoC</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Energy</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Crores of smart meters are being deployed across India under the national rollout, and today they mostly use imported chips. Volumes are large and the users are clear: meter makers and electricity distribution companies (DISCOMs).</dd></div>
+              <div><dt>Start: board</dt><dd>A board with a metering front-end (ADC), a secure microcontroller and a communication module.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>One SoC with the metering front-end, a secure MCU and communication.</dd></div>
+              <div><dt>What you learn</dt><dd>Precision measurement, embedded security and communication.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p6" data-domain="Energy Mobility">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="12" width="27" height="16" rx="3"/><path d="M32 17h3v6h-3"/><path d="M10 17v6M15 17v6M20 17v6"/></svg>
+              <div>
+                <span class="project-num">Project 06</span>
+                <h3>Battery management (BMS) IC for EVs and e-rickshaws</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Energy</span><span class="tag">Mobility</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Electric two- and three-wheelers and e-rickshaws are growing very fast, and battery safety problems are common.</dd></div>
+              <div><dt>Start: board</dt><dd>A BMS board: cell monitoring, balancing and protection.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A cell-monitor ASIC.</dd></div>
+              <div><dt>What you learn</dt><dd>Precise measurement, protection logic and safety thinking, for a high-demand, very India-relevant product.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p7" data-domain="Energy Agriculture">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="20" cy="20" r="13"/><circle cx="20" cy="20" r="3"/><path d="M20 17c0-6 3-9 6-8M23 21c5 3 6 7 4 9M17 21c-5 3-9 2-10 0"/></svg>
+              <div>
+                <span class="project-num">Project 07</span>
+                <h3>BLDC motor controller chip</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Energy</span><span class="tag">Agriculture</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Energy-efficient fans, pumps and appliances are in big demand in Indian homes and agriculture.</dd></div>
+              <div><dt>Start: board</dt><dd>A motor-control board with a microcontroller and gate drivers.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A simple, low-cost, high-volume motor-control chip: a good first commercial product.</dd></div>
+              <div><dt>What you learn</dt><dd>Motor-control loops, power-electronics basics and cost-driven chip design.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p8" data-domain="Health">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 33s-13-8-13-17a7 7 0 0 1 13-3 7 7 0 0 1 13 3c0 9-13 17-13 17z"/><path d="M10 20h6l2-4 3 8 2-4h7"/></svg>
+              <div>
+                <span class="project-num">Project 08</span>
+                <h3>Low-cost health wearable front-end</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Health</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>ECG, SpO2 and temperature sensing for rural health and telemedicine.</dd></div>
+              <div><dt>Start: board</dt><dd>A board with an analog front-end and BLE.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>A low-power biomedical analog front-end (AFE) chip.</dd></div>
+              <div><dt>What you learn</dt><dd>Biomedical signals, low-power analog design and wireless links.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p9" data-domain="Agriculture">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 22v13M15 35h10"/><circle cx="20" cy="19" r="3"/><path d="M13 12a10 10 0 0 0 0 14M27 12a10 10 0 0 1 0 14M8 7a17 17 0 0 0 0 24M32 7a17 17 0 0 1 0 24"/></svg>
+              <div>
+                <span class="project-num">Project 09</span>
+                <h3>Rural IoT node (LoRa / Sub-GHz)</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Agriculture</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>Soil moisture, water level, cold-chain and livestock monitoring need long range and long battery life.</dd></div>
+              <div><dt>Start: board</dt><dd>A sensor node built with available radio ICs.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>An integrated low-power sensor and radio SoC.</dd></div>
+              <div><dt>What you learn</dt><dd>Low-power firmware, radio links and battery budgets.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+          <article class="card project" id="p10" data-domain="Health Agriculture">
+            <div class="project-head">
+              <svg class="icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 5s-10 12-10 19a10 10 0 0 0 20 0C30 17 20 5 20 5z"/><path d="M15 25a5 5 0 0 0 5 5"/></svg>
+              <div>
+                <span class="project-num">Project 10</span>
+                <h3>Water quality sensing system</h3>
+                <div class="project-meta"><span class="wip">Work in progress</span><span class="tag">Health</span><span class="tag">Agriculture</span></div>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Why it matters in India</dt><dd>pH, TDS, turbidity and contamination monitoring for villages, municipalities and the Jal Jeevan Mission.</dd></div>
+              <div><dt>Start: board</dt><dd>A sensor system with an IoT dashboard.</dd></div>
+              <div><dt>Then: FPGA / chip</dt><dd>Later, an integrated sensing chip.</dd></div>
+              <div><dt>What you learn</dt><dd>Sensor interfacing and calibration, IoT dashboards and system design.</dd></div>
+            </dl>
+            <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="with-us">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>Work on a project with us</h2>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Students</h3>
+            <p>Take a project as your team capstone or as mentored work: a spec, a reference model, a board build, verified logic and a demo, with reviews every week.</p>
+            <p><a href="programs.html#capstone">The capstone</a> · <a href="programs.html">Programs</a></p>
+          </div>
+          <div class="card">
+            <h3>Colleges</h3>
+            <p>Use a project as a semester project or as the basis for a lab, on open-source tools with no licence cost, with material and reviews from us.</p>
+            <p><a href="partners.html#colleges">Partnering with colleges</a></p>
+          </div>
+          <div class="card">
+            <h3>Industry</h3>
+            <p>Sponsor a project, define its requirements and review the students' work. You see real engineering; they work on a problem that matters.</p>
+            <p><a href="partners.html#interest">Partner interest</a></p>
+          </div>
+        </div>
+        <p class="mt">Or write to <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> with the project number that interests you.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="mentoring.html#become">mentoring</a>, <a href="partners.html#interest">partners</a> and <a href="workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="programs.html">Programs</a>
+        <a href="projects.html">Projects</a>
+        <a href="mentoring.html">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html">Free workshop</a>
+        <a href="resources.html">Resources</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>
