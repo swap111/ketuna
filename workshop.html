@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tape out in a weekend · free workshop · Ketuna</title>
+  <meta name="description" content="A free two-day, in-person workshop: design a tiny digital chip, test it with open-source tools, and get a real layout (GDS) out of the Tiny Tapeout flow.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Tape out in a weekend · free workshop · Ketuna">
+  <meta property="og:description" content="A free two-day, in-person workshop: design a tiny digital chip, test it with open-source tools, and get a real layout (GDS) out of the Tiny Tapeout flow.">
+  <meta property="og:image" content="assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js" defer></script>
+  <script src="form.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="logo-panel"><img src="assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="programs.html">Programs</a>
+        <a href="mentoring.html">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html" aria-current="page">Free workshop</a>
+        <a href="resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero page-hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Free workshop · two days · in person</p>
+          <h1>Tape out in a weekend</h1>
+          <p class="lede">Design a tiny digital chip, test it, and get a real layout (GDS) out of the open-source Tiny Tapeout flow, in two days. You keep everything you build, in your own public GitHub repository.</p>
+          <dl class="facts">
+            <div class="fact"><dt>Dates</dt><dd>Announced soon</dd></div>
+            <div class="fact"><dt>Venue</dt><dd>In person, announced soon</dd></div>
+            <div class="fact"><dt>Seats</dt><dd>20–30 planned</dd></div>
+            <div class="fact"><dt>Cost</dt><dd>Free</dd></div>
+          </dl>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#signup">Sign up</a>
+            <a class="btn btn-ghost" href="#prereq">What to bring</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="do">
+      <div class="wrap">
+        <h2>What you will do</h2>
+        <p class="section-intro">You work in pairs, starting from an electronic-dice design and ending with your own design and its layout. Two facilitators run the room, with one helper for every ten participants.</p>
+        <ol class="steps">
+          <li><h3>Write Verilog</h3><p>Read and change a small synchronous design that fits the Tiny Tapeout tile.</p></li>
+          <li><h3>Test it</h3><p>Write cocotb tests in Python, lint with Verilator, synthesize with Yosys.</p></li>
+          <li><h3>Harden it</h3><p>Push to GitHub and run the Tiny Tapeout flow: synthesis, place and route, DRC and LVS.</p></li>
+          <li><h3>See your chip</h3><p>Open your layout in a GDS viewer and take a screenshot of your own silicon.</p></li>
+        </ol>
+        <div class="grid grid-2 mt">
+          <div class="card">
+            <h3>By Sunday evening you can</h3>
+            <ul class="ticks">
+              <li>Explain the path from Verilog to GDS</li>
+              <li>Write and test a small synchronous design</li>
+              <li>Read a CI flow's reports and fix what fails</li>
+              <li>Use an AI assistant to write a variant, and find its bugs with tests</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>You leave with</h3>
+            <ul class="ticks">
+              <li>A public repository with your design, tests and a green GDS run</li>
+              <li>A layout screenshot of your design</li>
+              <li>An AI log showing how you checked AI-written hardware</li>
+              <li>A working open-source toolchain on your laptop</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          <p><strong>About real silicon.</strong> Your design will be ready to submit to a Tiny Tapeout shuttle. Submitting is optional, done after the workshop, and the tile is paid for by you at the shuttle's current price and deadline. Shuttle schedules and prices change, so we re-check them before every workshop and tell you what is current on the day.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="who">
+      <div class="wrap">
+        <h2>Who it is for</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>Good fit</h3>
+            <ul class="ticks">
+              <li>Final-year engineering students (ECE, EEE, CS, instrumentation)</li>
+              <li>Engineers in embedded, software or test who are curious about silicon</li>
+              <li>Anyone who has written a little code and knows what a flip-flop is</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Not required</h3>
+            <ul class="ticks">
+              <li>Prior chip-design experience</li>
+              <li>Paid tools or a licence of any kind</li>
+              <li>A powerful laptop: the heavy flow runs in the cloud</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="prereq">
+      <div class="wrap">
+        <h2>Prerequisites</h2>
+        <p class="section-intro">We send setup instructions about a week before. If you cannot install anything, you can still finish: the cloud runs the tests and the hardening.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
+            <tbody>
+              <tr><td>Laptop</td><td>Any OS, 8 GB RAM, 15 GB free disk, and your charger</td></tr>
+              <tr><td>Linux environment</td><td>Windows: WSL2 with Ubuntu. macOS: Homebrew. Linux: as it is</td></tr>
+              <tr><td>Tools</td><td><code>git</code>, <code>make</code>, Python 3.10+, Icarus Verilog, Verilator, Yosys, cocotb. A checker script is in the setup instructions</td></tr>
+              <tr><td>GitHub account</td><td>Created and email-verified <strong>before</strong> the day</td></tr>
+              <tr><td>Homework (30 min)</td><td>Read the Tiny Tapeout front page and one past project page</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="schedule">
+      <div class="wrap">
+        <h2>Schedule</h2>
+        <p class="section-intro">Day 1 ends with a tested design on your laptop. Day 2 starts the long cloud runs early, so they finish while the afternoon labs go on. Times are a guide.</p>
+        <div class="grid grid-2">
+          <div>
+            <h3>Day 1 · idea to tested Verilog</h3>
+            <div class="table-wrap">
+              <table>
+                <tbody>
+                  <tr><td class="time">09:00</td><td>Arrival, setup check, seating in pairs</td></tr>
+                  <tr><td class="time">09:30</td><td>How a chip is made; what Tiny Tapeout is</td></tr>
+                  <tr><td class="time">10:15</td><td>Demo: the dice design, end to end</td></tr>
+                  <tr><td class="time">11:00</td><td>Lab 1: read and run the dice (test, lint, synth)</td></tr>
+                  <tr><td class="time">12:00</td><td>Lab 2: change the dice and test your change</td></tr>
+                  <tr><td class="time">13:00</td><td>Lunch</td></tr>
+                  <tr><td class="time">14:00</td><td>Waveforms, cocotb tests, lint warnings</td></tr>
+                  <tr><td class="time">14:30</td><td>Lab 3: pick a project, write a spec and pinout</td></tr>
+                  <tr><td class="time">15:45</td><td>Lab 4: build it</td></tr>
+                  <tr><td class="time">17:00</td><td>Show-and-tell, close</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h3>Day 2 · Verilog to GDS</h3>
+            <div class="table-wrap">
+              <table>
+                <tbody>
+                  <tr><td class="time">09:00</td><td>Stand-up: where you are, what blocks you</td></tr>
+                  <tr><td class="time">09:15</td><td>Demo: fork the template, push, watch the flow</td></tr>
+                  <tr><td class="time">09:45</td><td>Lab 5: move your design in, start the GDS run</td></tr>
+                  <tr><td class="time">11:00</td><td>Lab 6: read the results, fix, push again</td></tr>
+                  <tr><td class="time">12:00</td><td>What the GDS flow does and how to read it</td></tr>
+                  <tr><td class="time">12:30</td><td>Lunch</td></tr>
+                  <tr><td class="time">13:30</td><td>Lab 7: an AI writes a variant, you find its bugs</td></tr>
+                  <tr><td class="time">14:45</td><td>Lab 8: GDS green, layout screenshot</td></tr>
+                  <tr><td class="time">15:45</td><td>How to submit to the current shuttle</td></tr>
+                  <tr><td class="time">16:30</td><td>Layouts on the projector, feedback, close</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p class="mt muted">Food, refreshments and the venue address come with your confirmation, once dates are fixed.</p>
+      </div>
+    </section>
+
+    <section class="section" id="signup">
+      <div class="wrap">
+        <h2>Sign up</h2>
+        <p class="section-intro">It takes about a minute. We use your details only to run this workshop; see the <a href="privacy.html">privacy note</a>.</p>
+
+        <div class="card form-card">
+          <div class="status soon js-soon" role="status" hidden>
+            <h3>Sign-ups open soon</h3>
+            <p>The form is not connected yet, so nothing you type here would be sent. Dates are announced soon; please check back.</p>
+          </div>
+          <div class="status error js-error" role="alert" tabindex="-1" hidden></div>
+          <div class="status success js-success" role="status" tabindex="-1" hidden>
+            <h3>You're on the list</h3>
+            <p>Thanks. We have your sign-up and will email you the confirmation, setup instructions and venue details before the workshop. If you don't hear from us within a few working days, check your spam folder.</p>
+          </div>
+
+          <form class="js-form" data-form="workshop" action="#" method="post" novalidate data-endpoint="">
+            <fieldset class="form-body">
+              <legend class="sr-only">Workshop sign-up</legend>
+              <div class="form-grid">
+                <div class="field full">
+                  <label for="f-name">Full name</label>
+                  <input id="f-name" name="name" type="text" autocomplete="name" required minlength="2" maxlength="100" data-err="e-name" data-msg="Please enter your name." aria-describedby="e-name">
+                  <span class="err" id="e-name"></span>
+                </div>
+
+                <div class="field half">
+                  <label for="f-email">Email</label>
+                  <input id="f-email" name="email" type="email" autocomplete="email" required maxlength="160" inputmode="email" data-err="e-email" data-msg="Please enter your email address." aria-describedby="e-email">
+                  <span class="err" id="e-email"></span>
+                </div>
+
+                <div class="field half">
+                  <label for="f-phone">Phone <span class="opt">(optional)</span></label>
+                  <input id="f-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" inputmode="tel" data-err="e-phone" aria-describedby="h-phone e-phone">
+                  <span class="hint" id="h-phone">Only for day-of updates. Include the country code if outside India.</span>
+                  <span class="err" id="e-phone"></span>
+                </div>
+
+                <fieldset class="field full" id="g-status">
+                  <legend>Current status</legend>
+                  <div class="radios">
+                    <label><input id="f-status" type="radio" name="status" value="student" required data-err="e-status" data-box="g-status" data-msg="Please choose your current status."> Student</label>
+                    <label><input type="radio" name="status" value="working"> Working</label>
+                    <label><input type="radio" name="status" value="other"> Other</label>
+                  </div>
+                  <span class="err" id="e-status"></span>
+                </fieldset>
+
+                <div class="field full">
+                  <label for="f-org">College or organisation <span class="opt">(optional)</span></label>
+                  <input id="f-org" name="organisation" type="text" autocomplete="organization" maxlength="120">
+                </div>
+
+                <div class="field half">
+                  <label for="f-track">Which area interests you most?</label>
+                  <select id="f-track" name="track_interest" required data-err="e-track" data-msg="Please choose the area that interests you most." aria-describedby="e-track">
+                    <option value="">Choose one</option>
+                    <option value="workshop-only">Just the workshop for now</option>
+                    <option value="A">Digital design and verification</option>
+                    <option value="B">Physical design and tape-out</option>
+                    <option value="C">Analog and mixed-signal</option>
+                    <option value="D">Embedded and edge AI</option>
+                    <option value="E">Systems engineering and product</option>
+                    <option value="not-sure">Not sure yet</option>
+                  </select>
+                  <span class="err" id="e-track"></span>
+                </div>
+
+                <div class="field half">
+                  <label for="f-os">Laptop you will bring</label>
+                  <select id="f-os" name="laptop_os" required data-err="e-os" data-msg="Please choose the laptop you will bring." aria-describedby="e-os">
+                    <option value="">Choose one</option>
+                    <option value="windows">Windows</option>
+                    <option value="macos">macOS</option>
+                    <option value="linux">Linux</option>
+                    <option value="other">Other (e.g. ChromeOS)</option>
+                    <option value="none">I don't have a laptop</option>
+                  </select>
+                  <span class="err" id="e-os"></span>
+                </div>
+
+                <div class="field full">
+                  <label for="f-heard">How did you hear about the workshop?</label>
+                  <select id="f-heard" name="heard_from" required data-err="e-heard" data-msg="Please tell us how you heard about the workshop." aria-describedby="e-heard">
+                    <option value="">Choose one</option>
+                    <option value="friend">A friend or colleague</option>
+                    <option value="college">My college or a professor</option>
+                    <option value="social">Social media</option>
+                    <option value="search">Web search</option>
+                    <option value="event">An event or talk</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <span class="err" id="e-heard"></span>
+                </div>
+
+                <!-- Honeypot: hidden from people, bots fill it in. -->
+                <div class="hp" aria-hidden="true">
+                  <label for="f-website">Leave this field empty</label>
+                  <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                </div>
+
+                <div class="field full">
+                  <label class="check" for="f-consent">
+                    <input id="f-consent" name="consent" type="checkbox" value="yes" required data-err="e-consent" data-msg="Please tick the box to agree, so we can store your sign-up." aria-describedby="e-consent">
+                    <span>I agree that my details may be stored and used to contact me about this workshop, as described in the <a href="privacy.html">privacy note</a>.</span>
+                  </label>
+                  <span class="err" id="e-consent"></span>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn-primary" id="f-submit" type="submit" data-soon-label="Sign-ups open soon">Sign up for the workshop</button>
+                <span class="small">All fields are required unless marked optional.</span>
+              </div>
+            </fieldset>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: through the forms on the <a href="mentoring.html#become">mentoring</a>, <a href="partners.html#interest">partners</a> and <a href="workshop.html#signup">workshop</a> pages.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="index.html">Home</a>
+        <a href="programs.html">Programs</a>
+        <a href="mentoring.html">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html">Free workshop</a>
+        <a href="resources.html">Resources</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mentoring · Ketuna</title>
+  <meta name="description" content="How mentoring works at Ketuna: working engineers as mentors, a weekly rhythm of reviews and 1:1s, AI used and checked, and what you leave with. Become a mentor.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Mentoring · Ketuna">
+  <meta property="og:description" content="How mentoring works at Ketuna: working engineers as mentors, a weekly rhythm of reviews and 1:1s, AI used and checked, and what you leave with. Become a mentor.">
+  <meta property="og:image" content="assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js" defer></script>
+  <script src="form.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="logo-panel"><img src="assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="programs.html">Programs</a>
+        <a href="mentoring.html" aria-current="page">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html">Free workshop</a>
+        <a href="resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero page-hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Mentoring</p>
+          <h1>Learn from engineers who do the work</h1>
+          <p class="lede">Ketuna's mentors are practising engineers from industry. They review your designs and code every week, meet you one to one, and prepare you for interviews, the same way a good senior engineer brings up a new team member.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#rhythm">The weekly rhythm</a>
+            <a class="btn btn-ghost" href="#become">Become a mentor</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="mentors">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>Who the mentors are</h2>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Working engineers</h3>
+            <p>Part-time mentors who work in design, verification, physical design, embedded, systems or product roles, and bring current practice into every review.</p>
+          </div>
+          <div class="card">
+            <h3>Small groups</h3>
+            <p>The pilot plan has two part-time mentors for a cohort of about fifteen: roughly one mentor for every seven or eight students. In the capstone, each team of four gets its own weekly mentor check-in.</p>
+          </div>
+          <div class="card">
+            <h3>Reviewers, not lecturers</h3>
+            <p>Theory is recorded once and discussed live. Mentor time goes where it matters most: reviewing your work, asking "how do you know it works?", and helping you get unstuck.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="rhythm">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>The weekly rhythm</h2>
+        <p class="section-intro">Every week runs on the same cycle, the one you will meet in an engineering team. Review actions loop back into the next week's work.</p>
+        <figure class="diagram">
+          <svg class="dg-wide" viewBox="0 0 960 230" role="img" aria-labelledby="rh-t rh-d">
+            <title id="rh-t">Weekly mentoring rhythm</title>
+            <desc id="rh-d">Monday sprint planning, then daily stand-ups and labs with code reviews on every change, a Wednesday one-to-one mentor check-in, a Friday design review and a Friday weekly status, which feeds the next Monday's planning. Review actions loop back into the labs.</desc>
+            <defs><marker id="rh-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="dg-arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+            <g font-size="15" text-anchor="middle">
+              <rect class="dg-box" x="10" y="60" width="160" height="76" rx="12"/><text class="dg-muted" x="90" y="88" font-size="12.5">MONDAY</text><text class="dg-text" x="90" y="112" font-weight="700">Sprint planning</text>
+              <rect class="dg-track" x="207" y="60" width="160" height="76" rx="12"/><text class="dg-muted" x="287" y="88" font-size="12.5">DAILY</text><text class="dg-text" x="287" y="112" font-weight="700">Stand-up + labs</text>
+              <rect class="dg-track" x="404" y="60" width="160" height="76" rx="12"/><text class="dg-muted" x="484" y="88" font-size="12.5">WEDNESDAY</text><text class="dg-text" x="484" y="112" font-weight="700">1:1 check-in</text>
+              <rect class="dg-cap" x="601" y="60" width="160" height="76" rx="12"/><text class="dg-cap-text" x="681" y="88" font-size="12.5">FRIDAY</text><text class="dg-cap-text" x="681" y="112" font-weight="700">Design review</text>
+              <rect class="dg-box" x="798" y="60" width="152" height="76" rx="12"/><text class="dg-muted" x="874" y="88" font-size="12.5">FRIDAY</text><text class="dg-text" x="874" y="112" font-weight="700">Weekly status</text>
+            </g>
+            <g class="dg-line" marker-end="url(#rh-a)">
+              <path d="M170 98H205"/><path d="M367 98H402"/><path d="M564 98H599"/><path d="M761 98H796"/>
+            </g>
+            <path class="dg-line" d="M874 136V196H90V138" marker-end="url(#rh-a)"/>
+            <text class="dg-muted" x="482" y="216" font-size="13" text-anchor="middle">next week: estimates compared with actuals</text>
+            <path class="dg-dash" d="M681 60V30H287V58" marker-end="url(#rh-a)"/>
+            <text class="dg-muted" x="484" y="22" font-size="13" text-anchor="middle">review actions go back into the labs</text>
+            <rect class="dg-amber" x="197" y="146" width="180" height="26" rx="13"/>
+            <text class="dg-amber-text" x="287" y="164" font-size="12.5" font-weight="700" text-anchor="middle">code review per change</text>
+          </svg>
+          <svg class="dg-narrow" viewBox="0 0 360 560" role="img" aria-labelledby="rhn-t rhn-d">
+            <title id="rhn-t">Weekly mentoring rhythm</title>
+            <desc id="rhn-d">Monday sprint planning, daily stand-ups and labs with code reviews, Wednesday one-to-one check-in, Friday design review, Friday weekly status, then back to Monday planning.</desc>
+            <defs><marker id="rhn-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="dg-arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+            <g font-size="16.5">
+              <rect class="dg-box" x="20" y="10" width="270" height="70" rx="12"/><text class="dg-muted" x="38" y="38" font-size="14">MONDAY</text><text class="dg-text" x="38" y="62" font-weight="700">Sprint planning</text>
+              <rect class="dg-track" x="20" y="116" width="270" height="70" rx="12"/><text class="dg-muted" x="38" y="144" font-size="14">DAILY · code review per change</text><text class="dg-text" x="38" y="168" font-weight="700">Stand-up + labs</text>
+              <rect class="dg-track" x="20" y="222" width="270" height="70" rx="12"/><text class="dg-muted" x="38" y="250" font-size="14">WEDNESDAY</text><text class="dg-text" x="38" y="274" font-weight="700">1:1 mentor check-in</text>
+              <rect class="dg-cap" x="20" y="328" width="270" height="70" rx="12"/><text class="dg-cap-text" x="38" y="356" font-size="14">FRIDAY</text><text class="dg-cap-text" x="38" y="380" font-weight="700">Design review</text>
+              <rect class="dg-box" x="20" y="434" width="270" height="70" rx="12"/><text class="dg-muted" x="38" y="462" font-size="14">FRIDAY</text><text class="dg-text" x="38" y="486" font-weight="700">Weekly status</text>
+            </g>
+            <g class="dg-line" marker-end="url(#rhn-a)">
+              <path d="M155 80V114"/><path d="M155 186V220"/><path d="M155 292V326"/><path d="M155 398V432"/>
+            </g>
+            <path class="dg-line" d="M290 469H330V45H292" marker-end="url(#rhn-a)"/>
+            <text class="dg-muted" x="155" y="540" font-size="15" text-anchor="middle">then back to Monday planning</text>
+          </svg>
+          <figcaption>Code reviews happen on every change, all week. Career sessions and mock interviews join the rhythm in the last weeks.</figcaption>
+        </figure>
+
+        <div class="grid grid-3 mt">
+          <div class="card"><h3>Design reviews</h3><p>Every Friday you present and defend your work against a checklist. Actions are recorded and closed the next week.</p></div>
+          <div class="card"><h3>Code reviews</h3><p>Every change goes through a pull request. Mentors and peers comment on correctness, tests and readability, as in a real team.</p></div>
+          <div class="card"><h3>One-to-ones</h3><p>A short mid-week check-in: where you are, what blocks you, and whether your estimate still holds.</p></div>
+          <div class="card"><h3>Career sessions</h3><p>Resume, portfolio and professional profile reviews, and how to talk about your projects.</p></div>
+          <div class="card"><h3>Mock interviews</h3><p>Three per student, technical and HR, with written feedback, using an interview question bank built around the program.</p></div>
+          <div class="card"><h3>Weekly status</h3><p>A short written update: done, next, risks. It is graded, because clear status reporting is a skill employers notice.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ai">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>How AI is used, and checked</h2>
+        <div class="grid grid-2">
+          <div>
+            <p>AI assistants are part of every lab, because they are part of engineering work now. The skill we teach is checking them.</p>
+            <ul class="ticks">
+              <li>You do each lab by hand first, then again with AI.</li>
+              <li>You review the AI's output before running it, then prove it with tests, lint, formal tools or a reference model.</li>
+              <li>You keep an AI log: what you asked, what came back, what was wrong, and how you found out.</li>
+              <li>Mentors grade the AI part on the quality of your checking, not on speed.</li>
+              <li>Concept exams are taken without AI.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Examples from the tracks</h3>
+            <p><strong>Verification:</strong> AI drafts tests and assertions; you show with coverage and design mutation which ones catch bugs.</p>
+            <p><strong>Physical design:</strong> AI suggests timing fixes; you check each one against the STA report first.</p>
+            <p><strong>Embedded:</strong> AI drafts a driver; you check every register access against the datasheet and test each one.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="progress">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>How progress is measured</h2>
+        <div class="grid grid-2">
+          <div>
+            <ul class="ticks">
+              <li><strong>Labs</strong> pass automated checks in CI, not just on your laptop.</li>
+              <li><strong>Estimates vs actuals</strong> for every lab, so you can see your planning improve.</li>
+              <li><strong>Review records</strong>: what was found, and whether you closed it.</li>
+              <li><strong>AI logs</strong> show how well you catch an assistant's mistakes.</li>
+              <li><strong>Weekly quizzes</strong> on the study guides, auto-graded, with an explanation for every miss.</li>
+            </ul>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Program grade</th><th scope="col">Weight</th></tr></thead>
+              <tbody>
+                <tr><td>Capstone</td><td class="num">30%</td></tr>
+                <tr><td>Labs</td><td class="num">25%</td></tr>
+                <tr><td>Concept exams without AI</td><td class="num">20%</td></tr>
+                <tr><td>Design reviews and specs</td><td class="num">20%</td></tr>
+                <tr><td>Professional conduct</td><td class="num">5%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="end">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>What you get at the end</h2>
+        <div class="grid grid-3">
+          <div class="card"><h3>A public portfolio</h3><p>Three or more verified projects with passing CI, specs and test plans, that any employer can open and check.</p></div>
+          <div class="card"><h3>A reviewed product or tape-out</h3><p>A team capstone with a working demo and postmortem; on track B, a hardened design ready for an open shuttle.</p></div>
+          <div class="card"><h3>People who know your work</h3><p>Mentors who have reviewed you for twelve weeks and can speak to what you did, when you ask them to.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="become">
+      <div class="wrap">
+        <span class="kicker" aria-hidden="true"></span>
+        <h2>Become a mentor</h2>
+        <p class="section-intro">If you design, verify, lay out, program or ship hardware for a living and enjoy helping people grow, we would like to hear from you.</p>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>What we ask</h3>
+            <ul class="ticks">
+              <li>Hands-on industry experience in at least one area we teach</li>
+              <li>A few hours a week during a cohort, for reviews, check-ins or labs; much of it can be remote</li>
+              <li>Comfort with open-source tools, or willingness to learn them</li>
+              <li>Never bringing your employer's confidential material or tools into teaching</li>
+              <li>Checking your employer's policy on outside work before you start</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>What mentors get</h3>
+            <ul class="ticks">
+              <li>Paid mentoring, per session</li>
+              <li>Ready-made labs, guides, slides and rubrics, so your time goes into people</li>
+              <li>A say in the curriculum in your area</li>
+              <li>The chance to give back and shape the next generation of engineers</li>
+              <li>A network of peers who care about doing engineering well</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card form-card mt-lg">
+          <h3>Mentor interest form</h3>
+          <div class="status soon js-soon" role="status" hidden>
+            <h3>This form opens soon</h3>
+            <p>It is not connected yet, so nothing you type here would be sent. Please check back later.</p>
+          </div>
+          <div class="status error js-error" role="alert" tabindex="-1" hidden></div>
+          <div class="status success js-success" role="status" tabindex="-1" hidden>
+            <h3>Thank you</h3>
+            <p>We have your details and will get back to you within a few working days.</p>
+          </div>
+
+          <form class="js-form" data-form="mentor" action="#" method="post" novalidate data-endpoint="">
+            <fieldset class="form-body">
+              <legend class="sr-only">Mentor interest</legend>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="m-name">Full name</label>
+                  <input id="m-name" name="name" type="text" autocomplete="name" required maxlength="100" data-err="m-e-name" data-msg="Please enter your name." aria-describedby="m-e-name">
+                  <span class="err" id="m-e-name"></span>
+                </div>
+                <div class="field">
+                  <label for="m-email">Email</label>
+                  <input id="m-email" name="email" type="email" autocomplete="email" required maxlength="160" inputmode="email" data-err="m-e-email" data-msg="Please enter your email address." aria-describedby="m-e-email">
+                  <span class="err" id="m-e-email"></span>
+                </div>
+                <div class="field">
+                  <label for="m-area">Main area</label>
+                  <select id="m-area" name="area" required data-err="m-e-area" data-msg="Please choose your main area." aria-describedby="m-e-area">
+                    <option value="">Choose one</option>
+                    <option value="design-verification">Digital design and verification</option>
+                    <option value="physical-design">Physical design and tape-out</option>
+                    <option value="analog">Analog and mixed-signal</option>
+                    <option value="embedded">Embedded and edge AI</option>
+                    <option value="systems-product">Systems engineering and product</option>
+                    <option value="professional">Program management, writing, career</option>
+                  </select>
+                  <span class="err" id="m-e-area"></span>
+                </div>
+                <div class="field">
+                  <label for="m-exp">Years in industry</label>
+                  <select id="m-exp" name="experience" required data-err="m-e-exp" data-msg="Please choose your experience." aria-describedby="m-e-exp">
+                    <option value="">Choose one</option>
+                    <option value="3-5">3–5 years</option>
+                    <option value="5-10">5–10 years</option>
+                    <option value="10-20">10–20 years</option>
+                    <option value="20+">More than 20 years</option>
+                  </select>
+                  <span class="err" id="m-e-exp"></span>
+                </div>
+                <fieldset class="field full">
+                  <legend>How would you like to help? <span class="opt">(optional, choose any)</span></legend>
+                  <div class="radios">
+                    <label><input type="checkbox" name="help" value="design-reviews"> Design reviews</label>
+                    <label><input type="checkbox" name="help" value="code-reviews"> Code reviews</label>
+                    <label><input type="checkbox" name="help" value="labs"> Lab support</label>
+                    <label><input type="checkbox" name="help" value="career"> Career and mock interviews</label>
+                    <label><input type="checkbox" name="help" value="guest-talk"> A guest talk</label>
+                  </div>
+                </fieldset>
+                <div class="field">
+                  <label for="m-time">Time you could give</label>
+                  <select id="m-time" name="availability" required data-err="m-e-time" data-msg="Please choose how much time you could give." aria-describedby="m-e-time">
+                    <option value="">Choose one</option>
+                    <option value="occasional">Occasional sessions</option>
+                    <option value="2-4h">2–4 hours a week</option>
+                    <option value="5-10h">5–10 hours a week</option>
+                  </select>
+                  <span class="err" id="m-e-time"></span>
+                </div>
+                <fieldset class="field" id="m-g-mode">
+                  <legend>Remote or in person</legend>
+                  <div class="radios">
+                    <label><input id="m-mode" type="radio" name="mode" value="remote" required data-err="m-e-mode" data-box="m-g-mode" data-msg="Please choose remote, in person or either." aria-describedby="m-e-mode"> Remote</label>
+                    <label><input type="radio" name="mode" value="in-person"> In person</label>
+                    <label><input type="radio" name="mode" value="either"> Either</label>
+                  </div>
+                  <span class="err" id="m-e-mode"></span>
+                </fieldset>
+                <div class="field full">
+                  <label for="m-msg">Anything you would like us to know <span class="opt">(optional)</span></label>
+                  <textarea id="m-msg" name="message" maxlength="1500" aria-describedby="m-h-msg"></textarea>
+                  <span class="hint" id="m-h-msg">For example, the topics you enjoy reviewing most. Please do not include anything confidential.</span>
+                </div>
+                <div class="hp" aria-hidden="true">
+                  <label for="m-website">Leave this field empty</label>
+                  <input id="m-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="field full">
+                  <label class="check" for="m-consent">
+                    <input id="m-consent" name="consent" type="checkbox" value="yes" required data-err="m-e-consent" data-msg="Please tick the box to agree, so we can store your details." aria-describedby="m-e-consent">
+                    <span>I agree that my details may be stored and used to contact me about mentoring, as described in the <a href="privacy.html">privacy note</a>.</span>
+                  </label>
+                  <span class="err" id="m-e-consent"></span>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" data-soon-label="Mentor form opens soon">Send my interest</button>
+                <span class="small">All fields are required unless marked optional.</span>
+              </div>
+            </fieldset>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: through the forms on the <a href="mentoring.html#become">mentoring</a>, <a href="partners.html#interest">partners</a> and <a href="workshop.html#signup">workshop</a> pages.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="index.html">Home</a>
+        <a href="programs.html">Programs</a>
+        <a href="mentoring.html">Mentoring</a>
+        <a href="partners.html">Partners</a>
+        <a href="workshop.html">Free workshop</a>
+        <a href="resources.html">Resources</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>
