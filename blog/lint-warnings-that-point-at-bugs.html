@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lint warnings that point at real RTL bugs · Ketuna blog</title>
+  <meta name="description" content="Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Lint warnings that point at real RTL bugs · Ketuna blog">
+  <meta property="og:description" content="Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.">
+  <link rel="canonical" href="https://ketuna.online/blog/lint-warnings-that-point-at-bugs.html">
+  <meta property="og:url" content="https://ketuna.online/blog/lint-warnings-that-point-at-bugs.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Lint warnings that point at real RTL bugs",
+  "description": "Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "lint, verilator, rtl coding, debugging",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 949,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/lint-warnings-that-point-at-bugs.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Lint warnings that point at real RTL bugs</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#width-mismatches">Width mismatches</a></li><li><a href="#multiple-drivers">Multiple drivers</a></li><li><a href="#combinational-loops">Combinational loops</a></li><li><a href="#unused-and-undriven-signals">Unused and undriven signals</a></li><li><a href="#a-habit-for-reading-lint-output">A habit for reading lint output</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first time you run a lint tool on your Verilog, it prints dozens of warnings, and the temptation is to switch most of them off. That throws away the cheapest bug-finding you will ever get. A linter reads your code without simulating it and flags patterns that are legal but suspicious. Most warnings in a beginner's code fall into a few families, and each family usually points at a specific, real mistake. Learning to read them takes an afternoon and saves days of waveform debugging.</p>
+<h2 id="width-mismatches">Width mismatches</h2>
+<p>Verilog silently extends or truncates values when the widths on the two sides of an assignment differ. The linter does not.</p>
+<pre><code class="language-verilog">reg [7:0] cnt;
+always @(posedge clk)
+  if (cnt == 300) cnt &lt;= 8'd0;     // 300 needs 9 bits
+  else            cnt &lt;= cnt + 8'd1;
+</code></pre>
+<p>The designer wanted a counter that wraps after 300. An 8-bit <code>cnt</code> can never reach 300, so the comparison is never true and the counter wraps at 256 instead. Nothing fails to compile, and a short simulation that never runs 256 cycles will not show it. The linter warns that the two sides of the comparison have different widths. What width warnings usually mean:</p>
+<ul>
+<li><strong>A counter or register that is too narrow</strong> for the value it is compared with or must hold, as above.</li>
+<li><strong>A missing carry or sign bit,</strong> where a 9-bit sum is assigned to an 8-bit target. Widen the target, or take the bits you want explicitly.</li>
+<li><strong>An unsized constant</strong> such as <code>0</code> or <code>1</code>, which Verilog treats as 32 bits. Some linters flag <code>cnt + 1</code> for this reason. Write <code>1'b1</code> or <code>8'd1</code>.</li>
+</ul>
+<p>When a truncation is intentional, make it explicit, for example <code>assign low = full[7:0];</code>, so the next reader and the linter both know you meant it.</p>
+<h2 id="multiple-drivers">Multiple drivers</h2>
+<p>A signal driven from two places has no defined value when the two disagree.</p>
+<pre><code class="language-verilog">always @(posedge clk) if (load)  count &lt;= din;
+always @(posedge clk) if (inc)   count &lt;= count + 1;
+</code></pre>
+<p>Each block alone looks fine. Together they describe two registers fighting over one output. In simulation, whichever block runs last on a given edge wins, so the behaviour depends on scheduling order. Synthesis may reject it or build something you did not intend. What it usually means:</p>
+<ul>
+<li><strong>Logic split across blocks</strong> that belongs in one. Merge it into a single <code>always</code> block with an explicit priority: <code>if (load) … else if (inc) …</code>.</li>
+<li><strong>A copy-paste error,</strong> where a second block was meant to drive a different signal.</li>
+<li><strong>Two <code>assign</code> statements on one wire,</strong> often from connecting two module outputs to the same net.</li>
+</ul>
+<p>Genuine multiple drivers exist only for tri-state buses, which are rare inside modern chips.</p>
+<h2 id="combinational-loops">Combinational loops</h2>
+<p>A combinational loop is a path from a signal, through logic, back to itself, with no flip-flop in between.</p>
+<pre><code class="language-verilog">assign ready_out = valid_in &amp; ready_in;
+assign ready_in  = ~busy | ready_out;   // depends on ready_out
+</code></pre>
+<p>Such a loop can oscillate, latch up in one state, or have a value that depends on gate delays. Static timing tools cannot time it properly, and simulators may hang or report that they cannot settle. Verilator, for example, warns about signals involved in circular logic. What it usually means:</p>
+<ul>
+<li><strong>A handshake signal wired back on itself,</strong> often across two modules, each of which looks fine alone. This is common with valid/ready interfaces.</li>
+<li><strong>A Mealy output of one state machine feeding the input of another,</strong> whose Mealy output feeds back to the first.</li>
+<li><strong>A missing register</strong> where you intended one stage of delay.</li>
+</ul>
+<p>The fix is almost always to break the loop with a flop, or to restructure so one side's output does not depend combinationally on its input. Loops spanning modules are easiest to find by drawing the signals between blocks on paper.</p>
+<h2 id="unused-and-undriven-signals">Unused and undriven signals</h2>
+<p>A signal that is assigned but never read, or read but never assigned, is the linter's way of finding typos and broken connections.</p>
+<pre><code class="language-verilog">wire overflow_flag;      // declared
+assign overfow_flag = (count == MAX);  // typo creates a new wire
+</code></pre>
+<p>With implicit nets allowed, which is the Verilog default, the typo silently creates a new 1-bit wire. <code>overflow_flag</code> is now never driven, and <code>overfow_flag</code> is never used. The linter reports both. What these warnings usually mean:</p>
+<ul>
+<li><strong>A typo in a name.</strong> Adding <code>`default_nettype none</code> at the top of each file turns implicit nets into errors, which catches this at compile time.</li>
+<li><strong>A port left unconnected</strong> at an instance, so an input floats or an output goes nowhere.</li>
+<li><strong>Leftover logic</strong> from an earlier version that synthesis will remove, which is harmless but hides real warnings in the noise.</li>
+<li><strong>Unused bits of a bus,</strong> for example the low bits of an address that is always aligned. These are often fine; acknowledge them explicitly, with a lint waiver comment or by naming them as unused, so they stop cluttering the report.</li>
+</ul>
+<h2 id="a-habit-for-reading-lint-output">A habit for reading lint output</h2>
+<ul>
+<li><strong>Run lint early and often,</strong> on every file, before simulation. A clean module stays clean if you check it each time you edit.</li>
+<li><strong>Fix, do not filter.</strong> Turn a warning off only for a specific line, with a comment explaining why it is intentional.</li>
+<li><strong>Read the first warning first.</strong> One typo can cause a cascade of later warnings; fixing it often clears many.</li>
+<li><strong>Ask why before you fix.</strong> A width warning fixed by widening a target hides the bug if the real mistake was the wrong operand.</li>
+</ul>
+<p>Verilator reports these families under names such as <code>WIDTH</code> (split into more specific names in newer versions), <code>MULTIDRIVEN</code>, <code>UNOPTFLAT</code>, <code>UNUSED</code> and <code>UNDRIVEN</code>. The exact names differ by tool and version, so check the documentation of the tool you use. The meaning is what matters.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put each of the four examples in its own file and run <code>verilator --lint-only -Wall</code> on it. Write down what you expect it to say before you run it, then compare.</li>
+<li>Add <code>`default_nettype none</code> to the unused-signal example and run <strong>Icarus Verilog</strong> (<code>iverilog -g2012</code>) on it to see the typo become an error.</li>
+<li>Run <strong>Yosys</strong> on the multiple-driver example with <code>read_verilog</code>, <code>proc</code> and <code>check</code>, and compare its report with the Verilator output.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>lint</li><li>verilator</li><li>rtl coding</li><li>debugging</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="asynchronous-fifo-gray-pointers.html"><span>Previous in Digital &amp; VLSI design</span>Inside an asynchronous FIFO: why the pointers cross in Gray code</a><a class="next" href="moore-or-mealy-by-timing.html"><span>Next in Digital &amp; VLSI design</span>Moore or Mealy? Choosing an FSM style by timing, not by textbook</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="systemverilog-design-features-day-one.html">Five SystemVerilog design features worth using from day one</a></h3>
+          <p>logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setting up a college VLSI lab on open-source EDA tools · Ketuna blog</title>
+  <meta name="description" content="How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Setting up a college VLSI lab on open-source EDA tools · Ketuna blog">
+  <meta property="og:description" content="How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.">
+  <link rel="canonical" href="https://ketuna.online/blog/college-vlsi-lab-on-open-source-tools.html">
+  <meta property="og:url" content="https://ketuna.online/blog/college-vlsi-lab-on-open-source-tools.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Setting up a college VLSI lab on open-source EDA tools",
+  "description": "How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "eda, open source, teaching lab, containers, open pdk",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 885,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/college-vlsi-lab-on-open-source-tools.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Setting up a college VLSI lab on open-source EDA tools</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-lab-needs-to-cover">What the lab needs to cover</a></li><li><a href="#machines-modest-for-most-more-for-some">Machines: modest for most, more for some</a></li><li><a href="#containers-and-a-pinned-toolchain">Containers and a pinned toolchain</a></li><li><a href="#open-pdks-and-their-versions">Open PDKs and their versions</a></li><li><a href="#lab-exercises-without-licence-servers">Lab exercises without licence servers</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Many college VLSI labs depend on a licence server that is shared, rationed, expired or only reachable from the lab. Students cannot practise at home, labs stall when the server is down and the skills stop at the edge of the campus network. Open-source EDA tools and open PDKs remove that dependency. A lab built on them lets every student run the same flow on a lab machine, a personal laptop or a cloud runner. Doing it well is mostly an exercise in configuration management, and this article walks through the choices.</p>
+<h2 id="what-the-lab-needs-to-cover">What the lab needs to cover</h2>
+<p>Decide the learning outcomes first, then pick tools. A typical undergraduate and early postgraduate sequence maps neatly onto open tools:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTL simulation and waveforms</td>
+<td>Icarus Verilog, Verilator, GTKWave</td>
+</tr>
+<tr>
+<td>Python testbenches</td>
+<td>cocotb</td>
+</tr>
+<tr>
+<td>Synthesis</td>
+<td>Yosys</td>
+</tr>
+<tr>
+<td>Formal checks</td>
+<td>SymbiYosys</td>
+</tr>
+<tr>
+<td>Place and route, timing</td>
+<td>OpenROAD, OpenSTA, orchestrated by LibreLane</td>
+</tr>
+<tr>
+<td>Layout and physical verification</td>
+<td>Magic, KLayout, Netgen</td>
+</tr>
+<tr>
+<td>Analog schematic and simulation</td>
+<td>Xschem, ngspice</td>
+</tr>
+<tr>
+<td>FPGA flows</td>
+<td>Yosys with open place-and-route tools for supported boards</td>
+</tr>
+</tbody>
+</table></div>
+<p>All of these can share one installation, and one open PDK such as sky130, gf180 or IHP SG13G2 ties the digital and analog exercises to a real process.</p>
+<h2 id="machines-modest-for-most-more-for-some">Machines: modest for most, more for some</h2>
+<p>RTL simulation, synthesis of small blocks and analog simulation run comfortably on ordinary lab desktops and student laptops. Place and route of a small block is heavier: it wants several cores and a generous amount of memory, and a full chip-level run more still. A practical lab plan:</p>
+<ul>
+<li><strong>Lab desktops</strong> running Linux natively, or dual-boot, for everyday work</li>
+<li><strong>Student laptops</strong> using the same container, so practice at home matches the lab</li>
+<li><strong>One or two larger shared machines,</strong> or a continuous integration service, for full physical design runs that would be slow on desktops</li>
+</ul>
+<p>Linux is the natural host. On Windows laptops, students can use a Linux subsystem or a virtual machine with the container inside; test this path yourself before term starts, because graphics for layout viewers is where it most often breaks.</p>
+<h2 id="containers-and-a-pinned-toolchain">Containers and a pinned toolchain</h2>
+<p>The single most important decision is to <strong>pin versions</strong>. Open tools move quickly, and a flow that works with one combination of tool and PDK versions may fail with the next. If each machine installs "the latest", lab exercises break mid-semester and students get different results for the same design.</p>
+<p>Package the tools in a container image and give it an explicit version tag. Community-maintained images bundling many open tools exist, and LibreLane documents its own supported environments; you can use one directly or build your own from a recipe kept in version control. Record exactly what is inside:</p>
+<pre><code class="language-text"># lab-toolchain.txt  (kept in the course repository)
+image:    &lt;registry&gt;/&lt;image&gt;:&lt;tag&gt;     # never &quot;latest&quot;
+pdk:      sky130, version &lt;commit or release id&gt;
+librelane: &lt;version&gt;
+checked:  &lt;date&gt;, by &lt;name&gt;, on the exercise suite
+</code></pre>
+<p>Students start every session the same way. The mount puts their work on the host, so nothing is lost when the container exits:</p>
+<pre><code class="language-bash">docker run --rm -it -v &quot;$PWD&quot;:/work -w /work &lt;registry&gt;/&lt;image&gt;:&lt;tag&gt; bash
+</code></pre>
+<p>A short smoke test, run on every machine at the start of term, confirms that the tools are present and report the expected versions:</p>
+<pre><code class="language-bash">iverilog -V | head -n 1
+verilator --version
+yosys -V
+ngspice --version | head -n 3
+klayout -v
+</code></pre>
+<p>Upgrade between semesters, not during one, and only after rerunning the whole exercise suite against the new image.</p>
+<h2 id="open-pdks-and-their-versions">Open PDKs and their versions</h2>
+<p>The PDK is versioned too. Install it once into a shared location, or bake it into the image, and pin it the same way. Use the version manager or install method that the flow's documentation recommends, so the PDK version and the flow agree. When a student reports that their design passes design rule checks on one machine and fails on another, the first thing to check is whether both machines use the same PDK version.</p>
+<h2 id="lab-exercises-without-licence-servers">Lab exercises without licence servers</h2>
+<p>Design exercises so they run unattended and grade themselves where possible. That keeps feedback fast and makes the lab robust to staff shortages:</p>
+<ol>
+<li><strong>Self-checking testbenches</strong> in cocotb or Verilog that print a clear pass or fail</li>
+<li><strong>Synthesis exercises</strong> where students report cell counts and explain warnings</li>
+<li><strong>Timing exercises</strong> on a small block with an SDC file, reading OpenSTA reports</li>
+<li><strong>A physical design run</strong> with LibreLane on a small block, with students explaining the timing, DRC and LVS results</li>
+<li><strong>An analog exercise</strong> in Xschem and ngspice, such as an inverter's transfer curve across process corners</li>
+</ol>
+<p>Keep exercise templates in a version-controlled repository. A continuous integration job can run every student's submission through the same container, so "it worked on my machine" stops being an argument. Ask students to write a short report for each exercise, explaining their result rather than pasting it; drawing the circuit or waveform by hand before running the tool, and checking AI-generated code against their own reasoning, are habits worth grading.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Installing tools by hand on each machine, so no two are alike</li>
+<li>Upgrading tools in the middle of a semester</li>
+<li>Choosing exercises too large to finish on lab machines in a session</li>
+<li>Forgetting to pin the PDK along with the tools</li>
+<li>Testing the setup only on Linux desktops, then discovering laptops fail on the first day</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pull a community open-tool container image, pin it by tag, and run the smoke test above.</li>
+<li>Write a three-exercise mini lab: an <strong>Icarus Verilog</strong> testbench, a <strong>Yosys</strong> synthesis report and an <strong>OpenSTA</strong> timing check, all on the same small design.</li>
+<li>Set up a continuous integration job that runs those exercises in the same container on every commit to the lab repository.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>eda</li><li>open source</li><li>teaching lab</li><li>containers</li><li>open pdk</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="satellite-navigation-for-timing.html"><span>Previous in India&#x27;s electronics ecosystem</span>Satellite navigation for timing: how receivers discipline clocks for grids and networks</a><a class="next" href="skilling-paths-into-chip-design.html"><span>Next in India&#x27;s electronics ecosystem</span>Skilling paths into chip design in India: degrees, short programs and self-study</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="fabless-foundry-osat-who-does-what.html">Fabless, foundry, OSAT: who does what in the semiconductor chain</a></h3>
+          <p>The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="joining-the-open-source-hardware-community.html">Finding and joining the open-source hardware community from India</a></h3>
+          <p>Where open-source hardware communities gather, from forums and repositories to meet-ups and shared tape-out groups, and how to make your first contributions genuinely useful to the people who maintain the projects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="open-shuttles-for-students.html">Open shuttles and shared tape-outs: how students can get a design onto real silicon</a></h3>
+          <p>How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

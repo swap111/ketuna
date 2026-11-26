@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cache coherence in two cores: the problem MESI solves · Ketuna blog</title>
+  <meta name="description" content="Two cores with private caches can hold different values for one address. Trace a shared counter through the four MESI states on a snooping bus, and see why coherence alone does not make the increment atomic.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Cache coherence in two cores: the problem MESI solves · Ketuna blog">
+  <meta property="og:description" content="Two cores with private caches can hold different values for one address. Trace a shared counter through the four MESI states on a snooping bus, and see why coherence alone does not make the increment atomic.">
+  <link rel="canonical" href="https://ketuna.online/blog/cache-coherence-in-two-cores.html">
+  <meta property="og:url" content="https://ketuna.online/blog/cache-coherence-in-two-cores.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Cache coherence in two cores: the problem MESI solves",
+  "description": "Two cores with private caches can hold different values for one address. Trace a shared counter through the four MESI states on a snooping bus, and see why coherence alone does not make the increment atomic.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "cache coherence, mesi, multicore, atomics, false sharing",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1095,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/cache-coherence-in-two-cores.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Cache coherence in two cores: the problem MESI solves</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Two cores with private caches can hold different values for one address. Trace a shared counter through the four MESI states on a snooping bus, and see why coherence alone does not make the increment atomic.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-coherence-must-guarantee">What coherence must guarantee</a></li><li><a href="#the-four-mesi-states">The four MESI states</a></li><li><a href="#tracing-a-shared-counter">Tracing a shared counter</a></li><li><a href="#coherence-is-not-atomicity">Coherence is not atomicity</a></li><li><a href="#false-sharing">False sharing</a></li><li><a href="#snooping-versus-directories">Snooping versus directories</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Put two cores on one chip, give each a private write-back data cache, and a new problem appears. Core 0 writes a variable; the new value sits in core 0's cache, marked dirty. Core 1 reads the same variable and gets the old value from memory or from its own stale copy. Neither cache is broken, yet the system as a whole is wrong. Coherence protocols keep private caches consistent in hardware, and MESI is the classic one. Tracing it through a shared counter shows both how it works and why multicore performance often hinges on it.</p>
+<h2 id="what-coherence-must-guarantee">What coherence must guarantee</h2>
+<p>A system is coherent if, for each memory location, all cores agree on a single order of writes, and every read returns the value of the most recent write in that order. In practice a protocol enforces one rule per cache line: <strong>at any moment, either one cache may write the line, or any number of caches may read it, but not both.</strong> This is often called single-writer, multiple-reader.</p>
+<p>Coherence is about one location at a time. Ordering <em>between</em> different locations is the memory model's job, which is why multicore code still needs fences or ordered atomics.</p>
+<h2 id="the-four-mesi-states">The four MESI states</h2>
+<p>Each line in each cache carries one of four states:</p>
+<ul>
+<li><strong>Modified (M):</strong> this cache has the only copy, and it is dirty; memory is stale. This cache may read and write freely.</li>
+<li><strong>Exclusive (E):</strong> this cache has the only copy, and it is clean (matches memory). It may read, and may write by silently switching to M.</li>
+<li><strong>Shared (S):</strong> this cache has a clean copy, and others may too. Reads are free; a write needs permission first.</li>
+<li><strong>Invalid (I):</strong> no valid copy.</li>
+</ul>
+<p>In a <strong>snooping</strong> protocol, all caches share a bus (or a broadcast interconnect) and watch every request. The main request types are a read (<strong>BusRd</strong>), a read with intent to modify (<strong>BusRdX</strong>), and an upgrade that only invalidates other copies (<strong>BusUpgr</strong>), plus write-backs of dirty lines. When a cache sees a request for a line it holds in M, it supplies or writes back the data and downgrades its own copy.</p>
+<p>The E state is the refinement over the simpler MSI protocol. Private data is very often loaded and then written. With E, the load brings the line in exclusive (no other cache has it), and the store upgrades to M without any bus traffic.</p>
+<h2 id="tracing-a-shared-counter">Tracing a shared counter</h2>
+<p>Two cores take turns incrementing a counter that starts at 0 in memory, with both caches empty. Each increment is a load followed by a store.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+<th>Bus transaction</th>
+<th>Core 0</th>
+<th>Core 1</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Core 0 loads</td>
+<td>BusRd (no other copy)</td>
+<td>E</td>
+<td>I</td>
+<td>0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Core 0 stores</td>
+<td>none</td>
+<td>M</td>
+<td>I</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Core 1 loads</td>
+<td>BusRd; core 0 supplies data</td>
+<td>S</td>
+<td>S</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Core 1 stores</td>
+<td>BusUpgr; core 0 invalidates</td>
+<td>I</td>
+<td>M</td>
+<td>2</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Core 0 loads</td>
+<td>BusRd; core 1 supplies data</td>
+<td>S</td>
+<td>S</td>
+<td>2</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Core 0 stores</td>
+<td>BusUpgr; core 1 invalidates</td>
+<td>M</td>
+<td>I</td>
+<td>3</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two observations matter for real designs.</p>
+<p>First, after step 2 <strong>every increment costs two bus transactions</strong>: one to get a readable copy, one to invalidate the other cache before writing. The line "ping-pongs" between the caches. On a large chip each transaction may take many cycles. A counter that every core updates often can become a serious bottleneck, not because the arithmetic is slow but because ownership of one cache line has to keep moving.</p>
+<p>Second, the protocol worked. At every step only one cache could write, and every load saw the latest value. That is all coherence promises.</p>
+<h2 id="coherence-is-not-atomicity">Coherence is not atomicity</h2>
+<p>Now let both cores increment at the same time, each with a separate load and store:</p>
+<ol>
+<li>Core 0 loads the counter (value 5); the line becomes S in both caches after core 1 also loads it (value 5).</li>
+<li>Core 0 upgrades and stores 6; core 1's copy is invalidated.</li>
+<li>Core 1, which already loaded 5 into a register, upgrades its line (re-fetching it) and stores 6.</li>
+</ol>
+<p>Two increments, one lost. Every step was coherent; the problem is that the read-modify-write was not a single indivisible operation. Fixing it needs <strong>atomic instructions</strong>. In RISC-V, the A extension provides <code>amoadd.w</code>, which performs the load, add and store as one operation while the cache holds the line in M, so no other core can intervene, and the load-reserved / store-conditional pair (<code>lr.w</code> / <code>sc.w</code>), where the store fails and software retries if the line was lost in between:</p>
+<pre><code class="language-c">#include &lt;stdatomic.h&gt;
+
+atomic_int counter;
+
+void increment(void)
+{
+    /* compiles to amoadd.w on a core with the A extension */
+    atomic_fetch_add_explicit(&amp;counter, 1, memory_order_relaxed);
+}
+</code></pre>
+<p>Atomics rely on coherence: they work by acquiring the line in an exclusive state and keeping it for the duration of the operation.</p>
+<h2 id="false-sharing">False sharing</h2>
+<p>The ping-pong in the trace happened because both cores wrote the same variable. It also happens when they write <strong>different variables that share one cache line</strong>:</p>
+<pre><code class="language-c">struct stats {
+    int core0_events;   /* written only by core 0 */
+    int core1_events;   /* written only by core 1 */
+};                      /* 8 bytes: both in one line */
+</code></pre>
+<p>Coherence tracks whole lines, so each core's write invalidates the other's copy, exactly as if they shared one counter, though the program has no logical sharing at all. This is <strong>false sharing</strong>. The fix is layout: align each per-core field to its own cache line, for example with <code>_Alignas(64)</code> on a 64-byte-line system, at the cost of some memory. Profiling tools that report coherence misses are the usual way to find it.</p>
+<h2 id="snooping-versus-directories">Snooping versus directories</h2>
+<p>Snooping is simple and fast for a few cores, because every cache sees every request directly. It does not scale well, since every request is broadcast and every cache must check its tags. Larger systems use a <strong>directory</strong>: a structure, usually beside the shared cache or memory, that records which caches hold each line, so requests go only to the caches that matter. The states are similar; what changes is how messages find their destination.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Assuming coherence makes read-modify-write safe.</strong> Use atomic instructions or locks.</li>
+<li><strong>Ignoring line granularity.</strong> Independent variables in one line still ping-pong.</li>
+<li><strong>Expecting a shared counter to scale.</strong> Use per-core counters, padded to separate lines, and combine them when read.</li>
+<li><strong>Confusing coherence with ordering.</strong> Fences and acquire/release semantics are still needed between different addresses.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python simulator of two MESI caches on a snooping bus that prints states and bus transactions for a sequence of (core, load or store, address) operations, and reproduce the table above.</li>
+<li>Add false sharing to the simulator by mapping two addresses to the same line, and count the bus transactions with and without padding.</li>
+<li>Run a two-thread C program on QEMU with <code>-smp 2</code> that increments a counter with plain <code>++</code> and with <code>atomic_fetch_add</code>, and compare the final counts.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>cache coherence</li><li>mesi</li><li>multicore</li><li>atomics</li><li>false sharing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="single-cycle-datapath-on-paper.html"><span>Previous in Computer architecture &amp; RISC-V</span>Building a single-cycle RISC-V datapath on paper first</a><a class="next" href="direct-mapped-cache-by-hand.html"><span>Next in Computer architecture &amp; RISC-V</span>Caches from scratch: a direct-mapped cache worked by hand</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="dma-bus-masters-and-arbitration.html">DMA from the architecture side: bus masters, arbitration and coherence</a></h3>
+          <p>A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="amdahls-law-for-soc-designers.html">Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a></h3>
+          <p>Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

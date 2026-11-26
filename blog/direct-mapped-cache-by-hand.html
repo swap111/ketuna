@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Caches from scratch: a direct-mapped cache worked by hand · Ketuna blog</title>
+  <meta name="description" content="Split an address into tag, index and offset, then trace hits and misses for a short program in a tiny direct-mapped cache. One shifted array turns a 0% hit rate into 75%.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Caches from scratch: a direct-mapped cache worked by hand · Ketuna blog">
+  <meta property="og:description" content="Split an address into tag, index and offset, then trace hits and misses for a short program in a tiny direct-mapped cache. One shifted array turns a 0% hit rate into 75%.">
+  <link rel="canonical" href="https://ketuna.online/blog/direct-mapped-cache-by-hand.html">
+  <meta property="og:url" content="https://ketuna.online/blog/direct-mapped-cache-by-hand.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Caches from scratch: a direct-mapped cache worked by hand",
+  "description": "Split an address into tag, index and offset, then trace hits and misses for a short program in a tiny direct-mapped cache. One shifted array turns a 0% hit rate into 75%.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "caches, memory hierarchy, direct-mapped, computer architecture",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 923,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/direct-mapped-cache-by-hand.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Caches from scratch: a direct-mapped cache worked by hand</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Split an address into tag, index and offset, then trace hits and misses for a short program in a tiny direct-mapped cache. One shifted array turns a 0% hit rate into 75%.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#lines-not-bytes">Lines, not bytes</a></li><li><a href="#splitting-the-address">Splitting the address</a></li><li><a href="#tracing-a-short-program">Tracing a short program</a></li><li><a href="#one-shift-changes-everything">One shift changes everything</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A processor can execute an instruction in a cycle or so, but fetching a word from main memory takes many cycles. A cache is a small, fast memory close to the core that keeps copies of recently used data, so most accesses never have to wait for main memory. Caches can look like magic in a textbook diagram. They stop looking like magic once you work one by hand, with real addresses, on paper. That is what this article does, with a cache small enough to fit in a table.</p>
+<h2 id="lines-not-bytes">Lines, not bytes</h2>
+<p>A cache does not store individual bytes. It stores <strong>lines</strong> (also called blocks): aligned chunks of memory, typically 32 or 64 bytes in real designs. When the core asks for one byte that is not in the cache, the cache fetches the whole line containing it. This bets on <strong>spatial locality</strong>: if a program reads one array element, it will probably read the next one soon. Keeping the line around bets on <strong>temporal locality</strong>: data used now is likely to be used again.</p>
+<p>In a <strong>direct-mapped</strong> cache, each line of memory can live in exactly one place in the cache. That makes the hardware simple: to check whether an address is cached, you look in one slot and compare one tag.</p>
+<h2 id="splitting-the-address">Splitting the address</h2>
+<p>Our example cache is tiny, so the tables stay readable: <strong>128 bytes</strong> of data, <strong>16-byte lines</strong>, which gives 128 / 16 = <strong>8 lines</strong>. Addresses are 32 bits. The cache splits every address into three fields:</p>
+<ul>
+<li><strong>Offset:</strong> which byte inside the line. 16 bytes per line needs log<sub>2</sub>(16) = 4 bits, address bits 3 to 0.</li>
+<li><strong>Index:</strong> which of the 8 cache lines to look in. log<sub>2</sub>(8) = 3 bits, address bits 6 to 4.</li>
+<li><strong>Tag:</strong> everything else, bits 31 to 7, 25 bits. It is stored with the line so the cache can tell which of the many memory lines that share an index is currently present.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="dm-title dm-desc" font-size="14">
+<title id="dm-title">Address split and lookup in a direct-mapped cache</title>
+<desc id="dm-desc">A 32-bit address is split into a 25-bit tag, a 3-bit index and a 4-bit offset. The index selects one of eight cache lines, each holding a valid bit, a stored tag and 16 bytes of data. A comparator checks the stored tag against the address tag; equal and valid means a hit, and the offset then picks the byte.</desc>
+<rect x="20" y="20" width="260" height="32" class="dg-box"/><text x="150" y="41" text-anchor="middle" class="dg-text">tag (bits 31–7)</text>
+<rect x="280" y="20" width="80" height="32" class="dg-amber" fill-opacity="0.4"/><text x="320" y="41" text-anchor="middle" class="dg-text">index</text>
+<rect x="360" y="20" width="100" height="32" class="dg-box"/><text x="410" y="41" text-anchor="middle" class="dg-text">offset</text>
+<line x1="320" y1="52" x2="320" y2="70" class="dg-line"/><line x1="320" y1="70" x2="10" y2="70" class="dg-line"/><line x1="10" y1="70" x2="10" y2="135" class="dg-line"/><line x1="10" y1="135" x2="22" y2="135" class="dg-line"/><path d="M22,131 L28,135 L22,139 Z" class="dg-arrow"/>
+<rect x="30" y="80" width="30" height="120" class="dg-track"/>
+<rect x="60" y="80" width="150" height="120" class="dg-track"/>
+<rect x="210" y="80" width="150" height="120" class="dg-track"/>
+<rect x="30" y="125" width="330" height="20" class="dg-amber" fill-opacity="0.4"/>
+<text x="45" y="98" text-anchor="middle" class="dg-muted">V</text><text x="135" y="98" text-anchor="middle" class="dg-muted">stored tag</text><text x="285" y="98" text-anchor="middle" class="dg-muted">16 data bytes</text>
+<text x="45" y="140" text-anchor="middle" class="dg-text">1</text><text x="135" y="140" text-anchor="middle" class="dg-text">tag</text><text x="285" y="140" text-anchor="middle" class="dg-text">line data</text>
+<text x="195" y="218" text-anchor="middle" class="dg-muted">8 lines, one chosen by index</text>
+<circle cx="420" cy="115" r="22" class="dg-core"/><text x="420" y="120" text-anchor="middle" class="dg-text">=</text>
+<line x1="150" y1="52" x2="150" y2="62" class="dg-line"/><line x1="150" y1="62" x2="440" y2="62" class="dg-line"/><line x1="440" y1="62" x2="440" y2="96" class="dg-line"/>
+<line x1="210" y1="135" x2="200" y2="135" class="dg-dash"/>
+<path d="M200,145 V160 H380 V128 H398" class="dg-line" fill="none"/><path d="M396,124 L402,128 L396,132 Z" class="dg-arrow"/>
+<line x1="420" y1="137" x2="420" y2="170" class="dg-line"/><path d="M416,170 L420,176 L424,170 Z" class="dg-arrow"/>
+<text x="420" y="194" text-anchor="middle" class="dg-text">hit / miss</text>
+</svg>
+<figcaption>The index chooses the one line that could hold the address; the tag comparison decides whether it does.</figcaption>
+</figure>
+
+<p>Take address <code>0x0000_0104</code>. In binary its low byte is <code>0000 0100</code> and bit 8 is set. The offset (bits 3 to 0) is 4. The index (bits 6 to 4) is 0. The tag is the address shifted right by 7, which is 2. So this address lives in cache line 0, byte 4, and the line must hold tag 2 to be a hit.</p>
+<h2 id="tracing-a-short-program">Tracing a short program</h2>
+<p>Here is a loop that reads two arrays of 32-bit words in turn, the kind of thing a dot product does:</p>
+<pre><code class="language-c">int a[4], b[4], sum = 0;
+for (int i = 0; i &lt; 4; i++)
+    sum += a[i] * b[i];
+</code></pre>
+<p>Suppose the linker places <code>a</code> at <code>0x100</code> and <code>b</code> at <code>0x180</code>. The loads alternate: <code>a[0]</code>, <code>b[0]</code>, <code>a[1]</code>, <code>b[1]</code> and so on, with the cache empty at the start.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Access</th>
+<th>Address</th>
+<th>Tag</th>
+<th>Index</th>
+<th>Offset</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a[0]</code></td>
+<td>0x100</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>b[0]</code></td>
+<td>0x180</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>a[1]</code></td>
+<td>0x104</td>
+<td>2</td>
+<td>0</td>
+<td>4</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>b[1]</code></td>
+<td>0x184</td>
+<td>3</td>
+<td>0</td>
+<td>4</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>a[2]</code></td>
+<td>0x108</td>
+<td>2</td>
+<td>0</td>
+<td>8</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>b[2]</code></td>
+<td>0x188</td>
+<td>3</td>
+<td>0</td>
+<td>8</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>a[3]</code></td>
+<td>0x10C</td>
+<td>2</td>
+<td>0</td>
+<td>12</td>
+<td>miss</td>
+</tr>
+<tr>
+<td><code>b[3]</code></td>
+<td>0x18C</td>
+<td>3</td>
+<td>0</td>
+<td>12</td>
+<td>miss</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every access misses. Both arrays map to index 0, because their addresses differ by 0x80, exactly the cache size. Each load of <code>b</code> evicts the line holding <code>a</code>, and the next load of <code>a</code> evicts <code>b</code>. The data needed is tiny, the cache has seven idle lines, and still nothing hits. This is a <strong>conflict miss</strong>: not caused by the cache being too small, but by two hot lines competing for one slot.</p>
+<h2 id="one-shift-changes-everything">One shift changes everything</h2>
+<p>Move <code>b</code> by one line, to <code>0x190</code>. Its index becomes 1 while <code>a</code> stays at index 0.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Access</th>
+<th>Address</th>
+<th>Index</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a[0]</code></td>
+<td>0x100</td>
+<td>0</td>
+<td>miss (fetch line)</td>
+</tr>
+<tr>
+<td><code>b[0]</code></td>
+<td>0x190</td>
+<td>1</td>
+<td>miss (fetch line)</td>
+</tr>
+<tr>
+<td><code>a[1]</code> to <code>a[3]</code></td>
+<td>0x104 to 0x10C</td>
+<td>0</td>
+<td>hit</td>
+</tr>
+<tr>
+<td><code>b[1]</code> to <code>b[3]</code></td>
+<td>0x194 to 0x19C</td>
+<td>1</td>
+<td>hit</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two misses in eight accesses: a 75% hit rate. The first two are <strong>compulsory misses</strong>, unavoidable on first touch; after that, spatial locality pays off.</p>
+<p>Put a cost on it with the <strong>average memory access time</strong>: AMAT = hit time + miss rate × miss penalty. With a 1-cycle hit and a 20-cycle miss penalty (made up for illustration), the first layout gives 1 + 1.0 × 20 = 21 cycles per access, the second 1 + 0.25 × 20 = 6 cycles. Same code, same cache, three and a half times faster, purely from where the data sits.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Forgetting the valid bit.</strong> At reset the tags hold garbage; without a valid bit, a random match is a false hit.</li>
+<li><strong>Using bytes where bits belong.</strong> Index and offset widths are log<sub>2</sub> of the number of lines and of the line size in bytes.</li>
+<li><strong>Blaming capacity for conflict misses.</strong> If the working set is far smaller than the cache, look at the indices first.</li>
+<li><strong>Ignoring the store side.</strong> Writes need a policy (write-through or write-back) as well; that is a separate design choice.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a 20-line Python model of this cache that takes a list of addresses and prints tag, index, offset and hit or miss. Check it against both tables above.</li>
+<li>Change the line size to 8 bytes and the number of lines to 16 (same capacity) and rerun both traces. Predict the result before you run it.</li>
+<li>Write the lookup in Verilog (tag array, valid bits, comparator) and simulate it in Icarus Verilog with the same address list, comparing against your Python output.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>caches</li><li>memory hierarchy</li><li>direct-mapped</li><li>computer architecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="cache-coherence-in-two-cores.html"><span>Previous in Computer architecture &amp; RISC-V</span>Cache coherence in two cores: the problem MESI solves</a><a class="next" href="dma-bus-masters-and-arbitration.html"><span>Next in Computer architecture &amp; RISC-V</span>DMA from the architecture side: bus masters, arbitration and coherence</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="cache-associativity-and-policies.html">Associativity, replacement and write policies: cache design choices compared</a></h3>
+          <p>Set associativity removes conflict misses, replacement picks a victim, and the write policy decides when memory is updated. Compare each choice with its hardware cost, including a pseudo-LRU tree worked by hand.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="harvard-vs-von-neumann-today.html">Harvard vs von Neumann in microcontrollers today</a></h3>
+          <p>Textbooks present Harvard and von Neumann as rivals. Real microcontrollers use separate instruction and data paths for speed and one shared address space for flexibility. Here is why both ideas survive.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="iron-law-of-performance.html">The iron law of performance: instructions, CPI and clock period</a></h3>
+          <p>Execution time is instruction count times cycles per instruction times clock period. Learn where each factor comes from, compute CPI from an instruction mix, and see how compilers, caches and pipelines move each one.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

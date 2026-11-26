@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Measuring cell voltages in a battery pack: the analog front end of a BMS · Ketuna blog</title>
+  <meta name="description" content="Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Measuring cell voltages in a battery pack: the analog front end of a BMS · Ketuna blog">
+  <meta property="og:description" content="Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.">
+  <link rel="canonical" href="https://ketuna.online/blog/cell-voltage-measurement-in-a-bms.html">
+  <meta property="og:url" content="https://ketuna.online/blog/cell-voltage-measurement-in-a-bms.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Measuring cell voltages in a battery pack: the analog front end of a BMS",
+  "description": "Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bms, battery, level shifting, common mode, data converters",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1127,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/cell-voltage-measurement-in-a-bms.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Measuring cell voltages in a battery pack: the analog front end of a BMS</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-common-mode-problem">The common-mode problem</a></li><li><a href="#why-dividers-and-subtraction-fail">Why dividers and subtraction fail</a></li><li><a href="#technique-1-the-flying-capacitor">Technique 1: the flying capacitor</a></li><li><a href="#technique-2-current-mode-level-shifting">Technique 2: current-mode level shifting</a></li><li><a href="#technique-3-stacked-monitor-chips">Technique 3: stacked monitor chips</a></li><li><a href="#what-balancing-and-estimation-demand">What balancing and estimation demand</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A battery management system (BMS) protects a pack of lithium cells from overcharge and overdischarge, estimates state of charge and keeps the cells balanced. All of that rests on one measurement: the voltage of every individual cell, accurate to a few millivolts. In a series stack, that measurement is harder than it sounds, because each cell's small voltage sits on top of all the cells below it. This article explains why the obvious approach fails, and the circuit techniques used instead. A safety note first: a large series pack can deliver dangerous voltages and fault currents, and work on real packs needs proper training, insulation and supervision.</p>
+<h2 id="the-common-mode-problem">The common-mode problem</h2>
+<p>Take sixteen cells in series, each at up to 4.2 V when full, illustrative values for a common configuration. The bottom of the stack is the system ground and the top is at 16 × 4.2 = <strong>67.2 V</strong>. To measure the top cell, you need the difference between 67.2 V and 63.0 V. The signal is 4.2 V; the common-mode voltage is 63 V, and it changes with every cell's state of charge and with load current.</p>
+<p>A ground-referenced ADC on a 3.3 V supply cannot connect to either node directly. Every cell-measurement architecture is an answer to the same question: how to move a small differential voltage from a high, shifting common-mode level down to the ADC's ground, without destroying its accuracy on the way.</p>
+<h2 id="why-dividers-and-subtraction-fail">Why dividers and subtraction fail</h2>
+<p>The obvious approach divides each tap voltage down to the ADC range and subtracts neighbours in software. Run the numbers for the top cell with a 12-bit, 3.3 V converter.</p>
+<ul>
+<li>The top tap needs a divider of about 67.2 / 3.3 ≈ 20.4 to fit the ADC range.</li>
+<li>One ADC LSB is 3.3 V / 4096 ≈ 0.81 mV at the converter, which is about <strong>16.4 mV</strong> at the tap. Subtracting two such readings makes the quantization uncertainty worse, not better.</li>
+<li>Divider gain error is worse still. Resistors matched to 0.1 % give a gain error of 0.1 % on 67.2 V, which is <strong>67 mV</strong>, appearing as an error in the top cell's voltage.</li>
+</ul>
+<p>The required accuracy is a few millivolts. The ground-referenced divider misses it by more than an order of magnitude, and the error grows for cells higher up the stack. The dividers also draw current continuously from the cells, and from different cells unequally, which itself unbalances the pack.</p>
+<p>The fix in every practical design is to measure each cell <em>differentially</em>, close to the cell, so that common-mode voltage never reaches the precision path.</p>
+<h2 id="technique-1-the-flying-capacitor">Technique 1: the flying capacitor</h2>
+<p>A capacitor is connected across one cell through a pair of switches, charges to that cell's voltage, and is then disconnected. A second pair of switches connects the same capacitor across a ground-referenced ADC input. The capacitor carries the differential voltage down to ground and leaves the common mode behind.</p>
+<p>It is conceptually clean: one capacitor and one ADC can serve many cells in sequence. The difficulty is in the switches, which must withstand the full stack voltage when open, have low leakage so the capacitor does not droop, and inject little charge when they open. Sequential measurement also means cells are measured at different instants, which matters under load, as discussed below.</p>
+<h2 id="technique-2-current-mode-level-shifting">Technique 2: current-mode level shifting</h2>
+<p>A resistor across the cell, in series with a high-voltage transistor, converts the cell voltage into a current. A feedback loop forces the cell voltage across a resistor R<sub>1</sub>, so the current is V<sub>cell</sub>/R<sub>1</sub>. The current flows down through the high-voltage transistor to a ground-referenced resistor R<sub>2</sub>, where it becomes V<sub>cell</sub> × R<sub>2</sub>/R<sub>1</sub>. Current does not care about common-mode voltage; it flows the same whatever potential the cell sits at.</p>
+<p>Accuracy depends on the ratio R<sub>2</sub>/R<sub>1</sub>, which on chip can be matched and trimmed, and on the transistor passing all the current (its leakage and any base or gate current are errors). Each cell needs its own high-voltage path, which costs area in a high-voltage process.</p>
+<h2 id="technique-3-stacked-monitor-chips">Technique 3: stacked monitor chips</h2>
+<p>Large packs typically use monitor ICs that each handle a group of cells, for example a dozen or so, and each chip is powered from and referenced to <em>its own group</em>. Inside a chip, the common-mode voltage is limited to the group's span, so ordinary differential measurement techniques, a multiplexer and a precision ADC, work well.</p>
+<p>The chips are stacked, each one higher on the pack than the one below, and pass data down to the system controller through an isolated or capacitively coupled daisy-chain link that tolerates the voltage step between neighbours. The precision analog problem becomes a communication problem, which is easier to make robust.</p>
+<h2 id="what-balancing-and-estimation-demand">What balancing and estimation demand</h2>
+<p>Why are millivolts needed? For lithium chemistries, the open-circuit voltage changes slowly with state of charge across the middle of the range, and for some chemistries, such as lithium iron phosphate, the curve is especially flat. A small voltage error therefore corresponds to a large error in estimated charge. Balancing decisions, which cell to bleed and by how much, inherit that error. Overvoltage protection near full charge also needs accuracy, because the margin between a full cell and an overcharged one is small.</p>
+<p>Several practical points follow:</p>
+<ul>
+<li><strong>Simultaneous sampling.</strong> Under load, each cell's terminal voltage includes the load current times its internal resistance. If cells are measured at different instants while the current changes, the comparison between cells is corrupted. Monitors either sample all cells together or synchronise the measurement with a current reading.</li>
+<li><strong>Filtering.</strong> Each cell input has an RC filter against switching noise from motor drives and converters. The filter must be differential and matched, or it converts common-mode noise into differential error.</li>
+<li><strong>Balancing currents in sense wires.</strong> Passive balancing bleeds current through resistors, often sharing the cell's sense wire. That current drops voltage in the wire and connector, so measurements are usually taken with balancing paused.</li>
+<li><strong>Open-wire detection.</strong> A broken sense wire can make a cell read as normal while it is not; monitors inject small test currents to detect it.</li>
+<li><strong>Temperature.</strong> Cell voltage depends on temperature, so a BMS also measures temperatures at several points in the pack.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In Python, repeat the divider calculation for each tap of a 16-cell stack, adding a random 0.1 % error to each divider, and plot the worst-case error per cell.</li>
+<li>In <strong>ngspice</strong>, build a flying-capacitor measurement with ideal switches, add realistic switch leakage and charge injection, and see how the measured voltage drifts with hold time.</li>
+<li>Model a current-mode level shifter with an ideal op-amp, a high-voltage transistor and two resistors, and sweep the common-mode voltage from 0 to 60 V to confirm that the output depends only on the cell voltage.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bms</li><li>battery</li><li>level shifting</li><li>common mode</li><li>data converters</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="ldo-regulators-inside-chips.html"><span>Previous in Analog &amp; mixed-signal</span>Low-dropout regulators inside chips: the loop, stability and dropout</a><a class="next" href="op-amp-stability-phase-margin.html"><span>Next in Analog &amp; mixed-signal</span>Op-amp stability and phase margin without the heavy maths</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="how-a-sar-adc-converts.html">How a SAR ADC converts: binary search with a capacitor DAC</a></h3>
+          <p>A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

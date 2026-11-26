@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing a verification plan that someone can actually check against · Ketuna blog</title>
+  <meta name="description" content="Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing a verification plan that someone can actually check against · Ketuna blog">
+  <meta property="og:description" content="Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.">
+  <link rel="canonical" href="https://ketuna.online/blog/writing-a-verification-plan.html">
+  <meta property="og:url" content="https://ketuna.online/blog/writing-a-verification-plan.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing a verification plan that someone can actually check against",
+  "description": "Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "verification plan, traceability, coverage, specification",
+  "articleSection": "Verification",
+  "wordCount": 976,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/writing-a-verification-plan.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Writing a verification plan that someone can actually check against</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-plan-item-contains">What a plan item contains</a></li><li><a href="#a-worked-example-a-small-synchronous-fifo">A worked example: a small synchronous FIFO</a></li><li><a href="#keeping-it-traceable">Keeping it traceable</a></li><li><a href="#what-makes-an-item-checkable">What makes an item checkable</a></li><li><a href="#reviewing-the-plan">Reviewing the plan</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most first verification plans are a list of test names: <code>test_basic</code>, <code>test_reset</code>, <code>test_random</code>. Nobody can review such a list, because nothing in it says what the design is supposed to do or how you will know it did. A useful plan reads the other way round. It starts from the specification, breaks it into features small enough to check, and says for each one how it will be stimulated, how it will be checked and how you will know it was exercised.</p>
+<h2 id="what-a-plan-item-contains">What a plan item contains</h2>
+<p>A plan item is one checkable statement about the design. Each item should carry five things:</p>
+<ul>
+<li><strong>An ID</strong>, such as <code>F-07</code>, so tests, coverage and bug reports can refer to it</li>
+<li><strong>A spec reference</strong>, the section or line it comes from</li>
+<li><strong>The behaviour</strong>, written as a sentence a reviewer can agree or disagree with</li>
+<li><strong>The check</strong>: an assertion, a scoreboard comparison, or a directed expected value</li>
+<li><strong>The coverage goal</strong>: the condition that must be seen before the item counts as exercised</li>
+</ul>
+<p>The last two are separate on purpose. A check tells you the design behaved correctly <em>when</em> the situation arose. Coverage tells you the situation <em>did</em> arise. A scoreboard that never saw a write-while-full cycle has passed nothing about write-while-full, even though it reported zero mismatches.</p>
+<h2 id="a-worked-example-a-small-synchronous-fifo">A worked example: a small synchronous FIFO</h2>
+<p>Take a spec paragraph for an 8-entry FIFO with <code>wr_en</code>, <code>rd_en</code>, <code>full</code> and <code>empty</code>. Suppose it says: data comes out in the order it went in; a write when full is ignored; a read when empty returns no data and does not change state; <code>full</code> and <code>empty</code> are registered outputs; reset empties the FIFO.</p>
+<p>Here is that paragraph turned into plan items.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Behaviour</th>
+<th>Check</th>
+<th>Coverage goal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F-01</td>
+<td>Data leaves in write order</td>
+<td>Scoreboard queue compare</td>
+<td>1000 words passed</td>
+</tr>
+<tr>
+<td>F-02</td>
+<td>Write when full is dropped</td>
+<td>Scoreboard: item not queued; count unchanged</td>
+<td><code>wr_en &amp;&amp; full</code> seen</td>
+</tr>
+<tr>
+<td>F-03</td>
+<td>Read when empty has no effect</td>
+<td>Assertion on count and pointers</td>
+<td><code>rd_en &amp;&amp; empty</code> seen</td>
+</tr>
+<tr>
+<td>F-04</td>
+<td>Simultaneous read and write keep count</td>
+<td>Assertion on count</td>
+<td><code>wr_en &amp;&amp; rd_en</code> at count 0, mid and 8</td>
+</tr>
+<tr>
+<td>F-05</td>
+<td><code>full</code> asserts at 8 entries exactly</td>
+<td>Assertion: <code>full == (count == 8)</code></td>
+<td><code>full</code> rises and falls</td>
+</tr>
+<tr>
+<td>F-06</td>
+<td>Reset empties the FIFO</td>
+<td>Directed test after a non-empty state</td>
+<td>Reset applied with count &gt; 0</td>
+</tr>
+</tbody>
+</table></div>
+<p>Notice what writing the table forced. F-04 needed three bins, because a read and write together at count 0 and at count 8 are the interesting cases: at empty, the read has nothing to return; at full, the write may or may not be accepted depending on whether the design lets the read free a slot in the same cycle. The spec paragraph did not say which. That is a question for the designer, found before a single line of testbench existed.</p>
+<h2 id="keeping-it-traceable">Keeping it traceable</h2>
+<p>Traceability means you can walk from a requirement to its evidence and back. In practice that comes down to a few habits:</p>
+<ol>
+<li>Put the plan item ID in the test or assertion name: <code>a_F05_full_matches_count</code>, <code>test_F06_reset_mid_fill</code>.</li>
+<li>Name coverage bins after items too, so the coverage report can be mapped back without guesswork.</li>
+<li>Keep the plan in a plain text format, such as a CSV or a Markdown table, in the same repository as the RTL and testbench. Then a change to the spec, the RTL and the plan can be reviewed in one pull request.</li>
+<li>Record status per item, not per test: <em>not started</em>, <em>check written</em>, <em>covered</em>, <em>waived (with reason)</em>.</li>
+</ol>
+<p>With those habits a short script can produce a sign-off table. The one below reads a plan CSV and a list of hit coverage bins and reports items that are checked but not yet covered.</p>
+<pre><code class="language-python">import csv
+
+def plan_status(plan_csv, hit_bins):
+    &quot;&quot;&quot;Return plan items whose coverage goal has not been hit.&quot;&quot;&quot;
+    open_items = []
+    with open(plan_csv, newline=&quot;&quot;) as f:
+        for row in csv.DictReader(f):
+            if row[&quot;bin&quot;] not in hit_bins:
+                open_items.append((row[&quot;id&quot;], row[&quot;behaviour&quot;]))
+    return open_items
+
+hits = {&quot;F01_words&quot;, &quot;F02_wr_full&quot;, &quot;F05_full_edge&quot;}
+for item_id, text in plan_status(&quot;fifo_plan.csv&quot;, hits):
+    print(f&quot;{item_id}: not yet covered - {text}&quot;)
+</code></pre>
+<h2 id="what-makes-an-item-checkable">What makes an item checkable</h2>
+<p>A reviewer should be able to read an item and say "yes, that test would catch a bug here". Items fail this test in predictable ways.</p>
+<ul>
+<li><strong>Too vague.</strong> "FIFO works correctly" cannot be checked. Split it until each piece names one condition and one observable outcome.</li>
+<li><strong>Too implementation-bound.</strong> "Pointer <code>wr_ptr</code> increments" ties the plan to one RTL structure. Prefer observable behaviour at the interface, and keep internal checks for assertions owned by the designer.</li>
+<li><strong>No coverage goal.</strong> Without one, a passing random regression proves nothing about rare cases, because you cannot tell whether they happened.</li>
+<li><strong>No negative cases.</strong> Specs describe what should happen; many bugs live in what should <em>not</em> happen. Every "when X, do Y" invites an item for "when X is illegal, do nothing harmful".</li>
+</ul>
+<h2 id="reviewing-the-plan">Reviewing the plan</h2>
+<p>A plan is worth most when someone other than its author reads it. Book half an hour with the designer and walk the table row by row. The designer will catch items that misread the spec; you will catch places where the spec and the RTL disagree. Write the answers into the spec, not just the plan, so the next reader benefits.</p>
+<p>Draft the first version by hand from the spec. If you then ask an AI assistant to suggest missing items, treat each suggestion as a question to check against the spec, not as a fact about the design. The value of the plan comes from someone understanding the spec well enough to argue about it.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a block from an open-source project you can read, such as a UART or a timer, and write six to ten plan items in a CSV with columns <code>id, spec_ref, behaviour, check, bin</code>.</li>
+<li>Write a cocotb test for two of the items with the item ID in the test name, and run it on Icarus Verilog.</li>
+<li>Add a counter in the test for each coverage goal and print which ones were hit; feed that set into the script above.</li>
+<li>Ask a classmate to review the CSV without reading your code, and record each question they raise as either a new item or a spec clarification.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>verification plan</li><li>traceability</li><li>coverage</li><li>specification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="full-code-coverage-is-not-done.html"><span>Previous in Verification</span>Why 100% code coverage does not mean the design is verified</a><a class="next" href="x-propagation-in-rtl-simulation.html"><span>Next in Verification</span>X in RTL simulation: how unknowns hide bugs and how to flush them out</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="functional-coverage-what-to-measure.html">Functional coverage: deciding what to measure before you measure it</a></h3>
+          <p>Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-spec-like-a-bug-hunter.html">Reading a spec like a bug hunter: looking for what it does not say</a></h3>
+          <p>Many hardware bugs start as gaps in the specification. Learn a repeatable way to read a spec for ambiguities, unstated corner cases and missing error behaviour, using a short watchdog timer description as the example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-coverage-review.html">Running a coverage review: which holes to close and which to waive</a></h3>
+          <p>How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block&#x27;s verification is done.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

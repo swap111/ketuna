@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sampling and aliasing: why an anti-alias filter comes before every ADC · Ketuna blog</title>
+  <meta name="description" content="Sampling folds every frequency above half the sample rate back into the band you care about, where no software can remove it. See how folding works, compute where a tone lands, and size a simple filter.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Sampling and aliasing: why an anti-alias filter comes before every ADC · Ketuna blog">
+  <meta property="og:description" content="Sampling folds every frequency above half the sample rate back into the band you care about, where no software can remove it. See how folding works, compute where a tone lands, and size a simple filter.">
+  <link rel="canonical" href="https://ketuna.online/blog/sampling-and-aliasing.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sampling-and-aliasing.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sampling and aliasing: why an anti-alias filter comes before every ADC",
+  "description": "Sampling folds every frequency above half the sample rate back into the band you care about, where no software can remove it. See how folding works, compute where a tone lands, and size a simple filter.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sampling, aliasing, anti-alias filter, adc, signal processing",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 992,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sampling-and-aliasing.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Sampling and aliasing: why an anti-alias filter comes before every ADC</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Sampling folds every frequency above half the sample rate back into the band you care about, where no software can remove it. See how folding works, compute where a tone lands, and size a simple filter.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-sampling-theorem-in-one-sentence">The sampling theorem in one sentence</a></li><li><a href="#why-high-frequencies-fold-back">Why high frequencies fold back</a></li><li><a href="#a-worked-example-of-the-danger">A worked example of the danger</a></li><li><a href="#sizing-a-simple-anti-alias-filter">Sizing a simple anti-alias filter</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An ADC does not watch a signal continuously. It takes snapshots, one per sample period, and everything that happens between snapshots is invisible. That has a surprising consequence: a signal that changes too fast does not simply disappear; it shows up disguised as a slower signal that was never there. This is <strong>aliasing</strong>, and once it has happened, no digital filter can undo it. That is why the last analog block before almost every ADC is a low-pass filter.</p>
+<h2 id="the-sampling-theorem-in-one-sentence">The sampling theorem in one sentence</h2>
+<p>If you sample at rate f<sub>s</sub>, you can represent faithfully only frequencies below f<sub>s</sub>/2, called the <strong>Nyquist frequency</strong>. A signal band that stays below f<sub>s</sub>/2 can, in principle, be reconstructed exactly from its samples. This is the sampling theorem, and its condition is usually written as f<sub>s</sub> &gt; 2f<sub>max</sub>.</p>
+<p>The theorem is a promise about signals that are band-limited. Real inputs are not: there is always some noise, some interference from a switching regulator, some harmonic of the mains, at higher frequencies. The question is what happens to them.</p>
+<h2 id="why-high-frequencies-fold-back">Why high frequencies fold back</h2>
+<p>Sample a 7 kHz cosine at 10 kHz. Between two samples (0.1 ms), the 7 kHz wave advances by 0.7 of a cycle. A 3 kHz wave advances by 0.3 of a cycle, which looks identical from the sampler's point of view, because advancing 0.7 of a cycle forward lands at the same phase as moving 0.3 backward, and a cosine looks the same either way. The two sets of samples are exactly equal:</p>
+<pre><code class="language-python">import numpy as np
+
+fs = 10_000
+n = np.arange(8)
+seven = np.cos(2 * np.pi * 7_000 * n / fs)
+three = np.cos(2 * np.pi * 3_000 * n / fs)
+print(np.round(seven, 3))
+print(np.round(three, 3))
+print(&quot;identical:&quot;, np.allclose(seven, three))
+</code></pre>
+<p>Once the samples are taken, the information that it was 7 kHz is gone. The ADC output is a perfectly clean 3 kHz tone.</p>
+<p>The general rule is that the frequency axis folds like a paper strip at every multiple of f<sub>s</sub>/2. A tone at frequency f appears at:</p>
+<blockquote>
+<p>f<sub>alias</sub> = |f − k·f<sub>s</sub>|, with the integer k chosen so the result lies between 0 and f<sub>s</sub>/2</p>
+</blockquote>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="al-title al-desc" font-size="14">
+<title id="al-title">Frequency folding around half the sampling rate</title>
+<desc id="al-desc">A frequency axis from 0 to 15 kilohertz with a sampling rate of 10 kilohertz. The band from 0 to 5 kilohertz is the usable band. A tone at 7 kilohertz is reflected about the 5 kilohertz fold line and appears at 3 kilohertz. A tone at 9.5 kilohertz appears at 0.5 kilohertz. A tone at 12.3 kilohertz appears at 2.3 kilohertz.</desc>
+<rect x="40" y="40" width="140" height="140" class="dg-amber" fill-opacity="0.15"/>
+<text x="60" y="34" class="dg-text">usable band</text>
+<line x1="40" y1="180" x2="460" y2="180" class="dg-line"/>
+<line x1="180" y1="40" x2="180" y2="190" class="dg-dash"/>
+<line x1="320" y1="40" x2="320" y2="190" class="dg-dash"/>
+<text x="30" y="200" class="dg-text">0</text>
+<text x="162" y="200" class="dg-text">fs/2</text>
+<text x="310" y="200" class="dg-text">fs</text>
+<text x="380" y="222" class="dg-muted">frequency</text>
+<line x1="236" y1="180" x2="236" y2="90" class="dg-line" stroke-width="3"/>
+<text x="224" y="82" class="dg-text">7k</text>
+<line x1="124" y1="180" x2="124" y2="90" class="dg-amber-line" stroke-width="3"/>
+<text x="112" y="82" class="dg-text">3k</text>
+<path d="M236,110 Q180,60 124,110" class="dg-dash" fill="none"/>
+<line x1="306" y1="180" x2="306" y2="130" class="dg-line" stroke-width="3"/>
+<text x="288" y="122" class="dg-text">9.5k</text>
+<line x1="54" y1="180" x2="54" y2="130" class="dg-amber-line" stroke-width="3"/>
+<text x="48" y="122" class="dg-text">0.5k</text>
+<line x1="384" y1="180" x2="384" y2="150" class="dg-line" stroke-width="3"/>
+<text x="370" y="142" class="dg-text">12.3k</text>
+<line x1="104" y1="180" x2="104" y2="150" class="dg-amber-line" stroke-width="3"/>
+<text x="90" y="142" class="dg-text">2.3k</text>
+</svg>
+<figcaption>With f<sub>s</sub> = 10 kHz, inputs above 5 kHz reappear inside the usable band at mirrored positions.</figcaption>
+</figure>
+
+<p>With f<sub>s</sub> = 10 kHz: 7 kHz lands at 3 kHz, 9.5 kHz lands at 0.5 kHz, 12.3 kHz lands at 2.3 kHz and 23 kHz lands at 3 kHz. Every frequency in the world maps to somewhere between 0 and 5 kHz.</p>
+<h2 id="a-worked-example-of-the-danger">A worked example of the danger</h2>
+<p>Suppose you measure a temperature or pressure signal with useful content below 1 kHz, sampling at 10 kHz. Nearby there is a switching circuit radiating a tone at 9.5 kHz. After sampling, that interference sits at 500 Hz, right in the middle of your measurement band, indistinguishable from a real 500 Hz signal. A digital low-pass filter at 1 kHz will pass it untouched, because in the digital domain it <em>is</em> a 500 Hz signal.</p>
+<p>The only place to remove it is before the sampler, in the analog domain, while it still has its true frequency.</p>
+<h2 id="sizing-a-simple-anti-alias-filter">Sizing a simple anti-alias filter</h2>
+<p>The simplest filter is one resistor and one capacitor. A first-order RC low-pass has its −3 dB corner at f<sub>c</sub> = 1 / (2πRC), and above the corner it attenuates by 20 dB per decade. With R = 10 kΩ and C = 10 nF, f<sub>c</sub> ≈ 1.59 kHz, comfortably above the 1 kHz band.</p>
+<p>At 9.5 kHz the attenuation is 1 / √(1 + (9.5 / 1.59)<sup>2</sup>) ≈ 0.165, or about <strong>−15.6 dB</strong>. That is not much. A full-scale interferer would still appear at about one sixth of full scale. For a 12-bit converter, whose quantization step is about −72 dB below full scale, you would need far more suppression than that to push the alias below one LSB.</p>
+<p>There are three levers, and real designs combine them:</p>
+<ul>
+<li><strong>Steeper filter.</strong> Two cascaded poles at the same corner give about −31.3 dB at 9.5 kHz (ignoring the loading between stages, which a buffer would remove). Active filters with more poles roll off faster still, at the cost of op-amps, power and phase shift in the band.</li>
+<li><strong>Sample faster.</strong> At f<sub>s</sub> = 100 kHz, the first frequency that folds onto the top of a 1 kHz band is 99 kHz. The same single RC attenuates 99 kHz by about <strong>−35.9 dB</strong>, more than double the decibels of the 10 kHz case, with no extra components. Oversampling relaxes the analog filter and moves the sharp filtering into digital logic, where it is cheap and precise.</li>
+<li><strong>Know your interference.</strong> You only need to suppress energy that actually exists. If the board has nothing above 20 kHz except broadband noise, the requirement is about total noise folding in, not about one strong tone.</li>
+</ul>
+<p>The digital filter after the ADC then trims the band precisely and can reduce the data rate. That combination, a gentle analog filter, a fast ADC and a sharp digital filter, is the standard modern approach.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Assuming the input is band-limited because the sensor is slow.</strong> The wiring between sensor and ADC picks up interference at any frequency.</li>
+<li><strong>Sampling at exactly twice the highest frequency.</strong> The theorem requires strictly more than twice, and any practical filter needs room to roll off, so sample several times faster.</li>
+<li><strong>Forgetting the ADC's own input.</strong> A switched-capacitor ADC input draws charge spikes; a capacitor directly at the ADC pin supplies them, and the filter resistor must be small enough not to spoil settling.</li>
+<li><strong>Filtering only in software.</strong> A digital filter cannot distinguish an alias from a real signal.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the snippet above with <strong>numpy</strong>, then try other pairs of frequencies with the folding formula and confirm that their samples match.</li>
+<li>Sample a 1 kHz sine plus a 9.5 kHz sine at 10 kHz, take an FFT with <code>np.fft.rfft</code>, and find the 500 Hz spike that should not be there.</li>
+<li>In <strong>ngspice</strong>, simulate the RC filter with <code>.ac dec 50 10 1meg</code>, read its response at 9.5 kHz and 99 kHz, and compare with the hand calculation.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sampling</li><li>aliasing</li><li>anti-alias filter</li><li>adc</li><li>signal processing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-an-inverter-transfer-curve.html"><span>Previous in Analog &amp; mixed-signal</span>Reading a CMOS inverter&#x27;s transfer curve: noise margins and switching point</a><a class="next" href="sigma-delta-adc-intuition.html"><span>Next in Analog &amp; mixed-signal</span>Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="jitter-and-phase-noise.html">Jitter and phase noise: what they are and why ADCs and radios care</a></h3>
+          <p>Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

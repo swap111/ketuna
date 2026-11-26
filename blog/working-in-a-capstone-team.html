@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Working in a capstone team: roles, milestones and disagreements · Ketuna blog</title>
+  <meta name="description" content="How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Working in a capstone team: roles, milestones and disagreements · Ketuna blog">
+  <meta property="og:description" content="How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.">
+  <link rel="canonical" href="https://ketuna.online/blog/working-in-a-capstone-team.html">
+  <meta property="og:url" content="https://ketuna.online/blog/working-in-a-capstone-team.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Working in a capstone team: roles, milestones and disagreements",
+  "description": "How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "teamwork, capstone, milestones, interfaces, project management",
+  "articleSection": "Careers & skills",
+  "wordCount": 1006,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/working-in-a-capstone-team.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Working in a capstone team: roles, milestones and disagreements</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#agree-interfaces-before-anyone-writes-code">Agree interfaces before anyone writes code</a></li><li><a href="#give-every-deliverable-an-owner">Give every deliverable an owner</a></li><li><a href="#track-milestones-by-what-is-tested">Track milestones by what is tested</a></li><li><a href="#settle-disagreements-with-data">Settle disagreements with data</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A capstone project is usually the first time you build something with three or four other people against a fixed date. The technical work is rarely what goes wrong. Teams fail because two blocks do not fit together, because nobody owned the integration, because "almost done" meant different things to different people, or because a design argument dragged on for a week. Each of these has a known remedy, and most of them have to be applied in the first week.</p>
+<h2 id="agree-interfaces-before-anyone-writes-code">Agree interfaces before anyone writes code</h2>
+<p>Suppose a team is building a small sensor node: an RTL block that filters samples, a bus interface, firmware on a RISC-V core and a host script that plots the data. Four people can work in parallel only if the boundaries between their parts are fixed early. Those boundaries are the <strong>interfaces</strong>: signal names and widths, clock and reset, register addresses and bit fields, packet formats, function signatures.</p>
+<p>Write them down in a short interface document before the first line of RTL. For each boundary, record:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Signals or fields</td>
+<td><code>sample_valid</code>, <code>sample_data[15:0]</code>, signed, two's complement</td>
+</tr>
+<tr>
+<td>Timing and handshake</td>
+<td>Valid for one cycle; no backpressure; one sample per 1,000 clocks at most</td>
+</tr>
+<tr>
+<td>Clock and reset</td>
+<td><code>clk</code> 50 MHz, active-low synchronous reset <code>rst_n</code></td>
+</tr>
+<tr>
+<td>Registers</td>
+<td><code>0x00 CTRL</code> (bit 0 enable), <code>0x04 STATUS</code> (bit 0 overflow, write 1 to clear)</td>
+</tr>
+<tr>
+<td>Owner</td>
+<td>The person who decides changes to this interface</td>
+</tr>
+</tbody>
+</table></div>
+<p>The last row matters most. Every interface needs one owner, and any change goes through them with a note to everyone affected. Without that rule, someone widens a bus "just for now", the firmware still reads the old width, and the bug surfaces at integration two days before the demo.</p>
+<p>It is also worth building a <strong>skeleton</strong> in week one: every block present as a stub that obeys the interface, connected end to end, so a trivial value flows from sensor model to host plot. The skeleton finds mismatched assumptions while they are cheap to fix.</p>
+<h2 id="give-every-deliverable-an-owner">Give every deliverable an owner</h2>
+<p>Roles in a small team are about ownership, not hierarchy. Each block, the test plan, integration, the build and CI setup, and the final report each need one named person who is responsible for it being finished. Others can help; one person answers for it.</p>
+<p>Two roles are often forgotten:</p>
+<ul>
+<li><strong>Integration owner:</strong> keeps the top level building, runs the full regression, and is the first to notice when parts stop fitting</li>
+<li><strong>Documentation owner:</strong> keeps the README, interface document and decisions log current, rather than leaving them for the last night</li>
+</ul>
+<p>Ownership does not mean working alone. Pair on difficult pieces, and make sure at least two people understand each block, so an illness or an exam does not stop the project.</p>
+<h2 id="track-milestones-by-what-is-tested">Track milestones by what is tested</h2>
+<p>Capstones have fixed dates: a design review, a mid-point demo, the final presentation. Plan backwards from them into milestones, and define each milestone by evidence, not effort.</p>
+<pre><code class="language-text">M1  end of week 2   Skeleton runs end to end in simulation;
+                    interface doc v1.0 reviewed
+M2  end of week 4   Filter block passes its scoreboard test
+                    with random stimulus; firmware reads
+                    STATUS over the bus in simulation
+M3  end of week 6   Full system on FPGA; host plots live data;
+                    regression runs in CI on every push
+M4  end of week 7   Demo rehearsed twice; known limits written
+</code></pre>
+<p>A milestone is met when its evidence exists, such as a passing test, a CI run or a reviewed document, not when someone says it is "mostly working". Agree a team <strong>definition of done</strong> for any task: code written, tested, reviewed by one teammate, merged, and documented where needed.</p>
+<p>Identify the <strong>critical path</strong>: the chain of tasks where any slip moves the final date. In the example, integration on the FPGA depends on the filter, the bus and the firmware all being ready, so those dependencies need the earliest attention. Work off the critical path, such as plotting polish, has slack and can wait.</p>
+<p>Check progress weekly in a short meeting: what is done, with evidence; what is next; what is blocked. If a milestone is going to slip, say so in that meeting and cut scope there, while there are still options. Moving stretch goals out in week 4 is a decision; discovering in week 7 that they never happened is a failure.</p>
+<h2 id="settle-disagreements-with-data">Settle disagreements with data</h2>
+<p>Technical disagreements are normal and often useful: should the filter be fixed-point or use a small multiplier, should the firmware poll or use interrupts, should you buy time by dropping a feature or by working weekends. They turn harmful when they are decided by whoever argues longest.</p>
+<p>A simple process keeps them productive:</p>
+<ol>
+<li><strong>State the question precisely</strong>, including what "better" means: latency, area, effort, risk.</li>
+<li><strong>List the options</strong> and what each would cost.</li>
+<li><strong>Agree what evidence would decide it</strong>, before collecting it: a quick synthesis run for area, a ten-line simulation for latency, an hour-long spike to test feasibility.</li>
+<li><strong>Time-box it.</strong> If the evidence is not conclusive by the deadline, the owner of that block decides, and the reason goes in the decisions log.</li>
+<li><strong>Commit together.</strong> Once decided, everyone supports the choice; reopen it only if new evidence appears.</li>
+</ol>
+<p>This separates the idea from the person. Nobody loses face when a measurement decides, and the decisions log means the same argument does not restart a week later.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Starting to code before interfaces are agreed.</strong> Integration week becomes rewrite week.</li>
+<li><strong>No integration owner.</strong> Everyone assumes someone else is running the full system.</li>
+<li><strong>Milestones defined by effort.</strong> "Worked on firmware" says nothing about whether it works.</li>
+<li><strong>Silently uneven workload.</strong> Raise it early and rebalance; resentment in week 6 is harder to fix.</li>
+<li><strong>Hiding a slip.</strong> The team can only re-plan around problems it knows about.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>For your next team project, write a one-page interface document with an owner per interface before any code exists, and review it together.</li>
+<li>Build the end-to-end skeleton in the first week: stub modules in Verilog simulated with Icarus Verilog or Verilator, or stub firmware running on QEMU.</li>
+<li>Write your milestones in the evidence-based form above, and set up a CI job, for example with a <code>make</code> target that runs your tests, so "done" can be checked automatically.</li>
+<li>Next time the team disagrees, run the five-step process, and record the decision and its evidence in a <code>DECISIONS.md</code> file in the repository.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>teamwork</li><li>capstone</li><li>milestones</li><li>interfaces</li><li>project management</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="asking-for-help-well.html"><span>Previous in Careers &amp; skills</span>When to ask for help, and how to ask so you get a useful answer</a><a class="next" href="a-readme-that-explains-in-two-minutes.html"><span>Next in Careers &amp; skills</span>Writing a README that explains your project in two minutes</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="blameless-postmortems.html">Writing a blameless postmortem after a failed lab or project</a></h3>
+          <p>How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="first-time-technical-lead.html">Your first time as a technical lead: planning, unblocking and reviewing</a></h3>
+          <p>A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

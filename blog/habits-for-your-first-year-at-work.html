@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From student to engineer: habits that matter in your first year at work · Ketuna blog</title>
+  <meta name="description" content="The first year at work rewards habits more than brilliance. Keep a work notebook, write decisions down, raise problems early, finish small tasks completely and learn the codebase on purpose.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="From student to engineer: habits that matter in your first year at work · Ketuna blog">
+  <meta property="og:description" content="The first year at work rewards habits more than brilliance. Keep a work notebook, write decisions down, raise problems early, finish small tasks completely and learn the codebase on purpose.">
+  <link rel="canonical" href="https://ketuna.online/blog/habits-for-your-first-year-at-work.html">
+  <meta property="og:url" content="https://ketuna.online/blog/habits-for-your-first-year-at-work.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "From student to engineer: habits that matter in your first year at work",
+  "description": "The first year at work rewards habits more than brilliance. Keep a work notebook, write decisions down, raise problems early, finish small tasks completely and learn the codebase on purpose.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "first job, habits, notes, ownership",
+  "articleSection": "Careers & skills",
+  "wordCount": 1046,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/habits-for-your-first-year-at-work.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>From student to engineer: habits that matter in your first year at work</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The first year at work rewards habits more than brilliance. Keep a work notebook, write decisions down, raise problems early, finish small tasks completely and learn the codebase on purpose.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#keep-a-work-notebook-from-the-first-day">Keep a work notebook from the first day</a></li><li><a href="#write-decisions-down-where-others-can-find-them">Write decisions down where others can find them</a></li><li><a href="#raise-problems-early-and-plainly">Raise problems early and plainly</a></li><li><a href="#own-small-tasks-completely">Own small tasks completely</a></li><li><a href="#learn-the-codebase-on-purpose">Learn the codebase on purpose</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>College rewards you for solving well-posed problems alone, under a deadline, and then moving on. Engineering work is different: problems are vague, the code is older than you, other people depend on your output, and nothing is ever really finished. The engineers who settle in fastest are rarely the ones who knew the most on day one. They are the ones who built a few plain habits early and kept them.</p>
+<h2 id="keep-a-work-notebook-from-the-first-day">Keep a work notebook from the first day</h2>
+<p>Start a single running notebook, a plain text or Markdown file is enough, with a dated entry each day. Write down what you did, commands that worked, error messages and their fixes, names of the people who own each block or tool, and questions you have not answered yet.</p>
+<p>This sounds trivial and it is the habit with the best return. In the first months you are told a great deal once: how to source the tool environment, where the regression lives, which branch is used for releases. You will not remember it. A searchable notebook means you ask each question once, and it shows your lead you value their time.</p>
+<p>A useful daily entry is short:</p>
+<pre><code class="language-text">2026-07-14
+- Ran block regression for uart_rx: 3 fails, all seed-dependent
+  cmd: make regress TEST=uart_rx SEEDS=20
+- Fail 1 traced to stop-bit check in my new test, not the RTL
+- Learned: lint waivers live in lint/waivers.tcl, owned by CAD team
+- Open: why does CI use a different simulator version than local?
+</code></pre>
+<p>The notebook also becomes your raw material for status updates, appraisals and the "what did you do this year" conversation, which is far easier with twelve months of dated evidence than from memory.</p>
+<h2 id="write-decisions-down-where-others-can-find-them">Write decisions down where others can find them</h2>
+<p>Your notebook is private. Decisions are not. When you agree something in a meeting or a chat, such as "the FIFO drops writes when full rather than stalling", write it where the team keeps such things: the spec, the issue, the pull request description, or a short follow-up message. Include the reason.</p>
+<p>Six months later someone will ask why the design behaves that way, and "we discussed it once" is not an answer. A written decision with its reason lets a newcomer act correctly without finding you, and it protects you when memories disagree. As a new engineer you can offer to write these notes after meetings; it is a quiet way to be useful and to learn how the team thinks.</p>
+<h2 id="raise-problems-early-and-plainly">Raise problems early and plainly</h2>
+<p>Every project has bad news: a test that will not pass, an estimate that was too small, a spec that contradicts itself. New engineers tend to hold such news until they can arrive with a solution. By then the options have shrunk.</p>
+<p>Say it as soon as you are reasonably sure, with facts and, if you have them, options: "The coverage target for the error paths will slip about a week. The error-injection hooks in the bench are missing. I can add them, or we can waive two bins for this milestone." A lead can only adjust a plan they know about. The companion habit, asking for help well when you are stuck, is covered in <a href="asking-for-help-well.html">its own article</a>.</p>
+<h2 id="own-small-tasks-completely">Own small tasks completely</h2>
+<p>Your early tasks will be small: fix a lint warning, add a test, update a script, clean up a driver. Treat each one as if it were the most important thing on the project, because to the people judging your readiness for bigger work, it is.</p>
+<p>"Complete" means more than "the code works on my machine". A checklist that applies to most tasks:</p>
+<ul>
+<li>The change does what the ticket asked, and you checked against the spec, not only by eye</li>
+<li>A test exists that would fail without your change</li>
+<li>It passes the same regression, lint and CI checks everyone else's work must pass</li>
+<li>The commit message and pull request explain <em>why</em>, not just what</li>
+<li>Any documentation or README that the change makes wrong is updated</li>
+<li>You closed the loop: told the requester it is done, with a link</li>
+</ul>
+<p>Engineers who reliably finish small things are given larger ones. Engineers whose "done" tasks keep coming back are given smaller ones, however clever they are.</p>
+<h2 id="learn-the-codebase-on-purpose">Learn the codebase on purpose</h2>
+<p>A real project can have hundreds of RTL files, a dozen scripts per flow and years of history. You will not absorb it by accident. Set aside a little time each week to study one part deliberately.</p>
+<ul>
+<li><strong>Follow one thing end to end.</strong> Trace a single register write from the firmware driver, through the bus, to the flip-flop that stores it. Or trace one design from RTL through synthesis to the timing report.</li>
+<li><strong>Read the tests.</strong> Tests show how the authors expected the code to be used, often more clearly than the code itself.</li>
+<li><strong>Read the history.</strong> <code>git log</code> on a confusing file, and the pull requests behind it, often explain a strange choice in one sentence.</li>
+<li><strong>Draw it.</strong> A hand-drawn block diagram of the part you studied, checked with someone who knows it, fixes it in memory far better than reading alone.</li>
+</ul>
+<p>Using an AI assistant to summarise an unfamiliar file can speed this up. Treat the summary as a hypothesis and confirm it against the code and the tests, the same way you would check any other output.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Trying to look like you already know.</strong> Nobody expects that in year one; pretending wastes time and is easy to spot.</li>
+<li><strong>Only working on what is interesting.</strong> The dull tasks are where you learn the flow, and someone has to do them.</li>
+<li><strong>Treating review comments as criticism.</strong> They are free teaching; fix, thank, and note the pattern so it does not recur.</li>
+<li><strong>No record of your own work.</strong> Without notes, a year of effort is hard to describe to anyone, including yourself.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Create a <code>notebook.md</code> today in a private folder or repository and write one dated entry at the end of each day for two weeks. At the end, search it for a command you had forgotten.</li>
+<li>Pick an open-source hardware or firmware project you use, such as a small RISC-V core or a Zephyr sample. Trace one feature end to end and draw it by hand on a single page.</li>
+<li>On a lab or project, apply the "complete" checklist above to your next small task, including a test that fails without your change. Ask a peer whether anything is missing.</li>
+<li>After your next meeting, write a three-line summary of the decisions and their reasons, and share it with the attendees.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>first job</li><li>habits</li><li>notes</li><li>ownership</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="debugging-as-a-career-skill.html"><span>Previous in Careers &amp; skills</span>Debugging as a career skill: hypotheses, experiments and notes</a><a class="next" href="getting-the-most-from-a-mentor.html"><span>Next in Careers &amp; skills</span>Getting the most out of a mentor: bring questions, show work</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-as-a-career-skill.html">Debugging as a career skill: hypotheses, experiments and notes</a></h3>
+          <p>Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

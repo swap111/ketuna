@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inside a standard-cell library: Liberty, LEF and what the numbers mean · Ketuna blog</title>
+  <meta name="description" content="A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Inside a standard-cell library: Liberty, LEF and what the numbers mean · Ketuna blog">
+  <meta property="og:description" content="A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.">
+  <link rel="canonical" href="https://ketuna.online/blog/inside-a-standard-cell-library.html">
+  <meta property="og:url" content="https://ketuna.online/blog/inside-a-standard-cell-library.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Inside a standard-cell library: Liberty, LEF and what the numbers mean",
+  "description": "A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "standard cells, liberty, lef, timing models, cell library",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 924,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/inside-a-standard-cell-library.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Inside a standard-cell library: Liberty, LEF and what the numbers mean</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-cell-several-views">One cell, several views</a></li><li><a href="#the-liberty-file-timing-as-tables">The Liberty file: timing as tables</a></li><li><a href="#how-a-tool-reads-one-delay">How a tool reads one delay</a></li><li><a href="#drive-strengths">Drive strengths</a></li><li><a href="#the-lef-file-what-the-router-needs-to-know">The LEF file: what the router needs to know</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every step of the digital flow leans on the standard-cell library, but most people only meet it as a path in a configuration file. Open the files and you find the cells described several times over, each view written for a different tool: one for timing and power, one for placement and routing, one for the layout itself, one for simulation. Knowing what is in each view, and which tool reads it, makes synthesis results, placement problems and timing reports far easier to interpret.</p>
+<h2 id="one-cell-several-views">One cell, several views</h2>
+<p>Take a two-input NAND gate. The library describes it in at least these forms:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>View</th>
+<th>File type</th>
+<th>Read by</th>
+<th>Contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Timing and power</td>
+<td>Liberty (<code>.lib</code>)</td>
+<td>Synthesis, STA, power analysis</td>
+<td>Function, pin capacitance, delay and power tables, area</td>
+</tr>
+<tr>
+<td>Abstract layout</td>
+<td>LEF</td>
+<td>Placement, routing</td>
+<td>Cell size, pin shapes and layers, blockages</td>
+</tr>
+<tr>
+<td>Full layout</td>
+<td>GDS</td>
+<td>Final layout merge, DRC, LVS</td>
+<td>Every polygon of the cell</td>
+</tr>
+<tr>
+<td>Simulation</td>
+<td>Verilog model</td>
+<td>Simulators</td>
+<td>Logic behaviour, sometimes with timing checks</td>
+</tr>
+<tr>
+<td>Transistor netlist</td>
+<td>SPICE</td>
+<td>LVS, characterisation</td>
+<td>The transistors and their sizes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each view must agree with the others: the same pin names, the same function, the same size. The library provider ensures that, and a mismatch between views is one of the rare cases where a "tool bug" really is a data problem.</p>
+<h2 id="the-liberty-file-timing-as-tables">The Liberty file: timing as tables</h2>
+<p>A Liberty file describes each cell under one set of operating conditions, a process, voltage and temperature corner. That is why a library comes as several Liberty files, one per corner.</p>
+<p>For each cell it gives:</p>
+<ul>
+<li><strong>Area,</strong> in the library's area unit (square micrometres for open PDKs).</li>
+<li><strong>Function</strong> of each output, as a Boolean expression, which synthesis uses for mapping.</li>
+<li><strong>Input pin capacitance,</strong> the load each input presents to whatever drives it.</li>
+<li><strong>Timing arcs</strong> from each input to each output, with delay and output transition tables for rising and falling outputs.</li>
+<li><strong>Constraint tables</strong> for sequential cells: setup and hold times as functions of the data and clock transitions.</li>
+<li><strong>Power:</strong> leakage per input state, and internal switching energy tables.</li>
+</ul>
+<p>The delay of a cell is not one number. It depends on how fast its input changes (the <strong>input transition</strong> or slew) and how much capacitance its output drives (the <strong>load</strong>). The most common model, the non-linear delay model (NLDM), stores delay as a two-dimensional table indexed by those two values. A simplified, illustrative fragment:</p>
+<pre><code class="language-text">cell (nand2_1) {
+  area : 3.75;
+  pin (A) { direction : input; capacitance : 0.0024; }
+  pin (Y) {
+    direction : output;
+    function : &quot;!(A &amp; B)&quot;;
+    timing () {
+      related_pin : &quot;A&quot;;
+      cell_fall (delay_template) {
+        index_1 (&quot;0.01, 0.05, 0.20, 0.80&quot;);      /* input slew, ns */
+        index_2 (&quot;0.0005, 0.002, 0.008, 0.032&quot;); /* load, pF */
+        values (&quot;0.020, 0.032, 0.075, 0.240&quot;, \
+                &quot;0.028, 0.041, 0.085, 0.251&quot;, ...);
+      }
+    }
+  }
+}
+</code></pre>
+<p>The numbers are made up for illustration; real files have more points, more arcs and both rise and fall tables.</p>
+<h2 id="how-a-tool-reads-one-delay">How a tool reads one delay</h2>
+<p>When the timing tool needs the delay of this NAND for an input slew of 0.10 ns and a load of 0.005 pF, neither value is in the table. It finds the surrounding grid points and interpolates. This Python sketch does the bilinear interpolation:</p>
+<pre><code class="language-python">from bisect import bisect_right
+
+slews = [0.01, 0.05, 0.20, 0.80]          # ns, index_1
+loads = [0.0005, 0.002, 0.008, 0.032]     # pF, index_2
+delay = [                                  # ns, rows = slew
+    [0.020, 0.032, 0.075, 0.240],
+    [0.028, 0.041, 0.085, 0.251],
+    [0.050, 0.068, 0.115, 0.284],
+    [0.110, 0.135, 0.196, 0.380],
+]
+
+def lookup(x, y):
+    i = min(max(bisect_right(slews, x) - 1, 0), len(slews) - 2)
+    j = min(max(bisect_right(loads, y) - 1, 0), len(loads) - 2)
+    tx = (x - slews[i]) / (slews[i + 1] - slews[i])
+    ty = (y - loads[j]) / (loads[j + 1] - loads[j])
+    d00, d01 = delay[i][j], delay[i][j + 1]
+    d10, d11 = delay[i + 1][j], delay[i + 1][j + 1]
+    return (d00 * (1 - tx) * (1 - ty) + d01 * (1 - tx) * ty
+            + d10 * tx * (1 - ty) + d11 * tx * ty)
+
+print(f&quot;{lookup(0.10, 0.005):.4f} ns&quot;)
+</code></pre>
+<p>It prints 0.0725 ns. By hand: the slew sits a third of the way from 0.05 to 0.20 ns, and the load halfway from 0.002 to 0.008 pF. Halfway along the load axis gives 0.063 ns in the 0.05 ns row and 0.0915 ns in the 0.20 ns row; a third of the way between those is 0.0725 ns.</p>
+<p>The tool does the same for the output transition, which becomes the input slew of the next cell, and so the calculation ripples along the path. Values outside the table are extrapolated, which is less accurate; that is one reason libraries set maximum transition and capacitance limits, and why violating them matters even when slack is positive.</p>
+<h2 id="drive-strengths">Drive strengths</h2>
+<p>Cells come in several <strong>drive strengths</strong>, usually marked by a suffix such as <code>_1</code>, <code>_2</code>, <code>_4</code>. A stronger version uses wider transistors, so it has lower output resistance and drives a large load faster. The cost is a larger input capacitance (it loads its own driver more), more area and more power. Looking at the tables, the <code>_4</code> version's delay grows much more slowly with load than the <code>_1</code> version's, while its delay at very small loads is similar or slightly worse.</p>
+<p>This is why sizing is an optimisation, not a rule: upsizing a cell helps the net it drives and hurts the net that drives it. Synthesis and placement tools resize cells constantly to balance the two.</p>
+<h2 id="the-lef-file-what-the-router-needs-to-know">The LEF file: what the router needs to know</h2>
+<p>The LEF view hides the transistors and keeps only what placement and routing need:</p>
+<ul>
+<li><strong>Size and site.</strong> Every cell's width is a whole number of placement sites and its height is one row (or a multiple). The tech LEF defines the site and the layers.</li>
+<li><strong>Pins.</strong> The shape and metal layer of each pin, so the router knows where to connect.</li>
+<li><strong>Obstructions.</strong> Metal inside the cell that routes must avoid.</li>
+<li><strong>Symmetry</strong>, which tells the placer whether the cell may be flipped.</li>
+</ul>
+<p>If routing struggles to reach certain cells, their LEF pin shapes are worth a look: pins that are small or crowded on the lowest metal are harder to access.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Open a sky130 Liberty file for the <code>sky130_fd_sc_hd</code> library in a text editor and find a NAND2 cell. Read its area, pin capacitances and one delay table.</li>
+<li>Copy the table into the Python script above and look up the delay at a slew and load of your choice. Then check the same arc in <strong>OpenSTA</strong> with <code>report_dcalc</code> on a small netlist.</li>
+<li>Compare the <code>_1</code> and <code>_4</code> versions of an inverter: input capacitance, area, and delay at small and large loads.</li>
+<li>Open the cell's LEF and GDS in <strong>KLayout</strong> and match the pins in the LEF to the polygons in the layout.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>standard cells</li><li>liberty</li><li>lef</li><li>timing models</li><li>cell library</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="ir-drop-and-electromigration.html"><span>Previous in Physical design &amp; tape-out</span>IR drop and electromigration in plain terms</a><a class="next" href="reproducible-physical-design-flows.html"><span>Next in Physical design &amp; tape-out</span>Making a physical design flow reproducible: pinned tools, configs and seeds</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-logic-synthesis-does.html">What logic synthesis actually does to your RTL</a></h3>
+          <p>Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

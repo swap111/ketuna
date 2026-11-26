@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DMA from the architecture side: bus masters, arbitration and coherence · Ketuna blog</title>
+  <meta name="description" content="A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="DMA from the architecture side: bus masters, arbitration and coherence · Ketuna blog">
+  <meta property="og:description" content="A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.">
+  <link rel="canonical" href="https://ketuna.online/blog/dma-bus-masters-and-arbitration.html">
+  <meta property="og:url" content="https://ketuna.online/blog/dma-bus-masters-and-arbitration.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "DMA from the architecture side: bus masters, arbitration and coherence",
+  "description": "A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "dma, bus arbitration, cache coherence, soc design, memory",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1065,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/dma-bus-masters-and-arbitration.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>DMA from the architecture side: bus masters, arbitration and coherence</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#a-dma-engine-is-a-bus-master">A DMA engine is a bus master</a></li><li><a href="#arbitration-policies">Arbitration policies</a></li><li><a href="#working-the-trade-off">Working the trade-off</a></li><li><a href="#coherence-why-caches-complicate-dma">Coherence: why caches complicate DMA</a></li><li><a href="#architectural-alternatives">Architectural alternatives</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>From a firmware point of view, DMA is a convenience: configure a channel, start it, get an interrupt when the data has moved. From the architecture side, a DMA engine is a second processor of sorts. It issues its own reads and writes, competes with the CPU for the same buses and memories, and bypasses the CPU's caches. Those three facts decide how much bandwidth DMA really gets, how much it slows the CPU down, and why a correct-looking driver can return stale data. This article looks at each.</p>
+<h2 id="a-dma-engine-is-a-bus-master">A DMA engine is a bus master</h2>
+<p>On an on-chip bus, <strong>masters</strong> (managers) start transactions and <strong>slaves</strong> (subordinates) respond. The CPU's instruction and data ports are masters. So is every DMA engine, and so are other blocks that move data themselves, such as an Ethernet or USB controller with built-in DMA. When two masters want the same subordinate in the same cycle, typically the main SRAM, an <strong>arbiter</strong> decides who goes first.</p>
+<p>A <strong>bus matrix</strong> (or crossbar) reduces conflicts by giving each master its own path to each subordinate, so the CPU can fetch from flash while DMA writes to SRAM. Conflicts remain whenever two masters target the same subordinate. Splitting SRAM into several banks on separate matrix ports, and placing DMA buffers in a bank the CPU's stack and hot data do not use, is one of the cheapest performance improvements in an SoC.</p>
+<h2 id="arbitration-policies">Arbitration policies</h2>
+<ul>
+<li><strong>Fixed priority.</strong> The highest-priority requester always wins. Simple and predictable for the winner, but a busy high-priority master can starve the others completely.</li>
+<li><strong>Round-robin.</strong> Grants rotate among requesters. Nobody starves, and the worst-case wait is bounded by the number of masters.</li>
+<li><strong>Weighted or programmable.</strong> Each master gets a share of slots, or priority changes with how long it has waited. Used when one master needs bandwidth guarantees, such as a display controller that must never underrun.</li>
+</ul>
+<p>The policy interacts with <strong>burst length</strong>. Once a master wins, it usually keeps the bus for a whole burst. Long bursts are efficient, because the address and arbitration overhead is paid once per burst; short bursts give other masters a turn sooner.</p>
+<h2 id="working-the-trade-off">Working the trade-off</h2>
+<p>Suppose, with numbers made up for illustration, that each burst costs 2 cycles of arbitration and address overhead plus one cycle per data beat, and that three masters (the CPU and two DMA channels) share one SRAM port with round-robin arbitration.</p>
+<p><strong>Efficiency.</strong> A 16-beat burst uses 16 of 18 cycles for data: 89% efficiency. A 4-beat burst uses 4 of 6: 67%. Longer bursts move more data per cycle of bus time.</p>
+<p><strong>CPU latency.</strong> In the worst case, the CPU's request arrives just after both DMA channels have been granted. With 16-beat bursts it waits for two full bursts: 2 × (16 + 2) = 36 cycles before its own access starts. With 4-beat bursts it waits 2 × (4 + 2) = 12 cycles.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>DMA burst length</th>
+<th>Bus efficiency</th>
+<th>Worst-case CPU wait</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4 beats</td>
+<td>67%</td>
+<td>12 cycles</td>
+</tr>
+<tr>
+<td>16 beats</td>
+<td>89%</td>
+<td>36 cycles</td>
+</tr>
+</tbody>
+</table></div>
+<p>Neither is "right". A design that streams audio while running a hard real-time control loop may cap DMA bursts to bound interrupt and load latency. A design that moves camera frames to memory may favour long bursts. What matters is that the choice is made on purpose, with numbers, and that worst-case latency is checked against the CPU's real-time requirements, not just the average.</p>
+<h2 id="coherence-why-caches-complicate-dma">Coherence: why caches complicate DMA</h2>
+<p>A CPU with a data cache keeps copies of memory lines and, with a write-back cache, may hold newer data than memory for a long time. A typical DMA engine reads and writes memory directly and does not look in the cache. Two failure modes follow:</p>
+<ol>
+<li><strong>CPU writes, DMA reads (memory to peripheral).</strong> The CPU fills a transmit buffer; the new bytes sit in dirty cache lines. DMA reads memory and transmits the old contents. Fix: <strong>clean</strong> (write back) the buffer's lines before starting the transfer.</li>
+<li><strong>DMA writes, CPU reads (peripheral to memory).</strong> DMA fills a receive buffer in memory, but the CPU still has old copies of those lines in its cache and reads them. Fix: <strong>invalidate</strong> the buffer's lines before the CPU reads, and make sure no speculative access refills them during the transfer, which on some cores means invalidating both before and after.</li>
+</ol>
+<p>There is a subtle third trap: <strong>alignment</strong>. Cache maintenance works on whole lines. If a receive buffer shares a cache line with an unrelated variable, invalidating the buffer also throws away any pending write to that variable, and the variable silently reverts to an old value. DMA buffers should therefore start on a cache-line boundary and occupy whole lines:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define CACHE_LINE 64u   /* check your core's line size */
+
+static uint8_t rx_buf[512] __attribute__((aligned(CACHE_LINE)));
+
+void start_rx(void)
+{
+    cache_invalidate_range(rx_buf, sizeof rx_buf);  /* drop stale lines */
+    dma_start_rx(rx_buf, sizeof rx_buf);
+}
+
+void on_rx_complete(void)
+{
+    cache_invalidate_range(rx_buf, sizeof rx_buf);  /* in case of refills */
+    process(rx_buf, sizeof rx_buf);
+}
+</code></pre>
+<p>The <code>cache_invalidate_range</code> helper is platform-specific. On RISC-V cores it is built on the cache-block management instructions of the Zicbom extension (<code>cbo.clean</code>, <code>cbo.inval</code>, <code>cbo.flush</code>), or on vendor-specific operations on older cores. Combine it with the right fences so that the maintenance completes before the DMA engine is told to start.</p>
+<h2 id="architectural-alternatives">Architectural alternatives</h2>
+<p>Software maintenance works but costs CPU time and is easy to get wrong. Architects have three other options:</p>
+<ul>
+<li><strong>Non-cacheable buffer regions.</strong> Map DMA buffers into memory the cache never holds. Simple and safe, but every CPU access to the buffer goes to memory.</li>
+<li><strong>Uncached SRAM banks or tightly coupled memory.</strong> A separate on-chip memory that both CPU and DMA access directly, with fixed timing.</li>
+<li><strong>Hardware I/O coherence.</strong> Route DMA traffic through a coherent port, so the interconnect snoops the CPU's caches on DMA accesses. This removes the software burden at the cost of interconnect complexity and snoop traffic. It is common in larger application processors, less so in small microcontrollers.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Testing DMA with the cache disabled.</strong> Everything works until the cache is turned on.</li>
+<li><strong>Unaligned DMA buffers.</strong> Invalidation corrupts neighbouring variables.</li>
+<li><strong>Letting DMA starve the CPU.</strong> Fixed-priority DMA with long bursts can break real-time deadlines.</li>
+<li><strong>Starting DMA before cache maintenance has completed.</strong> Order it with a fence.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python model of a round-robin arbiter with three masters and configurable burst length, and measure the worst-case and average CPU wait over random request patterns.</li>
+<li>Implement the arbiter in Verilog, simulate it in Verilator against the Python model, and prove "no master waits more than N cycles" with SymbiYosys.</li>
+<li>In a QEMU or Renode bare-metal project, place an unrelated variable next to an unaligned DMA buffer and reason through what an invalidate would do to it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>dma</li><li>bus arbitration</li><li>cache coherence</li><li>soc design</li><li>memory</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="direct-mapped-cache-by-hand.html"><span>Previous in Computer architecture &amp; RISC-V</span>Caches from scratch: a direct-mapped cache worked by hand</a><a class="next" href="data-hazards-and-forwarding.html"><span>Next in Computer architecture &amp; RISC-V</span>Data hazards and forwarding paths, traced cycle by cycle</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="axi-five-channels.html">AXI&#x27;s five channels and why reads and writes are separate</a></h3>
+          <p>Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="cache-coherence-in-two-cores.html">Cache coherence in two cores: the problem MESI solves</a></h3>
+          <p>Two cores with private caches can hold different values for one address. Trace a shared counter through the four MESI states on a snooping bus, and see why coherence alone does not make the increment atomic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

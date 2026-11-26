@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Routing and the DRC violations it leaves behind · Ketuna blog</title>
+  <meta name="description" content="Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Routing and the DRC violations it leaves behind · Ketuna blog">
+  <meta property="og:description" content="Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.">
+  <link rel="canonical" href="https://ketuna.online/blog/routing-and-leftover-drc.html">
+  <meta property="og:url" content="https://ketuna.online/blog/routing-and-leftover-drc.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Routing and the DRC violations it leaves behind",
+  "description": "Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "routing, drc, detailed routing, openroad, physical design",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 952,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/routing-and-leftover-drc.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Routing and the DRC violations it leaves behind</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#global-routing-a-plan-on-a-coarse-grid">Global routing: a plan on a coarse grid</a></li><li><a href="#detailed-routing-real-shapes-under-real-rules">Detailed routing: real shapes under real rules</a></li><li><a href="#the-usual-leftovers">The usual leftovers</a></li><li><a href="#clearing-violations-in-order">Clearing violations, in order</a></li><li><a href="#watch-timing-while-you-fix">Watch timing while you fix</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A detailed router can finish a run, report success, and still leave a handful of design rule violations behind. On a small block that might be three markers in KLayout; on a large one it can be hundreds. They must all go before tape-out, and the way you clear them depends on understanding what the router was trying to do and why it could not. This article explains the two routing stages and the common leftovers, with a practical order for fixing them.</p>
+<h2 id="global-routing-a-plan-on-a-coarse-grid">Global routing: a plan on a coarse grid</h2>
+<p>Global routing divides the core into a grid of global routing cells (gcells), each a few rows tall. For every net, it chooses a sequence of gcells and a layer for each segment, respecting the capacity of each gcell edge: how many tracks of each layer cross it. It does not draw shapes. Its output is a <strong>route guide</strong> for every net, and a congestion report showing where demand exceeded capacity.</p>
+<p>Global routing is fast, so it runs repeatedly: during placement for congestion estimates, after clock tree synthesis, and before detailed routing. Its overflow numbers are the best early warning you get. A global route with significant overflow will turn into detailed routing violations almost every time.</p>
+<h2 id="detailed-routing-real-shapes-under-real-rules">Detailed routing: real shapes under real rules</h2>
+<p>Detailed routing (TritonRoute, run as <code>detailed_route</code> in OpenROAD) follows the guides and draws actual wires on the routing tracks of each layer, with vias between layers and connections to cell pins. It must obey the full set of foundry rules for each layer: minimum width, minimum spacing (which often depends on width and on how long two wires run side by side), minimum area, end-of-line spacing, via enclosure, and more.</p>
+<p>The router works iteratively. It routes everything, finds violations, rips up the nets involved, reroutes them with higher costs on the problem areas, and repeats. Most violations vanish in the first few iterations. The ones left at the end are the hard cases: regions where there is not enough room, or pin shapes that are awkward to reach.</p>
+<h2 id="the-usual-leftovers">The usual leftovers</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Violation</th>
+<th>What it means</th>
+<th>Typical cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metal spacing</td>
+<td>Two shapes on one layer are closer than allowed</td>
+<td>Crowded region, wide-wire spacing rules, pins packed together</td>
+</tr>
+<tr>
+<td>Short</td>
+<td>Two different nets touch</td>
+<td>Router gave up in a congested area; overlap with a power strap</td>
+</tr>
+<tr>
+<td>Minimum area</td>
+<td>A tiny metal island is smaller than the rule</td>
+<td>Short stub at a via or pin</td>
+</tr>
+<tr>
+<td>Via enclosure or cut spacing</td>
+<td>A via's metal overlap is too small, or two vias are too close</td>
+<td>Dense via stacks, pin access on lower layers</td>
+</tr>
+<tr>
+<td>End-of-line spacing</td>
+<td>A wire end is too close to a neighbour</td>
+<td>Many short segments in a tight space</td>
+</tr>
+<tr>
+<td>Off-grid or pin access</td>
+<td>A pin cannot be reached cleanly</td>
+<td>Cell pin shapes that do not line up with tracks</td>
+</tr>
+</tbody>
+</table></div>
+<p>A short is the most serious, because it is also an electrical error: LVS will fail and the circuit would not work. Spacing and area errors are manufacturability risks, which the foundry will not accept.</p>
+<h2 id="clearing-violations-in-order">Clearing violations, in order</h2>
+<p>The best fix is the one that removes the cause, applied at the earliest step that can.</p>
+<ol>
+<li><strong>Look at the markers.</strong> Load the routed layout in <strong>KLayout</strong> with the DRC report, or open the routed database in the OpenROAD GUI and use its DRC viewer. Are the violations scattered, or clustered in one area? Clusters point to congestion; scattered single errors near particular cells point to pin access problems.</li>
+<li><strong>Rerun detailed routing with more iterations</strong> if there are only a few scattered violations. The router may simply need more passes.</li>
+<li><strong>Relieve local congestion</strong> if the violations cluster: lower the placement density or add placement padding around the dense cells, and rerun from placement. Do not keep pushing the router.</li>
+<li><strong>Check pin access</strong> if violations sit on the same cell type every time. Some cells are hard to access on the lowest metal; preventing their use in synthesis (a <code>dont_use</code> list) is a common, legitimate fix.</li>
+<li><strong>Check the power grid.</strong> Shorts to power straps often mean the grid leaves too few tracks in a region. Adjust strap pitch or layers at the floorplan.</li>
+<li><strong>Hand-edit only as a last resort,</strong> and rerun DRC, LVS and timing after any manual change.</li>
+</ol>
+<h2 id="watch-timing-while-you-fix">Watch timing while you fix</h2>
+<p>Every rerouted net has new parasitics. A spacing fix that moves a wire next to a fast-switching neighbour adds coupling capacitance; a detour adds resistance and delay. After clearing DRC, always rerun parasitic extraction and sign-off timing. A clean DRC run with a newly failing hold path is not progress.</p>
+<p>The router's own check is fast and good, but it is not the foundry's sign-off deck. Run the full DRC in Magic or KLayout on the final GDS as well. Differences between the router's view and the sign-off deck are common at the edges of the rule set, for example density and antenna rules, which the router may handle separately.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Raising router effort on a congested placement.</strong> The violations come back in a slightly different place.</li>
+<li><strong>Trusting the router's "0 violations" as sign-off.</strong> Run the foundry deck on the GDS.</li>
+<li><strong>Fixing DRC and forgetting timing.</strong> Rerouting changes parasitics.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 at a high utilisation (for example <code>FP_CORE_UTIL</code> of 70) so that routing is tight.</li>
+<li>Find the detailed routing DRC report in the run directory and load it on the layout in <strong>KLayout</strong> using the marker browser.</li>
+<li>Classify each violation by the table above, then rerun at a lower <code>PL_TARGET_DENSITY_PCT</code> and compare the count.</li>
+<li>Run the full <strong>Magic</strong> DRC on the final GDS and compare it with the router's report.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>routing</li><li>drc</li><li>detailed routing</li><li>openroad</li><li>physical design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="rtl-to-gds-in-one-page.html"><span>Previous in Physical design &amp; tape-out</span>RTL to GDS in one page: what each step of the flow takes in and hands out</a><a class="next" href="scan-chains-and-atpg.html"><span>Next in Physical design &amp; tape-out</span>Scan chains and ATPG: how chips are tested after manufacturing</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="placement-and-congestion.html">Placement and congestion: reading the heat map before routing fails</a></h3>
+          <p>Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rtl-to-gds-in-one-page.html">RTL to GDS in one page: what each step of the flow takes in and hands out</a></h3>
+          <p>The RTL-to-GDS flow is a chain of steps, each reading files and writing files you can open. Learn what goes in and comes out of synthesis, floorplan, placement, clock tree, routing and sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

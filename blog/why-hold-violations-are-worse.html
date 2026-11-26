@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why hold violations are worse than setup violations, and how tools fix them · Ketuna blog</title>
+  <meta name="description" content="A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why hold violations are worse than setup violations, and how tools fix them · Ketuna blog">
+  <meta property="og:description" content="A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.">
+  <link rel="canonical" href="https://ketuna.online/blog/why-hold-violations-are-worse.html">
+  <meta property="og:url" content="https://ketuna.online/blog/why-hold-violations-are-worse.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why hold violations are worse than setup violations, and how tools fix them",
+  "description": "A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "hold time, static timing analysis, clock skew, buffer insertion, timing closure",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 889,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/why-hold-violations-are-worse.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Why hold violations are worse than setup violations, and how tools fix them</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-two-checks-look-at-different-edges">The two checks look at different edges</a></li><li><a href="#how-hold-failures-happen-in-practice">How hold failures happen in practice</a></li><li><a href="#how-tools-fix-hold">How tools fix hold</a></li><li><a href="#what-the-fix-costs">What the fix costs</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>If a chip comes back from the fab with a setup violation, you can usually still use it: turn the clock down until the slow path makes it, and you have a working, slower part. If it comes back with a hold violation on a path that matters, lowering the clock does nothing. The failing flip-flop captures the wrong value at every frequency. That single fact is why physical designers treat hold as a must-fix, and why sign-off tools spend so much effort on it.</p>
+<h2 id="the-two-checks-look-at-different-edges">The two checks look at different edges</h2>
+<p>Take a launch flop and a capture flop on the same clock. For <strong>setup</strong>, the data launched on edge <em>n</em> must arrive before edge <em>n + 1</em>, minus the setup time. For <strong>hold</strong>, the data launched on edge <em>n</em> must not arrive so early that it disturbs the value the capture flop is latching on that <em>same</em> edge <em>n</em>.</p>
+<p>Write the hold check with clock latencies included. Let L<sub>launch</sub> and L<sub>capture</sub> be the clock arrival times at the two flops:</p>
+<blockquote>
+<p>L<sub>launch</sub> + t<sub>cq</sub> + t<sub>logic,min</sub> ≥ L<sub>capture</sub> + t<sub>h</sub></p>
+</blockquote>
+<p>There is no clock period anywhere in that line. Both sides refer to the same edge, so stretching the time between edges changes nothing. Setup, by contrast, has the period T on the required side, and making T larger always helps.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="hv-title hv-desc" font-size="14">
+<title id="hv-title">Setup and hold checks refer to different clock edges</title>
+<desc id="hv-desc">A clock waveform with two rising edges labelled n and n plus one. A long arrow from edge n to just before edge n plus one is labelled setup check: data must arrive before this. A short arrow from edge n to just after edge n is labelled hold check: new data must not arrive before this. Stretching the period moves edge n plus one but not the hold window.</desc>
+<text x="10" y="58" class="dg-text">clk</text>
+<path d="M50,70 H100 V40 H180 V70 H330 V40 H410 V70 H460" class="dg-line"/>
+<text x="100" y="30" text-anchor="middle" class="dg-text">edge n</text>
+<text x="330" y="30" text-anchor="middle" class="dg-text">edge n+1</text>
+<line x1="100" y1="80" x2="100" y2="210" class="dg-dash"/>
+<line x1="330" y1="80" x2="330" y2="210" class="dg-dash"/>
+<rect x="100" y="150" width="30" height="40" class="dg-amber" fill-opacity="0.5"/>
+<rect x="300" y="100" width="30" height="40" class="dg-amber" fill-opacity="0.28"/>
+<line x1="104" y1="120" x2="294" y2="120" class="dg-line"/>
+<path d="M294,116 L300,120 L294,124 Z" class="dg-arrow"/>
+<text x="200" y="112" text-anchor="middle" class="dg-text">setup: arrive before here</text>
+<line x1="104" y1="170" x2="124" y2="170" class="dg-line"/>
+<path d="M124,166 L130,170 L124,174 Z" class="dg-arrow"/>
+<text x="140" y="175" class="dg-text">hold: not before here</text>
+<text x="215" y="205" text-anchor="middle" class="dg-muted">a longer period moves edge n+1 only</text>
+</svg>
+<figcaption>The setup limit moves with the period; the hold limit is tied to the launching edge itself.</figcaption>
+</figure>
+
+<h2 id="how-hold-failures-happen-in-practice">How hold failures happen in practice</h2>
+<p>Hold fails when the shortest path is shorter than the hold requirement plus any skew working against it. The usual suspects:</p>
+<ul>
+<li><strong>Back-to-back flops</strong> with no logic between them, such as shift registers and synchronizer chains. The only delay is clock-to-Q and a short wire.</li>
+<li><strong>Clock skew</strong> where the capture clock arrives later than the launch clock. Every picosecond of that skew is added to the hold requirement.</li>
+<li><strong>Fast corners.</strong> At the fast process corner, high voltage and (for most older processes) low temperature, cells are quickest, so the minimum path is shortest. Hold is signed off there.</li>
+<li><strong>Scan paths.</strong> In test mode, flip-flops are chained directly, often across distant parts of the clock tree, giving short data paths with large skew.</li>
+</ul>
+<p>Here is a worked example with illustrative numbers. A scan chain connects flop A to flop B with only a wire.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Launch clock latency, L<sub>launch</sub></td>
+<td>0.40 ns</td>
+</tr>
+<tr>
+<td>Capture clock latency, L<sub>capture</sub></td>
+<td>0.58 ns</td>
+</tr>
+<tr>
+<td>Clock-to-Q at the fast corner</td>
+<td>0.12 ns</td>
+</tr>
+<tr>
+<td>Wire delay</td>
+<td>0.02 ns</td>
+</tr>
+<tr>
+<td>Hold time of flop B</td>
+<td>0.03 ns</td>
+</tr>
+</tbody>
+</table></div>
+<p>Arrival = 0.40 + 0.12 + 0.02 = 0.54 ns. Required = 0.58 + 0.03 = 0.61 ns. Hold slack = 0.54 − 0.61 = −0.07 ns. The path fails by 70 ps, and it would fail at 1 MHz just as it does at 100 MHz.</p>
+<h2 id="how-tools-fix-hold">How tools fix hold</h2>
+<p>The fix is to make the short path longer, without making any long path that shares it fail setup.</p>
+<ul>
+<li><strong>Delay cell or buffer insertion.</strong> The tool inserts one or more buffers or dedicated delay cells on the fast path, close to the capture flop's <code>D</code> pin so that only the short path is slowed. In the example, a delay cell of 0.10 ns gives a slack of +0.03 ns.</li>
+<li><strong>Downsizing the driver</strong> to slow the edge slightly, when there is setup slack to spare.</li>
+<li><strong>Re-routing</strong> with a longer wire, rarely used directly but sometimes the side effect of buffering.</li>
+<li><strong>Changing skew.</strong> Moving the launch clock later or the capture clock earlier removes the cause instead of the symptom, but it changes setup on other paths through the same flops.</li>
+</ul>
+<p>The trade-off is that a fix for hold can break setup. If the short path to flop B shares cells with a long path to the same flop, adding delay where both paths overlap slows the long path too. Good repair tools check setup slack at the slow corner while inserting delay for hold at the fast corner, which is why hold repair is usually done after clock tree synthesis, once real skew is known, and again after routing.</p>
+<h2 id="what-the-fix-costs">What the fix costs</h2>
+<p>Hold buffers are not free:</p>
+<ul>
+<li><strong>Area and placement room.</strong> Hundreds of small delay cells in a dense region can push the design towards congestion.</li>
+<li><strong>Power.</strong> Each buffer switches whenever its data changes and adds capacitance.</li>
+<li><strong>Routing.</strong> More cells mean more pins to connect.</li>
+</ul>
+<p>A design that needs thousands of hold buffers is often telling you something about the clock tree, such as large skew between regions, rather than about the logic. Look at skew first.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Checking hold only at the typical corner.</strong> Hold must be signed off at the fast corner where paths are shortest.</li>
+<li><strong>Fixing hold before CTS.</strong> Before the clock tree exists, skew is an estimate, so repairs are guesses.</li>
+<li><strong>Ignoring test-mode hold.</strong> Scan paths are real paths when the tester runs them.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a four-stage shift register in Verilog and synthesise it with <strong>Yosys</strong> against sky130.</li>
+<li>In <strong>OpenSTA</strong>, create a clock, then add skew with <code>set_clock_latency</code> on the capture flops only. Run <code>report_checks -path_delay min</code> and watch the hold slack go negative.</li>
+<li>Change the clock period by a factor of ten and confirm the hold slack does not change.</li>
+<li>Run the full flow in <strong>LibreLane</strong> and compare the hold slack before and after the post-CTS repair step in its reports.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>hold time</li><li>static timing analysis</li><li>clock skew</li><li>buffer insertion</li><li>timing closure</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="signoff-corners-for-digital-timing.html"><span>Previous in Physical design &amp; tape-out</span>Which corners to sign off: process, voltage and temperature for digital timing</a><a class="next" href="writing-your-first-sdc.html"><span>Next in Physical design &amp; tape-out</span>Writing your first SDC: clocks, I/O delays and false paths</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="timing-closure-when-paths-will-not-close.html">Timing closure when the last few paths will not close</a></h3>
+          <p>When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-timing-report.html">How to read a static timing report line by line</a></h3>
+          <p>A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

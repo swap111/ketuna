@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Treating models like firmware: versioning, tests and CI for edge AI · Ketuna blog</title>
+  <meta name="description" content="A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Treating models like firmware: versioning, tests and CI for edge AI · Ketuna blog">
+  <meta property="og:description" content="A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.">
+  <link rel="canonical" href="https://ketuna.online/blog/treating-models-like-firmware.html">
+  <meta property="og:url" content="https://ketuna.online/blog/treating-models-like-firmware.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Treating models like firmware: versioning, tests and CI for edge AI",
+  "description": "A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ci, versioning, testing, firmware, edge ai",
+  "articleSection": "Edge AI",
+  "wordCount": 849,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/treating-models-like-firmware.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Treating models like firmware: versioning, tests and CI for edge AI</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#pin-the-model-and-everything-that-made-it">Pin the model and everything that made it</a></li><li><a href="#three-kinds-of-test">Three kinds of test</a></li><li><a href="#a-ci-job-that-runs-them">A CI job that runs them</a></li><li><a href="#releasing-and-rolling-back">Releasing and rolling back</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On an edge device, the model is not a separate service that someone can quietly redeploy. It is an array of bytes compiled into the firmware, run by C code, shipped in every unit. Yet in many projects the model file arrives by chat message, gets renamed <code>model_final2.tflite</code>, and is dropped into the source tree without anyone being able to say which training run, which data or which quantization settings produced it. Firmware engineers already have tools for exactly this problem: version control, reproducible builds, regression tests and continuous integration (CI). Applying them to the model is mostly a matter of deciding to.</p>
+<h2 id="pin-the-model-and-everything-that-made-it">Pin the model and everything that made it</h2>
+<p>A model file is a build artefact, like a compiled library. Treat it that way:</p>
+<ul>
+<li><strong>Record its provenance.</strong> For every model that could ship, keep the training code commit, the dataset version, the training configuration, the quantization settings and the random seeds.</li>
+<li><strong>Identify it by content.</strong> A file name can lie; a cryptographic hash cannot. Store the SHA-256 of the exact <code>.tflite</code> (or equivalent) file in a small manifest committed beside the firmware.</li>
+<li><strong>Generate, never hand-edit, the C array.</strong> The header that embeds the model is produced by a script from the pinned file. If the header and the manifest disagree, the build fails.</li>
+<li><strong>Expose the version at run time.</strong> Compile the model's version string and hash into the firmware and report them over the debug console or in device telemetry, so a field report can be traced to an exact model.</li>
+</ul>
+<p>A manifest can be as simple as:</p>
+<pre><code class="language-text">model: kws_int8
+version: 1.3.0
+file: models/kws_int8_v1.3.0.tflite
+sha256: &lt;64 hex characters from sha256sum&gt;
+train_commit: &lt;git commit of the training repository&gt;
+dataset: kws-data v4
+input: int8 49x10, scale 0.1015, zero_point -12
+</code></pre>
+<p>The numbers in the input line are only an example of what to record: the input scale and zero point are part of the model's interface, and firmware that computes features must use exactly those values.</p>
+<h2 id="three-kinds-of-test">Three kinds of test</h2>
+<p>Model changes can break a product in different ways, and each needs its own test.</p>
+<p><strong>1. Accuracy regression on frozen data.</strong> Keep a held-out test set that is versioned and never used for training or tuning. For every candidate model, run the <em>quantized</em> model on it and check per-class results against minimum values agreed with the product team, not just overall accuracy. A new model that improves the average while losing recall on a rare but important class should fail CI.</p>
+<p><strong>2. Bit-exact check of the deployed code.</strong> The C code on the device must compute exactly what the integer reference computes in Python. Keep a set of input vectors with their expected int8 outputs, generated by the reference, and check that the firmware's inference code reproduces them exactly, both compiled for the host and cross-compiled for the target and run in an emulator. This catches a broken kernel, a wrong compiler flag, a mismatched feature scale or an operator missing from the resolver.</p>
+<p><strong>3. Resource budgets.</strong> Flash, RAM and cycles per inference are requirements. Read flash and static RAM from the build with the <code>size</code> tool, the arena usage from the runtime after allocation, and cycles from a cycle-accurate simulator or the target. Fail the build if any exceeds its budget. Otherwise the model grows a layer at a time until one day it no longer fits.</p>
+<h2 id="a-ci-job-that-runs-them">A CI job that runs them</h2>
+<p>Each step below is an ordinary command, so any CI system can run it. A bash script makes the order explicit:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+
+# 1. The model file is the one the manifest names
+expected=$(awk '/^sha256:/ {print $2}' models/manifest.yaml)
+actual=$(sha256sum models/kws_int8_v1.3.0.tflite | cut -d' ' -f1)
+[ &quot;$expected&quot; = &quot;$actual&quot; ] || { echo &quot;model hash mismatch&quot;; exit 1; }
+
+# 2. Regenerate the C array and the reference vectors from it
+python tools/gen_model_header.py models/kws_int8_v1.3.0.tflite
+python tools/gen_vectors.py --out build/vectors.h
+
+# 3. Accuracy on the frozen test set, per class
+python -m pytest tests/test_accuracy.py
+
+# 4. Bit-exact on host, then on the target CPU in an emulator
+make -C firmware host-test
+make -C firmware qemu-test
+
+# 5. Budgets from the target build
+python tools/check_budgets.py firmware/build/app.elf
+</code></pre>
+<p>The script names in it are your project's own; the point is the sequence. The accuracy test is ordinary pytest:</p>
+<pre><code class="language-python">import numpy as np
+from evaluate import run_int8_model   # your project's evaluation code
+
+MIN_RECALL = {&quot;keyword&quot;: 0.90, &quot;unknown&quot;: 0.85, &quot;silence&quot;: 0.95}
+
+def test_per_class_recall():
+    y_true, y_pred, names = run_int8_model(&quot;data/test_v4&quot;)
+    for k, name in enumerate(names):
+        mask = y_true == k
+        recall = float(np.mean(y_pred[mask] == k))
+        assert recall &gt;= MIN_RECALL[name], f&quot;{name}: {recall:.3f}&quot;
+</code></pre>
+<p>The thresholds above are placeholders for illustration; yours come from the product's requirements and from the current model's measured performance.</p>
+<h2 id="releasing-and-rolling-back">Releasing and rolling back</h2>
+<p>When a model passes, it is released like firmware: a version number, a changelog entry saying what changed and why (new data, new architecture, retuned threshold), and the measured results on the frozen test set. Keep the previous model and its manifest in the repository so a rollback is a one-line change and a rebuild, not a search through someone's laptop.</p>
+<p>Be careful with what you change at once. A firmware release that updates the feature code, the model and the decision threshold together makes it impossible to tell which one caused a field problem. Changing one thing per release, where you can, keeps cause and effect visible.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>model files identified only by name, with no hash or provenance</li>
+<li>testing the float model in CI while shipping the int8 one</li>
+<li>a "test set" that has quietly been used for tuning</li>
+<li>no budget checks, so flash and RAM creep up release by release</li>
+<li>hand-editing the generated model header</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a manifest for the model in your current project, including its SHA-256 from <code>sha256sum</code>, and add a build step that fails if they disagree.</li>
+<li>Generate twenty reference input and output vectors from your Python integer model and add a host test that compares your C inference code with them.</li>
+<li>Cross-compile the same test for a RISC-V target and run it under <code>qemu-riscv32</code> in CI.</li>
+<li>Add a budget check that reads <code>size</code> output for your firmware image and fails above a limit you set.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ci</li><li>versioning</li><li>testing</li><li>firmware</li><li>edge ai</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="drift-or-event-in-water-quality-data.html"><span>Previous in Edge AI</span>Telling sensor drift from real events in water quality data</a><a class="next" href="verifying-an-ml-accelerator.html"><span>Next in Edge AI</span>Verifying an ML accelerator against a numpy golden model</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="edge-or-cloud-inference.html">Edge or cloud inference? Latency, power, privacy and cost</a></h3>
+          <p>Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="image-preprocessing-in-hardware.html">Image preprocessing in hardware: downscaling, normalisation and windowing</a></h3>
+          <p>A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

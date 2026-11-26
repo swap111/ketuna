@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Binary, one-hot or Gray: how state encoding changes area, speed and safety · Ketuna blog</title>
+  <meta name="description" content="State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Binary, one-hot or Gray: how state encoding changes area, speed and safety · Ketuna blog">
+  <meta property="og:description" content="State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.">
+  <link rel="canonical" href="https://ketuna.online/blog/fsm-state-encoding-choices.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fsm-state-encoding-choices.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Binary, one-hot or Gray: how state encoding changes area, speed and safety",
+  "description": "State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fsm, state encoding, one-hot, gray code, synthesis",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 979,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fsm-state-encoding-choices.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Binary, one-hot or Gray: how state encoding changes area, speed and safety</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-three-common-encodings">The three common encodings</a></li><li><a href="#what-each-encoding-does-to-the-logic">What each encoding does to the logic</a></li><li><a href="#what-synthesis-does-with-your-choice">What synthesis does with your choice</a></li><li><a href="#illegal-states-and-how-to-recover">Illegal states and how to recover</a></li><li><a href="#choosing-an-encoding">Choosing an encoding</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When you write <code>typedef enum {IDLE, LOAD, RUN, DONE}</code>, you have described the behaviour of a state machine but not its hardware. Someone still has to decide which bit pattern stands for each state. That choice, the state encoding, changes the flip-flop count, the depth of the next-state logic, the glitchiness of decoded outputs and, less obviously, what the machine does when a bit flips that should not have.</p>
+<h2 id="the-three-common-encodings">The three common encodings</h2>
+<p>For a machine with N states:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Encoding</th>
+<th>Flops</th>
+<th>Patterns for 8 states</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Binary</td>
+<td>⌈log<sub>2</sub> N⌉</td>
+<td>000, 001, 010 … 111</td>
+</tr>
+<tr>
+<td>Gray</td>
+<td>⌈log<sub>2</sub> N⌉</td>
+<td>000, 001, 011, 010, 110 …</td>
+</tr>
+<tr>
+<td>One-hot</td>
+<td>N</td>
+<td>00000001, 00000010 …</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Binary</strong> uses the fewest flops. The cost is in logic: to decide "am I in state 5?" you must decode all three bits, and the next-state equation for each bit can depend on every state bit and every input.</p>
+<p><strong>One-hot</strong> uses one flop per state, exactly one of which is 1. "Am I in state 5?" is a single wire. The next-state logic for each flop only has to OR together the conditions that lead <em>into</em> that state, which is usually shallow. So one-hot trades flops for speed, and on architectures rich in flip-flops, such as FPGAs, it is often the default.</p>
+<p><strong>Gray</strong> also uses the minimum number of flops, but assigns codes so that the transitions you take most often change only one bit. For a machine that mostly walks through states in sequence, like a counter or a pointer, that means one bit changes per step.</p>
+<h2 id="what-each-encoding-does-to-the-logic">What each encoding does to the logic</h2>
+<p>Consider a four-state controller <code>IDLE → LOAD → RUN → DONE → IDLE</code>, with an output <code>busy</code> that is high in <code>LOAD</code> and <code>RUN</code>.</p>
+<ul>
+<li><strong>Binary</strong> (<code>00, 01, 10, 11</code>): <code>busy = s[1] ^ s[0]</code>. Going from <code>LOAD</code> (01) to <code>RUN</code> (10) changes both bits. If one flop switches slightly before the other, the state momentarily looks like <code>00</code> or <code>11</code>, and the XOR can glitch low for a moment.</li>
+<li><strong>Gray</strong> (<code>00, 01, 11, 10</code>): <code>busy = s[0]</code>. Every step in the sequence changes one bit, so the decoded output changes cleanly.</li>
+<li><strong>One-hot</strong> (<code>0001, 0010, 0100, 1000</code>): <code>busy = s[1] | s[2]</code>. Going from <code>LOAD</code> to <code>RUN</code> clears one bit and sets another, so a short glitch is possible on the OR only if the timing is very unbalanced; in practice the output logic is small and fast.</li>
+</ul>
+<p>Gray's advantage is real but narrow. It matters most when a state value is used asynchronously, sampled in another clock domain, or decoded into an output that must not glitch. For most internal FSMs whose outputs are sampled by flops in the same domain, glitches do not matter and the comparison is mostly about area and speed.</p>
+<h2 id="what-synthesis-does-with-your-choice">What synthesis does with your choice</h2>
+<p>Most synthesis tools have an FSM extraction step. They recognise a state register with a known set of values, and may re-encode it, often to one-hot or to a heuristic choice, unless you tell them otherwise. Two consequences:</p>
+<ul>
+<li>The encoding in your RTL may not be the encoding in the netlist. Read the synthesis log; tools typically report the FSMs they found and the encoding they chose.</li>
+<li>If you rely on a specific encoding, for example because a state bit is used as an output or crosses clock domains, you must stop the tool re-encoding it, using the attribute or option your tool provides, and check the netlist.</li>
+</ul>
+<p>In open-source flows, <strong>Yosys</strong> has an <code>fsm</code> pass that extracts and can re-encode state machines; running <code>synth</code> includes it, and the log shows what it did.</p>
+<h2 id="illegal-states-and-how-to-recover">Illegal states and how to recover</h2>
+<p>A 4-state binary machine has no unused patterns. A 5-state binary machine has three. A 4-state one-hot machine has twelve: every pattern with zero bits set or more than one bit set is illegal. You reach an illegal state through a radiation-induced upset, a supply glitch, a reset that releases unevenly, or a timing violation.</p>
+<p>What happens next depends on the logic:</p>
+<ul>
+<li>In <strong>binary</strong>, the illegal codes go wherever the minimised next-state logic happens to send them. The machine may recover or may lock up in a loop of unused states.</li>
+<li>In <strong>one-hot</strong>, an all-zero state is a dead end: every next-state term needs some current-state bit to be 1, so nothing ever becomes 1 again. Two bits set at once can make two "branches" run in parallel.</li>
+</ul>
+<p>The intended fix is a <code>default</code> branch that returns to a safe state:</p>
+<pre><code class="language-systemverilog">always_comb begin
+  nx = IDLE;                 // safe default
+  case (st)
+    IDLE: if (start) nx = LOAD;
+    LOAD:            nx = RUN;
+    RUN:  if (last)  nx = DONE; else nx = RUN;
+    DONE:            nx = IDLE;
+    default:         nx = IDLE;
+  endcase
+end
+</code></pre>
+<p>There is a catch. Synthesis knows the enum has only four legal values, so it may treat <code>default</code> as unreachable and remove the recovery logic entirely, especially after re-encoding. If recovery from illegal states is a requirement, ask for it explicitly with your tool's "safe FSM" option or attribute, or code the state register as a plain vector so the tool cannot assume which values occur. Then verify it: force an illegal value in simulation, or prove recovery with a formal tool.</p>
+<p>For one-hot designs, a common hardware check is that exactly one bit is set (<code>$onehot(st)</code> in a SystemVerilog assertion), with an error flag or a reset of the machine if it fails.</p>
+<h2 id="choosing-an-encoding">Choosing an encoding</h2>
+<ul>
+<li><strong>Small FSM, sampled outputs, ASIC:</strong> binary or let the tool choose</li>
+<li><strong>Speed-critical FSM, many states:</strong> one-hot</li>
+<li><strong>State value used across clock domains, or outputs that must not glitch:</strong> Gray, or registered outputs</li>
+<li><strong>Must recover from upsets:</strong> any encoding, plus explicit safe recovery that you have verified survives synthesis</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the four-state controller as an enum and synthesise it with <strong>Yosys</strong> (<code>yosys -p "read_verilog -sv fsm.sv; synth -top ctrl; stat"</code>). Find the FSM messages in the log and see which encoding was chosen.</li>
+<li>Repeat with <code>synth -top ctrl -nofsm</code> and compare cell counts.</li>
+<li>In an <strong>Icarus Verilog</strong> testbench, force the state register to an illegal value with <code>force</code> and <code>release</code>, and check whether the machine returns to <code>IDLE</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fsm</li><li>state encoding</li><li>one-hot</li><li>gray code</li><li>synthesis</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="hardware-multiplier-architectures.html"><span>Previous in Digital &amp; VLSI design</span>Array, Booth and Wallace: how hardware multipliers trade area for speed</a><a class="next" href="blocking-vs-nonblocking-assignments.html"><span>Next in Digital &amp; VLSI design</span>Blocking vs non-blocking assignments: the one rule and why it exists</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="moore-or-mealy-by-timing.html">Moore or Mealy? Choosing an FSM style by timing, not by textbook</a></h3>
+          <p>A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="where-accidental-latches-come-from.html">Where accidental latches come from, and how to read the synthesis warning</a></h3>
+          <p>A combinational block that does not assign every output on every path makes synthesis infer a latch. Learn to spot the cause, read the warning, and prevent it with defaults and always_comb.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

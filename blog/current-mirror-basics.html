@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current mirrors: copying a current and why matching matters · Ketuna blog</title>
+  <meta name="description" content="A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Current mirrors: copying a current and why matching matters · Ketuna blog">
+  <meta property="og:description" content="A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.">
+  <link rel="canonical" href="https://ketuna.online/blog/current-mirror-basics.html">
+  <meta property="og:url" content="https://ketuna.online/blog/current-mirror-basics.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Current mirrors: copying a current and why matching matters",
+  "description": "A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "current mirror, biasing, matching, analog basics",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 962,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/current-mirror-basics.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Current mirrors: copying a current and why matching matters</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#how-two-transistors-copy-a-current">How two transistors copy a current</a></li><li><a href="#scaling-the-copy">Scaling the copy</a></li><li><a href="#output-resistance-and-channel-length-modulation">Output resistance and channel-length modulation</a></li><li><a href="#mismatch-when-the-two-transistors-are-not-twins">Mismatch: when the two transistors are not twins</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Analog circuits run on bias currents. An amplifier needs a few microamperes here, a comparator a few there, a charge pump some more. Generating each one from scratch would be wasteful and inaccurate, so chips make one good reference current and copy it everywhere with <strong>current mirrors</strong>. The mirror is probably the most repeated analog structure on any chip, and understanding where its copy goes wrong teaches you most of what matters about transistor matching.</p>
+<h2 id="how-two-transistors-copy-a-current">How two transistors copy a current</h2>
+<p>The basic mirror uses two NMOS transistors, M1 and M2, with their sources at ground and their gates tied together. M1 is <strong>diode-connected</strong>: its gate is wired to its own drain. A reference current I<sub>REF</sub> is pushed into that node.</p>
+<p>Here is what happens. The current has to flow through M1, so the gate-drain node rises until M1's V<sub>GS</sub> is exactly what it takes to carry I<sub>REF</sub>. Because the drain equals the gate, V<sub>DS</sub> = V<sub>GS</sub>, which is always larger than V<sub>GS</sub> − V<sub>TH</sub>, so M1 is guaranteed to be in saturation. The diode connection turns a current into a voltage automatically.</p>
+<p>M2 sees the same V<sub>GS</sub>. If M2 is also in saturation and is identical to M1, the square-law equation gives it the same current. The mirror does not copy current directly. It copies a <strong>gate voltage</strong>, and relies on the second transistor to turn that voltage back into the same current.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="cm-title cm-desc" font-size="14">
+<title id="cm-title">Basic NMOS current mirror</title>
+<desc id="cm-desc">A reference current flows down into transistor M1, whose gate is tied to its drain. The gate node connects across to the gate of transistor M2. M2 sinks the output current from a load. Both sources go to ground.</desc>
+<line x1="120" y1="20" x2="120" y2="70" class="dg-line"/>
+<path d="M114,50 L120,62 L126,50 Z" class="dg-arrow"/>
+<text x="130" y="45" class="dg-text">IREF</text>
+<line x1="360" y1="20" x2="360" y2="70" class="dg-line"/>
+<path d="M354,50 L360,62 L366,50 Z" class="dg-arrow"/>
+<text x="370" y="45" class="dg-text">IOUT (to load)</text>
+<line x1="120" y1="70" x2="120" y2="110" class="dg-line"/>
+<line x1="120" y1="110" x2="120" y2="190" class="dg-line" stroke-width="3"/>
+<line x1="120" y1="190" x2="120" y2="230" class="dg-line"/>
+<line x1="360" y1="70" x2="360" y2="110" class="dg-line"/>
+<line x1="360" y1="110" x2="360" y2="190" class="dg-line" stroke-width="3"/>
+<line x1="360" y1="190" x2="360" y2="230" class="dg-line"/>
+<line x1="150" y1="120" x2="150" y2="180" class="dg-line" stroke-width="3"/>
+<line x1="330" y1="120" x2="330" y2="180" class="dg-line" stroke-width="3"/>
+<line x1="150" y1="150" x2="330" y2="150" class="dg-line"/>
+<line x1="120" y1="90" x2="240" y2="90" class="dg-amber-line"/>
+<line x1="240" y1="90" x2="240" y2="150" class="dg-amber-line"/>
+<circle cx="240" cy="150" r="3" class="dg-arrow"/>
+<text x="248" y="120" class="dg-muted">diode link</text>
+<text x="60" y="155" class="dg-text">M1</text>
+<text x="390" y="155" class="dg-text">M2</text>
+<text x="215" y="172" class="dg-text">shared VGS</text>
+<line x1="90" y1="230" x2="390" y2="230" class="dg-line"/>
+<text x="220" y="252" class="dg-muted">ground</text>
+</svg>
+<figcaption>M1's gate is tied to its drain, so I<sub>REF</sub> sets the shared gate voltage; M2 turns that voltage back into I<sub>OUT</sub>.</figcaption>
+</figure>
+
+<h2 id="scaling-the-copy">Scaling the copy</h2>
+<p>In saturation, current is proportional to W/L. Making M2 four times wider than M1, with the same length, gives four times the current:</p>
+<blockquote>
+<p>I<sub>OUT</sub> = I<sub>REF</sub> × (W/L)<sub>2</sub> / (W/L)<sub>1</sub></p>
+</blockquote>
+<p>In layout you would build that 4× device as four copies of M1's unit transistor in parallel, not as one wide transistor. Identical units make the ratio an integer count of identical shapes, which matches much better than a ratio of drawn dimensions. For the same reason, ratios are set with width (more units), not length: a small error in printed length would change every unit in a different way.</p>
+<p>One reference can feed many mirror outputs: a bank of M2 copies, each sinking its own current, all sharing one gate line.</p>
+<h2 id="output-resistance-and-channel-length-modulation">Output resistance and channel-length modulation</h2>
+<p>An ideal current source delivers the same current whatever voltage sits across it. A real mirror does not. Because of channel-length modulation, the saturation current rises slowly with V<sub>DS</sub>, by a factor (1 + λV<sub>DS</sub>). The <strong>output resistance</strong> r<sub>o</sub> ≈ 1 / (λI<sub>D</sub>) captures this: a higher r<sub>o</sub> means a flatter, better current source.</p>
+<p>Here is the problem it causes. M1's V<sub>DS</sub> is fixed at its V<sub>GS</sub>. M2's V<sub>DS</sub> is whatever the load leaves it. If they differ, so do the currents:</p>
+<blockquote>
+<p>I<sub>OUT</sub> / I<sub>REF</sub> = (1 + λV<sub>DS2</sub>) / (1 + λV<sub>DS1</sub>)</p>
+</blockquote>
+<p>Worked example, with illustrative numbers: I<sub>REF</sub> = 20 µA, λ = 0.1 V<sup>−1</sup>, V<sub>GS</sub> = V<sub>DS1</sub> = 0.7 V, and the load leaves V<sub>DS2</sub> = 1.5 V. The ratio is 1.15 / 1.07 ≈ 1.075, so the "copy" is about <strong>7.5 % too large</strong>. The output resistance is 1 / (0.1 × 20 µA) = <strong>500 kΩ</strong>.</p>
+<p>Two standard fixes follow from the formula. Use a <strong>longer channel</strong>: λ falls roughly in inverse proportion to L, so doubling L roughly halves the error and doubles r<sub>o</sub>. Or add a <strong>cascode</strong>: a second transistor stacked on M2 that holds M2's drain at a nearly constant voltage, which raises output resistance by roughly the intrinsic gain of the added device. The price of a cascode is headroom: the output now needs about one extra overdrive voltage before both devices stay saturated.</p>
+<h2 id="mismatch-when-the-two-transistors-are-not-twins">Mismatch: when the two transistors are not twins</h2>
+<p>Even with equal V<sub>DS</sub>, two transistors drawn identically are never quite identical. Random variations in doping and edge roughness give each a slightly different threshold voltage. A threshold difference ΔV<sub>TH</sub> shifts the overdrive of one device, and in saturation the current error is approximately:</p>
+<blockquote>
+<p>ΔI / I ≈ 2 ΔV<sub>TH</sub> / V<sub>OV</sub></p>
+</blockquote>
+<p>Worked example, illustrative numbers: a pair with a threshold mismatch of 3 mV (one standard deviation). At V<sub>OV</sub> = 0.2 V the current error is 2 × 3 mV / 0.2 V = <strong>3 %</strong>. At V<sub>OV</sub> = 0.4 V it falls to <strong>1.5 %</strong>.</p>
+<p>So mirrors match better at <em>larger</em> overdrive, because a fixed threshold error is a smaller fraction of a larger overdrive. That costs headroom, since the output must stay above V<sub>OV</sub>. Mismatch also falls with device area: the standard deviation of ΔV<sub>TH</sub> scales roughly as 1/√(WL), so quadrupling the area halves it. Matching is paid for in area and voltage, and you choose how.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Letting the output fall out of saturation.</strong> Below V<sub>DS2</sub> ≈ V<sub>OV</sub>, M2 enters triode and the current collapses. Always check the minimum output voltage.</li>
+<li><strong>Minimum-length mirror devices.</strong> Short devices have large λ and poor matching; analog mirrors usually use several times the minimum length.</li>
+<li><strong>Ratioing by length.</strong> Use the same L and parallel units.</li>
+<li><strong>Ignoring source wiring.</strong> A few ohms of extra wire resistance in one source shifts its effective V<sub>GS</sub> and therefore its current.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong> with sky130 models, build a 1:1 NMOS mirror with I<sub>REF</sub> = 20 µA from a current source. Add a voltage source on M2's drain and run <code>.dc</code> from 0 to 1.8 V.</li>
+<li>Plot I<sub>OUT</sub>. Find where it flattens (saturation) and measure the slope there; its inverse is the output resistance.</li>
+<li>Double L for both devices (and W, to keep W/L) and repeat. Compare the slope and the minimum voltage, then predict the change with the formulas above before you look.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>current mirror</li><li>biasing</li><li>matching</li><li>analog basics</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="comparator-design-tradeoffs.html"><span>Previous in Analog &amp; mixed-signal</span>Comparators: speed, offset, hysteresis and kickback</a><a class="next" href="biopotential-front-end-for-wearables.html"><span>Next in Analog &amp; mixed-signal</span>Designing a biopotential front end for a health wearable: gain, CMRR and input protection</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="analog-layout-for-matching.html">Analog layout for matching: common centroid, interdigitation and dummies</a></h3>
+          <p>Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="mosfet-in-three-regions.html">The MOSFET in three regions: an intuition-first guide</a></h3>
+          <p>A MOSFET is off, behaves like a resistor, or behaves like a current source, depending on two voltages. Build the picture with water flow first, then the square-law equations and a worked example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

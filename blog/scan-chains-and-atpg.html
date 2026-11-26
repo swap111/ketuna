@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scan chains and ATPG: how chips are tested after manufacturing · Ketuna blog</title>
+  <meta name="description" content="Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Scan chains and ATPG: how chips are tested after manufacturing · Ketuna blog">
+  <meta property="og:description" content="Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.">
+  <link rel="canonical" href="https://ketuna.online/blog/scan-chains-and-atpg.html">
+  <meta property="og:url" content="https://ketuna.online/blog/scan-chains-and-atpg.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Scan chains and ATPG: how chips are tested after manufacturing",
+  "description": "Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "dft, scan chain, atpg, fault coverage, manufacturing test",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 882,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/scan-chains-and-atpg.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Scan chains and ATPG: how chips are tested after manufacturing</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-problem-buried-logic-is-hard-to-reach">The problem: buried logic is hard to reach</a></li><li><a href="#the-trick-turn-flip-flops-into-a-shift-register">The trick: turn flip-flops into a shift register</a></li><li><a href="#how-a-scan-test-runs">How a scan test runs</a></li><li><a href="#atpg-letting-a-tool-choose-the-patterns">ATPG: letting a tool choose the patterns</a></li><li><a href="#what-fault-coverage-means">What fault coverage means</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Verification proves that your design is correct. It does not prove that each chip coming off the wafer was built correctly. A speck of dust, a slightly thin wire or a missing via can break one gate in one die while its neighbours on the same wafer work perfectly. Every die must therefore be tested on a tester, quickly, and the test has to reach logic buried deep inside the chip with only a few pins. Scan design and automatic test pattern generation (ATPG) are how that is done.</p>
+<h2 id="the-problem-buried-logic-is-hard-to-reach">The problem: buried logic is hard to reach</h2>
+<p>Imagine trying to test one AND gate in the middle of a processor using only the normal input pins. To set its inputs, you would have to drive the whole chip through a sequence of states that happens to put the right values there. To see its output, you would have to wait until that value affects a pin. For a design with thousands of flip-flops, finding such sequences is impractical.</p>
+<p>Two properties capture the difficulty: <strong>controllability</strong> (how easily can you set a node to 0 or 1) and <strong>observability</strong> (how easily can you see its value). Scan design makes every flip-flop both directly controllable and directly observable.</p>
+<h2 id="the-trick-turn-flip-flops-into-a-shift-register">The trick: turn flip-flops into a shift register</h2>
+<p>A <strong>scan flip-flop</strong> is an ordinary D flip-flop with a two-input multiplexer in front of it. In normal mode, the mux passes the functional data <code>d</code>. In scan mode, it passes <code>scan_in</code>, which comes from the previous scan flop.</p>
+<pre><code class="language-verilog">module scan_dff (
+  input  wire clk,
+  input  wire scan_en,  // 1: shift, 0: normal
+  input  wire d,        // functional data
+  input  wire scan_in,  // from previous flop in chain
+  output reg  q         // also drives next scan_in
+);
+  always @(posedge clk)
+    q &lt;= scan_en ? scan_in : d;
+endmodule
+</code></pre>
+<p>Chain these flops together, <code>q</code> of one feeding <code>scan_in</code> of the next, and in scan mode the whole set of flip-flops becomes one long shift register between a <code>scan_in</code> pin and a <code>scan_out</code> pin.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="sc-title sc-desc" font-size="14">
+<title id="sc-title">A scan chain through three flip-flops</title>
+<desc id="sc-desc">Three flip-flops, each with a multiplexer in front choosing between functional data from logic and the output of the previous flip-flop. A scan-in pin feeds the first multiplexer and the last flip-flop output goes to a scan-out pin. Combinational logic sits between the flip-flops.</desc>
+<rect x="10" y="20" width="460" height="40" rx="6" class="dg-track"/>
+<text x="240" y="45" text-anchor="middle" class="dg-text">combinational logic under test</text>
+<path d="M60,90 L90,100 V140 L60,150 Z" class="dg-box"/>
+<rect x="100" y="95" width="50" height="50" rx="4" class="dg-core"/><text x="125" y="125" text-anchor="middle" class="dg-text">FF</text>
+<path d="M210,90 L240,100 V140 L210,150 Z" class="dg-box"/>
+<rect x="250" y="95" width="50" height="50" rx="4" class="dg-core"/><text x="275" y="125" text-anchor="middle" class="dg-text">FF</text>
+<path d="M360,90 L390,100 V140 L360,150 Z" class="dg-box"/>
+<rect x="400" y="95" width="50" height="50" rx="4" class="dg-core"/><text x="425" y="125" text-anchor="middle" class="dg-text">FF</text>
+<line x1="90" y1="120" x2="100" y2="120" class="dg-line"/>
+<line x1="240" y1="120" x2="250" y2="120" class="dg-line"/>
+<line x1="390" y1="120" x2="400" y2="120" class="dg-line"/>
+<path d="M10,140 H60" class="dg-amber-line" stroke-width="2.5"/>
+<text x="10" y="168" class="dg-text">scan_in</text>
+<path d="M150,120 H170 V140 H210" class="dg-amber-line" stroke-width="2.5" fill="none"/>
+<path d="M300,120 H320 V140 H360" class="dg-amber-line" stroke-width="2.5" fill="none"/>
+<path d="M450,120 H460 V180 H400" class="dg-amber-line" stroke-width="2.5" fill="none"/>
+<text x="330" y="185" class="dg-text">scan_out</text>
+<line x1="75" y1="60" x2="75" y2="95" class="dg-dash"/>
+<line x1="225" y1="60" x2="225" y2="95" class="dg-dash"/>
+<line x1="375" y1="60" x2="375" y2="95" class="dg-dash"/>
+<line x1="170" y1="120" x2="170" y2="60" class="dg-dash"/>
+<line x1="320" y1="120" x2="320" y2="60" class="dg-dash"/>
+</svg>
+<figcaption>In shift mode the highlighted path makes the flip-flops one shift register; in capture mode each flop loads its functional input from the logic.</figcaption>
+</figure>
+
+<h2 id="how-a-scan-test-runs">How a scan test runs</h2>
+<p>One test pattern goes through three phases:</p>
+<ol>
+<li><strong>Shift in.</strong> With <code>scan_en</code> = 1, clock the chain once per flop to load a chosen value into every flip-flop. You now control every state bit directly.</li>
+<li><strong>Capture.</strong> Set <code>scan_en</code> = 0 and pulse the clock once. Each flop captures the output of the logic in front of it, which is the logic's response to the values you shifted in.</li>
+<li><strong>Shift out.</strong> Set <code>scan_en</code> = 1 again and clock the chain to read every captured value at <code>scan_out</code>. The tester compares them with the expected values.</li>
+</ol>
+<p>The shift-out of one pattern overlaps with the shift-in of the next, so the cost per pattern is roughly one chain length of shift cycles plus a capture cycle. As an illustrative example, with one chain of 100 flops and 200 patterns, the test takes about 200 × (100 + 1) + 100 = 20,300 clock cycles, the final 100 being the last unload. Real chips split flops into many shorter parallel chains to keep this small.</p>
+<h2 id="atpg-letting-a-tool-choose-the-patterns">ATPG: letting a tool choose the patterns</h2>
+<p>Which values should you shift in? ATPG tools work from a <strong>fault model</strong>, an abstract description of what a defect does. The most common is the <strong>stuck-at model</strong>: any net may be permanently stuck at 0 or at 1. Every net gives two faults.</p>
+<p>For each fault, the tool searches for a pattern that does two things:</p>
+<ul>
+<li><strong>Excites</strong> the fault: drives the net to the opposite of its stuck value, so a good chip and a faulty chip differ there.</li>
+<li><strong>Propagates</strong> the difference to a scan flop or output pin, by setting other gate inputs so the difference is not masked.</li>
+</ul>
+<p>Because scan makes every flop a controllable input and an observable output, ATPG only has to reason about the combinational logic between flops, which is a much easier problem. One pattern usually detects many faults at once, so the pattern count is far smaller than the fault count.</p>
+<p>Other fault models extend this. <strong>Transition faults</strong> model a node that switches too slowly and need a launch and capture at speed. <strong>Bridging faults</strong> model two nets shorted together.</p>
+<h2 id="what-fault-coverage-means">What fault coverage means</h2>
+<p><strong>Fault coverage</strong> is the fraction of modelled faults that the pattern set detects. As an illustrative example, if a design has 10,000 stuck-at faults and the patterns detect 9,850, coverage is 98.5%.</p>
+<p>Read the number carefully:</p>
+<ul>
+<li>It is coverage of the <strong>model</strong>, not of all possible defects. High stuck-at coverage does not guarantee that timing-related defects are caught.</li>
+<li>Some faults are <strong>untestable</strong> by design, for example in redundant logic, and are often reported separately.</li>
+<li>Undetected faults point to logic that scan cannot reach well: non-scan flops, asynchronous resets, memories, and analog blocks. These need their own approaches, such as memory built-in self-test.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small design with a few registers. Replace each with the <code>scan_dff</code> module above, chain them, and simulate shift, capture and shift out in <strong>Icarus Verilog</strong>.</li>
+<li>Inject a stuck-at fault by forcing one internal net to 0 in the testbench (<code>force</code>), and confirm that one of your patterns shows a different value at <code>scan_out</code>.</li>
+<li>Work out by hand a pattern that excites and propagates a stuck-at-1 fault on one AND gate input, then check it in simulation.</li>
+<li>Use <strong>Yosys</strong> to synthesise the design and count the nets, which gives you twice that number of stuck-at faults to think about.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>dft</li><li>scan chain</li><li>atpg</li><li>fault coverage</li><li>manufacturing test</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="routing-and-leftover-drc.html"><span>Previous in Physical design &amp; tape-out</span>Routing and the DRC violations it leaves behind</a><a class="next" href="first-day-of-chip-bring-up.html"><span>Next in Physical design &amp; tape-out</span>The first day with your chip back from the fab: a bring-up plan</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mbist-and-boundary-scan.html">Memory BIST and JTAG boundary scan: testing what scan cannot reach</a></h3>
+          <p>Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

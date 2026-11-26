@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estimating hardware work: ranges, assumptions and the cone of uncertainty · Ketuna blog</title>
+  <meta name="description" content="Why a single-number estimate for hardware work is almost always late, how to give ranges with stated assumptions, how a short simulation shows the real odds, and how estimates should narrow as the design matures.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Estimating hardware work: ranges, assumptions and the cone of uncertainty · Ketuna blog">
+  <meta property="og:description" content="Why a single-number estimate for hardware work is almost always late, how to give ranges with stated assumptions, how a short simulation shows the real odds, and how estimates should narrow as the design matures.">
+  <link rel="canonical" href="https://ketuna.online/blog/estimating-hardware-work.html">
+  <meta property="og:url" content="https://ketuna.online/blog/estimating-hardware-work.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Estimating hardware work: ranges, assumptions and the cone of uncertainty",
+  "description": "Why a single-number estimate for hardware work is almost always late, how to give ranges with stated assumptions, how a short simulation shows the real odds, and how estimates should narrow as the design matures.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "estimation, planning, project management, uncertainty, monte carlo",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 914,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/estimating-hardware-work.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Estimating hardware work: ranges, assumptions and the cone of uncertainty</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why a single-number estimate for hardware work is almost always late, how to give ranges with stated assumptions, how a short simulation shows the real odds, and how estimates should narrow as the design matures.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-single-numbers-run-late">Why single numbers run late</a></li><li><a href="#give-a-range-and-the-assumptions-behind-it">Give a range and the assumptions behind it</a></li><li><a href="#let-a-simulation-show-the-odds">Let a simulation show the odds</a></li><li><a href="#the-cone-of-uncertainty">The cone of uncertainty</a></li><li><a href="#calibrate-yourself">Calibrate yourself</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>"How long will the board take?" is a fair question with no honest single-number answer. The schematic might go smoothly or reveal that the chosen sensor needs a supply you do not have. The boards might come back on time or sit at a fabricator for a week longer. Bring-up might take a day or a fortnight, depending on one mistake nobody has found yet. Engineers who answer with one number are usually late, not because they are bad at estimating but because one number cannot carry uncertainty. This article shows how to give an estimate that can.</p>
+<h2 id="why-single-numbers-run-late">Why single numbers run late</h2>
+<p>When asked for one number, most people give roughly the most likely duration for each task. That feels reasonable, but task durations are <strong>skewed</strong>: a task can finish a little early, but it can finish a lot late. Bring-up cannot take less than zero days, yet it can take three times the plan. Adding up most-likely values for a chain of skewed tasks produces a total that the project beats only rarely, because it needs every task to land at or before its most likely value at once.</p>
+<p>Hardware adds features that make the skew worse: waits you do not control (fabrication, shipping, part lead times), batch steps where one mistake costs a full cycle (a board respin), and discovery-heavy work such as bring-up, where the duration depends on bugs you have not met.</p>
+<h2 id="give-a-range-and-the-assumptions-behind-it">Give a range and the assumptions behind it</h2>
+<p>For each task, estimate three numbers: optimistic, most likely and pessimistic. Write them as "most likely 6 days, between 4 and 12". Then write down the assumptions that the range depends on. Assumptions are the part of an estimate people forget, and they are the most useful part, because when one breaks you know immediately that the estimate needs revisiting.</p>
+<p>For a small sensor board, illustrative estimates in working days, for a chain of tasks done one after another:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Optimistic</th>
+<th>Most likely</th>
+<th>Pessimistic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Schematic and review</td>
+<td>3</td>
+<td>5</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Layout and review</td>
+<td>4</td>
+<td>6</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Fabrication and assembly wait</td>
+<td>10</td>
+<td>12</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Bring-up</td>
+<td>3</td>
+<td>6</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Integration test with firmware</td>
+<td>5</td>
+<td>8</td>
+<td>14</td>
+</tr>
+</tbody>
+</table></div>
+<p>Assumptions: parts in stock at order time; one layout review cycle; no respin; firmware drivers ready from a development board before the custom board arrives.</p>
+<p>The most-likely values add to 37 days. Everyone's instinct is to quote 37. The next section shows why that is optimistic.</p>
+<h2 id="let-a-simulation-show-the-odds">Let a simulation show the odds</h2>
+<p>A few lines of Python can draw a random duration for each task from its range, add them up, and repeat thousands of times. The result is a distribution of possible totals, from which you can read the chance of finishing by any date.</p>
+<pre><code class="language-python">import random
+
+tasks = {                      # (optimistic, most likely, pessimistic)
+    &quot;schematic&quot;:   (3, 5, 9),
+    &quot;layout&quot;:      (4, 6, 12),
+    &quot;fab wait&quot;:    (10, 12, 20),
+    &quot;bring-up&quot;:    (3, 6, 15),
+    &quot;integration&quot;: (5, 8, 14),
+}
+random.seed(1)
+runs = sorted(
+    sum(random.triangular(o, p, m) for o, m, p in tasks.values())
+    for _ in range(20000)
+)
+for q in (0.5, 0.8, 0.9):
+    print(f&quot;P{int(q * 100)}: {runs[int(q * len(runs))]:.0f} days&quot;)
+ml = sum(m for o, m, p in tasks.values())
+hit = sum(r &lt;= ml for r in runs) / len(runs)
+print(f&quot;chance of finishing in {ml} days: {hit:.0%}&quot;)
+</code></pre>
+<p>It uses a triangular distribution for each task, a simple shape defined by the three estimates. The output is roughly: a median (P50) of 44 days, an 80th percentile (P80) of 48 days, a P90 of 50 days, and only about a 5 % chance of finishing within the 37 days that the most-likely values add up to.</p>
+<p>That last figure is the lesson. An estimate of 37 days would almost certainly be missed, not because any task was badly estimated, but because the skew in each task adds up. A better answer to "how long?" is: "about 44 working days, and I would plan on 48 to be fairly confident, assuming parts are in stock and no respin." If a respin is a real possibility, model it as a risk with its own probability rather than burying it in the ranges.</p>
+<h2 id="the-cone-of-uncertainty">The cone of uncertainty</h2>
+<p>Early in a project, estimates are wide because the design is unknown. As decisions are made and work is done, uncertainty shrinks. Plotted over time, the range of honest estimates narrows like a cone.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="cu-title cu-desc" font-size="14">
+<title id="cu-title">The cone of uncertainty</title>
+<desc id="cu-desc">A horizontal time axis with milestones: concept, requirements, schematic, layout, boards back. Above and below a central line representing the eventual actual duration, two curves start far apart at concept and converge towards the line by boards back, forming a cone that narrows to the right.</desc>
+<line x1="40" y1="110" x2="460" y2="110" class="dg-dash"/>
+<text x="455" y="100" text-anchor="end" class="dg-muted">actual</text>
+<path d="M50,25 C150,70 300,100 450,108" fill="none" class="dg-line" stroke-width="2"/>
+<path d="M50,175 C150,140 300,118 450,112" fill="none" class="dg-line" stroke-width="2"/>
+<path d="M50,25 C150,70 300,100 450,108 L450,112 C300,118 150,140 50,175 Z" class="dg-amber" fill-opacity="0.2"/>
+<line x1="40" y1="195" x2="460" y2="195" class="dg-line"/>
+<line x1="50" y1="190" x2="50" y2="200" class="dg-line"/>
+<line x1="150" y1="190" x2="150" y2="200" class="dg-line"/>
+<line x1="250" y1="190" x2="250" y2="200" class="dg-line"/>
+<line x1="350" y1="190" x2="350" y2="200" class="dg-line"/>
+<line x1="450" y1="190" x2="450" y2="200" class="dg-line"/>
+<text x="50" y="218" text-anchor="middle" class="dg-text">concept</text>
+<text x="150" y="218" text-anchor="middle" class="dg-text">reqs</text>
+<text x="250" y="218" text-anchor="middle" class="dg-text">schematic</text>
+<text x="350" y="218" text-anchor="middle" class="dg-text">layout</text>
+<text x="440" y="218" text-anchor="middle" class="dg-text">boards</text>
+<text x="70" y="70" class="dg-muted">wide range</text>
+</svg>
+<figcaption>Estimates should start wide and narrow as decisions are made; a narrow estimate at concept stage is false confidence.</figcaption>
+</figure>
+
+<p>The cone does not narrow by itself. It narrows because work retires uncertainty: a prototype proves the sensor works, a layout review confirms the board fits, a part order confirms stock. Two habits follow. First, <strong>re-estimate at each milestone</strong> and report the new range, so stakeholders see the cone narrowing. Second, <strong>schedule the most uncertain work early</strong>, such as a risky sensor or a new interface, because retiring its uncertainty narrows the whole estimate.</p>
+<h2 id="calibrate-yourself">Calibrate yourself</h2>
+<p>Keep a simple log of estimate against actual for every task you do. After a few projects, you will know whether your "most likely" is usually right, or whether you consistently underestimate bring-up by half. That personal correction factor is real data, and it is worth more than any formula.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Quoting the sum of most-likely values.</strong> It has a small chance of being met.</li>
+<li><strong>Estimating only the design work.</strong> Reviews, waits, debugging and documentation are often half the duration.</li>
+<li><strong>Hiding assumptions.</strong> When one breaks, nobody knows the estimate is stale.</li>
+<li><strong>Treating the estimate as a commitment.</strong> An estimate is a forecast; plans and commitments are made from it with margin.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write optimistic, most-likely and pessimistic estimates for the tasks in your next lab or project, with the assumptions behind them.</li>
+<li>Run the script above with your numbers and compare its P50 and P80 with the sum of your most-likely values.</li>
+<li>Log the actual duration of each task as you go, and at the end compute your own ratio of actual to most-likely for each kind of task.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>estimation</li><li>planning</li><li>project management</li><li>uncertainty</li><li>monte carlo</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="emc-basics-for-board-designers.html"><span>Previous in Systems &amp; product engineering</span>EMC basics for board designers: loops, return paths and edges</a><a class="next" href="fmea-step-by-step.html"><span>Next in Systems &amp; product engineering</span>FMEA step by step: severity, occurrence, detection and what to do next</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="agile-for-hardware-teams.html">Agile for hardware teams: what works when you cannot ship every week</a></h3>
+          <p>Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

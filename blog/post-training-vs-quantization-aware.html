@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Post-training quantization vs quantization-aware training · Ketuna blog</title>
+  <meta name="description" content="Post-training quantization calibrates a finished model; quantization-aware training simulates int8 while the model learns. How each works, how to diagnose the gap, and when the cheaper one is enough.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Post-training quantization vs quantization-aware training · Ketuna blog">
+  <meta property="og:description" content="Post-training quantization calibrates a finished model; quantization-aware training simulates int8 while the model learns. How each works, how to diagnose the gap, and when the cheaper one is enough.">
+  <link rel="canonical" href="https://ketuna.online/blog/post-training-vs-quantization-aware.html">
+  <meta property="og:url" content="https://ketuna.online/blog/post-training-vs-quantization-aware.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Post-training quantization vs quantization-aware training",
+  "description": "Post-training quantization calibrates a finished model; quantization-aware training simulates int8 while the model learns. How each works, how to diagnose the gap, and when the cheaper one is enough.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "quantization, qat, calibration, training, int8",
+  "articleSection": "Edge AI",
+  "wordCount": 1011,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/post-training-vs-quantization-aware.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Post-training quantization vs quantization-aware training</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Post-training quantization calibrates a finished model; quantization-aware training simulates int8 while the model learns. How each works, how to diagnose the gap, and when the cheaper one is enough.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-post-training-quantization-does">What post-training quantization does</a></li><li><a href="#what-quantization-aware-training-does">What quantization-aware training does</a></li><li><a href="#diagnosing-the-gap-before-choosing">Diagnosing the gap before choosing</a></li><li><a href="#when-each-one-is-enough">When each one is enough</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>You have a float model that meets its accuracy target and a device that only runs int8. There are two ways across. Post-training quantization (PTQ) leaves the trained weights alone and chooses scales and zero points by watching the model run on sample data. Quantization-aware training (QAT) puts the rounding inside the training loop so the weights learn to tolerate it. PTQ costs minutes; QAT costs a training run and a pipeline you have to maintain. Knowing what each one actually fixes tells you when to stop at PTQ.</p>
+<h2 id="what-post-training-quantization-does">What post-training quantization does</h2>
+<p>PTQ has two jobs. Weights are easy: they are known constants, so their ranges come straight from the tensors, usually per output channel and symmetric. Activations are the hard part, because their ranges depend on the input. PTQ runs a <strong>calibration set</strong>, a few hundred representative inputs, through the float model, records statistics at every tensor that will be quantized, and turns those statistics into a range.</p>
+<p>How it turns statistics into a range is where calibration methods differ:</p>
+<ul>
+<li><strong>Min-max</strong> takes the extreme values seen. It never clips calibration data, but a single outlier inflates the step size for everything else.</li>
+<li><strong>Percentile</strong> takes, say, the 99.99th percentile of |x|, deliberately clipping the rare tail.</li>
+<li><strong>Error-minimising</strong> searches for the clipping threshold that minimises mean squared error (or a divergence between float and quantized histograms) for that tensor.</li>
+</ul>
+<p>A minimal percentile observer looks like this:</p>
+<pre><code class="language-python">import numpy as np
+
+class PercentileObserver:
+    def __init__(self, pct=99.99):
+        self.pct, self.samples = pct, []
+
+    def observe(self, x):
+        self.samples.append(np.asarray(x).ravel())
+
+    def qparams(self):
+        v = np.concatenate(self.samples)
+        lo = min(0.0, np.percentile(v, 100 - self.pct))
+        hi = max(0.0, np.percentile(v, self.pct))
+        s = (hi - lo) / 255
+        z = int(round(-lo / s)) - 128
+        return s, z
+</code></pre>
+<p>Good PTQ flows also do some housekeeping that is easy to forget. Batch-normalisation layers are folded into the preceding convolution's weights and bias <em>before</em> weight ranges are measured, because the device never runs batch norm separately. ReLU is fused into the layer's output clamp. Some flows apply <strong>bias correction</strong>, which measures the average shift in each channel's output caused by weight rounding and subtracts it from the bias.</p>
+<h2 id="what-quantization-aware-training-does">What quantization-aware training does</h2>
+<p>QAT inserts <strong>fake quantization</strong> nodes into the float graph: each one quantizes and immediately dequantizes, so the forward pass sees exactly the rounding and clipping the device will apply, while everything stays in floating point for the optimiser.</p>
+<p>The difficulty is the backward pass. Rounding has zero gradient almost everywhere, which would stop learning. The standard fix is the <strong>straight-through estimator</strong> (STE): treat the quantizer as the identity when computing gradients, except that values clipped outside the range get zero gradient. In PyTorch the core trick is one line:</p>
+<pre><code class="language-python">import torch
+
+def fake_quant(x, s, z, qmin=-128, qmax=127):
+    q = torch.clamp(torch.round(x / s) + z, qmin, qmax)
+    xq = (q - z) * s
+    return x + (xq - x).detach()   # forward: xq, backward: identity
+</code></pre>
+<p>The <code>detach()</code> hides the rounding from autograd, so the forward value is the quantized one and the gradient flows as if nothing happened. Real QAT frameworks add a clipped gradient and often make the scale itself learnable, but the idea is the same. You start QAT from the trained float weights, not from scratch, and fine-tune for a fraction of the original training with a small learning rate. The weights drift towards values that sit well on the integer grid, and layers learn to keep activations within ranges that quantize cleanly.</p>
+<h2 id="diagnosing-the-gap-before-choosing">Diagnosing the gap before choosing</h2>
+<p>Do not jump to QAT because the int8 accuracy dropped. First find out <em>where</em> it dropped. Two cheap experiments locate most problems:</p>
+<ol>
+<li><strong>One layer at a time.</strong> Quantize a single layer, keep the rest in float, and measure accuracy. Repeat for every layer. Usually one or two layers account for most of the loss: often the first layer (raw inputs with an awkward range), the last layer (small logit differences decide the class) or depthwise convolutions (few weights per channel, wide variation between channels).</li>
+<li><strong>Weights only, then activations only.</strong> If quantizing weights alone loses little, the problem is activation ranges, which better calibration may fix. If weights alone hurt, check that you are using per-channel scales before anything else.</li>
+</ol>
+<p>Fixes then come in order of cost: a better calibration set, per-channel weights, a different clipping method, keeping one sensitive layer at higher precision if the runtime supports it, and only then QAT.</p>
+<h2 id="when-each-one-is-enough">When each one is enough</h2>
+<p>PTQ tends to be enough when:</p>
+<ul>
+<li>the target is 8 bits for both weights and activations</li>
+<li>weights use per-channel scales</li>
+<li>the model has some redundancy, for example a convolutional network that is not already squeezed to the minimum size</li>
+<li>the calibration data really looks like field data, captured with the same sensor and front end</li>
+</ul>
+<p>QAT tends to be worth the effort when:</p>
+<ul>
+<li>you go below 8 bits, where each step is so coarse that the weights must adapt</li>
+<li>the model is very small or uses many depthwise layers, so there is little slack to absorb error</li>
+<li>the per-layer experiments show a loss that calibration choices cannot remove</li>
+<li>the model will be retrained regularly anyway, so a QAT pipeline is a one-time cost</li>
+</ul>
+<p>There is also an engineering cost to QAT that does not show up in accuracy tables. The fake-quant graph must match the device arithmetic exactly: the same rounding mode, the same fused operations, the same clamp on ReLU. If training simulates round-half-to-even and the kernel rounds half up, the model is learning to fit a device that does not exist. Whatever route you take, the final check is the same: run the converted integer model, not the fake-quant float graph, on the held-out test set, and compare it bit for bit with the code that runs on the device.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>calibrating on training data augmented in ways the field never produces</li>
+<li>measuring weight ranges before folding batch norm</li>
+<li>reporting QAT accuracy from the fake-quant graph instead of the exported integer model</li>
+<li>training QAT from random initialisation instead of fine-tuning the float model</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Train a small convolutional network on a public digit dataset in PyTorch, then quantize it with post-training static quantization using min-max and percentile observers. Record int8 accuracy for both.</li>
+<li>Write the one-layer-at-a-time sensitivity loop and plot accuracy against layer index.</li>
+<li>Add the <code>fake_quant</code> function above to the most sensitive layer's weights and output, fine-tune for one or two epochs with a small learning rate, and compare with PTQ.</li>
+<li>Export both versions and confirm the deployed integer model, not the training graph, gives the accuracy you report.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>quantization</li><li>qat</li><li>calibration</li><li>training</li><li>int8</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="signal-classification-on-a-wearable.html"><span>Previous in Edge AI</span>On-device signal classification for a health wearable: possibilities and limits</a><a class="next" href="prototyping-an-ml-accelerator-on-fpga.html"><span>Next in Edge AI</span>Prototyping a small ML accelerator on an FPGA</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

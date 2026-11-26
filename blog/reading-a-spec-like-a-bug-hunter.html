@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading a spec like a bug hunter: looking for what it does not say · Ketuna blog</title>
+  <meta name="description" content="Many hardware bugs start as gaps in the specification. Learn a repeatable way to read a spec for ambiguities, unstated corner cases and missing error behaviour, using a short watchdog timer description as the example.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reading a spec like a bug hunter: looking for what it does not say · Ketuna blog">
+  <meta property="og:description" content="Many hardware bugs start as gaps in the specification. Learn a repeatable way to read a spec for ambiguities, unstated corner cases and missing error behaviour, using a short watchdog timer description as the example.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-a-spec-like-a-bug-hunter.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-a-spec-like-a-bug-hunter.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading a spec like a bug hunter: looking for what it does not say",
+  "description": "Many hardware bugs start as gaps in the specification. Learn a repeatable way to read a spec for ambiguities, unstated corner cases and missing error behaviour, using a short watchdog timer description as the example.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "specification, verification planning, corner cases, design review",
+  "articleSection": "Verification",
+  "wordCount": 1044,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-a-spec-like-a-bug-hunter.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Reading a spec like a bug hunter: looking for what it does not say</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Many hardware bugs start as gaps in the specification. Learn a repeatable way to read a spec for ambiguities, unstated corner cases and missing error behaviour, using a short watchdog timer description as the example.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#a-short-spec-to-practise-on">A short spec to practise on</a></li><li><a href="#five-hunts-through-the-same-paragraph">Five hunts through the same paragraph</a></li><li><a href="#turning-the-hunt-into-questions">Turning the hunt into questions</a></li><li><a href="#habits-that-make-the-hunt-routine">Habits that make the hunt routine</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When a verification engineer and a designer read the same specification, they often come away with two slightly different designs in their heads. Neither is wrong; the spec simply did not say. Those differences become bugs, or worse, become arguments after silicon about whose reading was correct. The cheapest time to find them is before any RTL or testbench exists, by reading the spec with one question in mind: what happens in the cases it does not mention?</p>
+<h2 id="a-short-spec-to-practise-on">A short spec to practise on</h2>
+<p>Here is a description of a watchdog timer, written the way many first-draft specs are written.</p>
+<blockquote>
+<p>The watchdog has a 16-bit down-counter clocked by the system clock. Software enables it by setting <code>WDT_CTRL.EN</code>. Writing the value 0xA5 to <code>WDT_KICK</code> reloads the counter from <code>WDT_LOAD</code>. If the counter reaches zero, the watchdog asserts <code>wdt_reset</code> to reset the chip. <code>WDT_LOAD</code> resets to 0xFFFF.</p>
+</blockquote>
+<p>It reads clearly. Now read it again, hunting.</p>
+<h2 id="five-hunts-through-the-same-paragraph">Five hunts through the same paragraph</h2>
+<h3 id="hunt-1-boundaries-and-special-values">Hunt 1: boundaries and special values</h3>
+<p>Every number in a spec has edges, and edges are where designs break.</p>
+<ul>
+<li>What does <code>WDT_LOAD = 0</code> do? Reset immediately on the next kick? Never? Is it even allowed?</li>
+<li>What does <code>WDT_LOAD = 1</code> do? Is there time for software to react at all?</li>
+<li>"Reaches zero": is <code>wdt_reset</code> asserted on the cycle the counter becomes 0, or when it would go below 0? That is a one-cycle difference, and the designer and verifier will each pick one.</li>
+</ul>
+<h3 id="hunt-2-simultaneous-events">Hunt 2: simultaneous events</h3>
+<p>Specs describe events one at a time. Hardware experiences them all at once.</p>
+<ul>
+<li>What if a kick arrives on the same cycle the counter reaches zero? Does the kick save the chip, or is it too late?</li>
+<li>What if software writes <code>WDT_LOAD</code> and kicks in back-to-back cycles? Does the kick use the old or new value?</li>
+<li>What if <code>EN</code> is cleared on the same cycle the counter reaches zero?</li>
+</ul>
+<p>These are exactly the questions a random testbench will eventually stumble into. Better to have the answer written down before it does.</p>
+<h3 id="hunt-3-wrong-or-unexpected-inputs">Hunt 3: wrong or unexpected inputs</h3>
+<p>Specs usually describe correct use. Bugs live in incorrect use.</p>
+<ul>
+<li>What does writing any value other than 0xA5 to <code>WDT_KICK</code> do? Nothing? Count as a fault and reset at once? Many watchdog designs treat a wrong key as a sign of runaway software, so this is a real design decision, not a detail.</li>
+<li>What does reading <code>WDT_KICK</code> return?</li>
+<li>Can <code>WDT_LOAD</code> be changed while the watchdog is enabled? If so, does the change take effect immediately or at the next kick?</li>
+<li>Can software disable the watchdog once enabled? If it can, runaway software can disable it too, which defeats its purpose.</li>
+</ul>
+<h3 id="hunt-4-reset-power-up-and-what-happens-after">Hunt 4: reset, power-up and what happens after</h3>
+<ul>
+<li>What is the reset value of <code>WDT_CTRL.EN</code>? The spec gives <code>WDT_LOAD</code>'s reset value but not the enable's.</li>
+<li>Is the counter's value defined before the first kick? Does enabling load the counter from <code>WDT_LOAD</code>, or does it start from whatever value it holds?</li>
+<li><code>wdt_reset</code> resets the chip. Does it reset the watchdog itself? If not, the watchdog may fire again immediately after reset. If so, software cannot tell afterwards that a watchdog reset occurred, unless there is a status flag that survives. The spec does not mention one.</li>
+<li>How long is <code>wdt_reset</code> asserted? One cycle may be too short for the reset controller.</li>
+</ul>
+<h3 id="hunt-5-things-the-spec-assumes-you-know">Hunt 5: things the spec assumes you know</h3>
+<ul>
+<li>"Clocked by the system clock": does the counter keep running when the processor is halted by a debugger? Many watchdogs pause in debug mode, because otherwise a breakpoint resets the chip.</li>
+<li>What about low-power modes where the system clock stops?</li>
+<li>Is any register write-protected, and if so, how is protection unlocked?</li>
+</ul>
+<h2 id="turning-the-hunt-into-questions">Turning the hunt into questions</h2>
+<p>You now have around twenty questions from five sentences. That is normal. Write them as a numbered list addressed to the spec owner, each phrased so that it has a definite answer:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>Is <code>wdt_reset</code> asserted when the counter becomes 0, or one cycle later?</td>
+<td>Defines the exact check</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>Does a kick on the cycle the counter reaches 0 prevent the reset?</td>
+<td>Simultaneous-event behaviour</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>What does a write of a value other than 0xA5 to <code>WDT_KICK</code> do?</td>
+<td>Error behaviour</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>What is the reset value of <code>WDT_CTRL.EN</code>?</td>
+<td>Missing reset value</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>Does the counter run while the core is halted in debug?</td>
+<td>Unstated mode behaviour</td>
+</tr>
+<tr>
+<td>Q6</td>
+<td>Is there a status flag that records a watchdog reset?</td>
+<td>Observability after reset</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bring the list to a short review with the designer and the spec author. Some questions will be answered in a sentence; some will reveal that nobody had decided; a few may turn into design changes. Every answer goes back into the spec, so the next reader gets it for free, and each answer becomes a numbered item in the verification plan with a check and a coverage goal.</p>
+<h2 id="habits-that-make-the-hunt-routine">Habits that make the hunt routine</h2>
+<ul>
+<li><strong>Read once for understanding, once for gaps.</strong> Hunting on the first read is hard because you are still learning what the block does.</li>
+<li><strong>For every "when X, do Y", ask about "when not X" and "when X and Z together".</strong></li>
+<li><strong>For every number, ask about zero, one, the maximum and one past it.</strong></li>
+<li><strong>For every register, ask about reset value, access type, and what happens on writes and reads of unexpected values.</strong></li>
+<li><strong>For every output, ask how long it lasts and what resets it.</strong></li>
+</ul>
+<p>You can ask an AI assistant to suggest further questions once you have done your own pass. Treat its suggestions as a checklist to consider against the spec, not as answers, since it has no more knowledge of the designer's intent than the spec gives it.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take the watchdog paragraph above and write your own list of questions before rereading the hunts; compare how many you found.</li>
+<li>Pick a peripheral from an open-source microcontroller or SoC project and read its documentation with the five hunts, writing down every question.</li>
+<li>Answer what you can from that project's RTL, and note where the RTL had to make a choice the documentation did not state.</li>
+<li>Write a cocotb test with Icarus Verilog that pins down one of those choices, so that a future change to the behaviour is noticed.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>specification</li><li>verification planning</li><li>corner cases</li><li>design review</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="prove-a-fifo-never-overflows.html"><span>Previous in Verification</span>Proving a FIFO never overflows with SymbiYosys</a><a class="next" href="running-a-coverage-review.html"><span>Next in Verification</span>Running a coverage review: which holes to close and which to waive</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="writing-a-verification-plan.html">Writing a verification plan that someone can actually check against</a></h3>
+          <p>Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

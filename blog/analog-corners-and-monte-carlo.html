@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulating an analog block across corners and with Monte Carlo · Ketuna blog</title>
+  <meta name="description" content="One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Simulating an analog block across corners and with Monte Carlo · Ketuna blog">
+  <meta property="og:description" content="One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.">
+  <link rel="canonical" href="https://ketuna.online/blog/analog-corners-and-monte-carlo.html">
+  <meta property="og:url" content="https://ketuna.online/blog/analog-corners-and-monte-carlo.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Simulating an analog block across corners and with Monte Carlo",
+  "description": "One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pvt corners, monte carlo, mismatch, ngspice, verification",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 972,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/analog-corners-and-monte-carlo.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Simulating an analog block across corners and with Monte Carlo</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#corners-the-whole-die-shifts-together">Corners: the whole die shifts together</a></li><li><a href="#scripting-a-pvt-sweep">Scripting a PVT sweep</a></li><li><a href="#monte-carlo-neighbours-that-differ">Monte Carlo: neighbours that differ</a></li><li><a href="#reading-the-spread">Reading the spread</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first simulation of a new analog block uses typical models at room temperature and nominal supply, and it usually looks good. Then the chip is made, and every die is a little different: transistors a bit faster or slower, the supply a little low, the die hot. An analog design is only finished when it works across all of that. Two tools cover it: <strong>corner simulation</strong> for the systematic shifts that move every transistor on a die together, and <strong>Monte Carlo</strong> for the random differences between neighbouring transistors. They answer different questions, and confusing them is a common way to sign off a design that fails.</p>
+<h2 id="corners-the-whole-die-shifts-together">Corners: the whole die shifts together</h2>
+<p>Process variation between wafers and between dies moves parameters such as threshold voltage, oxide thickness and mobility. On any one die, all NMOS transistors shift roughly together, and all PMOS transistors shift roughly together, though not necessarily in the same direction as the NMOS. PDKs capture this as named <strong>process corners</strong>, each a set of model parameters representing a plausible extreme:</p>
+<ul>
+<li><strong>TT:</strong> typical NMOS, typical PMOS</li>
+<li><strong>FF and SS:</strong> both fast, or both slow</li>
+<li><strong>FS and SF:</strong> fast NMOS with slow PMOS, and the reverse</li>
+</ul>
+<p>Add <strong>voltage</strong>, typically nominal ±10 %, and <strong>temperature</strong>, for example −40 °C to 125 °C for an industrial part, and you have a PVT grid. Five process corners, three voltages and three temperatures already make 45 simulations.</p>
+<p>Which corner is worst depends on the circuit and the specification. Gain and output swing usually suffer at slow corners and low supply, where overdrive and headroom are smallest. Bandwidth and power consumption are worst at opposite corners. Anything that depends on the <em>balance</em> between NMOS and PMOS, such as an inverter's switching point or a ring oscillator's duty cycle, is worst at the skewed corners FS and SF. So run them all; do not guess.</p>
+<h2 id="scripting-a-pvt-sweep">Scripting a PVT sweep</h2>
+<p>ngspice selects the corner through the section name on the <code>.lib</code> line. A short Python driver that writes a netlist per point, runs ngspice in batch mode and parses a <code>.meas</code> result makes the sweep painless. This one measures an inverter's switching point as a fraction of the supply:</p>
+<pre><code class="language-python">import re
+import subprocess
+
+LIB = &quot;sky130A/libs.tech/ngspice/sky130.lib.spice&quot;   # adjust to your install
+
+NETLIST = &quot;&quot;&quot;* inverter switching point at one PVT point
+.lib &quot;{lib}&quot; {corner}
+.temp {temp}
+VDD vdd 0 {vdd}
+VIN in 0 0
+XMP out in vdd vdd sky130_fd_pr__pfet_01v8 W=2 L=0.15
+XMN out in 0 0 sky130_fd_pr__nfet_01v8 W=1 L=0.15
+.dc VIN 0 {vdd} 0.002
+.meas dc vm when v(out)=v(in)
+.end
+&quot;&quot;&quot;
+
+def switching_point(corner, temp, vdd):
+    with open(&quot;pvt.spice&quot;, &quot;w&quot;) as f:
+        f.write(NETLIST.format(lib=LIB, corner=corner, temp=temp, vdd=vdd))
+    out = subprocess.run([&quot;ngspice&quot;, &quot;-b&quot;, &quot;pvt.spice&quot;],
+                         capture_output=True, text=True).stdout
+    m = re.search(r&quot;^vm\s*=\s*([-+0-9.eE]+)&quot;, out, flags=re.M)
+    return float(m.group(1)) if m else None
+
+for corner in (&quot;tt&quot;, &quot;ss&quot;, &quot;ff&quot;, &quot;sf&quot;, &quot;fs&quot;):
+    for temp in (-40, 27, 125):
+        for vdd in (1.62, 1.80, 1.98):
+            vm = switching_point(corner, temp, vdd)
+            if vm is None:
+                print(f&quot;{corner} {temp} {vdd}: no result, check the log&quot;)
+                continue
+            print(f&quot;{corner} {temp:&gt;4} C {vdd:.2f} V  VM/VDD = {vm/vdd:.3f}&quot;)
+</code></pre>
+<p>Collect the results in a table and look at the extremes and at which corner produced them. If the worst case surprises you, that is useful: it usually points to a device you thought was saturated and is not.</p>
+<h2 id="monte-carlo-neighbours-that-differ">Monte Carlo: neighbours that differ</h2>
+<p>Corners assume that two identical transistors on the same die are identical. They are not. Random dopant fluctuation and edge roughness give every transistor its own small threshold and current-factor offset, and these do not cancel in circuits that rely on matching: differential pairs, current mirrors, comparators, bandgaps. A comparator's input offset, for example, is zero at every corner, because a corner shifts both input transistors equally. Only a mismatch simulation shows it.</p>
+<p><strong>Monte Carlo</strong> simulation runs the circuit many times, each time drawing random parameters for every device from the distributions in the PDK's statistical models. PDKs that support it provide a statistical section of the model library, often with separate options for global (die-to-die) variation, local mismatch, or both; check your PDK's documentation for the names. ngspice can repeat a run in a <code>.control</code> loop, or you can drive it from Python as above, collecting one measurement per run.</p>
+<h2 id="reading-the-spread">Reading the spread</h2>
+<p>A Monte Carlo run gives a cloud of results, not one number. Reduce it to a few honest statements.</p>
+<ul>
+<li><strong>Mean and standard deviation.</strong> The mean shows any systematic offset, for example from asymmetric layout. The standard deviation σ is the random spread.</li>
+<li><strong>Margin in sigma.</strong> Divide the distance from the mean to the nearer specification limit by σ. Three sigma, if the distribution is Gaussian, corresponds to roughly one failure in several hundred; many teams target more.</li>
+<li><strong>Failures and confidence.</strong> Zero failures in n runs does not mean zero failures in production. A standard rule of thumb says that with zero failures in n independent trials, you can claim the failure rate is below about 3/n with 95 % confidence. With 200 runs that is 1.5 %: far too weak to prove a high yield by counting alone, which is why the sigma margin is used.</li>
+<li><strong>The estimate itself is uncertain.</strong> The standard deviation from n samples has a relative uncertainty of roughly 1/√(2(n − 1)), about 7 % for 100 runs. A margin of 3.1σ from 100 runs is not clearly better than 3.0σ.</li>
+</ul>
+<p>A helper makes these statements routine. The samples here are random stand-ins drawn with a mean of 0.2 mV and σ of 1.5 mV, made up for illustration:</p>
+<pre><code class="language-python">import numpy as np
+
+def summarise(samples, lo, hi):
+    &quot;&quot;&quot;Report spread and margin of Monte Carlo results against a spec.&quot;&quot;&quot;
+    x = np.asarray(samples)
+    mu, sd = x.mean(), x.std(ddof=1)
+    fails = np.count_nonzero((x &lt; lo) | (x &gt; hi))
+    k = min(hi - mu, mu - lo) / sd           # distance to nearer limit
+    print(f&quot;n={len(x)}  mean={mu:+.2f}  sigma={sd:.2f}  &quot;
+          f&quot;margin={k:.1f} sigma  fails={fails}&quot;)
+    if fails == 0:
+        print(f&quot;fail rate below {3/len(x):.1%} (95 % confidence)&quot;)
+
+# Stand-in for 200 simulated comparator offsets in mV (made up).
+rng = np.random.default_rng(1)
+summarise(rng.normal(0.2, 1.5, 200), lo=-5.0, hi=5.0)
+</code></pre>
+<p>Note that the sample estimates (mean 0.09 mV, σ 1.39 mV) differ from the values used to generate them. That gap is exactly the sampling uncertainty described above.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Running Monte Carlo only at TT.</strong> Mismatch and corners combine. Run Monte Carlo at the worst corners too, or at least check that the σ does not grow there.</li>
+<li><strong>Including global variation twice.</strong> If you run corners and a Monte Carlo that also varies global parameters, you may double-count. Know what each model section varies.</li>
+<li><strong>Plotting a histogram and stopping.</strong> Look for outliers and bimodal shapes; a second cluster often means a start-up or bias problem, not mismatch.</li>
+<li><strong>Forgetting layout.</strong> Schematic Monte Carlo ignores gradients and parasitics; repeat key checks on the extracted netlist.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install <strong>ngspice</strong> and the sky130 PDK, fix the <code>LIB</code> path, and run the PVT sweep. Identify the corner with the lowest and highest switching point and explain why.</li>
+<li>Find the statistical or mismatch sections in your PDK's ngspice model library, and run 100 Monte Carlo iterations of a five-transistor differential amplifier, measuring input offset.</li>
+<li>Feed the offsets to <code>summarise</code>, then rerun with the input pair four times larger in area and check that σ roughly halves.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pvt corners</li><li>monte carlo</li><li>mismatch</li><li>ngspice</li><li>verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sigma-delta-adc-intuition.html"><span>Previous in Analog &amp; mixed-signal</span>Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping</a><a class="next" href="mosfet-in-three-regions.html"><span>Next in Analog &amp; mixed-signal</span>The MOSFET in three regions: an intuition-first guide</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="analog-layout-for-matching.html">Analog layout for matching: common centroid, interdigitation and dummies</a></h3>
+          <p>Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-circuit-in-xschem-and-ngspice.html">Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</a></h3>
+          <p>Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

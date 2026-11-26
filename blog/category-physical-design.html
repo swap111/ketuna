@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physical design &amp; tape-out · Ketuna blog</title>
+  <meta name="description" content="Ketuna blog articles on physical design &amp; tape-out: practical, explained properly, with something to try on open-source tools.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Physical design &amp; tape-out · Ketuna blog">
+  <meta property="og:description" content="Ketuna blog articles on physical design &amp; tape-out: practical, explained properly, with something to try on open-source tools.">
+  <link rel="canonical" href="https://ketuna.online/blog/category-physical-design.html">
+  <meta property="og:url" content="https://ketuna.online/blog/category-physical-design.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero page-hero">
+      <div class="wrap">
+        <div>
+          <p class="crumbs"><a href="index.html">Blog</a> › Physical design &amp; tape-out</p>
+          <h1>Physical design &amp; tape-out</h1>
+          <p class="lede">30 articles, newest first.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight">
+      <div class="wrap">
+        <nav aria-label="Categories" class="blog-tools">
+        <ul class="catchips">
+          <li><a href="index.html" data-cat="">All</a></li>
+          <li><a href="category-vlsi-design.html">Digital &amp; VLSI design <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-verification.html">Verification <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-physical-design.html" aria-current="page">Physical design &amp; tape-out <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-analog.html">Analog &amp; mixed-signal <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-architecture.html">Computer architecture &amp; RISC-V <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-embedded.html">Embedded systems <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-edge-ai.html">Edge AI <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-systems-product.html">Systems &amp; product engineering <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-careers.html">Careers &amp; skills <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem <span class="sr-only">(30)</span></a></li>
+        </ul>
+        </nav>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="writing-your-first-sdc.html">Writing your first SDC: clocks, I/O delays and false paths</a></h3>
+          <p>Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-hold-violations-are-worse.html">Why hold violations are worse than setup violations, and how tools fix them</a></h3>
+          <p>A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="signoff-corners-for-digital-timing.html">Which corners to sign off: process, voltage and temperature for digital timing</a></h3>
+          <p>Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-logic-synthesis-does.html">What logic synthesis actually does to your RTL</a></h3>
+          <p>Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="timing-closure-when-paths-will-not-close.html">Timing closure when the last few paths will not close</a></h3>
+          <p>When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="three-open-pdks-compared.html">Three open PDKs and what each is good for</a></h3>
+          <p>sky130, gf180 and IHP SG13G2 are open process design kits you can use for real chips. Compare them by process type, voltages, metal stack and typical uses, and learn how to pick one for a project.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tape-out-checklist.html">The tape-out checklist: what to confirm before you send GDS</a></h3>
+          <p>Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="first-day-of-chip-bring-up.html">The first day with your chip back from the fab: a bring-up plan</a></h3>
+          <p>Bring-up goes in a fixed order so that one fault cannot hide another or destroy the part. Learn a staged plan: current-limited power-up, clocks and reset, JTAG and scan, then functions, with everything recorded.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="scan-chains-and-atpg.html">Scan chains and ATPG: how chips are tested after manufacturing</a></h3>
+          <p>Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="routing-and-leftover-drc.html">Routing and the DRC violations it leaves behind</a></h3>
+          <p>Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rtl-to-gds-in-one-page.html">RTL to GDS in one page: what each step of the flow takes in and hands out</a></h3>
+          <p>The RTL-to-GDS flow is a chain of steps, each reading files and writing files you can open. Learn what goes in and comes out of synthesis, floorplan, placement, clock tree, routing and sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="placement-and-congestion.html">Placement and congestion: reading the heat map before routing fails</a></h3>
+          <p>Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="physical-design-for-voltage-domains.html">Physical design for multiple voltage domains: level shifters, isolation and floorplan</a></h3>
+          <p>An always-on domain plus a switchable one needs separate power grids, power switches, isolation and level-shifter cells at the right boundaries. How to floorplan and place them, with a switch-sizing calculation.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="extraction-and-signoff-timing.html">Parasitic extraction and sign-off timing: why post-route numbers change</a></h3>
+          <p>Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="metal-fill-and-density-rules.html">Metal fill, density rules and why the fab cares about empty space</a></h3>
+          <p>Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mbist-and-boundary-scan.html">Memory BIST and JTAG boundary scan: testing what scan cannot reach</a></h3>
+          <p>Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reproducible-physical-design-flows.html">Making a physical design flow reproducible: pinned tools, configs and seeds</a></h3>
+          <p>A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-a-standard-cell-library.html">Inside a standard-cell library: Liberty, LEF and what the numbers mean</a></h3>
+          <p>A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="ir-drop-and-electromigration.html">IR drop and electromigration in plain terms</a></h3>
+          <p>IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-timing-report.html">How to read a static timing report line by line</a></h3>
+          <p>A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="librelane-first-run.html">Hardening your first block with LibreLane: a guided first run</a></h3>
+          <p>Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="floorplanning-decisions.html">Floorplanning decisions that make or break a block</a></h3>
+          <p>Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="floorplanning-a-drone-controller-chip.html">Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</a></h3>
+          <p>A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="estimating-area-before-rtl.html">Estimating chip area before you write RTL</a></h3>
+          <p>Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-for-a-shared-shuttle-tile.html">Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL</a></h3>
+          <p>A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="power-grid-rings-and-straps.html">Designing a power grid: rings, straps and why IR drop starts at the floorplan</a></h3>
+          <p>Rings, straps and rails carry supply current from the pads to every cell. Learn how the grid is laid out, why its resistance sets the IR drop, and why it is far easier to plan early than to repair after routing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

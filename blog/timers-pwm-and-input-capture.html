@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timers in practice: PWM output, input capture and the prescaler arithmetic · Ketuna blog</title>
+  <meta name="description" content="How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Timers in practice: PWM output, input capture and the prescaler arithmetic · Ketuna blog">
+  <meta property="og:description" content="How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.">
+  <link rel="canonical" href="https://ketuna.online/blog/timers-pwm-and-input-capture.html">
+  <meta property="og:url" content="https://ketuna.online/blog/timers-pwm-and-input-capture.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Timers in practice: PWM output, input capture and the prescaler arithmetic",
+  "description": "How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "timers, pwm, input capture, prescaler, microcontrollers",
+  "articleSection": "Embedded systems",
+  "wordCount": 909,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/timers-pwm-and-input-capture.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Timers in practice: PWM output, input capture and the prescaler arithmetic</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-counter-and-its-two-dividers">The counter and its two dividers</a></li><li><a href="#pwm-one-compare-register-more">PWM: one compare register more</a></li><li><a href="#choosing-psc-and-arr">Choosing PSC and ARR</a></li><li><a href="#updating-the-duty-cycle-without-glitches">Updating the duty cycle without glitches</a></li><li><a href="#input-capture-measuring-pulses-in-hardware">Input capture: measuring pulses in hardware</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Dimming an LED, driving a servo, spinning a fan and reading an ultrasonic range sensor all use the same peripheral: a hardware timer. It is a counter with a few comparators attached, and nearly everything it does follows from two numbers you choose, the prescaler and the period. Getting those numbers right is simple arithmetic, but there is a "+1" in it that catches almost everyone once.</p>
+<h2 id="the-counter-and-its-two-dividers">The counter and its two dividers</h2>
+<p>A typical timer takes its input clock, divides it by a <strong>prescaler</strong>, and uses the result to increment a counter. When the counter reaches the <strong>period</strong> value (often called the auto-reload value, ARR), it wraps to zero and starts again. Each wrap is an <em>update event</em>, which can raise an interrupt.</p>
+<p>Most timers store "value minus one" in both registers, so a prescaler register of 0 means divide by 1 and a period register of 999 means 1000 counts. The update frequency is therefore:</p>
+<blockquote>
+<p>f<sub>update</sub> = f<sub>clk</sub> / ((PSC + 1) × (ARR + 1))</p>
+</blockquote>
+<p>Check your part's reference manual, because a few timers store the plain value. Writing the formula with the "+1" every time, and checking it against the manual once, avoids an error that is small enough to miss on a scope and large enough to break a protocol.</p>
+<h2 id="pwm-one-compare-register-more">PWM: one compare register more</h2>
+<p>For pulse-width modulation, the timer compares the counter with a <strong>compare register</strong> (CCR). In the common edge-aligned mode, the output is high while the counter is below CCR and low after it:</p>
+<blockquote>
+<p>duty cycle = CCR / (ARR + 1)</p>
+</blockquote>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="tp-title tp-desc" font-size="14">
+<title id="tp-title">Edge-aligned PWM from a counter and a compare value</title>
+<desc id="tp-desc">The upper trace is the timer counter rising as a sawtooth from zero to the period value, then wrapping, three times. A dashed horizontal line marks the compare value at about forty percent of the period. The lower trace is the PWM output, which is high while the counter is below the compare value and low for the rest of each period.</desc>
+<text x="10" y="30" class="dg-text">ARR</text>
+<text x="10" y="86" class="dg-text">CCR</text>
+<path d="M50,120 L170,26 V120 L290,26 V120 L410,26 V120" class="dg-line" fill="none"/>
+<line x1="50" y1="82" x2="440" y2="82" class="dg-amber-line" stroke-dasharray="6 4"/>
+<text x="10" y="124" class="dg-muted">0</text>
+<text x="10" y="176" class="dg-text">out</text>
+<path d="M50,160 H98 V200 H170 V160 H218 V200 H290 V160 H338 V200 H410" class="dg-line" fill="none"/>
+<path d="M50,214 H170" class="dg-dash"/>
+<text x="110" y="228" text-anchor="middle" class="dg-muted">one period: ARR + 1 counts</text>
+</svg>
+<figcaption>The output is high from the wrap until the counter passes the compare value, so CCR sets the duty and ARR sets the frequency.</figcaption>
+</figure>
+
+<p>The period also sets the <strong>resolution</strong>: ARR + 1 counts per period means ARR + 1 possible duty values. For a fixed timer clock, a higher PWM frequency leaves fewer counts per period. That is the main trade-off in every PWM design.</p>
+<h2 id="choosing-psc-and-arr">Choosing PSC and ARR</h2>
+<p>Assume a 48 MHz timer clock; the number is made up for illustration.</p>
+<p><strong>A 20 kHz motor or fan PWM</strong> (above the audible range). With PSC = 0, ARR + 1 = 48,000,000 / 20,000 = 2400, so ARR = 2399. That gives 2400 duty steps, about 11.2 bits of resolution. Any larger prescaler would only reduce the resolution, so for PWM you usually want the smallest prescaler that keeps ARR within the counter's range.</p>
+<p><strong>A 50 Hz hobby-servo signal.</strong> A servo reads a pulse between roughly 1 and 2 ms in a 20 ms frame. The direct way is PSC = 47, giving a 1 MHz tick, and ARR = 19,999. Now CCR is the pulse width in microseconds: CCR = 1500 means 1.5 ms. The alternative PSC = 14 gives a 3.2 MHz tick and ARR = 63,999, which uses the full 16-bit range for finer steps. Both are correct; choose readable units unless you need the extra resolution.</p>
+<p>A small script avoids mistakes when the numbers are less round:</p>
+<pre><code class="language-python">def psc_arr(f_clk, f_target, max_count=65536, tol=1e-3):
+    &quot;&quot;&quot;Smallest prescaler (most PWM steps) that hits f_target.&quot;&quot;&quot;
+    for psc in range(65536):
+        steps = round(f_clk / ((psc + 1) * f_target))
+        if steps &lt; 2:
+            break
+        if steps &gt; max_count:
+            continue
+        f = f_clk / ((psc + 1) * steps)
+        if abs(f - f_target) / f_target &lt; tol:
+            return psc, steps - 1, f
+    return None
+
+print(psc_arr(48e6, 20_000))   # (0, 2399, 20000.0)
+print(psc_arr(48e6, 50))       # (14, 63999, 50.0)
+</code></pre>
+<p>If no exact pair exists, the function returns nothing, which is your cue to accept a small frequency error or change the clock.</p>
+<h2 id="updating-the-duty-cycle-without-glitches">Updating the duty cycle without glitches</h2>
+<p>If firmware writes a new CCR in the middle of a period, and the counter has already passed the new value, the output can miss a transition and produce one wrong-length pulse. Timers solve this with <strong>preload</strong> (shadow) registers: writes go to a buffer that is copied into the active register only at the next update event. Enable preload for CCR and ARR, and force one update after configuration so the first period starts with your values.</p>
+<h2 id="input-capture-measuring-pulses-in-hardware">Input capture: measuring pulses in hardware</h2>
+<p>Input capture runs the other way. On a selected edge of an input pin, the hardware copies the counter value into a capture register. Two captures, one on the rising edge and one on the falling edge, give the pulse width in timer ticks. Because hardware latches the count, the result does not depend on how quickly the interrupt runs; the ISR only has to read the register before the next edge.</p>
+<p>Counters wrap, so compute the difference with unsigned arithmetic of the counter's width:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+/* 16-bit counter at 1 MHz: one tick = 1 us. */
+uint16_t pulse_width_us(uint16_t rise, uint16_t fall)
+{
+    return (uint16_t)(fall - rise);   /* correct across one wrap */
+}
+</code></pre>
+<p>With a rising capture at <code>0xFF00</code> and a falling capture at <code>0x0100</code>, the result is <code>0x0200</code>, 512 µs, even though the counter wrapped in between. This works as long as the pulse is shorter than one full counter cycle, 65.536 ms at this tick rate. For longer pulses, lower the timer clock with the prescaler or count update events in software.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Forgetting the "+1" in PSC or ARR, giving a small frequency error</li>
+<li>Choosing a large prescaler for PWM and losing resolution for no reason</li>
+<li>Writing CCR without preload and seeing an occasional wrong pulse</li>
+<li>Measuring pulse widths by reading a free-running counter in a GPIO interrupt, which adds the interrupt latency as jitter</li>
+<li>Forgetting that the timer clock may not equal the core clock; check the clock tree</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Use the Python function above for three targets on your board's actual timer clock, and confirm each result by hand with the formula.</li>
+<li>On a board, generate a 1 kHz PWM at 25 % duty and measure it with a logic analyser and sigrok PulseView. Change CCR in a loop, with and without preload, and look for short pulses.</li>
+<li>Feed the PWM back into an input-capture pin on the same chip and print the measured width. Compare it with CCR; any difference beyond one tick needs an explanation.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>timers</li><li>pwm</li><li>input capture</li><li>prescaler</li><li>microcontrollers</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="superloop-or-rtos.html"><span>Previous in Embedded systems</span>Superloop or RTOS? Deciding with timing requirements, not fashion</a><a class="next" href="uart-spi-or-i2c-for-a-sensor.html"><span>Next in Embedded systems</span>UART, SPI or I2C: choosing a serial bus for a sensor</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="six-step-bldc-commutation.html">Six-step BLDC commutation in firmware: Hall sensors, PWM and timing</a></h3>
+          <p>How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-microcontroller-datasheet.html">Reading a microcontroller datasheet and reference manual efficiently</a></h3>
+          <p>A microcontroller&#x27;s documents run to thousands of pages. Which document answers which question, the order to read the sections in, and how a two-minute baud-rate check against the clock tree saves a day of debugging.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

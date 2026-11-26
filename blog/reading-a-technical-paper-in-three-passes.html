@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading a technical paper efficiently in three passes · Ketuna blog</title>
+  <meta name="description" content="Read a technical paper in three passes, skim for the claim, read for the method, then check the evidence and what is left out, so you spend deep reading time only on papers that earn it.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reading a technical paper efficiently in three passes · Ketuna blog">
+  <meta property="og:description" content="Read a technical paper in three passes, skim for the claim, read for the method, then check the evidence and what is left out, so you spend deep reading time only on papers that earn it.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-a-technical-paper-in-three-passes.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-a-technical-paper-in-three-passes.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading a technical paper efficiently in three passes",
+  "description": "Read a technical paper in three passes, skim for the claim, read for the method, then check the evidence and what is left out, so you spend deep reading time only on papers that earn it.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "technical papers, research, critical reading, evidence",
+  "articleSection": "Careers & skills",
+  "wordCount": 845,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-a-technical-paper-in-three-passes.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Reading a technical paper efficiently in three passes</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Read a technical paper in three passes, skim for the claim, read for the method, then check the evidence and what is left out, so you spend deep reading time only on papers that earn it.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-passes-three-questions">Three passes, three questions</a></li><li><a href="#pass-one-skim-for-the-claim">Pass one: skim for the claim</a></li><li><a href="#pass-two-read-for-the-method">Pass two: read for the method</a></li><li><a href="#pass-three-check-the-evidence-and-the-gaps">Pass three: check the evidence and the gaps</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Engineers in chip design and embedded systems read papers for practical reasons: to evaluate a new low-power technique, to understand a verification method before adopting it, or to check whether a claimed result applies to their own design. Reading every paper carefully from the first line to the last is slow, and most papers you open will turn out not to be relevant. Reading in three passes, each with a different question, lets you drop the irrelevant ones early and read the important ones properly.</p>
+<h2 id="three-passes-three-questions">Three passes, three questions</h2>
+<p>Each pass asks a single question and ends with a decision about whether to continue.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="tp-title tp-desc" font-size="14">
+<title id="tp-title">Three-pass reading as a funnel</title>
+<desc id="tp-desc">Three stacked boxes that narrow from top to bottom. Pass one, skim for the claim, is widest. Pass two, read for the method, is narrower. Pass three, check the evidence, is narrowest. Arrows on the right show papers leaving after each pass.</desc>
+<rect x="30" y="20" width="330" height="50" rx="5" class="dg-box"/>
+<text x="195" y="42" text-anchor="middle" class="dg-text">Pass 1: skim for the claim</text>
+<text x="195" y="61" text-anchor="middle" class="dg-muted">title, abstract, figures, conclusion</text>
+<rect x="65" y="90" width="260" height="50" rx="5" class="dg-core"/>
+<text x="195" y="112" text-anchor="middle" class="dg-text">Pass 2: read for the method</text>
+<text x="195" y="131" text-anchor="middle" class="dg-muted">body, set-up, assumptions</text>
+<rect x="100" y="160" width="190" height="50" rx="5" class="dg-amber" fill-opacity="0.35"/>
+<text x="195" y="182" text-anchor="middle" class="dg-text">Pass 3: check evidence</text>
+<text x="195" y="201" text-anchor="middle" class="dg-muted">numbers, baselines, gaps</text>
+<line x1="362" y1="45" x2="410" y2="45" class="dg-line"/>
+<path d="M410,41 L417,45 L410,49 Z" class="dg-arrow"/>
+<text x="420" y="50" class="dg-text">drop</text>
+<line x1="327" y1="115" x2="410" y2="115" class="dg-line"/>
+<path d="M410,111 L417,115 L410,119 Z" class="dg-arrow"/>
+<text x="420" y="120" class="dg-text">drop</text>
+<line x1="292" y1="185" x2="410" y2="185" class="dg-line"/>
+<path d="M410,181 L417,185 L410,189 Z" class="dg-arrow"/>
+<text x="420" y="190" class="dg-text">use</text>
+</svg>
+<figcaption>Each pass is more expensive than the last, so most papers should leave the funnel early.</figcaption>
+</figure>
+
+<p>The funnel shape is the point. The first pass takes minutes and is applied to many papers; the third takes hours and is reserved for the few you will act on.</p>
+<h2 id="pass-one-skim-for-the-claim">Pass one: skim for the claim</h2>
+<p>Read the title, abstract, introduction's last paragraph, section headings, every figure and table with its caption, and the conclusion. Skip the body. The goal is to write one sentence: <em>the paper claims X, under conditions Y, compared with Z.</em></p>
+<p>For example: "The paper claims a clock-gating insertion method reduces dynamic power of a pipelined processor compared with conventional register-level gating, measured in post-layout simulation at one process node." That sentence already tells you a great deal. Is your design pipelined? Is post-layout simulation good enough evidence for you, or do you need silicon measurements? Is the baseline the one you would compare against?</p>
+<p>If you cannot write the sentence, the paper is either poorly written or outside your area. Either way, decide now: drop it, file it, or continue. Most papers should stop here, and that is a success, not a failure.</p>
+<h2 id="pass-two-read-for-the-method">Pass two: read for the method</h2>
+<p>Now read the body, but not every derivation. The question is <em>how</em> the authors got their result. Look for:</p>
+<ul>
+<li><strong>The set-up:</strong> what design, benchmark, tool flow or hardware was used, and at what scale.</li>
+<li><strong>The assumptions:</strong> stated and unstated. A power result that assumes a particular switching activity, a timing result at one corner, a classifier evaluated on one dataset.</li>
+<li><strong>The key mechanism:</strong> what actually produces the improvement. If you cannot explain it in your own words in a short paragraph, mark the section to revisit.</li>
+</ul>
+<p>Sketch the method on paper as a block diagram or a flow. Drawing it exposes gaps the prose glides over, such as a step where the input data appears with no explanation of where it came from. Note every term you do not know and look up the important ones; ignore the rest for now.</p>
+<p>At the end of pass two you should be able to explain the paper to a colleague, and decide whether its method could transfer to your problem.</p>
+<h2 id="pass-three-check-the-evidence-and-the-gaps">Pass three: check the evidence and the gaps</h2>
+<p>The final pass is critical reading. Assume the authors are competent and honest, and still ask whether the evidence supports the claim <em>as stated</em>.</p>
+<p>A practical checklist:</p>
+<ul>
+<li><strong>Baseline:</strong> is the comparison against a reasonable, current alternative, or against a weak one that makes any method look good?</li>
+<li><strong>Numbers:</strong> recompute one or two headline results from the tables. Do percentages refer to the whole design or one block? Is the improvement larger than run-to-run variation?</li>
+<li><strong>Scope:</strong> were results shown at several sizes, corners or workloads, or only one favourable case?</li>
+<li><strong>Costs:</strong> area, latency, design effort, verification complexity. Papers emphasise gains; you need to find the price.</li>
+<li><strong>What is missing:</strong> failure cases, limitations, sensitivity to parameters. Silence on these is information.</li>
+<li><strong>Reproducibility:</strong> are the code, data or design available, so you could check a result yourself?</li>
+</ul>
+<p>Write a short note: the claim, the method in a paragraph, the strongest and weakest evidence, and what you would need to verify before relying on it. That note is what you will actually remember and share.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading every paper in full.</strong> You spend hours on papers the first pass would have rejected in minutes.</li>
+<li><strong>Trusting the abstract.</strong> Abstracts state the best result; the conditions are in the body.</li>
+<li><strong>Skipping figures in pass one.</strong> In engineering papers, the key result is often a single plot.</li>
+<li><strong>Confusing simulation with silicon.</strong> Both are valid evidence, but they support different strengths of claim.</li>
+<li><strong>No notes.</strong> A paper read carefully and not summarised is mostly forgotten within weeks.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick three open-access papers on one topic, for example RISC-V core verification or low-power design, and do only pass one on each. Write the one-sentence claim for each and choose one to continue.</li>
+<li>Do pass two on the chosen paper and draw its method as a block diagram on paper.</li>
+<li>In pass three, recompute one headline number from its tables with a few lines of Python using <strong>numpy</strong>, and check whether the percentage refers to what the abstract implies.</li>
+<li>If the paper publishes code or a design, try to reproduce one small result with the open-source tools it names, and note any step that was not described.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>technical papers</li><li>research</li><li>critical reading</li><li>evidence</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="python-for-hardware-engineers.html"><span>Previous in Careers &amp; skills</span>Python for hardware engineers: the parts you will use every day</a><a class="next" href="switching-into-vlsi.html"><span>Next in Careers &amp; skills</span>Switching into VLSI from software or another branch: what transfers and what to learn</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="blameless-postmortems.html">Writing a blameless postmortem after a failed lab or project</a></h3>
+          <p>How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

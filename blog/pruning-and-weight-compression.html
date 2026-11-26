@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruning and weight compression for tiny models · Ketuna blog</title>
+  <meta name="description" content="Zeroing small weights only saves memory and time if the storage format and the hardware can exploit it. Unstructured versus structured pruning, index overhead, weight clustering, and checking what accuracy you gave up.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Pruning and weight compression for tiny models · Ketuna blog">
+  <meta property="og:description" content="Zeroing small weights only saves memory and time if the storage format and the hardware can exploit it. Unstructured versus structured pruning, index overhead, weight clustering, and checking what accuracy you gave up.">
+  <link rel="canonical" href="https://ketuna.online/blog/pruning-and-weight-compression.html">
+  <meta property="og:url" content="https://ketuna.online/blog/pruning-and-weight-compression.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Pruning and weight compression for tiny models",
+  "description": "Zeroing small weights only saves memory and time if the storage format and the hardware can exploit it. Unstructured versus structured pruning, index overhead, weight clustering, and checking what accuracy you gave up.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pruning, sparsity, compression, quantization, tinyml",
+  "articleSection": "Edge AI",
+  "wordCount": 1065,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/pruning-and-weight-compression.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Pruning and weight compression for tiny models</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Zeroing small weights only saves memory and time if the storage format and the hardware can exploit it. Unstructured versus structured pruning, index overhead, weight clustering, and checking what accuracy you gave up.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#unstructured-pruning-and-the-index-tax">Unstructured pruning and the index tax</a></li><li><a href="#structured-pruning-that-any-hardware-can-use">Structured pruning that any hardware can use</a></li><li><a href="#weight-clustering">Weight clustering</a></li><li><a href="#a-small-numpy-experiment">A small numpy experiment</a></li><li><a href="#checking-what-you-gave-up">Checking what you gave up</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>After int8 quantization, a model that still does not fit, or still runs too slowly, invites the next step: remove weights. Trained networks are usually over-parameterised, and many weights end up close to zero, so pruning them often costs little accuracy. But a zero weight still occupies a byte and a multiply unless something in the storage format, the kernel or the hardware knows to skip it. The engineering question is not "how many weights can I zero?" but "what do the zeros buy on this target?", and the answer differs sharply between unstructured and structured pruning.</p>
+<h2 id="unstructured-pruning-and-the-index-tax">Unstructured pruning and the index tax</h2>
+<p><strong>Magnitude pruning</strong> sets the weights with the smallest absolute values to zero, until a target fraction, the <strong>sparsity</strong>, is reached. Done gradually during fine-tuning, with the network retraining between steps, it can reach high sparsity on many models. The zeros are scattered with no pattern: that is <strong>unstructured</strong> sparsity.</p>
+<p>To save memory you must store only the non-zero values plus enough information to know where they go. That information costs bytes. For an int8 layer with n weights and nnz non-zeros, compare three formats:</p>
+<ul>
+<li><strong>Dense:</strong> n bytes.</li>
+<li><strong>Value + 8-bit index:</strong> each non-zero stores its value and its position within a row (rows up to 256 wide): 2 × nnz bytes.</li>
+<li><strong>Bitmap:</strong> one bit per weight slot marks non-zeros, followed by the packed values: n / 8 + nnz bytes.</li>
+</ul>
+<p>For a 64 × 64 layer (n = 4,096), with nnz = (1 − sparsity) × n:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Sparsity</th>
+<th>Dense</th>
+<th>Value + index</th>
+<th>Bitmap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50 %</td>
+<td>4,096</td>
+<td>4,096</td>
+<td>2,560</td>
+</tr>
+<tr>
+<td>75 %</td>
+<td>4,096</td>
+<td>2,048</td>
+<td>1,536</td>
+</tr>
+<tr>
+<td>90 %</td>
+<td>4,096</td>
+<td>about 820</td>
+<td>about 922</td>
+</tr>
+</tbody>
+</table></div>
+<p>With 8-bit indices you need more than 50 % sparsity just to break even, because each surviving weight now costs two bytes. The bitmap pays off earlier and stays ahead until nnz falls below n / 8, that is above 87.5 % sparsity, where the per-slot bitmap starts to cost more than the indices. With int8 weights, the metadata is the same order of size as the data, a much worse ratio than for 32-bit floats, where pruning was first popularised.</p>
+<p>Speed is harder still. A sparse dot product on a microcontroller loads an index, computes an address and loads the matching input, so each useful MAC costs several instructions, and memory access becomes irregular. On a simple core it may need quite high sparsity before it beats the dense loop, and on SIMD kernels or a systolic array, scattered zeros save nothing unless the hardware was built to skip them. Measure on the target before counting on a speed-up.</p>
+<h2 id="structured-pruning-that-any-hardware-can-use">Structured pruning that any hardware can use</h2>
+<p><strong>Structured pruning</strong> removes whole units: an output channel of a convolution, a neuron of a dense layer, sometimes a whole layer. The result is simply a smaller dense network, which every kernel and accelerator already runs efficiently.</p>
+<p>The savings also compound. Removing an output channel from one layer removes the matching input channel from the next. Take an illustrative pair of 3 × 3 convolutions, 16 → 32 → 64 channels. Pruning 8 of the 32 middle channels:</p>
+<ul>
+<li>the first layer's weights go from 3 × 3 × 16 × 32 = 4,608 to 3 × 3 × 16 × 24 = 3,456</li>
+<li>the second layer's go from 3 × 3 × 32 × 64 = 18,432 to 3 × 3 × 24 × 64 = 13,824</li>
+<li>the activation tensor between them shrinks by a quarter, which lowers peak RAM</li>
+</ul>
+<p>Both layers lose 25 % of their weights and MACs with no index overhead at all. Channels are usually ranked by the size of their weights (for example the L1 norm of each filter) or by how much the loss changes when they are removed, and then the network is fine-tuned to recover.</p>
+<p>Between the two extremes sit <strong>semi-structured</strong> patterns, such as keeping exactly 2 of every 4 consecutive weights. Hardware with matching support can skip the zeros with a tiny fixed-size index; without that support they are just unstructured zeros.</p>
+<h2 id="weight-clustering">Weight clustering</h2>
+<p><strong>Clustering</strong> (or weight sharing) runs k-means on a layer's weights and replaces each weight with the nearest of k centroid values. Store a small codebook of k values and, per weight, an index of log<sub>2</sub>(k) bits. With 16 clusters, each weight needs 4 bits: a dense layer with 122,880 weights drops from 122,880 bytes in int8 to 61,440 bytes of indices plus a 16-entry codebook.</p>
+<p>The cost is a lookup per weight before the MAC, which a microcontroller does in software and an accelerator can do with a small table next to each lane. Clustering combines well with pruning (zero becomes one of the clusters) and with standard compression of the packed indices for storage.</p>
+<h2 id="a-small-numpy-experiment">A small numpy experiment</h2>
+<pre><code class="language-python">import numpy as np
+
+def prune_magnitude(w, sparsity):
+    &quot;&quot;&quot;Zero the smallest |w| so that `sparsity` of entries are zero.&quot;&quot;&quot;
+    k = int(sparsity * w.size)
+    thr = np.sort(np.abs(w).ravel())[k - 1] if k else -1
+    return np.where(np.abs(w) &gt; thr, w, 0).astype(w.dtype)
+
+def sizes(w):
+    n, nnz = w.size, int(np.count_nonzero(w))
+    return {&quot;dense&quot;: n,                     # 1 byte per int8 weight
+            &quot;index8&quot;: 2 * nnz,              # value + 8-bit index
+            &quot;bitmap&quot;: (n + 7) // 8 + nnz}   # 1 bit per slot + values
+
+rng = np.random.default_rng(0)
+w = rng.integers(-127, 128, (64, 64), dtype=np.int8)
+for s in [0.5, 0.75, 0.9]:
+    print(s, sizes(prune_magnitude(w, s)))
+</code></pre>
+<p>Ties in integer weights make the achieved sparsity differ slightly from the target, so the sizes printed differ a little from the table. That is a useful reminder to measure what you produced rather than what you asked for.</p>
+<h2 id="checking-what-you-gave-up">Checking what you gave up</h2>
+<p>Pruning changes the model, so the evaluation has to be as careful as for the original:</p>
+<ol>
+<li><strong>Per-layer sensitivity first.</strong> Prune one layer at a time and measure validation accuracy. The first and last layers are often sensitive; large dense layers often tolerate a lot.</li>
+<li><strong>Fine-tune after pruning,</strong> gradually if you aim high, and re-quantize afterwards: pruning changes weight ranges, so scales computed before pruning may no longer fit.</li>
+<li><strong>Look beyond the average.</strong> A pruned model may keep its overall accuracy while losing a rare class. Compare per-class recall, not just one number.</li>
+<li><strong>Measure the deployed result:</strong> flash bytes from the build, RAM from the runtime, cycles from the target. A "90 % sparse" model that runs slower is not a win.</li>
+</ol>
+<p>Common mistakes:</p>
+<ul>
+<li>reporting sparsity as a saving without counting index storage</li>
+<li>expecting unstructured zeros to speed up dense kernels or a systolic array</li>
+<li>pruning a quantized model and keeping the old scales</li>
+<li>comparing pruned and original models on different test sets</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script, then add a 4-bit clustered format to <code>sizes()</code> and find where it beats the bitmap.</li>
+<li>Train a small convolutional network in PyTorch, apply <code>torch.nn.utils.prune.l1_unstructured</code> to one layer, fine-tune briefly and record accuracy at several sparsities.</li>
+<li>Repeat with <code>torch.nn.utils.prune.ln_structured</code> on output channels, then actually rebuild the smaller layers and measure parameters and MACs.</li>
+<li>Export both variants to int8 and compare flash size and cycles per inference on a microcontroller or in an instruction-set simulator.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pruning</li><li>sparsity</li><li>compression</li><li>quantization</li><li>tinyml</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="prototyping-an-ml-accelerator-on-fpga.html"><span>Previous in Edge AI</span>Prototyping a small ML accelerator on an FPGA</a><a class="next" href="tflm-interpreter-arena-operators.html"><span>Next in Edge AI</span>Running a model with TensorFlow Lite Micro: the interpreter, arena and operators</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-activation-functions.html">Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></h3>
+          <p>ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

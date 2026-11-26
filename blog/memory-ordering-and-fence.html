@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory ordering and FENCE: why a store may not be visible yet · Ketuna blog</title>
+  <meta name="description" content="Write buffers and relaxed ordering let a RISC-V core make memory operations visible out of program order. See where that breaks device drivers and multi-hart code, and which FENCE fixes each case.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Memory ordering and FENCE: why a store may not be visible yet · Ketuna blog">
+  <meta property="og:description" content="Write buffers and relaxed ordering let a RISC-V core make memory operations visible out of program order. See where that breaks device drivers and multi-hart code, and which FENCE fixes each case.">
+  <link rel="canonical" href="https://ketuna.online/blog/memory-ordering-and-fence.html">
+  <meta property="og:url" content="https://ketuna.online/blog/memory-ordering-and-fence.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Memory ordering and FENCE: why a store may not be visible yet",
+  "description": "Write buffers and relaxed ordering let a RISC-V core make memory operations visible out of program order. See where that breaks device drivers and multi-hart code, and which FENCE fixes each case.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, memory ordering, fence, concurrency, device drivers",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 947,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/memory-ordering-and-fence.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Memory ordering and FENCE: why a store may not be visible yet</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Write buffers and relaxed ordering let a RISC-V core make memory operations visible out of program order. See where that breaks device drivers and multi-hart code, and which FENCE fixes each case.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-hardware-reorders">Why hardware reorders</a></li><li><a href="#the-fence-instruction">The FENCE instruction</a></li><li><a href="#case-1-handing-a-buffer-to-a-dma-engine">Case 1: handing a buffer to a DMA engine</a></li><li><a href="#case-2-reading-data-after-a-status-bit">Case 2: reading data after a status bit</a></li><li><a href="#case-3-passing-a-message-between-harts">Case 3: passing a message between harts</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Within a single thread, a processor always appears to run your loads and stores in program order: a load after a store to the same address sees the stored value. That guarantee says nothing about what <em>another observer</em> sees: a second hart, a DMA engine, or a peripheral reading its own registers. To those observers, a RISC-V core may make memory operations visible in a different order from the program's. Most of the time nobody can tell. In device drivers and lock-free code, it is the source of bugs that appear once in a million runs. FENCE instructions are how software states the ordering it needs.</p>
+<h2 id="why-hardware-reorders">Why hardware reorders</h2>
+<p>Reordering is not a design flaw; it is a consequence of making memory fast.</p>
+<ul>
+<li><strong>Write buffers.</strong> A store that misses in the cache would stall the pipeline while the line is fetched. Instead the core parks the store in a buffer and carries on. A later load to a different address that hits in the cache completes first. To an outside observer, the load happened before the store.</li>
+<li><strong>Multiple paths to memory.</strong> Normal memory and device registers often sit behind different parts of the interconnect, with different latencies. A store to a peripheral can arrive before an earlier store to SRAM.</li>
+<li><strong>Out-of-order and non-blocking caches.</strong> Larger cores keep several misses outstanding, and they complete in whatever order memory returns them.</li>
+</ul>
+<p>The RISC-V memory model, called RVWMO (weak memory ordering), allows these reorderings between accesses to different addresses unless software asks otherwise. It defines precisely which orders are preserved, for example dependent accesses and accesses to the same address, and which need a fence. There is also an optional Ztso extension for cores that provide the stronger total store order; portable code should not assume it.</p>
+<h2 id="the-fence-instruction">The FENCE instruction</h2>
+<p><code>fence</code> takes two sets, a <strong>predecessor</strong> set and a <strong>successor</strong> set, each a combination of four access kinds: <strong>I</strong> (device input, reads from I/O regions), <strong>O</strong> (device output, writes to I/O regions), <strong>R</strong> (memory reads) and <strong>W</strong> (memory writes). The fence guarantees that every access of the predecessor kinds before it is visible to other observers before any access of the successor kinds after it.</p>
+<p><code>fence rw, rw</code> orders all memory accesses; <code>fence iorw, iorw</code> orders everything. Narrower fences say exactly what you need and let the hardware keep the rest of its freedom. On a small in-order core without a write buffer, a fence may cost nothing at all; on a large core it may have to drain buffers and wait.</p>
+<p>A separate instruction, <code>fence.i</code> from the Zifencei extension, orders stores against <strong>instruction fetches</strong> on the same hart. It is needed after writing code into memory, for example a bootloader copying a program or a JIT compiler, because the instruction cache and fetch path are not required to see recent stores.</p>
+<h2 id="case-1-handing-a-buffer-to-a-dma-engine">Case 1: handing a buffer to a DMA engine</h2>
+<p>A driver fills a descriptor in normal memory and then writes a "go" bit in the DMA engine's register:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define fence_w_o()  __asm__ volatile (&quot;fence w, o&quot; ::: &quot;memory&quot;)
+
+struct desc { uint32_t src, dst, len, flags; };
+
+void dma_start(volatile struct desc *d, volatile uint32_t *doorbell,
+               uint32_t src, uint32_t dst, uint32_t len)
+{
+    d-&gt;src = src;
+    d-&gt;dst = dst;
+    d-&gt;len = len;
+    d-&gt;flags = 1u;          /* descriptor valid */
+    fence_w_o();            /* memory writes before device write */
+    *doorbell = 1u;         /* device starts reading d now */
+}
+</code></pre>
+<p>Without the fence, the doorbell write may reach the DMA engine before the descriptor writes reach memory, and the engine reads a half-written descriptor. Note that <code>volatile</code> is not enough: it stops the <em>compiler</em> from reordering or removing the accesses, but says nothing to the <em>hardware</em>. The <code>"memory"</code> clobber stops the compiler moving memory accesses across the asm statement, and the <code>fence</code> instruction stops the hardware.</p>
+<h2 id="case-2-reading-data-after-a-status-bit">Case 2: reading data after a status bit</h2>
+<p>The reverse direction: a peripheral finishes writing a buffer by DMA, sets a "done" bit in its status register, and the driver reads the buffer.</p>
+<pre><code class="language-c">while ((*status &amp; DONE) == 0) { }
+__asm__ volatile (&quot;fence i, r&quot; ::: &quot;memory&quot;);   /* device read before memory reads */
+process(buffer);
+</code></pre>
+<p>Without the fence, the core may read the buffer speculatively or from a stale line before the status read completes. If the buffer is cacheable and the system has no hardware coherence for DMA, the driver must also invalidate the cache lines first; a fence orders accesses, it does not make stale cached data fresh.</p>
+<h2 id="case-3-passing-a-message-between-harts">Case 3: passing a message between harts</h2>
+<p>Two harts share a data word and a flag, both in normal memory, initially zero:</p>
+<pre><code class="language-text">hart 0                          hart 1
+  sw   t0, 0(a0)   # data = 42     loop: lw  t1, 0(a1)   # flag
+  fence w, w                             beqz t1, loop
+  sw   t2, 0(a1)   # flag = 1            fence r, r
+                                         lw  t3, 0(a0)   # data
+</code></pre>
+<p>Without the producer's fence, the flag store may become visible first. Without the consumer's fence, the data load may be satisfied before the flag load. Either way, hart 1 can see flag = 1 and the old data. Each side needs its own fence: ordering is a property of both the writer and the reader.</p>
+<p>In C you would normally not write these fences by hand. C11 atomics with release and acquire ordering express exactly this pattern, and the compiler emits the right instructions, which may be fences or the A extension's ordered atomic instructions with their <code>.aq</code> and <code>.rl</code> bits.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Relying on <code>volatile</code> for hardware ordering.</strong> It constrains only the compiler.</li>
+<li><strong>Fencing on one side only.</strong> Message passing needs ordering at the writer and the reader.</li>
+<li><strong>Using a fence instead of cache maintenance.</strong> Fences order; they do not invalidate or clean cache lines.</li>
+<li><strong>Assuming the core you test on reorders.</strong> A simple in-order core may never show the bug, and the same code fails on a larger core with the same ISA.</li>
+<li><strong>Forgetting <code>fence.i</code> after loading code.</strong> The fetch path may still see the old bytes.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Read the "memory ordering" chapters of the RISC-V unprivileged specification and work through its litmus-test examples for message passing.</li>
+<li>Write the message-passing pattern above in C11 with <code>atomic_store_explicit(..., memory_order_release)</code> and <code>atomic_load_explicit(..., memory_order_acquire)</code>, compile with a RISC-V GCC cross-compiler and <code>-O2 -S</code>, and see which instructions appear.</li>
+<li>Run a two-hart version on QEMU with <code>-smp 2</code>. It will probably pass even without fences, because the emulator rarely reorders, which is exactly why reasoning, not testing alone, is required here.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>memory ordering</li><li>fence</li><li>concurrency</li><li>device drivers</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="riscv-privilege-modes.html"><span>Previous in Computer architecture &amp; RISC-V</span>Machine, supervisor and user mode: why RISC-V has privilege levels</a><a class="next" href="navic-receiver-hw-sw-partition.html"><span>Next in Computer architecture &amp; RISC-V</span>Partitioning a NavIC receiver SoC between hardware correlators and firmware</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="custom-instruction-or-peripheral.html">Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></h3>
+          <p>RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

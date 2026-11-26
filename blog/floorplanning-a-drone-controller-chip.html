@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic · Ketuna blog</title>
+  <meta name="description" content="A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic · Ketuna blog">
+  <meta property="og:description" content="A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.">
+  <link rel="canonical" href="https://ketuna.online/blog/floorplanning-a-drone-controller-chip.html">
+  <meta property="og:url" content="https://ketuna.online/blog/floorplanning-a-drone-controller-chip.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic",
+  "description": "A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "floorplanning, power domains, pwm, drones, mixed-signal",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 990,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/floorplanning-a-drone-controller-chip.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-functions-to-place">The functions to place</a></li><li><a href="#power-domains-follow-behaviour">Power domains follow behaviour</a></li><li><a href="#regions-on-the-die">Regions on the die</a></li><li><a href="#pin-groups">Pin groups</a></li><li><a href="#clocking-the-pwm">Clocking the PWM</a></li><li><a href="#what-to-verify">What to verify</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most floorplanning examples are a single block of logic with a memory or two. A small control chip for a drone's flight controller is a better exercise, because its parts have conflicting needs. Motor outputs switch hard and are electrically noisy; sensor interfaces want quiet; the processor wants to sleep between control loops; and something must stay awake to wake it and to keep the motors in a safe state. This article partitions a hypothetical chip of this kind, a design concept for learning rather than a product, and explains each floorplan decision.</p>
+<p>A note on scope: a flight controller is safety-relevant. Real flight systems need independent failsafes, extensive testing and compliance with the applicable rules. Nothing in a floorplan replaces that.</p>
+<h2 id="the-functions-to-place">The functions to place</h2>
+<p>Assume the chip contains:</p>
+<ul>
+<li><strong>A small processor core</strong> with instruction and data SRAM, running the attitude control loop.</li>
+<li><strong>A sensor interface block:</strong> SPI and I2C controllers for an inertial measurement unit (IMU), a barometer and a magnetometer, with timestamping.</li>
+<li><strong>A motor PWM block:</strong> four or more PWM channels driving external motor controllers, with dead-time logic and a hardware disarm input.</li>
+<li><strong>Always-on logic:</strong> a real-time counter, a wake-up controller, the power-management state machine, and a watchdog.</li>
+<li><strong>Debug and test:</strong> JTAG, scan control and a UART for telemetry.</li>
+</ul>
+<h2 id="power-domains-follow-behaviour">Power domains follow behaviour</h2>
+<p>Partition by what must stay on, not by function names.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Contents</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Always-on (AON)</td>
+<td>Wake controller, real-time counter, watchdog, power state machine, PWM safe-state logic</td>
+<td>Must work when everything else sleeps; must force motors to a known state</td>
+</tr>
+<tr>
+<td>Core (switchable)</td>
+<td>Processor, SRAM, sensor controllers, UART</td>
+<td>Largest leakage; can sleep between loops or when disarmed</td>
+</tr>
+<tr>
+<td>I/O</td>
+<td>Pad ring, possibly at a higher voltage</td>
+<td>Interfaces with external parts</td>
+</tr>
+</tbody>
+</table></div>
+<p>The PWM block deserves care. Its counters and comparators can live in the switchable core, but the logic that defines the output state when the core is off, or when the watchdog fires, must be always-on. In practice that means isolation cells on the PWM outputs that clamp them to the "motor off" level, controlled from AON, and a hardware disarm path from an input pin to those clamps that does not pass through any software.</p>
+<h2 id="regions-on-the-die">Regions on the die</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="dr-title dr-desc" font-size="14">
+<title id="dr-title">Floorplan of a drone controller chip</title>
+<desc id="dr-desc">A die with a pad ring. Motor PWM pads and the PWM block are on the right edge. Sensor interface pads and the sensor block are on the left edge. The processor and SRAM sit in the centre and top. A small always-on region sits at the bottom left near the wake-up and crystal pads. Debug pads are on the bottom edge. A dashed line separates the noisy right side from the quiet left side.</desc>
+<rect x="10" y="10" width="460" height="280" fill="none" class="dg-line" stroke-width="2"/>
+<rect x="30" y="30" width="420" height="240" fill="none" class="dg-dash"/>
+<rect x="40" y="40" width="100" height="140" rx="4" class="dg-box"/>
+<text x="90" y="105" text-anchor="middle" class="dg-text">sensor</text>
+<text x="90" y="125" text-anchor="middle" class="dg-text">SPI/I2C</text>
+<rect x="150" y="40" width="190" height="70" rx="4" class="dg-core"/>
+<text x="245" y="80" text-anchor="middle" class="dg-text">SRAM</text>
+<rect x="150" y="120" width="190" height="90" rx="4" class="dg-box"/>
+<text x="245" y="170" text-anchor="middle" class="dg-text">CPU core</text>
+<rect x="355" y="40" width="85" height="170" rx="4" class="dg-amber" fill-opacity="0.35"/>
+<text x="397" y="120" text-anchor="middle" class="dg-text">PWM</text>
+<text x="397" y="140" text-anchor="middle" class="dg-text">+ clamps</text>
+<rect x="40" y="190" width="100" height="70" rx="4" class="dg-track"/>
+<text x="90" y="222" text-anchor="middle" class="dg-text">AON</text>
+<text x="90" y="242" text-anchor="middle" class="dg-muted">wake, WDT</text>
+<rect x="150" y="220" width="290" height="40" rx="4" class="dg-box"/>
+<text x="295" y="245" text-anchor="middle" class="dg-text">UART, JTAG, scan control</text>
+<line x1="348" y1="20" x2="348" y2="215" class="dg-amber-line" stroke-dasharray="6 4"/>
+<text x="460" y="26" text-anchor="end" class="dg-muted">motor pads</text>
+<text x="20" y="26" class="dg-muted">sensor pads</text>
+<text x="20" y="284" class="dg-muted">crystal, wake</text>
+<text x="300" y="284" class="dg-muted">debug pads</text>
+</svg>
+<figcaption>Noisy motor outputs on one edge, quiet sensor inputs on the opposite edge, the processor and memory between them, and a compact always-on region near the wake-up pins.</figcaption>
+</figure>
+
+<p><strong>Motor PWM on one edge, near its pads.</strong> PWM outputs drive off-chip loads through strong I/O drivers, and their edges inject noise into the supply and substrate. Grouping them on one side, with their own I/O supply and ground pads, keeps that noise local. Placing the PWM block right behind those pads keeps output paths short and the clamping isolation cells close to the boundary.</p>
+<p><strong>Sensors on the opposite edge.</strong> The IMU interface is the input to the control loop; corrupted samples become wrong motor commands. Putting the sensor pads and controllers far from the motor pads, with separate supply pads, reduces coupling. If the chip contains any analog sensing, such as an ADC for battery voltage, it belongs on this quiet side too, with its own supply and guard structures.</p>
+<p><strong>Processor and SRAM in the middle.</strong> The core talks to both the sensors and the PWM block, so it sits between them. The SRAM goes at the top edge of the core region, with its pins facing the processor, leaving one connected area for standard cells.</p>
+<p><strong>A compact always-on region near its pins.</strong> The AON domain is small. Placing it at a corner next to the crystal and wake-up pads keeps its supply and its signals short, and gives it a simple rectangular boundary with the core domain. Its control signals to the PWM clamps run along the bottom to the PWM region; they must be routed with always-on buffers if they cross the switchable core.</p>
+<h2 id="pin-groups">Pin groups</h2>
+<p>Plan pins in groups before drawing any region:</p>
+<ul>
+<li><strong>Motor group:</strong> PWM outputs, disarm input, with dedicated I/O power and ground pairs.</li>
+<li><strong>Sensor group:</strong> SPI and I2C pins and interrupt inputs from the sensors, with their own supply pair.</li>
+<li><strong>Clock and wake group:</strong> crystal or clock input, wake-up input, reset.</li>
+<li><strong>Debug group:</strong> JTAG, scan enable, UART.</li>
+</ul>
+<p>Each group maps to one edge segment, and the package pinout should keep the same grouping so the board can keep noisy and quiet traces apart as well.</p>
+<h2 id="clocking-the-pwm">Clocking the PWM</h2>
+<p>PWM resolution follows directly from the timer clock. With illustrative numbers, a 50 MHz timer clock and a 20 kHz PWM frequency give 50,000,000 / 20,000 = 2,500 counts per period, a little over 11 bits of resolution. That timer clock must reach the PWM block cleanly, so the clock tree for that region should be short and balanced. If the processor clock is scaled down to save power, the PWM timer may need its own clock source so that motor timing does not change with the processor's frequency.</p>
+<h2 id="what-to-verify">What to verify</h2>
+<ul>
+<li><strong>Power-down behaviour:</strong> with the core off, every PWM output is clamped to the off level, in simulation with power-aware models and later on silicon.</li>
+<li><strong>Watchdog path:</strong> a watchdog timeout forces the clamps without software involvement.</li>
+<li><strong>Noise separation:</strong> supply pad counts and placement keep motor switching current off the sensor and core supplies.</li>
+<li><strong>Timing across domains,</strong> including isolation and any level shifters.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the pin table for this chip by hand, grouped as above, and choose a package pin count that fits it with enough power pairs.</li>
+<li>Implement a four-channel PWM block in Verilog with an always-on clamp input, and simulate in <strong>Icarus Verilog</strong> that a disarm forces all outputs off within one clock.</li>
+<li>Harden the PWM block alone with <strong>LibreLane</strong> on sky130, placing its outputs on one edge using the pin order configuration, and inspect the layout in <strong>KLayout</strong>.</li>
+<li>Sketch the floorplan on paper first, then ask a colleague to review it against the noise and power-domain rules above.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>floorplanning</li><li>power domains</li><li>pwm</li><li>drones</li><li>mixed-signal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="estimating-area-before-rtl.html"><span>Previous in Physical design &amp; tape-out</span>Estimating chip area before you write RTL</a><a class="next" href="floorplanning-decisions.html"><span>Next in Physical design &amp; tape-out</span>Floorplanning decisions that make or break a block</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="floorplanning-decisions.html">Floorplanning decisions that make or break a block</a></h3>
+          <p>Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="power-grid-rings-and-straps.html">Designing a power grid: rings, straps and why IR drop starts at the floorplan</a></h3>
+          <p>Rings, straps and rails carry supply current from the pads to every cell. Learn how the grid is laid out, why its resistance sets the IR drop, and why it is far easier to plan early than to repair after routing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

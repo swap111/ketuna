@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting the most from hardware hackathons and design contests · Ketuna blog</title>
+  <meta name="description" content="How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Getting the most from hardware hackathons and design contests · Ketuna blog">
+  <meta property="og:description" content="How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.">
+  <link rel="canonical" href="https://ketuna.online/blog/getting-the-most-from-hardware-hackathons.html">
+  <meta property="og:url" content="https://ketuna.online/blog/getting-the-most-from-hardware-hackathons.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Getting the most from hardware hackathons and design contests",
+  "description": "How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "hackathons, projects, students, prototyping, documentation",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 966,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/getting-the-most-from-hardware-hackathons.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Getting the most from hardware hackathons and design contests</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-hardware-is-harder-to-hack-than-software">Why hardware is harder to hack than software</a></li><li><a href="#scope-small-one-demo-one-path">Scope small: one demo, one path</a></li><li><a href="#prepare-before-the-clock-starts">Prepare before the clock starts</a></li><li><a href="#during-the-event-integrate-early">During the event: integrate early</a></li><li><a href="#afterwards-document-what-you-built">Afterwards: document what you built</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Hardware hackathons and design contests compress a project into a day, a weekend or a few weeks. They are a good way to learn quickly, work with a team and build something you can show. They are also a good way to spend thirty-six hours debugging a USB driver and present nothing. The difference is rarely talent. It is scoping, preparation and what you do after the event. This article covers each.</p>
+<h2 id="why-hardware-is-harder-to-hack-than-software">Why hardware is harder to hack than software</h2>
+<p>A software team that hits a bug can usually try a fix in seconds. A hardware team that finds a wrong footprint, a dead sensor or a missing level shifter may need a part the shop does not have, at two in the morning. Hardware also stacks several risks in one project: the board, the firmware, the mechanics, the power and often a radio or cloud link. Each works in isolation and fails in combination.</p>
+<p>So the core strategy is to remove risk before the event and keep the in-event work small and visible.</p>
+<h2 id="scope-small-one-demo-one-path">Scope small: one demo, one path</h2>
+<p>Write your project as a single sentence describing what the judges will see: "When soil in the pot dries, the board sends a message to a phone and turns on a small pump." Then list every block needed for that sentence to come true, and cut anything that is not on the list.</p>
+<p>A useful test is the <strong>demo path</strong>: the one sequence of actions you will show. Everything on the demo path must work reliably. Everything off it is optional and should be built only after the demo path works end to end, even crudely.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Keep</th>
+<th>Cut or postpone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One sensor that clearly shows the idea</td>
+<td>A second and third sensor "for completeness"</td>
+</tr>
+<tr>
+<td>Serial or simple wireless link you have used before</td>
+<td>A new protocol you have never tried</td>
+</tr>
+<tr>
+<td>Breadboard or a board you already own</td>
+<td>A custom PCB that must arrive in time</td>
+</tr>
+<tr>
+<td>A plain web page or terminal output</td>
+<td>A polished mobile app</td>
+</tr>
+<tr>
+<td>Battery or USB power that you have tested</td>
+<td>Solar charging</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ambition is welcome, but put it in the explanation of where the project could go next, not in the demo.</p>
+<h2 id="prepare-before-the-clock-starts">Prepare before the clock starts</h2>
+<p>Check the event rules first: some allow prepared code or hardware, some require everything to be built during the event. Within the rules, do as much risk removal in advance as you can:</p>
+<ul>
+<li><strong>Parts:</strong> buy them early, including spares of anything cheap and fragile, and test each one with a simple example sketch</li>
+<li><strong>Toolchain:</strong> install compilers, board support and drivers on every team laptop, and build and flash a blinking LED on each, because toolchain problems eat hours</li>
+<li><strong>Interfaces:</strong> confirm voltage levels between modules; a 5 V sensor on a 3.3 V input is a classic way to lose a board</li>
+<li><strong>Power:</strong> decide how the demo will be powered, and bring the cables and a power bank or bench supply</li>
+<li><strong>Basic kit:</strong> jumper wires, a multimeter, a soldering iron if allowed, tape, cable ties and labels</li>
+</ul>
+<p>Draw the system on paper before the event: blocks, wires, voltages and who builds what. It costs an hour and saves many.</p>
+<h2 id="during-the-event-integrate-early">During the event: integrate early</h2>
+<p>Split work by block, with one person owning each, and agree the interfaces in writing, such as message formats, pin assignments and units. Then integrate as early as possible with stub versions: a sensor that returns a fixed value, a message that just says hello. Integrating early finds the mismatches while there is still time.</p>
+<p>Use version control even for a weekend project, so a broken change can be undone. Commit working states often with clear messages. Test the full demo path every few hours, not just your own block.</p>
+<p>Keep a short log as you go: what you tried, what failed and why. It is invaluable for the presentation and afterwards.</p>
+<p>Plan the last few hours for the demo itself. Freeze features, rehearse the demo path several times and prepare for failure: a recorded video of it working, and a plain explanation of what each block does. Judges respond well to a team that can explain clearly why something did not work and how they would fix it.</p>
+<h2 id="afterwards-document-what-you-built">Afterwards: document what you built</h2>
+<p>Most teams pack up and forget the project. That throws away most of the value. Within a week, while you remember the details:</p>
+<ol>
+<li><strong>Clean up the repository:</strong> working code, a wiring diagram or schematic, a parts list and photos</li>
+<li><strong>Write a README:</strong> what it does, how to build it, what does not work yet and what you would change</li>
+<li><strong>Record a short video</strong> of the demo path</li>
+<li><strong>Credit everyone</strong> and say who did what</li>
+</ol>
+<p>A well-documented hackathon project is real evidence of skill. An interviewer can read your code, see the system diagram and ask you why you made each choice, which is far more convincing than a certificate of participation. Documentation also lets you, or someone else, pick the project up later and take it further.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Choosing the project at the event and buying parts during it</li>
+<li>Designing a custom PCB that cannot be fabricated in time</li>
+<li>Each member building a block alone and integrating in the final hour</li>
+<li>No backup plan when the venue Wi-Fi fails</li>
+<li>Leaving the project undocumented afterwards</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a one-sentence demo for a project idea and list every block it needs; cut anything not required.</li>
+<li>Draw the wiring in <strong>KiCad</strong>'s schematic editor, with voltage levels marked on every connection.</li>
+<li>Set up a <strong>Zephyr</strong> or bare-metal <strong>GCC</strong> build for your board on every teammate's laptop and confirm each can flash a blink program.</li>
+<li>Take an old project of yours and write the README and wiring diagram it never had.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>hackathons</li><li>projects</li><li>students</li><li>prototyping</li><li>documentation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="joining-the-open-source-hardware-community.html"><span>Previous in India&#x27;s electronics ecosystem</span>Finding and joining the open-source hardware community from India</a><a class="next" href="how-a-chip-goes-from-idea-to-market.html"><span>Next in India&#x27;s electronics ecosystem</span>How a chip goes from idea to market, step by step, from an Indian team&#x27;s point of view</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="joining-the-open-source-hardware-community.html">Finding and joining the open-source hardware community from India</a></h3>
+          <p>Where open-source hardware communities gather, from forums and repositories to meet-ups and shared tape-out groups, and how to make your first contributions genuinely useful to the people who maintain the projects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="open-shuttles-for-students.html">Open shuttles and shared tape-outs: how students can get a design onto real silicon</a></h3>
+          <p>How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="skilling-paths-into-chip-design.html">Skilling paths into chip design in India: degrees, short programs and self-study</a></h3>
+          <p>What a degree, a short training program and self-study each give you on the way into chip design, what an employer can actually check, and how open-source projects tie the three together into evidence.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

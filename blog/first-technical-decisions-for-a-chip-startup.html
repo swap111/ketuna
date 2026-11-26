@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Starting a chip-design startup: the first technical decisions · Ketuna blog</title>
+  <meta name="description" content="The first technical decisions a chip startup makes, choosing the first product, the process node, which IP to build or license, the tool flow and a tape-out path, and how each one constrains the others and the budget.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Starting a chip-design startup: the first technical decisions · Ketuna blog">
+  <meta property="og:description" content="The first technical decisions a chip startup makes, choosing the first product, the process node, which IP to build or license, the tool flow and a tape-out path, and how each one constrains the others and the budget.">
+  <link rel="canonical" href="https://ketuna.online/blog/first-technical-decisions-for-a-chip-startup.html">
+  <meta property="og:url" content="https://ketuna.online/blog/first-technical-decisions-for-a-chip-startup.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Starting a chip-design startup: the first technical decisions",
+  "description": "The first technical decisions a chip startup makes, choosing the first product, the process node, which IP to build or license, the tool flow and a tape-out path, and how each one constrains the others and the budget.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "chip startup, process node, ip, tape-out, strategy",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1056,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/first-technical-decisions-for-a-chip-startup.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Starting a chip-design startup: the first technical decisions</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The first technical decisions a chip startup makes, choosing the first product, the process node, which IP to build or license, the tool flow and a tape-out path, and how each one constrains the others and the budget.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#decision-1-the-first-product">Decision 1: the first product</a></li><li><a href="#decision-2-the-process-node">Decision 2: the process node</a></li><li><a href="#decision-3-build-or-license-ip">Decision 3: build or license IP</a></li><li><a href="#decision-4-tools-and-flow">Decision 4: tools and flow</a></li><li><a href="#decision-5-the-tape-out-path">Decision 5: the tape-out path</a></li><li><a href="#how-the-decisions-interact">How the decisions interact</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A chip startup's first year is shaped by a handful of technical decisions made in its first months. Which product to build first, on which process, with how much licensed IP, using which tools, and with what route to silicon. Each choice constrains the others, and together they decide how much money is needed before the first customer sample. Getting them roughly right matters more than getting any single block perfect. This article works through the decisions, the trade-offs behind each and the common ways teams get them wrong.</p>
+<h2 id="decision-1-the-first-product">Decision 1: the first product</h2>
+<p>The first chip is rarely the company's ultimate vision. Its job is to reach a paying customer, prove the team can deliver silicon, and generate the credibility and learning needed for the next one. Good first products tend to share traits:</p>
+<ul>
+<li><strong>A specific customer problem</strong> that you can describe in a sentence, with a customer willing to evaluate samples</li>
+<li><strong>A clear advantage</strong> that comes from the chip itself: lower power, lower cost, integration of several parts, a local requirement nobody else meets</li>
+<li><strong>Limited scope:</strong> few enough blocks that a small team can verify them thoroughly</li>
+<li><strong>A system the team understands,</strong> ideally because they have built it on a board or FPGA first</li>
+</ul>
+<p>Prototype the whole product on a board with available parts, then move the demanding part to an FPGA. That shows what the chip must do, gives you firmware and a test setup before tape-out and gives customers something to evaluate early. A chip that integrates a working board is far less risky than one that implements an untested idea.</p>
+<h2 id="decision-2-the-process-node">Decision 2: the process node</h2>
+<p>Newer, smaller nodes give more transistors per area, lower switching energy and higher speed. They also bring much higher mask and design costs, more complex design rules, more expensive IP and harder verification. For many products the right answer is a mature node.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Product need</th>
+<th>Leans towards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Analog precision, high voltage, low leakage, low cost per wafer</td>
+<td>Mature nodes</td>
+</tr>
+<tr>
+<td>Moderate digital logic with some analog</td>
+<td>Mature to mid-range nodes</td>
+</tr>
+<tr>
+<td>Large digital compute, high memory bandwidth, tight power per operation</td>
+<td>Advanced nodes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Work it from the product: estimate the gate count, memory size, analog content, required clock frequency and power budget, then pick the oldest node that meets them comfortably. Check that the node has the IP you need (memories, I/O, analog blocks), supports the voltages your interfaces need and offers shared shuttle runs. Leakage, voltage tolerance and analog behaviour often favour older nodes for sensing and power-management products.</p>
+<h2 id="decision-3-build-or-license-ip">Decision 3: build or license IP</h2>
+<p>Every chip contains blocks that differentiate it and blocks that every chip needs. The rule of thumb is to design the first category and license or reuse the second, unless no suitable option exists.</p>
+<ul>
+<li><strong>Usually license or reuse:</strong> standard cell libraries, memory compilers, I/O pads, PLLs, standard interfaces such as USB or high-speed serial links, processor cores (an open RISC-V core may be an option)</li>
+<li><strong>Usually build:</strong> the blocks that make your product better, such as the sensing front end, the signal-processing engine or the specific accelerator</li>
+</ul>
+<p>Licensing costs money but saves time and risk; a block proven in silicon is worth much more than one simulated by your team. Evaluate IP carefully: ask for silicon validation data in your target node, check deliverables (models, layout views, documentation, test support), the licence terms per chip or per project, and the support you will get when something goes wrong. Integration effort is real even for good IP.</p>
+<h2 id="decision-4-tools-and-flow">Decision 4: tools and flow</h2>
+<p>Commercial EDA tools are the industry norm for signoff on most production designs, and foundries qualify their PDKs against them. They are also a major expense. Open-source tools, with open PDKs such as sky130, gf180 and IHP SG13G2, now cover the full RTL-to-GDS flow for suitable designs and are excellent for exploration, prototyping, training and smaller tape-outs.</p>
+<p>A pragmatic approach is to use open-source tools where they are strong, such as simulation with Verilator, cocotb testbenches, formal checks with SymbiYosys, synthesis exploration with Yosys and early physical design experiments, and to decide signoff tools based on the foundry, the node and the risk of the design. Whatever you choose, pin versions, script everything and keep the flow in version control, so results can be reproduced months later.</p>
+<h2 id="decision-5-the-tape-out-path">Decision 5: the tape-out path</h2>
+<p>Few startups should go straight to a full mask set. A staged path reduces risk:</p>
+<ol>
+<li><strong>FPGA prototype</strong> of the digital design, running real firmware against real inputs</li>
+<li><strong>Test chip</strong> on a multi-project wafer shuttle, carrying the riskiest blocks, such as a new analog front end, so they can be measured in silicon</li>
+<li><strong>First product tape-out,</strong> again on a shuttle if volumes are small, with lessons from the test chip applied</li>
+<li><strong>Dedicated masks</strong> once the design is stable and volumes justify them</li>
+</ol>
+<p>Plan the chain beyond the fab too: package selection, test program, probe card and test boards, and qualification. These take months and are easy to underestimate. Leave budget and time for a second silicon revision, because first silicon rarely meets every specification.</p>
+<h2 id="how-the-decisions-interact">How the decisions interact</h2>
+<p>The decisions cannot be made one at a time. A node choice limits which IP is available; the IP and node determine tool requirements and costs; the product's analog content may force a node; the tape-out path depends on which nodes offer shuttles. Write all five choices on one page, with the main assumption behind each, and revisit them together whenever one changes.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Choosing an advanced node because it sounds impressive, not because the product needs it</li>
+<li>Designing commodity blocks from scratch to save licence fees, and losing a year</li>
+<li>No board or FPGA prototype, so firmware and test start only when silicon arrives</li>
+<li>Budgeting for one tape-out with no margin for a respin</li>
+<li>Forgetting packaging, test and qualification in the plan</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the one-page decision sheet for a hypothetical first product: problem, node, IP to build and buy, tools, and tape-out path, each with its main assumption.</li>
+<li>Estimate gate count for a small design by synthesising it with <strong>Yosys</strong> on sky130, and see how area scales when you double a key parameter.</li>
+<li>Prototype the digital part on an FPGA with an open toolchain, and check it with the same test vectors your <strong>cocotb</strong> testbench used in simulation.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>chip startup</li><li>process node</li><li>ip</li><li>tape-out</li><li>strategy</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sourcing-components-for-a-hardware-startup.html"><span>Previous in India&#x27;s electronics ecosystem</span>Sourcing components for a hardware startup: from prototypes to production</a><a class="next" href="electronics-in-e-rickshaw-batteries.html"><span>Next in India&#x27;s electronics ecosystem</span>The electronics inside e-rickshaw battery systems, and where a BMS chip fits</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="how-a-chip-goes-from-idea-to-market.html">How a chip goes from idea to market, step by step, from an Indian team&#x27;s point of view</a></h3>
+          <p>The stages a chip passes through, from specification and design to fabrication, test, qualification and the product approvals that follow, and the decision each stage exists to make.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="open-shuttles-for-students.html">Open shuttles and shared tape-outs: how students can get a design onto real silicon</a></h3>
+          <p>How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

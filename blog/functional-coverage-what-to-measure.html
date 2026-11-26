@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Functional coverage: deciding what to measure before you measure it · Ketuna blog</title>
+  <meta name="description" content="Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Functional coverage: deciding what to measure before you measure it · Ketuna blog">
+  <meta property="og:description" content="Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.">
+  <link rel="canonical" href="https://ketuna.online/blog/functional-coverage-what-to-measure.html">
+  <meta property="og:url" content="https://ketuna.online/blog/functional-coverage-what-to-measure.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Functional coverage: deciding what to measure before you measure it",
+  "description": "Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "functional coverage, covergroups, bins, verification plan, systemverilog",
+  "articleSection": "Verification",
+  "wordCount": 948,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/functional-coverage-what-to-measure.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Functional coverage: deciding what to measure before you measure it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-from-the-plan-not-from-the-signals">Start from the plan, not from the signals</a></li><li><a href="#a-worked-example-a-down-counting-timer">A worked example: a down-counting timer</a></li><li><a href="#the-covergroup">The covergroup</a></li><li><a href="#illegal-and-ignored-combinations">Illegal and ignored combinations</a></li><li><a href="#the-same-model-in-python">The same model in Python</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Functional coverage answers a question your checkers cannot: did the situations we care about actually happen during simulation? A scoreboard with zero mismatches only tells you that whatever happened was correct. If the interesting case never occurred, it was never checked. The hard part of coverage is not the syntax of a covergroup. It is deciding, before you run anything, which situations deserve to be counted.</p>
+<h2 id="start-from-the-plan-not-from-the-signals">Start from the plan, not from the signals</h2>
+<p>A common first attempt is to point a coverpoint at every input and let the tool create automatic bins. On a 32-bit data bus that produces a large number of bins, almost none of which mean anything, and coverage never closes. Worse, it measures the stimulus generator rather than the design's behaviour.</p>
+<p>Coverage should be derived from the verification plan. Each plan item that says "the design must handle situation X" gets at least one bin that is hit only when X happens. If a bin cannot be traced to a plan item, ask why it exists. If a plan item has no bin, ask how you will know it was exercised.</p>
+<h2 id="a-worked-example-a-down-counting-timer">A worked example: a down-counting timer</h2>
+<p>Take a small timer peripheral with these spec lines (a simplified version of a typical bus timer):</p>
+<ul>
+<li><code>CTRL</code> has <code>enable</code>, <code>irq_en</code> and <code>auto_reload</code> bits</li>
+<li>Writing <code>LOAD</code> sets the reload value and restarts the count</li>
+<li>When the count reaches zero, <code>STATUS.pending</code> is set; software clears it by writing 1</li>
+<li>With <code>auto_reload</code>, the timer reloads from <code>LOAD</code>; without it, the timer stops</li>
+<li>If a clear and a new zero event land on the same cycle, the event wins</li>
+</ul>
+<p>Here are the plan items and the coverage they imply.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Plan item</th>
+<th>What must be seen</th>
+<th>Coverage construct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reload values</td>
+<td>LOAD = 0, 1, mid-range, maximum</td>
+<td>Coverpoint on LOAD with four bins</td>
+</tr>
+<tr>
+<td>Both modes reach zero</td>
+<td>Zero event with <code>auto_reload</code> 0 and 1</td>
+<td>Coverpoint on mode, sampled at zero</td>
+</tr>
+<tr>
+<td>Clear/event collision</td>
+<td>Clear write and zero event on one cycle</td>
+<td>Single bin on a combined condition</td>
+</tr>
+<tr>
+<td>Mode × reload</td>
+<td>Each mode with each LOAD class</td>
+<td>Cross of the two coverpoints</td>
+</tr>
+<tr>
+<td>Interrupt gating</td>
+<td>Zero event with <code>irq_en</code> 0 and 1</td>
+<td>Coverpoint on <code>irq_en</code> at zero</td>
+</tr>
+</tbody>
+</table></div>
+<p>Writing this table already raised two questions the spec did not answer. What does <code>LOAD = 0</code> mean with <code>auto_reload</code> set: an event every cycle, or no events at all? And what happens if software writes <code>LOAD</code> on the same cycle the count reaches zero: does the old event still fire? Those are not coverage questions. They are specification holes, and the coverage model found them because it forced someone to list the cases that matter. That is why a coverage model is best treated as a review of the spec, done with the designer in the room.</p>
+<h2 id="the-covergroup">The covergroup</h2>
+<p>Here is that model in SystemVerilog, sampled by the monitor once per zero event rather than every clock. Sampling only on meaningful events keeps idle cycles from inflating the numbers.</p>
+<pre><code class="language-systemverilog">covergroup cg_timer_zero with function sample(
+    bit [15:0] load, bit auto_rl, bit irq_en, bit clr_same_cycle);
+  cp_load : coverpoint load {
+    bins zero = {0};
+    bins one  = {1};
+    bins mid  = {[2:16'hFFFE]};
+    bins max  = {16'hFFFF};
+  }
+  cp_mode : coverpoint auto_rl { bins one_shot = {0}; bins reload = {1}; }
+  cp_irq  : coverpoint irq_en  { bins masked = {0}; bins enabled = {1}; }
+  cp_clr  : coverpoint clr_same_cycle { bins collision = {1}; }
+  x_mode_load : cross cp_mode, cp_load;
+endgroup
+</code></pre>
+<p>A few choices are worth explaining:</p>
+<ul>
+<li><strong>Explicit bins for boundaries.</strong> <code>zero</code>, <code>one</code> and <code>max</code> are separate because counters break at their edges. The whole middle range is one bin because the logic treats every mid value the same way.</li>
+<li><strong><code>cp_clr</code> has only the interesting bin.</strong> We do not need to count the common case where no collision happened; it will occur constantly.</li>
+<li><strong>The cross is deliberate.</strong> Mode and reload value interact in the spec (reload uses <code>LOAD</code>), so their combinations matter. <code>irq_en</code> gates only the output, so crossing it with <code>LOAD</code> would add bins without adding meaning.</li>
+</ul>
+<p>The cross has 2 × 4 = 8 bins. Add the four <code>cp_load</code> bins, two mode bins, two interrupt bins and one collision bin, and the whole model is a handful of targets you can read in one screen. That readability is part of the point: a reviewer can check the model against the plan.</p>
+<h2 id="illegal-and-ignored-combinations">Illegal and ignored combinations</h2>
+<p>Some combinations should never occur, and some do not matter. Mark them explicitly rather than leaving them as permanent holes.</p>
+<ul>
+<li><code>illegal_bins</code> flags a combination the spec forbids. If it is ever hit, the simulation reports an error, so it doubles as a lightweight check.</li>
+<li><code>ignore_bins</code> removes combinations that are legal but uninteresting, so they do not drag the percentage down.</li>
+</ul>
+<p>Each one deserves a comment that cites the spec line justifying it. A reviewer should never have to guess why a bin was ignored.</p>
+<h2 id="the-same-model-in-python">The same model in Python</h2>
+<p>If your testbench is in cocotb, a coverage model can be a dictionary of bin names to hit counts. The logic is the same: a <code>sample()</code> function called on each event, and a report of bins with zero hits.</p>
+<pre><code class="language-python">from collections import Counter
+from itertools import product
+
+hits = Counter()
+
+def load_class(v):
+    return {0: &quot;zero&quot;, 1: &quot;one&quot;, 0xFFFF: &quot;max&quot;}.get(v, &quot;mid&quot;)
+
+def sample(load, auto_rl, irq_en, clr_same_cycle):
+    lc = load_class(load)
+    mode = &quot;reload&quot; if auto_rl else &quot;one_shot&quot;
+    hits[f&quot;load.{lc}&quot;] += 1
+    hits[f&quot;cross.{mode}.{lc}&quot;] += 1
+    hits[f&quot;irq.{irq_en}&quot;] += 1
+    if clr_same_cycle:
+        hits[&quot;collision&quot;] += 1
+
+def holes():
+    wanted = [f&quot;cross.{m}.{l}&quot; for m, l in
+              product([&quot;one_shot&quot;, &quot;reload&quot;], [&quot;zero&quot;, &quot;one&quot;, &quot;mid&quot;, &quot;max&quot;])]
+    wanted += [&quot;irq.0&quot;, &quot;irq.1&quot;, &quot;collision&quot;]
+    return [b for b in wanted if hits[b] == 0]
+</code></pre>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Coverage without checking.</strong> A bin being hit means nothing if no checker was watching. Make sure every plan item has both.</li>
+<li><strong>Not merging across seeds.</strong> Each random run alone looks low. Merge the results before deciding which holes are real.</li>
+<li><strong>Treating 100% as done.</strong> It means the model is satisfied, not that the model is complete. Review the model against the plan as carefully as the RTL.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the timer spec above as a one-page plan with item IDs, and give each item a bin name before writing any RTL or testbench.</li>
+<li>Implement the Python coverage model in a cocotb testbench for a simple timer of your own on Icarus Verilog, calling <code>sample()</code> from the monitor on every zero event.</li>
+<li>Run random tests with five seeds, merge the hit counts, and list the holes; decide for each whether to add a constraint, a directed test or a reasoned waiver.</li>
+<li>Take the two spec questions raised above to a classmate acting as designer, and record the answers in the spec.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>functional coverage</li><li>covergroups</li><li>bins</li><li>verification plan</li><li>systemverilog</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="assertion-patterns-that-catch-bugs.html"><span>Previous in Verification</span>Five assertion patterns that catch real bugs early</a><a class="next" href="over-constrained-formal-proofs.html"><span>Next in Verification</span>How over-constrained assumptions make formal proofs lie</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-coverage-review.html">Running a coverage review: which holes to close and which to waive</a></h3>
+          <p>How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block&#x27;s verification is done.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="sva-first-properties.html">SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property</a></h3>
+          <p>Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="writing-a-verification-plan.html">Writing a verification plan that someone can actually check against</a></h3>
+          <p>Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

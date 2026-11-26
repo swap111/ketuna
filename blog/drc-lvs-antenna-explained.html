@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DRC, LVS and antenna checks: what each one protects you from · Ketuna blog</title>
+  <meta name="description" content="Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="DRC, LVS and antenna checks: what each one protects you from · Ketuna blog">
+  <meta property="og:description" content="Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.">
+  <link rel="canonical" href="https://ketuna.online/blog/drc-lvs-antenna-explained.html">
+  <meta property="og:url" content="https://ketuna.online/blog/drc-lvs-antenna-explained.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "DRC, LVS and antenna checks: what each one protects you from",
+  "description": "Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "drc, lvs, antenna, physical verification, sign-off",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 920,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/drc-lvs-antenna-explained.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>DRC, LVS and antenna checks: what each one protects you from</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#drc-can-this-be-manufactured">DRC: can this be manufactured</a></li><li><a href="#lvs-is-this-the-circuit-you-meant">LVS: is this the circuit you meant</a></li><li><a href="#antenna-will-manufacturing-damage-the-gates">Antenna: will manufacturing damage the gates</a></li><li><a href="#how-they-fit-together">How they fit together</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A layout is a set of polygons on layers. The foundry will turn those polygons into masks and the masks into silicon, but it has no idea what circuit you intended, and it can only print shapes within certain limits. Physical verification is the set of checks that close that gap before you pay for masks. Three of them come up on every tape-out: DRC, LVS and the antenna check. Each protects you from a different kind of failure, and passing one says nothing about the others.</p>
+<h2 id="drc-can-this-be-manufactured">DRC: can this be manufactured</h2>
+<p><strong>Design rule checking</strong> compares every shape in the layout against the foundry's rules. The rules exist because lithography, etching and polishing have limits. A wire narrower than the minimum width may not print at all, or may print with a break. Two wires closer than the minimum spacing may merge into one. A via without enough metal around it may miss its target if the masks are slightly misaligned.</p>
+<p>Typical rule types:</p>
+<ul>
+<li><strong>Width:</strong> each shape on a layer must be at least a minimum width.</li>
+<li><strong>Spacing:</strong> shapes on the same layer must be at least a minimum distance apart, sometimes more for wide wires.</li>
+<li><strong>Enclosure:</strong> a via or contact must be surrounded by enough metal on both layers.</li>
+<li><strong>Area:</strong> a shape must have at least a minimum area, so tiny islands do not lift off.</li>
+<li><strong>Density:</strong> each region of each layer must have metal coverage within a range, because chemical-mechanical polishing needs even density.</li>
+</ul>
+<p>DRC tools such as Magic and KLayout read the foundry's rule deck from the PDK and mark every violation with its location and rule name. A design with DRC violations will not be accepted for a shuttle, because a violation is a risk that the manufactured chip will differ from the drawing.</p>
+<h2 id="lvs-is-this-the-circuit-you-meant">LVS: is this the circuit you meant</h2>
+<p><strong>Layout versus schematic</strong> answers a different question. It extracts a netlist from the layout, by recognising transistors where diffusion meets polysilicon and following metal and vias to see what connects to what, and compares that extracted netlist with your source netlist from synthesis.</p>
+<p>LVS catches mistakes that DRC cannot, because a perfectly manufacturable layout can still be the wrong circuit:</p>
+<ul>
+<li><strong>Shorts:</strong> two nets accidentally touch, for example a signal wire overlapping a power strap. Each shape is legal; together they connect things that should be separate.</li>
+<li><strong>Opens:</strong> a wire stops short of a pin, or a via is missing, so a net is broken into two.</li>
+<li><strong>Missing or extra devices:</strong> a cell not placed, or a stray transistor.</li>
+<li><strong>Wrong pins:</strong> a top-level port connected to the wrong net, or not labelled.</li>
+<li><strong>Device mismatches:</strong> transistor sizes in the layout differing from the netlist, which matters most in analog and custom cells.</li>
+</ul>
+<p>Netgen is the common open-source LVS tool; it reports whether the two netlists match and, if not, which nets and devices differ. A clean LVS gives you confidence that the silicon will implement exactly the logic you simulated and timed.</p>
+<h2 id="antenna-will-manufacturing-damage-the-gates">Antenna: will manufacturing damage the gates</h2>
+<p>The antenna check protects against something that happens during fabrication, not in use. Metal layers are built one at a time, and plasma etching charges any exposed metal. If a long wire is connected to a transistor gate but, at that stage of manufacturing, not yet connected to any diffusion that could drain the charge, the charge collects on the gate. The gate oxide is extremely thin, and enough charge can damage it or weaken it permanently.</p>
+<p>The check computes, for each gate and each metal layer, the <strong>antenna ratio</strong>: the area of metal connected to the gate at that stage divided by the gate area. If the ratio exceeds the foundry's limit, the gate is at risk. The wire is acting like an antenna collecting charge, hence the name.</p>
+<p>The fixes are routine:</p>
+<ul>
+<li><strong>Antenna diodes:</strong> insert a small reverse-biased diode next to the gate. It is off in normal operation but gives charge a path to the substrate during manufacturing.</li>
+<li><strong>Layer jumping:</strong> break the long wire and route a short section on a higher metal layer. The lower part is then not connected to the gate until the higher layer is built, which happens later, after more of the circuit can discharge it.</li>
+</ul>
+<p>Open flows such as LibreLane run an antenna check and can insert diodes automatically, then report any remaining violations.</p>
+<h2 id="how-they-fit-together">How they fit together</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Question</th>
+<th>Example failure it catches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DRC</td>
+<td>Can the foundry print this reliably?</td>
+<td>Two wires 10% closer than the spacing rule</td>
+</tr>
+<tr>
+<td>LVS</td>
+<td>Is the layout the same circuit as the netlist?</td>
+<td>A signal shorted to ground by an overlapping shape</td>
+</tr>
+<tr>
+<td>Antenna</td>
+<td>Will plasma charging damage a gate during fabrication?</td>
+<td>A long first-metal wire on a small gate with no diode</td>
+</tr>
+</tbody>
+</table></div>
+<p>All three are needed. A layout can be DRC clean but fail LVS (a legal short), LVS clean but fail DRC (correct connections, shapes too close), or both clean with antenna violations. Timing checks are a separate matter on top of these.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130, then find the DRC, LVS and antenna reports in the run directory.</li>
+<li>Open the final GDS in <strong>KLayout</strong>, draw a metal shape that overlaps a neighbouring wire, save it, and rerun DRC with <strong>Magic</strong> to see the spacing marker.</li>
+<li>Run <strong>Netgen</strong> LVS on the edited layout's extracted netlist against the original and read how it reports the short.</li>
+<li>Look in the antenna report for any diodes the flow inserted, and find one on the layout.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>drc</li><li>lvs</li><li>antenna</li><li>physical verification</li><li>sign-off</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="clock-tree-skew-and-latency.html"><span>Previous in Physical design &amp; tape-out</span>Clock tree synthesis: skew, latency and why zero skew is not the goal</a><a class="next" href="debugging-lvs-mismatches.html"><span>Next in Physical design &amp; tape-out</span>Debugging an LVS mismatch without losing a day</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tape-out-checklist.html">The tape-out checklist: what to confirm before you send GDS</a></h3>
+          <p>Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="ir-drop-and-electromigration.html">IR drop and electromigration in plain terms</a></h3>
+          <p>IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

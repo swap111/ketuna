@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixed-point filters on a microcontroller without an FPU · Ketuna blog</title>
+  <meta name="description" content="A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Fixed-point filters on a microcontroller without an FPU · Ketuna blog">
+  <meta property="og:description" content="A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.">
+  <link rel="canonical" href="https://ketuna.online/blog/fixed-point-filters-without-an-fpu.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fixed-point-filters-without-an-fpu.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Fixed-point filters on a microcontroller without an FPU",
+  "description": "A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fixed point, q15, iir filter, dsp, embedded c",
+  "articleSection": "Embedded systems",
+  "wordCount": 1056,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fixed-point-filters-without-an-fpu.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Fixed-point filters on a microcontroller without an FPU</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#q-formats-in-one-paragraph">Q formats in one paragraph</a></li><li><a href="#the-filter-and-its-coefficients">The filter and its coefficients</a></li><li><a href="#the-integer-c">The integer C</a></li><li><a href="#testing-against-a-model-bit-for-bit">Testing against a model, bit for bit</a></li><li><a href="#the-bug-floating-point-never-shows">The bug floating point never shows</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a core without a floating-point unit, every <code>float</code> multiply becomes a call into a software library, many instructions long. A filter running at a few kilohertz can consume most of a small microcontroller that way. Fixed-point arithmetic does the same job with integer instructions, but it moves responsibility from the hardware to you: you choose where the binary point sits, how many bits the accumulator needs, how to round, and what happens on overflow. This article builds a second-order IIR low-pass filter in integer C, verifies it against a model, and shows a real defect that only appears in fixed point.</p>
+<h2 id="q-formats-in-one-paragraph">Q formats in one paragraph</h2>
+<p>A Q format is an integer with an agreed scale. In <strong>Q15</strong>, an <code>int16_t</code> represents value / 2<sup>15</sup>, covering −1.0 to just under +1.0 in steps of about 3.05 × 10<sup>−5</sup>. ADC samples map naturally onto it. Multiplying two Q15 numbers gives a Q30 result in 32 bits; shifting right by 15 returns to Q15. The general rule: multiplying Qm by Qn gives Q(m+n), and adding requires both operands to have the same Q.</p>
+<p>Filter coefficients often do not fit Q15. A second-order low-pass has a feedback coefficient near −2 when the cutoff is low, so this design stores coefficients in <strong>Q2.14</strong> (written Q14 below): an <code>int32_t</code> scaled by 2<sup>14</sup>, covering −2.0 to just under +2.0.</p>
+<h2 id="the-filter-and-its-coefficients">The filter and its coefficients</h2>
+<p>The biquad difference equation in direct form I is:</p>
+<blockquote>
+<p>y[n] = b0·x[n] + b1·x[n−1] + b2·x[n−2] − a1·y[n−1] − a2·y[n−2]</p>
+</blockquote>
+<p>A second-order Butterworth low-pass with a 50 Hz cutoff at a 1 kHz sample rate, designed in Python with SciPy, has b = [0.020083, 0.040167, 0.020083] and a = [1, −1.561018, 0.641352]. Multiplying by 2<sup>14</sup> and rounding gives the integers b = [329, 658, 329] and a1 = −25576, a2 = 10508. As a sanity check, the quantized DC gain is (329 + 658 + 329) / (16384 − 25576 + 10508) = 1316 / 1316 = 1, so a constant input should pass through unchanged. Hold on to that expectation.</p>
+<h2 id="the-integer-c">The integer C</h2>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define COEF_Q 14                      /* coefficients in Q2.14 */
+
+typedef struct {
+    int32_t b0, b1, b2, a1, a2;        /* a0 is 1.0, not stored */
+    int16_t x1, x2, y1, y2;            /* Q15 history */
+} biquad_t;
+
+static int16_t sat16(int64_t v)
+{
+    if (v &gt; INT16_MAX) return INT16_MAX;
+    if (v &lt; INT16_MIN) return INT16_MIN;
+    return (int16_t)v;
+}
+
+int16_t biquad_step(biquad_t *f, int16_t x)
+{
+    int64_t acc = (int64_t)f-&gt;b0 * x
+                + (int64_t)f-&gt;b1 * f-&gt;x1
+                + (int64_t)f-&gt;b2 * f-&gt;x2
+                - (int64_t)f-&gt;a1 * f-&gt;y1
+                - (int64_t)f-&gt;a2 * f-&gt;y2;     /* Q15 x Q14 = Q29 */
+    acc += (int64_t)1 &lt;&lt; (COEF_Q - 1);        /* round to nearest */
+    int16_t y = sat16(acc &gt;&gt; COEF_Q);         /* back to Q15 */
+
+    f-&gt;x2 = f-&gt;x1;  f-&gt;x1 = x;
+    f-&gt;y2 = f-&gt;y1;  f-&gt;y1 = y;
+    return y;
+}
+
+/* biquad_t lp = { 329, 658, 329, -25576, 10508, 0, 0, 0, 0 }; */
+</code></pre>
+<p>Each decision has a reason:</p>
+<ul>
+<li><strong>Accumulator width.</strong> Each product is up to about 2<sup>15</sup> × 2<sup>15</sup> = 2<sup>30</sup>, and five of them are summed, so a 32-bit accumulator can overflow in the worst case. A 64-bit accumulator removes the question at the cost of a few extra instructions on a 32-bit core. If you need the speed, prove headroom with the sum of absolute coefficients and use 32 bits.</li>
+<li><strong>Rounding.</strong> Adding half an LSB before the shift rounds to nearest. A bare arithmetic shift rounds towards minus infinity and adds a small negative bias to every output.</li>
+<li><strong>Saturation.</strong> If the output exceeds the Q15 range, clamp it. Wrapping around turns a slightly too-large positive value into a large negative one, which in a feedback filter can ring for a long time.</li>
+<li><strong>Direct form I.</strong> It keeps the input and output histories at sample precision, so the internal values cannot exceed the output range by much. Direct form II uses fewer state variables but its internal node can grow larger than the output, which is harder to manage in fixed point.</li>
+</ul>
+<h2 id="testing-against-a-model-bit-for-bit">Testing against a model, bit for bit</h2>
+<p>Write the same arithmetic in Python with integers, and compare two things. First, the integer Python model against SciPy's floating-point <code>lfilter</code> on a test signal: here a 10 Hz tone, a 200 Hz tone and some noise, 2000 samples. The fixed-point output differed from floating point by at most about 3.8 LSB, with an RMS difference of about 1.2 LSB, which is the expected cost of 16-bit samples and 14-bit coefficients.</p>
+<p>Second, and more important, the C code against the integer model. Pipe the same input samples through a host build of <code>biquad_step</code> and compare the outputs exactly. They should be identical, not close. Bit-exactness is what makes the test useful: any difference at all means the C code does something the model does not, such as a different rounding or a missing cast, and you find it on the laptop rather than in a field recording.</p>
+<h2 id="the-bug-floating-point-never-shows">The bug floating point never shows</h2>
+<p>Now feed the filter an impulse and then zeros. In floating point the output decays to zero. In this fixed-point version it decays to <strong>6 and stays there forever</strong>. A constant input of 10,000 settles at 10,002, not 10,000, despite the exact DC gain computed above.</p>
+<p>This is a <strong>limit cycle</strong> or dead band, caused by rounding inside the feedback loop. With y[n−1] = y[n−2] = 6 and zero input, the accumulator is 25576 × 6 − 10508 × 6 = 90,408. Adding the rounding constant 8192 gives 98,600, and 98,600 &gt;&gt; 14 = 6. The rounding error exactly sustains the output. Poles close to the unit circle, here at radius about 0.80, make it worse, and filters with lower cutoffs have poles closer still.</p>
+<p>A common fix is <strong>error feedback</strong>: keep the bits that the shift discards and add them back into the next sample's accumulator, so the rounding errors cancel over time instead of feeding the loop:</p>
+<pre><code class="language-c">    acc += f-&gt;err;                       /* int64_t err in biquad_t */
+    int64_t y_full = acc &gt;&gt; COEF_Q;
+    f-&gt;err = acc - (y_full &lt;&lt; COEF_Q);   /* remainder, carried over */
+    int16_t y = sat16(y_full);
+</code></pre>
+<p>Replace the rounding line with this (and drop the half-LSB addition). In the integer model, the impulse response then decays to 0 and the constant input settles at exactly 10,000. Other remedies are more fractional bits in the stored state, or truncation towards zero. Whichever you choose, test zero input and constant input explicitly, for every coefficient set you ship.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li>Shifting a negative number right is implementation-defined in C; GCC documents an arithmetic shift, but check your compiler before relying on it</li>
+<li>Quantizing coefficients for very low cutoff frequencies moves the poles noticeably; check the quantized filter's response, not the designed one</li>
+<li>Mixing Q formats in one addition without aligning them first</li>
+<li>Testing only with tones, which never reveal dead bands or saturation</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Design the filter with <code>scipy.signal.butter</code>, quantize the coefficients, and write the integer model in Python as described.</li>
+<li>Compile <code>biquad_step</code> with host <code>gcc</code>, feed it the same samples, and confirm with <code>diff</code> that the outputs are identical to the model.</li>
+<li>Reproduce the stuck output of 6 with an impulse followed by zeros, apply error feedback, and confirm it decays to zero. Then cross-compile for RV32 without the M extension and count the instructions per sample to see what the multiplies cost.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fixed point</li><li>q15</li><li>iir filter</li><li>dsp</li><li>embedded c</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="smart-meter-firmware-architecture.html"><span>Previous in Embedded systems</span>Firmware architecture for a smart energy meter: metering, events and logs</a><a class="next" href="measuring-and-guarding-stack-use.html"><span>Next in Embedded systems</span>How big should the stack be? Measuring and guarding stack use</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
+          <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="register-bit-manipulation-in-c.html">Setting, clearing and testing register bits safely in C</a></h3>
+          <p>Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

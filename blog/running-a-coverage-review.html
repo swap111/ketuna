@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running a coverage review: which holes to close and which to waive · Ketuna blog</title>
+  <meta name="description" content="How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block&#x27;s verification is done.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Running a coverage review: which holes to close and which to waive · Ketuna blog">
+  <meta property="og:description" content="How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block&#x27;s verification is done.">
+  <link rel="canonical" href="https://ketuna.online/blog/running-a-coverage-review.html">
+  <meta property="og:url" content="https://ketuna.online/blog/running-a-coverage-review.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Running a coverage review: which holes to close and which to waive",
+  "description": "How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block's verification is done.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "coverage closure, waivers, sign-off, verification plan, review",
+  "articleSection": "Verification",
+  "wordCount": 976,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/running-a-coverage-review.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Running a coverage review: which holes to close and which to waive</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to triage coverage holes into missing stimulus, unreachable cases and spec questions, write waivers that a reviewer can check, and decide with evidence when a block&#x27;s verification is done.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#prepare-before-the-meeting">Prepare before the meeting</a></li><li><a href="#four-kinds-of-hole">Four kinds of hole</a></li><li><a href="#a-worked-triage">A worked triage</a></li><li><a href="#waivers-that-survive-scrutiny">Waivers that survive scrutiny</a></li><li><a href="#deciding-when-verification-is-done">Deciding when verification is done</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Near the end of a block's verification, the coverage report shows a number short of 100% and a list of holes. Two bad responses are common. One is to keep running random seeds and hope. The other is to exclude whatever is left until the number turns green. A coverage review is the disciplined middle path: a meeting, with the designer present, where every hole gets a decision and a reason, and the team agrees on what "done" means for this block.</p>
+<h2 id="prepare-before-the-meeting">Prepare before the meeting</h2>
+<p>A review goes quickly when the inputs are ready and merged.</p>
+<ul>
+<li><strong>Merged coverage</strong> from all regression runs, all seeds, all tests. Holes in a single run are not holes.</li>
+<li><strong>The verification plan</strong>, with each coverage item linked to a plan item.</li>
+<li><strong>The code coverage report</strong>, read for holes, not percentages.</li>
+<li><strong>The open bug list</strong> for the block.</li>
+<li><strong>A first-pass triage</strong> of every hole by the verification engineer, so the meeting confirms decisions instead of making them from scratch.</li>
+</ul>
+<h2 id="four-kinds-of-hole">Four kinds of hole</h2>
+<p>Every coverage hole falls into one of four categories, and each has a different fix.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Meaning</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing stimulus</td>
+<td>Reachable and important, but tests never got there</td>
+<td>Add a constraint, bias or directed test</td>
+</tr>
+<tr>
+<td>Unreachable by design</td>
+<td>Cannot happen given how the RTL is built</td>
+<td>Exclude, with the reason and evidence</td>
+</tr>
+<tr>
+<td>Not interesting</td>
+<td>Reachable but adds no verification value</td>
+<td>Waive, with the reason</td>
+</tr>
+<tr>
+<td>Spec question</td>
+<td>Nobody knows whether it should happen</td>
+<td>Ask the spec owner; then reclassify</td>
+</tr>
+</tbody>
+</table></div>
+<p>The hard part is telling the first two apart. "Our tests never reached it" and "it cannot be reached" look identical in a coverage report. The difference must be shown, not assumed: by reading the RTL with the designer, by a formal cover check that fails to find a trace, or by a structural reason such as a tied-off parameter.</p>
+<h2 id="a-worked-triage">A worked triage</h2>
+<p>Suppose a timer block's merged report shows these holes:</p>
+<ol>
+<li><strong>Cross bin: one-shot mode × LOAD = 0.</strong> Random LOAD values rarely produce zero. Reachable and listed in the plan. <em>Missing stimulus</em>: add a directed test and bias the generator towards 0.</li>
+<li><strong>Code coverage: <code>default</code> branch of the mode decode.</strong> The mode field is two bits and all four values are decoded explicitly, so <code>default</code> can never execute. <em>Unreachable</em>: exclude, citing the decode. Better still, add an assertion that it is never reached, so the exclusion is checked in every run.</li>
+<li><strong>Toggle coverage: upper 8 bits of <code>LOAD</code> never toggled 1→0.</strong> Tests write large values but never reduce them. Each bit is stored the same way, but toggle holes on a register's storage can hide stuck bits. <em>Missing stimulus</em>: cheap to close with one write sequence.</li>
+<li><strong>Bin: clear and zero event on the same cycle.</strong> Reachable and important, because the spec says the event wins. Random timing made it rare. <em>Missing stimulus</em>: a directed test that lines up the write.</li>
+<li><strong>Bin: auto-reload with interrupt disabled and LOAD at maximum.</strong> Reachable, but the three features are independent in the RTL and each pair is already covered. <em>Not interesting</em>: waive, with the reason.</li>
+<li><strong>Bin: LOAD write during the cycle the counter reaches zero.</strong> The spec does not say which value the reload uses. <em>Spec question</em>: assign to the designer and spec owner; reclassify after the answer.</li>
+</ol>
+<p>Of six holes, three need new stimulus, two need written decisions, and one waits on a spec answer. That is a typical picture: most holes are cheap to close once someone has looked at them.</p>
+<h2 id="waivers-that-survive-scrutiny">Waivers that survive scrutiny</h2>
+<p>A waiver is a claim that a hole does not matter. It needs to be checkable by someone who was not in the room.</p>
+<p>Each waiver should record:</p>
+<ul>
+<li>the coverage item, exactly as named in the report</li>
+<li>the category: unreachable or not interesting</li>
+<li>the reason in a sentence or two, citing the spec section or RTL line</li>
+<li>the evidence where it exists: an assertion, a formal result, a parameter value</li>
+<li>who agreed to it, so questions have an owner</li>
+</ul>
+<p>Keep waivers in a text file in the repository, next to the plan, so they are reviewed like code and re-applied automatically. A short script can merge them with the coverage report and list anything still open:</p>
+<pre><code class="language-python">import csv
+
+def open_holes(holes, waiver_csv):
+    &quot;&quot;&quot;Return coverage holes that have no waiver.&quot;&quot;&quot;
+    with open(waiver_csv, newline=&quot;&quot;) as f:
+        waived = {row[&quot;item&quot;]: row for row in csv.DictReader(f)}
+    for h in holes:
+        if h not in waived:
+            yield h
+        elif not waived[h][&quot;reason&quot;].strip():
+            yield f&quot;{h} (waiver has no reason)&quot;
+
+holes = [&quot;x_mode_load.one_shot.zero&quot;, &quot;cp_mode.default&quot;,
+         &quot;x_all.reload.irq0.max&quot;]
+for h in open_holes(holes, &quot;timer_waivers.csv&quot;):
+    print(&quot;OPEN:&quot;, h)
+</code></pre>
+<p>Revisit waivers when the RTL changes. A branch that was unreachable last month may be reachable after a feature is added, and the exclusion would then hide new, untested behaviour. Tying unreachable waivers to assertions guards against this automatically.</p>
+<h2 id="deciding-when-verification-is-done">Deciding when verification is done</h2>
+<p>Coverage is one input to sign-off, not the whole of it. A defensible "done" for a block usually means all of the following:</p>
+<ul>
+<li>Every plan item has a check, and its coverage goal is met or waived with a recorded reason.</li>
+<li>Code coverage holes are explained, and none points at untested functionality.</li>
+<li>The regression passes across many seeds, and failures are all understood.</li>
+<li>The rate of new bugs found has fallen off, and recent bugs were in corners rather than in main features.</li>
+<li>The testbench has been shown to catch seeded bugs, so a green result means something.</li>
+<li>Open spec questions are answered and reflected in the spec.</li>
+</ul>
+<p>When those hold, write a short sign-off note listing the evidence, the waivers and any known limitations. A reviewer, or you in six months, can then see exactly what was verified and what was not.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a block you have verified with cocotb on Icarus Verilog or Verilator, merge its coverage from several seeds, and list every hole.</li>
+<li>Classify each hole into the four categories, and for any you mark unreachable, try to prove it with an assertion or a SymbiYosys cover.</li>
+<li>Write a waiver CSV with reasons, run the script above, and close the remaining holes with stimulus.</li>
+<li>Ask a classmate to act as designer and challenge each waiver, and record which ones survived.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>coverage closure</li><li>waivers</li><li>sign-off</li><li>verification plan</li><li>review</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-a-spec-like-a-bug-hunter.html"><span>Previous in Verification</span>Reading a spec like a bug hunter: looking for what it does not say</a><a class="next" href="scoreboards-and-reference-models.html"><span>Next in Verification</span>Scoreboards and reference models: checking outputs you did not predict by hand</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="functional-coverage-what-to-measure.html">Functional coverage: deciding what to measure before you measure it</a></h3>
+          <p>Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="verifying-a-uart-end-to-end.html">Verifying a UART end to end: framing, baud error and coverage closure</a></h3>
+          <p>Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="writing-a-verification-plan.html">Writing a verification plan that someone can actually check against</a></h3>
+          <p>Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

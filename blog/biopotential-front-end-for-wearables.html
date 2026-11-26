@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing a biopotential front end for a health wearable: gain, CMRR and input protection · Ketuna blog</title>
+  <meta name="description" content="Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing a biopotential front end for a health wearable: gain, CMRR and input protection · Ketuna blog">
+  <meta property="og:description" content="Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.">
+  <link rel="canonical" href="https://ketuna.online/blog/biopotential-front-end-for-wearables.html">
+  <meta property="og:url" content="https://ketuna.online/blog/biopotential-front-end-for-wearables.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing a biopotential front end for a health wearable: gain, CMRR and input protection",
+  "description": "Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "biopotential, ecg, cmrr, wearables, instrumentation",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1159,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/biopotential-front-end-for-wearables.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Designing a biopotential front end for a health wearable: gain, CMRR and input protection</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-front-end-is-up-against">What the front end is up against</a></li><li><a href="#input-impedance-and-cmrr-work-together">Input impedance and CMRR work together</a></li><li><a href="#reduce-the-common-mode-at-its-source">Reduce the common mode at its source</a></li><li><a href="#staging-the-gain-around-the-offset">Staging the gain around the offset</a></li><li><a href="#protecting-the-wearer-and-the-circuit">Protecting the wearer and the circuit</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A wearable that records heart or muscle activity has to measure signals of around a millivolt or less through electrodes on skin, while the wearer's body acts as an antenna for mains interference and the electrodes themselves add DC offsets hundreds of times larger than the signal. The analog front end has to extract the signal from all of that, and it is wired directly to a person, so it must also be safe under faults. This article walks through the design decisions in order. A note before starting: a wearable's signal processing can flag patterns, but it is not a medical diagnosis, and any device sold for medical use goes through formal safety and performance standards and approval.</p>
+<h2 id="what-the-front-end-is-up-against">What the front end is up against</h2>
+<p>Three unwanted quantities arrive with the wanted signal.</p>
+<ul>
+<li><strong>Electrode offset.</strong> Each electrode-skin interface behaves like a small battery plus a resistance and capacitance. The difference between two electrodes can be a few hundred millivolts of slowly drifting DC. It is far larger than the signal, and it is <em>differential</em>, so common-mode rejection does nothing about it.</li>
+<li><strong>Common-mode interference.</strong> The body couples capacitively to nearby mains wiring and to ground. The whole body, and so both electrodes, moves up and down together at 50 Hz (the mains frequency in India) by an amount that can be far larger than the signal.</li>
+<li><strong>Electrode impedance imbalance.</strong> The two electrode contacts never have the same impedance, and the values change with skin condition, movement and time.</li>
+</ul>
+<p>The third item quietly connects the first two, as the next section shows.</p>
+<h2 id="input-impedance-and-cmrr-work-together">Input impedance and CMRR work together</h2>
+<p>The amplifier's job is to reject the common-mode voltage V<sub>cm</sub>. Its own <strong>common-mode rejection ratio</strong> (CMRR) sets how much leaks through. With 1 V of common-mode interference and a CMRR of 100 dB (a factor of 10<sup>5</sup>), the leakage referred to the input is 1 V / 10<sup>5</sup> = <strong>10 µV</strong>. That is small compared with a millivolt signal. These numbers are illustrative.</p>
+<p>But the electrodes and the amplifier's input impedance form two voltage dividers, one per input. If the electrode impedances differ by ΔZ and the amplifier's common-mode input impedance is Z<sub>in</sub>, the two inputs see slightly different fractions of V<sub>cm</sub>. That difference is a genuine differential signal, which no amplifier CMRR can reject:</p>
+<blockquote>
+<p>V<sub>error</sub> ≈ V<sub>cm</sub> × ΔZ / Z<sub>in</sub></p>
+</blockquote>
+<p>With 1 V of common mode, a 50 kΩ imbalance and Z<sub>in</sub> = 100 MΩ, the error is 1 × 50 kΩ / 100 MΩ = <strong>0.5 mV</strong>, comparable to the signal. Raise Z<sub>in</sub> to 10 GΩ and it drops to 5 µV. That is why biopotential inputs need very high common-mode input impedance, why input bias currents must be tiny (they also flow through the electrode impedance and add offset), and why any input filter capacitors to ground must be matched.</p>
+<h2 id="reduce-the-common-mode-at-its-source">Reduce the common mode at its source</h2>
+<p>Rather than only rejecting common-mode voltage, a front end can shrink it. A <strong>driven reference</strong> (in ECG systems, the right-leg drive) senses the average of the input electrodes, inverts and amplifies it, and drives it back into the body through a third electrode. It is a feedback loop around the body: the common-mode interference is reduced by the loop gain, which relaxes both the CMRR and the imbalance requirements. The loop must be stable with the body's capacitances in it, and its output current must be limited for safety.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="bp-title bp-desc" font-size="14">
+<title id="bp-title">Biopotential front-end signal chain</title>
+<desc id="bp-desc">Two electrodes connect through protection resistors to a low-gain instrumentation amplifier. Its output passes through a high-pass filter that removes electrode offset, then a second gain stage and a low-pass anti-alias filter into an ADC. A common-mode sense from the input stage drives a reference electrode through a driven-reference amplifier.</desc>
+<rect x="10" y="40" width="50" height="30" class="dg-box"/>
+<text x="16" y="60" class="dg-text">E+</text>
+<rect x="10" y="110" width="50" height="30" class="dg-box"/>
+<text x="16" y="130" class="dg-text">E−</text>
+<line x1="60" y1="55" x2="100" y2="55" class="dg-line"/>
+<line x1="60" y1="125" x2="100" y2="125" class="dg-line"/>
+<rect x="78" y="48" width="16" height="14" class="dg-amber" fill-opacity="0.6"/>
+<rect x="78" y="118" width="16" height="14" class="dg-amber" fill-opacity="0.6"/>
+<rect x="100" y="35" width="80" height="110" class="dg-core"/>
+<text x="112" y="85" class="dg-text">in-amp</text>
+<text x="112" y="105" class="dg-text">G ≈ 5</text>
+<line x1="180" y1="90" x2="205" y2="90" class="dg-line"/>
+<rect x="205" y="70" width="60" height="40" class="dg-box"/>
+<text x="213" y="95" class="dg-text">HPF</text>
+<line x1="265" y1="90" x2="285" y2="90" class="dg-line"/>
+<rect x="285" y="70" width="60" height="40" class="dg-box"/>
+<text x="291" y="95" class="dg-text">G ≈ 100</text>
+<line x1="345" y1="90" x2="365" y2="90" class="dg-line"/>
+<rect x="365" y="70" width="50" height="40" class="dg-box"/>
+<text x="373" y="95" class="dg-text">LPF</text>
+<line x1="415" y1="90" x2="430" y2="90" class="dg-line"/>
+<rect x="430" y="70" width="45" height="40" class="dg-core"/>
+<text x="436" y="95" class="dg-text">ADC</text>
+<line x1="140" y1="145" x2="140" y2="175" class="dg-amber-line"/>
+<rect x="100" y="175" width="100" height="35" class="dg-box"/>
+<text x="106" y="197" class="dg-text">driven ref</text>
+<line x1="100" y1="192" x2="60" y2="192" class="dg-amber-line"/>
+<rect x="10" y="177" width="50" height="30" class="dg-box"/>
+<text x="16" y="197" class="dg-text">REF</text>
+<text x="70" y="30" class="dg-muted">protection</text>
+</svg>
+<figcaption>Low first-stage gain tolerates electrode offset; the high-pass removes it before the main gain; the driven reference shrinks common-mode interference.</figcaption>
+</figure>
+
+<h2 id="staging-the-gain-around-the-offset">Staging the gain around the offset</h2>
+<p>The electrode offset dictates the gain plan. Suppose the analog supply is 3.3 V, the signal path is centred at 1.65 V, and the electrode offset can reach ±300 mV. A first stage with gain 5 turns that offset into ±1.5 V, which just fits inside the rails with some margin for the signal. A gain of 50 would saturate the stage, and the signal would be lost.</p>
+<p>So the classic structure is:</p>
+<ol>
+<li>A <strong>low-gain instrumentation amplifier</strong> with high input impedance and high CMRR. Low gain keeps the offset in range; being the first stage, it should still have low noise, since its noise is not divided by anything.</li>
+<li>A <strong>high-pass filter</strong> that removes the DC offset and slow drift. Its corner must be low enough to preserve the slow parts of the waveform you care about; diagnostic-quality ECG, for instance, needs a much lower corner than a simple heart-rate monitor. Some designs instead feed the output back through an integrator to cancel the offset at the input stage, which allows more gain up front.</li>
+<li>A <strong>second gain stage</strong>, here 100, for a total of 500. A 1 mV signal becomes 0.5 V, using a good fraction of the ADC range.</li>
+<li>A <strong>low-pass anti-alias filter</strong> before the ADC.</li>
+</ol>
+<p>Many modern designs digitise early instead, using a high-resolution sigma-delta ADC with enough dynamic range to accept the offset directly and remove it in software. The trade is a harder converter for a simpler analog chain.</p>
+<h2 id="protecting-the-wearer-and-the-circuit">Protecting the wearer and the circuit</h2>
+<p>The front end connects through electrodes to a person, so protection runs in both directions.</p>
+<ul>
+<li><strong>Current into the body must stay very small</strong>, both in normal operation and under a single fault such as a failed component. Series resistors in each electrode line limit the current that any fault inside the device could drive into the wearer. The applicable limits are set by the medical electrical equipment safety standards (the IEC 60601 family and their national equivalents); check the current edition for your device class rather than relying on remembered numbers.</li>
+<li><strong>The circuit must survive what the body brings</strong>: electrostatic discharge when someone touches an electrode, and in clinical settings much larger pulses. The same series resistors limit that current, and clamp diodes to the supply rails steer it away from the amplifier inputs. The resistors add thermal noise and, with input capacitance, form a filter, so their value is a compromise.</li>
+<li><strong>Isolation from mains-powered equipment.</strong> A wearable running from its own battery is inherently isolated. Charging and wired data connections are where isolation can be lost; many designs simply disable measurement while connected to a charger.</li>
+</ul>
+<p>Safety work like this needs review by people qualified in medical device standards. Treat this section as the reasoning behind the requirements, not the requirements themselves.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong>, model two electrodes as voltage sources with different series resistances, add a 1 V, 50 Hz common-mode source, and measure the differential error at an ideal amplifier's input for input impedances of 100 MΩ and 10 GΩ.</li>
+<li>Build the three-op-amp instrumentation amplifier with ideal op-amps, set its gain to 5, and add a ±300 mV differential offset to check that the output stays in range.</li>
+<li>Design a simple driven-reference loop around a model of body capacitance and check its stability with an <code>ac</code> analysis before trusting it in a transient.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>biopotential</li><li>ecg</li><li>cmrr</li><li>wearables</li><li>instrumentation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="current-mirror-basics.html"><span>Previous in Analog &amp; mixed-signal</span>Current mirrors: copying a current and why matching matters</a><a class="next" href="esd-protection-on-chip-pins.html"><span>Next in Analog &amp; mixed-signal</span>ESD protection on chip pins: why every pad has diodes</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-instrumentation-amplifier.html">The instrumentation amplifier: measuring tiny differences on large common-mode signals</a></h3>
+          <p>The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

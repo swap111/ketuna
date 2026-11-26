@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portable Stimulus in plain terms: one test intent, many platforms · Ketuna blog</title>
+  <meta name="description" content="Portable Stimulus describes what a test scenario must achieve as an abstract model, and lets a tool generate concrete tests for block simulation, SoC simulation and silicon. Here is the idea, with a small Python sketch.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Portable Stimulus in plain terms: one test intent, many platforms · Ketuna blog">
+  <meta property="og:description" content="Portable Stimulus describes what a test scenario must achieve as an abstract model, and lets a tool generate concrete tests for block simulation, SoC simulation and silicon. Here is the idea, with a small Python sketch.">
+  <link rel="canonical" href="https://ketuna.online/blog/portable-stimulus-in-plain-terms.html">
+  <meta property="og:url" content="https://ketuna.online/blog/portable-stimulus-in-plain-terms.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Portable Stimulus in plain terms: one test intent, many platforms",
+  "description": "Portable Stimulus describes what a test scenario must achieve as an abstract model, and lets a tool generate concrete tests for block simulation, SoC simulation and silicon. Here is the idea, with a small Python sketch.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "portable stimulus, pss, soc verification, test generation, scenarios",
+  "articleSection": "Verification",
+  "wordCount": 920,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/portable-stimulus-in-plain-terms.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Portable Stimulus in plain terms: one test intent, many platforms</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Portable Stimulus describes what a test scenario must achieve as an abstract model, and lets a tool generate concrete tests for block simulation, SoC simulation and silicon. Here is the idea, with a small Python sketch.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-test-intent-means">What "test intent" means</a></li><li><a href="#the-building-blocks">The building blocks</a></li><li><a href="#a-python-sketch-of-the-idea">A Python sketch of the idea</a></li><li><a href="#where-it-pays-off-and-where-it-does-not">Where it pays off, and where it does not</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A system-on-chip is verified on several platforms over its life: block-level simulation with a SystemVerilog or Python testbench, full-chip simulation with firmware running on the embedded processor, FPGA prototypes or emulation, and finally real silicon on a bench. Each platform has its own way of writing tests, so the same scenario, "capture a buffer, process it, send it out over DMA while the processor sleeps", gets rewritten three or four times by different people. Portable Stimulus is an attempt to write the scenario once, as intent, and generate the platform-specific tests from it.</p>
+<h2 id="what-test-intent-means">What "test intent" means</h2>
+<p>A conventional test is a script: do this, then this, then check that. It mixes three things that change at different rates:</p>
+<ul>
+<li><strong>what</strong> the scenario must achieve: data produced by one block must be consumed by another, while some resource is held</li>
+<li><strong>which legal variations</strong> exist: buffer sizes, addresses, which engine is used, what runs in parallel</li>
+<li><strong>how</strong> each step is performed on a given platform: a bus transaction in a testbench, a C function call in firmware, a register poke over a debug link</li>
+</ul>
+<p>Portable Stimulus keeps the first two in an abstract model and pushes the third into small per-platform mappings. A tool reads the model, solves the constraints to pick a legal scenario, and emits concrete code for the chosen target.</p>
+<p>The Portable Test and Stimulus Standard (PSS) from the Accellera standards organisation defines a language for these models, with a syntax close to SystemVerilog and C++.</p>
+<h2 id="the-building-blocks">The building blocks</h2>
+<p>A PSS model is built from a few concepts. You do not need the syntax to grasp them.</p>
+<ul>
+<li><strong>Actions</strong> are units of behaviour, such as "capture frame", "filter", "DMA transfer". They have random fields and constraints, like a high-level sequence item.</li>
+<li><strong>Flow objects</strong> connect actions. A <em>buffer</em> is produced by one action and consumed by a later one; a <em>stream</em> has producer and consumer running together; a <em>state</em> object represents persistent system state such as a power mode.</li>
+<li><strong>Resources</strong> model shared hardware, such as DMA channels. An action can lock one exclusively or share it. If there is one channel, two actions that lock it cannot run in parallel.</li>
+<li><strong>Activities</strong> schedule actions inside a larger action: in sequence, in parallel, as a choice, repeated, or in an order the solver picks.</li>
+<li><strong>Exec blocks</strong> map each action to code for a target: a SystemVerilog task call for block simulation, a C function call for firmware.</li>
+</ul>
+<p>The most distinctive feature is <strong>inference</strong>. If you ask for a "DMA out" action that consumes a processed buffer, and nothing in your activity produces one, the tool infers the chain of actions that must happen first, capture then filter, and fills in their parameters consistently. You state the goal; the tool works out a legal path to it.</p>
+<p>A sketch of the model, in PSS-style notation:</p>
+<pre><code class="language-text">buffer frame_b { rand int addr; rand int len; }
+
+action capture  { output frame_b out; constraint { out.len in [64..1024]; } }
+action filter   { input frame_b in; output frame_b out;
+                  lock dma_chan ch; constraint { out.len == in.len; } }
+action dma_out  { input frame_b in; lock dma_chan ch; }
+
+action scenario { activity { do dma_out; } }   // capture, filter inferred
+</code></pre>
+<h2 id="a-python-sketch-of-the-idea">A Python sketch of the idea</h2>
+<p>Commercial tools implement full PSS solving. You can see the principle in a few lines of Python: an abstract scenario, constrained randomisation, and two back ends that render it for different platforms.</p>
+<pre><code class="language-python">import random
+
+def plan_scenario(seed):
+    rng = random.Random(seed)
+    n = rng.randrange(64, 1025)
+    src = rng.choice([0x1000, 0x8000])
+    dst = src + 0x4000                     # keep regions apart
+    return [(&quot;capture&quot;, {&quot;addr&quot;: src, &quot;len&quot;: n}),
+            (&quot;filter&quot;,  {&quot;src&quot;: src, &quot;dst&quot;: dst, &quot;len&quot;: n}),
+            (&quot;dma_out&quot;, {&quot;addr&quot;: dst, &quot;len&quot;: n})]
+
+def render_cocotb(steps):
+    return [f&quot;await env.{a}(**{p})&quot; for a, p in steps]
+
+def render_c(steps):
+    out = []
+    for a, p in steps:
+        args = &quot;, &quot;.join(f&quot;0x{v:x}&quot; for v in p.values())
+        out.append(f&quot;{a}({args});&quot;)
+    return out
+
+steps = plan_scenario(seed=7)
+print(&quot;\n&quot;.join(render_cocotb(steps)))
+print(&quot;\n&quot;.join(render_c(steps)))
+</code></pre>
+<p>The same plan becomes testbench calls for a block or subsystem simulation and C calls for firmware on the SoC's processor. Each back end assumes a library of matching functions on its platform: <code>env.capture()</code> driving the block's interfaces in cocotb, and <code>capture()</code> programming registers from C. Those libraries are the per-platform work that Portable Stimulus does not remove; it reduces how often the scenario itself has to be rewritten.</p>
+<h2 id="where-it-pays-off-and-where-it-does-not">Where it pays off, and where it does not</h2>
+<p>Portable Stimulus is aimed at SoC-level scenarios with many interacting blocks, shared resources and concurrency, where hand-writing every combination is impractical and the same scenarios must run before and after silicon. Its strengths there:</p>
+<ul>
+<li><strong>Reuse across platforms.</strong> One scenario model serves block, SoC and lab bring-up, so behaviour verified in simulation can be re-checked on silicon with the same intent.</li>
+<li><strong>Coverage of scenario space.</strong> The solver can enumerate or randomise legal combinations of concurrent actions and resource usage, which is hard to do by hand.</li>
+<li><strong>Consistency by construction.</strong> Inference ensures generated tests are legal: every buffer consumed has been produced, every resource conflict is respected.</li>
+</ul>
+<p>It does not help much for single-block verification with a rich protocol, where a UVM or cocotb environment with constrained random sequences already does the job well. It also adds a modelling layer that someone must own and debug. When the solver reports a scenario as unsatisfiable, that is useful information, since it means the scenario as written is impossible, but working out whether the model or the design is at fault takes skill.</p>
+<p>Open-source tool support for full PSS is limited at the time of writing, so most students meet the ideas through the standard document and small home-made generators like the one above.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Extend the Python sketch with a second DMA channel as a resource, and generate scenarios where two transfers run in parallel only when they use different channels.</li>
+<li>Write a tiny cocotb environment with stub <code>capture</code>, <code>filter</code> and <code>dma_out</code> coroutines that print what they would drive, and run the generated calls on Icarus Verilog against an empty top level.</li>
+<li>Write matching C stubs, compile the generated C with GCC, and run it on your host to confirm both back ends execute the same steps with the same parameters.</li>
+<li>Add a constraint that cannot be met, such as a length below the minimum, and make the generator report that the scenario is impossible instead of producing a test.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>portable stimulus</li><li>pss</li><li>soc verification</li><li>test generation</li><li>scenarios</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="upf-low-power-verification-basics.html"><span>Previous in Verification</span>Low-power verification basics: what UPF adds to simulation</a><a class="next" href="prove-a-fifo-never-overflows.html"><span>Next in Verification</span>Proving a FIFO never overflows with SymbiYosys</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

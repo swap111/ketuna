@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Partitioning a NavIC receiver SoC between hardware correlators and firmware · Ketuna blog</title>
+  <meta name="description" content="Count the operations in acquisition, tracking, data decoding and position solution for a NavIC receiver, and see why correlators belong in hardware while loop filters and navigation run comfortably in firmware.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Partitioning a NavIC receiver SoC between hardware correlators and firmware · Ketuna blog">
+  <meta property="og:description" content="Count the operations in acquisition, tracking, data decoding and position solution for a NavIC receiver, and see why correlators belong in hardware while loop filters and navigation run comfortably in firmware.">
+  <link rel="canonical" href="https://ketuna.online/blog/navic-receiver-hw-sw-partition.html">
+  <meta property="og:url" content="https://ketuna.online/blog/navic-receiver-hw-sw-partition.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Partitioning a NavIC receiver SoC between hardware correlators and firmware",
+  "description": "Count the operations in acquisition, tracking, data decoding and position solution for a NavIC receiver, and see why correlators belong in hardware while loop filters and navigation run comfortably in firmware.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "navic, gnss receivers, hardware-software partitioning, correlators, soc architecture",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1175,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/navic-receiver-hw-sw-partition.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Partitioning a NavIC receiver SoC between hardware correlators and firmware</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Count the operations in acquisition, tracking, data decoding and position solution for a NavIC receiver, and see why correlators belong in hardware while loop filters and navigation run comfortably in firmware.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-processing-chain-in-brief">The processing chain in brief</a></li><li><a href="#acquisition-a-large-regular-search">Acquisition: a large, regular search</a></li><li><a href="#tracking-hardware-correlators-firmware-loops">Tracking: hardware correlators, firmware loops</a></li><li><a href="#decoding-and-the-navigation-solution">Decoding and the navigation solution</a></li><li><a href="#the-resulting-partition">The resulting partition</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A satellite navigation receiver is a classic hardware-software partitioning problem. Some of its work runs millions of simple operations per second on every sample from the ADC; some runs a few thousand times a second with real control logic; some runs once a second and involves matrix algebra. Putting each piece on the right side of the line decides the chip's area, power and flexibility. NavIC, India's regional navigation system, is a good concrete case, and the reasoning carries over to any receiver for GPS, Galileo or other systems.</p>
+<h2 id="the-processing-chain-in-brief">The processing chain in brief</h2>
+<p>After the RF front end has amplified, filtered and down-converted a band (NavIC's L5 band is centred at 1176.45 MHz and its S band at 2492.028 MHz), an ADC delivers a stream of low-resolution samples, often only a few bits each. The digital receiver then performs four jobs for every satellite it uses:</p>
+<ol>
+<li><strong>Acquisition:</strong> find whether the satellite is visible, and estimate its code phase and Doppler frequency.</li>
+<li><strong>Tracking:</strong> keep the local replica code and carrier aligned with the incoming signal as both move.</li>
+<li><strong>Data decoding:</strong> recover the navigation message bits (orbit and clock parameters).</li>
+<li><strong>Navigation solution:</strong> compute position, velocity and time from the measurements of four or more satellites.</li>
+</ol>
+<p>The open Standard Positioning Service signal on L5 uses a 1023-chip spreading code at 1.023 Mchip/s, so one code period is 1 ms, as with the GPS C/A code. Check the current NavIC interface control document for the exact signal definitions before you design to them; the numbers below use these values only to size the work.</p>
+<h2 id="acquisition-a-large-regular-search">Acquisition: a large, regular search</h2>
+<p>Acquisition correlates the incoming samples against a local code at every candidate code phase and Doppler offset, and looks for a peak. The work is easy to count. Use illustrative figures: 4.092 MHz sampling (four samples per chip), 1 ms of coherent integration (4092 samples), code phases in half-chip steps (2046 candidates), and Doppler bins 500 Hz apart over ±5 kHz (21 bins).</p>
+<p>That is 2046 × 21 = 42,966 search cells, each needing 4092 complex multiply-accumulates: about 176 million complex MACs to search one satellite over one millisecond of data. Real receivers integrate longer for weak signals, which multiplies the work again.</p>
+<p>No small embedded core does that in a useful time. Acquisition is therefore built as hardware: either a bank of parallel correlators that test many code phases at once, or an FFT-based engine that computes the correlation for all code phases in one transform per Doppler bin. Either way, the datapath is narrow (a few bits per sample), regular and highly parallel, which is exactly what silicon does efficiently.</p>
+<p>The regional design helps a little. NavIC satellites are in geostationary and inclined geosynchronous orbits, so they move slowly relative to a receiver on the ground and their Doppler shift is much smaller than that of satellites in medium Earth orbit. The search width is then dominated by the receiver's own oscillator error: a 1 ppm reference at 1176.45 MHz is off by up to about 1.18 kHz. With a good reference and a narrower ±2 kHz search, the same grid needs only 9 Doppler bins instead of 21, cutting acquisition work by more than half. A satellite-specific search range is a firmware decision that changes how hard the hardware has to work.</p>
+<h2 id="tracking-hardware-correlators-firmware-loops">Tracking: hardware correlators, firmware loops</h2>
+<p>Once acquired, each satellite is assigned to a <strong>tracking channel</strong>. A channel generates the local carrier and code, wipes the carrier off the incoming samples, and correlates against early, prompt and late copies of the code. Counting two real MACs (I and Q) per correlator per sample, that is 3 × 2 × 4092 = 24,552 MACs per millisecond per channel, about 24.6 million per second. Twelve channels need roughly 295 million MACs per second, running continuously on every sample.</p>
+<p>That inner part goes in hardware, for the same reason as acquisition. But look at what the correlators produce: one set of early, prompt and late I/Q sums <strong>per channel per millisecond</strong>. The tracking loops that consume them, a delay-locked loop for the code and a phase- or frequency-locked loop for the carrier, run once per integration period. At 1 kHz for twelve channels, that is 12,000 loop updates per second, each a discriminator and a small filter of perhaps a few hundred instructions. A microcontroller-class core handles that comfortably.</p>
+<p>Putting the loops in firmware is valuable, not just possible. Loop bandwidths, discriminator types, integration times, and the logic for detecting loss of lock and re-acquiring are where receiver designers keep experimenting. In firmware they can change after tape-out; in hardware they cannot.</p>
+<h2 id="decoding-and-the-navigation-solution">Decoding and the navigation solution</h2>
+<p><strong>Data decoding</strong> runs at the navigation symbol rate, tens to hundreds of symbols per second per satellite. Symbol synchronisation, forward error correction decoding, frame synchronisation and parity checks are well within the reach of firmware. A design might add a small hardware decoder if many channels and several systems must be decoded at once on a very slow core, but that is an optimisation, not a necessity.</p>
+<p><strong>The navigation solution</strong> runs at the output rate, typically one to ten times a second. It solves a small least-squares or Kalman filter problem with four unknowns (position and clock bias) or more. The arithmetic is floating point or wide fixed point with matrix operations and many special cases (satellite selection, ionospheric correction, integrity checks), which is software's natural territory. A core with a floating-point unit helps here more than any accelerator would.</p>
+<h2 id="the-resulting-partition">The resulting partition</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Rate</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sample handling, carrier and code generation</td>
+<td>Every sample (MHz)</td>
+<td>Hardware</td>
+</tr>
+<tr>
+<td>Acquisition search</td>
+<td>Millions of correlations per attempt</td>
+<td>Hardware engine, driven by firmware</td>
+</tr>
+<tr>
+<td>Tracking correlators</td>
+<td>Every sample, per channel</td>
+<td>Hardware</td>
+</tr>
+<tr>
+<td>Tracking loops, lock detection</td>
+<td>About 1 kHz per channel</td>
+<td>Firmware</td>
+</tr>
+<tr>
+<td>Data decoding</td>
+<td>Symbol rate</td>
+<td>Firmware (optional hardware assist)</td>
+</tr>
+<tr>
+<td>Position, velocity and time</td>
+<td>1 to 10 Hz</td>
+<td>Firmware</td>
+</tr>
+</tbody>
+</table></div>
+<p>The interface between the two halves is a set of channel registers: firmware writes code and carrier numerically controlled oscillator settings, and reads correlator sums once per integration, usually triggered by an interrupt or collected by DMA. Defining that interface carefully, including timestamps that tie each measurement to the receiver's clock, is as important as either side.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Putting tracking loops in hardware.</strong> It freezes the most tuned part of the design at tape-out.</li>
+<li><strong>Underestimating the correlator interrupt load.</strong> One interrupt per channel per millisecond adds up; batch the readout.</li>
+<li><strong>Sizing for one system only.</strong> Adding a second band or system later multiplies channels and correlators.</li>
+<li><strong>Ignoring the oscillator.</strong> Its error and stability drive the acquisition search width and loop design.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In Python with numpy, generate a 1023-chip spreading code, delay it, add a Doppler shift and noise, and write an FFT-based acquisition that finds the delay and Doppler.</li>
+<li>Add a second-order phase-locked loop and a delay-locked loop that update once per simulated millisecond and track a slowly changing Doppler.</li>
+<li>Count the multiply-accumulates in your Python model per simulated second and compare them with the estimates above.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>navic</li><li>gnss receivers</li><li>hardware-software partitioning</li><li>correlators</li><li>soc architecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="memory-ordering-and-fence.html"><span>Previous in Computer architecture &amp; RISC-V</span>Memory ordering and FENCE: why a store may not be visible yet</a><a class="next" href="riscv-traps-and-csrs.html"><span>Next in Computer architecture &amp; RISC-V</span>RISC-V traps and CSRs: what happens between an interrupt and your handler</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-flight-controller-soc-needs.html">What a drone flight-controller SoC needs: latency, sensor interfaces and safety</a></h3>
+          <p>A flight controller is a hard real-time system with many serial and PWM interfaces and no tolerance for hangs. Derive its SoC requirements from a control-loop latency budget, the sensor list and the fail-safes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="smart-meter-soc-architecture.html">Architecture of a smart energy meter SoC: core, metering engine, security and communications</a></h3>
+          <p>Why a smart meter SoC splits its work between a fixed-function metering engine, a small processor core, secure storage and communication interfaces, with a worked energy calculation and the reasoning behind each block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="amdahls-law-for-soc-designers.html">Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a></h3>
+          <p>Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

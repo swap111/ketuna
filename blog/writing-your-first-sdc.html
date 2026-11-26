@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing your first SDC: clocks, I/O delays and false paths · Ketuna blog</title>
+  <meta name="description" content="Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing your first SDC: clocks, I/O delays and false paths · Ketuna blog">
+  <meta property="og:description" content="Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.">
+  <link rel="canonical" href="https://ketuna.online/blog/writing-your-first-sdc.html">
+  <meta property="og:url" content="https://ketuna.online/blog/writing-your-first-sdc.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing your first SDC: clocks, I/O delays and false paths",
+  "description": "Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sdc, constraints, static timing analysis, false paths, clocks",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 846,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/writing-your-first-sdc.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Writing your first SDC: clocks, I/O delays and false paths</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-with-the-clock">Start with the clock</a></li><li><a href="#describe-the-outside-world-with-io-delays">Describe the outside world with I/O delays</a></li><li><a href="#exceptions-false-paths-and-multicycle-paths">Exceptions: false paths and multicycle paths</a></li><li><a href="#over-constraints-and-under-constraints">Over-constraints and under-constraints</a></li><li><a href="#check-the-constraints-not-just-the-timing">Check the constraints, not just the timing</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Static timing analysis proves that every path meets timing, but only the paths it knows about, against the requirements you gave it. Those requirements live in an SDC file, written in a Tcl-based constraint format that commercial and open tools alike read, including OpenSTA and OpenROAD. A missing line does not cause an error; it silently removes paths from the check. That makes the SDC one of the few files where a mistake can pass every report and still fail on silicon.</p>
+<h2 id="start-with-the-clock">Start with the clock</h2>
+<p>Nothing is timed until a clock exists. For a block with one clock input:</p>
+<pre><code class="language-tcl">create_clock -name clk -period 10.0 [get_ports clk]
+set_clock_uncertainty 0.25 [get_clocks clk]
+set_clock_transition  0.15 [get_clocks clk]
+</code></pre>
+<ul>
+<li><code>create_clock</code> defines the period (here 10 ns, 100 MHz) and the waveform, which defaults to a rising edge at 0 and a falling edge at half the period.</li>
+<li><code>set_clock_uncertainty</code> takes margin away from every setup and hold check. Before clock tree synthesis it stands in for the skew you have not built yet plus jitter; after CTS, real skew is computed, so many flows reduce it.</li>
+<li><code>set_clock_transition</code> gives the ideal clock a realistic edge rate before the tree exists.</li>
+</ul>
+<p>If the block has a derived clock, for example a divide-by-two made from a flip-flop, describe it with <code>create_generated_clock</code> so the tool knows the relationship. Otherwise the divided clock is either untimed or timed as if it were unrelated.</p>
+<h2 id="describe-the-outside-world-with-io-delays">Describe the outside world with I/O delays</h2>
+<p>A flip-flop inside your block that drives an output port is only half of a path. The other half is in the next block or chip, which you cannot see. <code>set_input_delay</code> and <code>set_output_delay</code> describe those hidden halves.</p>
+<pre><code class="language-tcl">set in_ports [remove_from_collection [all_inputs] [get_ports clk]]
+set_input_delay  4.0 -clock clk $in_ports
+set_output_delay 3.0 -clock clk [all_outputs]
+set_driving_cell -lib_cell sky130_fd_sc_hd__buf_2 $in_ports
+set_load 0.02 [all_outputs]
+</code></pre>
+<p>An input delay of 4.0 ns says: data on this pin arrives 4.0 ns after the clock edge, because logic outside took that long. With a 10 ns period, your internal logic from that pin to the first flop now has 10 − 4.0 = 6.0 ns, minus setup time and uncertainty. An output delay of 3.0 ns says the receiver needs the data 3.0 ns before its next edge, so your logic from the last flop to the pin gets 7.0 ns minus clock-to-Q.</p>
+<p>These numbers come from a budget agreed with whoever designs the neighbouring logic. A common starting point when nobody knows yet is to give each side a share of the period, then refine. The driving cell and load make the tool compute realistic transition times at the ports instead of assuming perfect edges. The load value is in the library's capacitance unit, often picofarads; check the Liberty header.</p>
+<h2 id="exceptions-false-paths-and-multicycle-paths">Exceptions: false paths and multicycle paths</h2>
+<p>Some paths exist in the netlist but do not need to meet single-cycle timing.</p>
+<pre><code class="language-tcl"># Configuration register written once at start-up, then static
+set_false_path -from [get_cells cfg_mode_reg*]
+
+# Asynchronous reset input, synchronised inside the block
+set_false_path -from [get_ports rst_n]
+
+# A multiply that the control logic only samples every 2nd cycle
+set_multicycle_path 2 -setup -from [get_cells mul_a_reg*] \
+    -to [get_cells mul_q_reg*]
+set_multicycle_path 1 -hold  -from [get_cells mul_a_reg*] \
+    -to [get_cells mul_q_reg*]
+</code></pre>
+<p>The multicycle pair is the classic trap. Moving the setup check to the second edge also moves the default hold check one edge later, which would demand an impossibly long minimum delay. The <code>-hold 1</code> line moves the hold check back to where it belongs. Write the two together, every time.</p>
+<p>For two genuinely asynchronous clocks, <code>set_clock_groups -asynchronous -group clk_a -group clk_b</code> removes timing between them. That is correct only if every crossing has a proper synchronizer; the SDC cannot check that for you.</p>
+<h2 id="over-constraints-and-under-constraints">Over-constraints and under-constraints</h2>
+<p>Two kinds of mistakes, with opposite symptoms:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Mistake</th>
+<th>What you see</th>
+<th>What really happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing <code>create_clock</code> on a clock pin</td>
+<td>Few or no paths reported</td>
+<td>Every flop on that clock is untimed</td>
+</tr>
+<tr>
+<td>No I/O delays</td>
+<td>Ports look fine</td>
+<td>Port paths checked against no external budget, or not at all</td>
+</tr>
+<tr>
+<td>Wildcard false path such as <code>-from [all_registers]</code></td>
+<td>Timing is clean</td>
+<td>Real paths are switched off</td>
+</tr>
+<tr>
+<td>Multicycle without the hold fix</td>
+<td>Huge hold violations</td>
+<td>Tool inserts many unnecessary buffers</td>
+</tr>
+<tr>
+<td>Uncertainty far too large</td>
+<td>Endless violations</td>
+<td>Tool upsizes cells and burns area and power</td>
+</tr>
+<tr>
+<td>Period tighter than the spec "for margin"</td>
+<td>Harder closure</td>
+<td>Margin you may not need, paid in power and area</td>
+</tr>
+</tbody>
+</table></div>
+<p>Under-constraint is the dangerous one, because clean reports feel like success. Over-constraint costs effort and silicon but is visible.</p>
+<h2 id="check-the-constraints-not-just-the-timing">Check the constraints, not just the timing</h2>
+<p>Open tools give you ways to test the SDC itself:</p>
+<ul>
+<li><code>report_checks -unconstrained</code> in OpenSTA lists paths that have no requirement. In a finished block, this list should be empty or fully explained.</li>
+<li><code>report_clock_properties</code> (or <code>report_clocks</code> in other tools) confirms each clock's period and waveform.</li>
+<li>Count the endpoints timed against each clock and compare with the number of flip-flops you expect.</li>
+<li>Review every <code>set_false_path</code> and <code>set_multicycle_path</code> with a colleague, and write a comment saying <em>why</em> the path is safe. An exception without a reason will not survive the next design change.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a small design with a configuration register, a two-cycle multiplier and an asynchronous reset. Synthesise it with <strong>Yosys</strong> against a sky130 library.</li>
+<li>Load it into <strong>OpenSTA</strong> with only <code>create_clock</code>. Run <code>report_checks -unconstrained</code> and note what is untimed.</li>
+<li>Add the I/O delays, then the exceptions one at a time. After each, rerun <code>report_checks</code> and see which paths appear or disappear.</li>
+<li>Leave out the <code>-hold 1</code> line on the multicycle path and look at the hold report. Then add it back and confirm the hold check returns to the launch edge.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sdc</li><li>constraints</li><li>static timing analysis</li><li>false paths</li><li>clocks</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="why-hold-violations-are-worse.html"><span>Previous in Physical design &amp; tape-out</span>Why hold violations are worse than setup violations, and how tools fix them</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="timing-closure-when-paths-will-not-close.html">Timing closure when the last few paths will not close</a></h3>
+          <p>When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-timing-report.html">How to read a static timing report line by line</a></h3>
+          <p>A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="signoff-corners-for-digital-timing.html">Which corners to sign off: process, voltage and temperature for digital timing</a></h3>
+          <p>Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How big should the stack be? Measuring and guarding stack use · Ketuna blog</title>
+  <meta name="description" content="Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How big should the stack be? Measuring and guarding stack use · Ketuna blog">
+  <meta property="og:description" content="Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.">
+  <link rel="canonical" href="https://ketuna.online/blog/measuring-and-guarding-stack-use.html">
+  <meta property="og:url" content="https://ketuna.online/blog/measuring-and-guarding-stack-use.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How big should the stack be? Measuring and guarding stack use",
+  "description": "Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler's per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "stack, memory, linker script, risc-v, reliability",
+  "articleSection": "Embedded systems",
+  "wordCount": 1085,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/measuring-and-guarding-stack-use.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>How big should the stack be? Measuring and guarding stack use</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-stack-depth-is-hard-to-know">Why stack depth is hard to know</a></li><li><a href="#technique-1-paint-the-stack-and-read-the-high-water-mark">Technique 1: paint the stack and read the high-water mark</a></li><li><a href="#technique-2-let-the-compiler-report-every-frame">Technique 2: let the compiler report every frame</a></li><li><a href="#technique-3-make-overflow-fail-loudly">Technique 3: make overflow fail loudly</a></li><li><a href="#a-sizing-procedure">A sizing procedure</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a microcontroller without memory protection, nothing stops the stack. When it grows past its allotted space it simply writes over whatever is next: <code>.bss</code> variables, the heap, another task's stack. The result is a bug that appears far from its cause, often only under a rare combination of deep calls and a well-timed interrupt. "Make the stack bigger" is the usual cure, and it is a guess. This article shows three complementary techniques that replace the guess with numbers: measure what is used, compute what could be used, and make overflow fail loudly.</p>
+<h2 id="why-stack-depth-is-hard-to-know">Why stack depth is hard to know</h2>
+<p>The stack use at any moment is the sum of the frames of every function on the current call path, plus whatever interrupt frames are stacked on top. The worst case is therefore:</p>
+<blockquote>
+<p>worst main-stack use ≈ deepest call path + deepest interrupt path × nesting levels</p>
+</blockquote>
+<p>Each term is hard to see. The deepest path may run only in an error handler. Inlining moves locals from one frame to another. A library function you never read may allocate a large buffer. Interrupts nest only when priorities allow, and only occasionally. With an RTOS, every task has its own stack, and depending on the port, interrupts may run on the interrupted task's stack, so each task must reserve room for them.</p>
+<h2 id="technique-1-paint-the-stack-and-read-the-high-water-mark">Technique 1: paint the stack and read the high-water mark</h2>
+<p>Fill the whole stack with a known pattern at start-up, run the system through its heaviest scenarios, then scan from the far end for the first word that no longer holds the pattern. Everything above that point has been used at least once.</p>
+<pre><code class="language-c">#include &lt;stddef.h&gt;
+#include &lt;stdint.h&gt;
+
+extern uint32_t _stack_bottom[], _stack_top[];  /* linker symbols */
+#define STACK_PAINT 0xA5A5A5A5u
+
+/* Call early in main(), while little of the stack is in use. */
+void stack_paint(void)
+{
+    uint32_t *sp;
+    __asm__ volatile (&quot;mv %0, sp&quot; : &quot;=r&quot;(sp));
+    for (uint32_t *p = _stack_bottom; p &lt; sp - 16; p++)
+        *p = STACK_PAINT;            /* stop short of the live frames */
+}
+
+/* Bytes of stack that have ever been used since painting. */
+size_t stack_high_water(void)
+{
+    const uint32_t *p = _stack_bottom;
+    while (p &lt; _stack_top &amp;&amp; *p == STACK_PAINT)
+        p++;
+    return (size_t)((const char *)_stack_top - (const char *)p);
+}
+</code></pre>
+<p>The stack grows downward from <code>_stack_top</code>, so unused space is at the bottom. The linker script needs a <code>_stack_bottom = .;</code> line before it reserves the stack. Painting in the startup assembly, before <code>main()</code>, is even cleaner, since then nothing is live yet.</p>
+<p>Report the high-water mark over a debug UART or store it where a test can read it. As an illustration: if an 8 KB stack shows a high-water mark of 2,912 bytes after a full test run, about 36 % has been used <em>in the paths you exercised</em>. That last phrase is the weakness. Painting measures; it does not prove. A path your tests never reached, such as a rarely used error branch or an interrupt landing at the deepest point, is not in the number.</p>
+<h2 id="technique-2-let-the-compiler-report-every-frame">Technique 2: let the compiler report every frame</h2>
+<p>GCC can write each function's frame size to a file. Compile with <code>-fstack-usage</code> and every object gets a <code>.su</code> file:</p>
+<pre><code class="language-text">s.c:3:5:leaf    80      static
+s.c:4:5:mid     144     static
+s.c:5:5:top     144     static
+</code></pre>
+<p>Each line gives the function, its frame size in bytes and a qualifier. <code>static</code> means a fixed size; <code>dynamic</code> means the frame depends on run-time values, from a variable-length array or <code>alloca</code>, which you should treat as a red flag in firmware; <code>bounded</code> means dynamic with a known maximum. Notice that <code>mid</code> and <code>top</code> are 144 bytes each here, not the sum of their callees: at <code>-O2</code> GCC inlined the smaller functions, so their locals moved into the callers' frames. Always analyse the build you ship.</p>
+<p>Frame sizes alone are not enough; you need the call graph. GCC 10 and later can write it with <code>-fcallgraph-info=su</code>, which produces a <code>.ci</code> file per object listing each function, its frame size and its callees. A short script can then find the most expensive path from each entry point (<code>main</code>, each interrupt handler, each task function). <code>-Wstack-usage=N</code> additionally warns about any single function whose frame exceeds N bytes.</p>
+<p>Static analysis gives an upper bound that testing cannot, but it has blind spots: calls through function pointers, recursion, and assembly code. List those by hand and justify each bound, or forbid them in code that runs on small stacks.</p>
+<h2 id="technique-3-make-overflow-fail-loudly">Technique 3: make overflow fail loudly</h2>
+<p>Even with good numbers, guard the boundary so that an overflow stops the system at the moment it happens, instead of corrupting data.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="st-title st-desc" font-size="14">
+<title id="st-title">Painted stack with high-water mark and guard region</title>
+<desc id="st-desc">A vertical stack region. At the top is the stack top where the stack starts. Below it, a used region that has overwritten the paint pattern down to the high-water mark. Below that, still-painted unused space. At the very bottom, a guard region that faults on any access, separating the stack from the data below it.</desc>
+<rect x="150" y="20" width="180" height="80" class="dg-amber" fill-opacity="0.35"/>
+<text x="240" y="64" text-anchor="middle" class="dg-text">used</text>
+<rect x="150" y="100" width="180" height="90" class="dg-track"/>
+<text x="240" y="150" text-anchor="middle" class="dg-muted">A5A5A5A5 ...</text>
+<rect x="150" y="190" width="180" height="26" class="dg-core"/>
+<text x="240" y="208" text-anchor="middle" class="dg-text">guard: no access</text>
+<rect x="150" y="216" width="180" height="26" class="dg-box"/>
+<text x="240" y="234" text-anchor="middle" class="dg-text">.bss / heap</text>
+<line x1="120" y1="100" x2="360" y2="100" class="dg-amber-line" stroke-dasharray="6 4"/>
+<text x="366" y="104" class="dg-text">high water</text>
+<text x="366" y="26" class="dg-text">_stack_top</text>
+<text x="366" y="194" class="dg-text">_stack_bottom</text>
+<path d="M120,30 V88" class="dg-line"/>
+<path d="M115,86 L120,94 L125,86 Z" class="dg-arrow"/>
+<text x="40" y="64" class="dg-muted">grows down</text>
+</svg>
+<figcaption>Painting shows how far the stack has reached; the guard region turns an overflow into an immediate fault instead of silent corruption.</figcaption>
+</figure>
+
+<p>Three ways to build the guard, from cheapest to strongest:</p>
+<ul>
+<li><strong>Place the stack at the bottom of RAM.</strong> Put the stack region <em>below</em> <code>.data</code> and <code>.bss</code> in the linker script, so that it grows down towards the start of RAM. On many parts, an access below the RAM base hits unmapped address space and raises an access fault, so overflow faults instead of overwriting variables. Check what lies below RAM on your chip first.</li>
+<li><strong>A canary word.</strong> Write a known value at the stack's lowest address and check it periodically or at every context switch. It detects overflow after the fact, and misses a frame that jumps over the canary, but it costs almost nothing. Zephyr's <code>CONFIG_STACK_SENTINEL</code> works this way.</li>
+<li><strong>A hardware guard.</strong> On RISC-V, a physical memory protection (PMP) entry can make a small region at the bottom of the stack inaccessible. Note that in machine mode, PMP entries only apply when they are locked, unless the core implements the extension that changes that, so read your core's documentation. Zephyr offers PMP-based guards on RISC-V through <code>CONFIG_PMP_STACK_GUARD</code>. The guard must be larger than the biggest single frame, or a function with a large local array can step over it entirely.</li>
+</ul>
+<h2 id="a-sizing-procedure">A sizing procedure</h2>
+<ol>
+<li>Compute the worst path from each entry point with <code>-fstack-usage</code> and the call graph; add interrupt frames for every nesting level your priorities allow.</li>
+<li>Paint, run the heaviest tests, and compare the high-water mark with the computed bound. A measurement larger than the bound means the analysis missed something.</li>
+<li>Set the stack to the computed bound plus a margin you can justify, and keep a guard in place in every build, including release.</li>
+</ol>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile your firmware with <code>-fstack-usage</code>, sort all <code>.su</code> lines by size, and look at the five largest frames. Explain each one.</li>
+<li>Add painting to a program running on QEMU's RISC-V <code>virt</code> machine, call a recursive function with increasing depth, and print the high-water mark after each call.</li>
+<li>On the same QEMU machine, align the stack bottom to 64 bytes and make it a locked PMP region with no permissions: write <code>(_stack_bottom &gt;&gt; 2) | 7</code> to <code>pmpaddr0</code> and <code>0x98</code> (lock bit plus naturally aligned power-of-two mode) to <code>pmpcfg0</code>. Recurse until the stack overflows and check that the trap handler reports <code>mcause</code> = 7, a store access fault, with <code>mtval</code> inside the guard. Give the trap handler its own stack, or it will fault on the guard too.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>stack</li><li>memory</li><li>linker script</li><li>risc-v</li><li>reliability</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="fixed-point-filters-without-an-fpu.html"><span>Previous in Embedded systems</span>Fixed-point filters on a microcontroller without an FPU</a><a class="next" href="zephyr-kconfig-basics.html"><span>Next in Embedded systems</span>Kconfig in Zephyr: turning features on without editing source</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="finding-the-cause-of-a-firmware-crash.html">Finding the cause of a firmware crash from the trap state</a></h3>
+          <p>When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="reading-a-linker-script.html">Reading a linker script: sections, memory regions and the map file</a></h3>
+          <p>How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

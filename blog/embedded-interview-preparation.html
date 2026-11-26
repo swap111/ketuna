@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preparing for embedded interviews: C, interrupts and debugging stories · Ketuna blog</title>
+  <meta name="description" content="Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Preparing for embedded interviews: C, interrupts and debugging stories · Ketuna blog">
+  <meta property="og:description" content="Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.">
+  <link rel="canonical" href="https://ketuna.online/blog/embedded-interview-preparation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/embedded-interview-preparation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Preparing for embedded interviews: C, interrupts and debugging stories",
+  "description": "Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "interviews, embedded c, interrupts, bit manipulation, debugging",
+  "articleSection": "Careers & skills",
+  "wordCount": 998,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/embedded-interview-preparation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Preparing for embedded interviews: C, interrupts and debugging stories</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#pointer-and-bit-manipulation-questions">Pointer and bit-manipulation questions</a></li><li><a href="#designing-an-interrupt-service-routine">Designing an interrupt service routine</a></li><li><a href="#telling-a-clear-debugging-story">Telling a clear debugging story</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Embedded interviews have a recognisable shape. You will be asked to read or write C that touches memory directly, to reason about what happens when an interrupt arrives at the wrong moment, and to describe a bug you found on real hardware. Each part checks something different: whether you know what the compiler and the processor actually do, whether you can design for concurrency, and whether you debug with a method rather than luck.</p>
+<h2 id="pointer-and-bit-manipulation-questions">Pointer and bit-manipulation questions</h2>
+<p>These questions are short, and the interviewer watches how carefully you read. A classic one: "Set bit 5, clear bit 2 and toggle bit 0 of a register, without touching the other bits."</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define REG (*(volatile uint32_t *)0x40021000u) /* address made up */
+
+void update(void)
+{
+    REG |=  (1u &lt;&lt; 5);   /* set bit 5   */
+    REG &amp;= ~(1u &lt;&lt; 2);   /* clear bit 2 */
+    REG ^=  (1u &lt;&lt; 0);   /* toggle bit 0 */
+}
+</code></pre>
+<p>Talk through the details as you write. The <code>u</code> suffix keeps the shift unsigned, which matters for bit 31 because shifting a signed 1 into the sign bit is undefined behaviour. The <code>volatile</code> qualifier tells the compiler that every access must really happen, because the hardware can change the register and the write has side effects. Then add the follow-up before they ask: each line is a read-modify-write, so if an interrupt handler also writes this register between the read and the write, its change is lost. On many microcontrollers, separate set and clear registers or bit-banding exist to avoid exactly this.</p>
+<p>Pointer questions test whether you can read declarations. Be ready for these:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Declaration</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>const uint8_t *p</code></td>
+<td>Pointer to constant data; you may move <code>p</code>, not write <code>*p</code></td>
+</tr>
+<tr>
+<td><code>uint8_t *const p</code></td>
+<td>Constant pointer; you may write <code>*p</code>, not move <code>p</code></td>
+</tr>
+<tr>
+<td><code>volatile uint32_t *p</code></td>
+<td>Every access through <code>p</code> is performed as written</td>
+</tr>
+<tr>
+<td><code>uint8_t (*f)(uint8_t)</code></td>
+<td>Pointer to a function taking and returning <code>uint8_t</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Also practise counting set bits, checking whether a number is a power of two (<code>x &amp;&amp; !(x &amp; (x - 1))</code>), swapping byte order, and extracting a bit field with a shift and a mask. Write them on paper first, then compile them and test the edge cases: zero, all ones, the top bit.</p>
+<h2 id="designing-an-interrupt-service-routine">Designing an interrupt service routine</h2>
+<p>ISR questions often begin with "what should and shouldn't go in an interrupt handler?". The reasoning matters more than the list. An ISR runs while other code is suspended and, depending on priorities, while other interrupts wait. Every microsecond spent inside it adds latency to everything else.</p>
+<p>A good answer covers:</p>
+<ul>
+<li><strong>Keep it short.</strong> Read the hardware, clear the interrupt flag, store the data, set a flag or push to a queue, and leave. Processing happens in the main loop or a task.</li>
+<li><strong>No blocking calls.</strong> No waiting on a peripheral, no <code>printf</code>, no heap allocation, because they can take unbounded time or are not re-entrant.</li>
+<li><strong>Share data safely.</strong> Variables shared with the main loop must be <code>volatile</code>. Multi-byte values that the processor cannot read in one access need protection, such as briefly disabling interrupts or using a single-producer, single-consumer ring buffer where each side owns one index.</li>
+<li><strong>Clear the cause.</strong> Forgetting to clear the flag means the ISR re-enters immediately and the system appears to hang.</li>
+</ul>
+<p>Interviewers often follow with a scenario: "A 16-bit timer count is updated in an ISR and read in <code>main</code> on an 8-bit processor. What can go wrong?" The model reasoning: the read takes two instructions; if the ISR fires between them, <code>main</code> combines the low byte of one value with the high byte of another. For a count rolling from 0x00FF to 0x0100, that can produce 0x01FF or 0x0000. Fix it by disabling the interrupt around the read, or by reading twice until two consecutive reads agree.</p>
+<h2 id="telling-a-clear-debugging-story">Telling a clear debugging story</h2>
+<p>"Tell me about a bug you found" is nearly certain. Many candidates ramble through the history of the project. Use a tight structure instead:</p>
+<ol>
+<li><strong>Symptom:</strong> what was observed, and how often.</li>
+<li><strong>Hypotheses:</strong> two or three possible causes you considered.</li>
+<li><strong>Experiments:</strong> what you measured or changed to separate them, one variable at a time.</li>
+<li><strong>Root cause:</strong> what it actually was, in one sentence.</li>
+<li><strong>Fix and prevention:</strong> the change, and what you did so it would not recur.</li>
+</ol>
+<p>For example: "Our sensor board printed garbage on the serial console after a firmware update, but only sometimes. I suspected a baud mismatch, a clock configuration change, or a wiring fault. A scope on the TX line showed the bit time was off by several percent compared with the expected value at 115200 baud. The update had changed the system clock source, and the UART divisor was still computed for the old frequency. I derived the divisor from the clock configuration instead of a constant, and added a start-up check that prints the measured clock."</p>
+<p>Notice what makes it work: a scope measurement instead of guesses, a single root cause, and a fix that prevents the whole class of bug. If you have only lab or project experience, a lab bug told this way is perfectly good.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Forgetting <code>volatile</code>, or treating it as a lock.</strong> It prevents the compiler from removing accesses; it does not make a read-modify-write atomic.</li>
+<li><strong>Signed shifts and integer promotion.</strong> <code>uint8_t</code> values are promoted to <code>int</code> before arithmetic; <code>~</code> on a small type gives a wide result.</li>
+<li><strong>Long ISRs.</strong> Doing the work inside the handler is the most common design flaw interviewers probe for.</li>
+<li><strong>A story without measurements.</strong> "I tried things until it worked" tells the interviewer you were lucky.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the bit-manipulation helpers above in a small C file, compile them with <strong>GCC</strong> (<code>gcc -Wall -Wextra -O2 bits.c</code>), and test edge cases with <code>assert</code>.</li>
+<li>Build a bare-metal UART receive ring buffer for a RISC-V target and run it on <strong>QEMU</strong> or <strong>Renode</strong>, with the ISR pushing bytes and the main loop pulling them.</li>
+<li>Simulate the torn 16-bit read: in a host program, split a counter read into two byte reads with a deliberate update between them, observe the wrong value, then apply the read-twice fix.</li>
+<li>Write your own debugging story in the five-part shape, under 150 words, and practise telling it in two minutes.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>interviews</li><li>embedded c</li><li>interrupts</li><li>bit manipulation</li><li>debugging</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="digital-design-interview-preparation.html"><span>Previous in Careers &amp; skills</span>Preparing for digital design interviews: the topics that recur and how to practise</a><a class="next" href="experienced-verification-interviews.html"><span>Next in Careers &amp; skills</span>Preparing for experienced verification interviews: methodology questions and how to answer them</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="experienced-verification-interviews.html">Preparing for experienced verification interviews: methodology questions and how to answer them</a></h3>
+          <p>Experienced verification interviews probe judgement, not syntax. Learn to explain your test plans, coverage decisions and debugging stories with concrete evidence from your own work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-as-a-career-skill.html">Debugging as a career skill: hypotheses, experiments and notes</a></h3>
+          <p>Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

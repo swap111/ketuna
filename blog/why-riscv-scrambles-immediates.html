@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why RISC-V scrambles its immediate bits · Ketuna blog</title>
+  <meta name="description" content="Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why RISC-V scrambles its immediate bits · Ketuna blog">
+  <meta property="og:description" content="Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.">
+  <link rel="canonical" href="https://ketuna.online/blog/why-riscv-scrambles-immediates.html">
+  <meta property="og:url" content="https://ketuna.online/blog/why-riscv-scrambles-immediates.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why RISC-V scrambles its immediate bits",
+  "description": "Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, instruction encoding, immediates, decoder, rtl",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1102,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/why-riscv-scrambles-immediates.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Why RISC-V scrambles its immediate bits</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-job-of-the-immediate-generator">The job of the immediate generator</a></li><li><a href="#three-rules-the-encoding-follows">Three rules the encoding follows</a></li><li><a href="#counting-the-multiplexers">Counting the multiplexers</a></li><li><a href="#the-generator-in-verilog">The generator in Verilog</a></li><li><a href="#why-this-matters-beyond-risc-v">Why this matters beyond RISC-V</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first time you decode a RISC-V branch by hand, the immediate looks deliberately awkward. Bit 12 of the offset sits at instruction bit 31, bit 11 is down at bit 7, and bits 10 to 5 and 4 to 1 are in between. The J-type jump is worse. It is tempting to call this a historical accident, but it is the opposite: the layout was chosen so that the hardware which rebuilds immediates needs as few multiplexers as possible. This article counts them.</p>
+<h2 id="the-job-of-the-immediate-generator">The job of the immediate generator</h2>
+<p>Every format except R-type carries a constant. Before the ALU or the branch adder can use it, the decoder must reassemble it into a 32-bit, sign-extended value. That block, usually called the immediate generator, is a set of multiplexers: for each of the 32 output bits, choose a source according to the format. The source can be an instruction bit, a copy of the sign bit, or a constant zero.</p>
+<p>The cost of a multiplexer grows with the number of distinct inputs it has to choose between. A bit whose source is the same in every format needs no multiplexer at all: it is a wire. A bit with two possible sources needs a 2-to-1 multiplexer, and so on. So the encoding goal is simple to state: <strong>for each output bit, make the number of different source positions across all formats as small as possible.</strong></p>
+<h2 id="three-rules-the-encoding-follows">Three rules the encoding follows</h2>
+<p>Read the RV32I formats with that goal in mind and three rules stand out.</p>
+<ol>
+<li><strong>The sign bit is always instruction bit 31.</strong> Every immediate in every format is sign-extended from bit 31. The sign extension logic, which fans one bit out to as many as 20 upper bits, therefore never needs a multiplexer on its input. It can also start before decoding has finished.</li>
+<li><strong>Bits 10 to 5 of the immediate always come from instruction bits 30 to 25</strong>, in I, S, B and J formats. Only U-type differs, where those bits are zero.</li>
+<li><strong>Bits 4 to 1 come from one of only two places:</strong> instruction bits 24 to 21 (I and J) or 11 to 8 (S and B).</li>
+</ol>
+<p>Now look at a branch again. The B-type immediate is a byte offset that is always even, so it stores bits 12 to 1 and the hardware supplies bit 0 as zero. If the designers had simply placed bits 12 to 1 where the S-type puts bits 11 to 0, every bit would be shifted one position relative to the store's offset, and most output bits would need an extra multiplexer input. Instead they kept bits 10 to 1 in exactly the S-type positions, placed the sign (bit 12) at bit 31 as always, and moved the one leftover bit, bit 11, into the spare slot at instruction bit 7. The J-type does the same trick against the I-type and U-type layouts.</p>
+<h2 id="counting-the-multiplexers">Counting the multiplexers</h2>
+<p>Here is where each immediate bit comes from in each format. "s" means a copy of instruction bit 31 (the sign), and "0" means a constant zero.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Immediate bit</th>
+<th>I</th>
+<th>S</th>
+<th>B</th>
+<th>U</th>
+<th>J</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31</td>
+<td>s</td>
+<td>s</td>
+<td>s</td>
+<td>31</td>
+<td>s</td>
+</tr>
+<tr>
+<td>30 to 20</td>
+<td>s</td>
+<td>s</td>
+<td>s</td>
+<td>30 to 20</td>
+<td>s</td>
+</tr>
+<tr>
+<td>19 to 12</td>
+<td>s</td>
+<td>s</td>
+<td>s</td>
+<td>19 to 12</td>
+<td>19 to 12</td>
+</tr>
+<tr>
+<td>11</td>
+<td>s</td>
+<td>s</td>
+<td>7</td>
+<td>0</td>
+<td>20</td>
+</tr>
+<tr>
+<td>10 to 5</td>
+<td>30 to 25</td>
+<td>30 to 25</td>
+<td>30 to 25</td>
+<td>0</td>
+<td>30 to 25</td>
+</tr>
+<tr>
+<td>4 to 1</td>
+<td>24 to 21</td>
+<td>11 to 8</td>
+<td>11 to 8</td>
+<td>0</td>
+<td>24 to 21</td>
+</tr>
+<tr>
+<td>0</td>
+<td>20</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table></div>
+<p>Count the distinct sources per output bit. Bit 31 has one (a wire). Bits 30 to 12 have two each. Bit 11 has four, the worst case. Bits 10 to 5 have two, bits 4 to 1 and bit 0 have three each.</p>
+<p>A rough way to compare encodings is to add up "inputs minus one" across all 32 bits, which approximates the number of 2-to-1 multiplexer stages you would build. For the real encoding the total is 38. Now model a "naive" alternative in a few lines of Python, where B and J offsets are stored in order: bits 12 to 1 in the S-type positions and bits 20 to 1 in the U-type positions. Its total is 66. These counts are a simple illustrative metric, not a gate-level area figure, but the direction is clear: the scrambled layout needs noticeably less selection logic, and none of it sits on the sign-extension fan-out.</p>
+<h2 id="the-generator-in-verilog">The generator in Verilog</h2>
+<p>Written bit-group by bit-group, the generator mirrors the table. The format is assumed to be decoded already into one-hot signals.</p>
+<pre><code class="language-verilog">module imm_gen (
+  input  wire [31:0] ins,
+  input  wire        fmt_i, fmt_s, fmt_b, fmt_u, fmt_j,
+  output wire [31:0] imm
+);
+  wire s = ins[31];                         // sign: always bit 31
+
+  assign imm[31]    = s;                    // a wire in every format
+  assign imm[30:20] = fmt_u ? ins[30:20] : {11{s}};
+  assign imm[19:12] = (fmt_u | fmt_j) ? ins[19:12] : {8{s}};
+  assign imm[11]    = fmt_b ? ins[7]  :
+                      fmt_j ? ins[20] :
+                      fmt_u ? 1'b0    : s;  // the only 4-input bit
+  assign imm[10:5]  = fmt_u ? 6'b0 : ins[30:25];
+  assign imm[4:1]   = (fmt_s | fmt_b) ? ins[11:8] :
+                      (fmt_i | fmt_j) ? ins[24:21] : 4'b0;
+  assign imm[0]     = fmt_i ? ins[20] :
+                      fmt_s ? ins[7]  : 1'b0;
+endmodule
+</code></pre>
+<p>Notice how short it is. Bits 10 to 5 are a single AND with "not U-type". The sign extension is a fan-out of <code>ins[31]</code>, available the moment the instruction arrives. In a pipelined core the immediate generator sits in the decode stage alongside the register file read, so keeping it shallow helps that stage meet timing.</p>
+<h2 id="why-this-matters-beyond-risc-v">Why this matters beyond RISC-V</h2>
+<p>The lesson generalises to any encoding you design, for example the command words of a custom accelerator or the instruction set of a small microcoded engine:</p>
+<ul>
+<li>Fix the positions of fields that feed timing-critical logic (register numbers, the sign bit) and let less critical fields move around them.</li>
+<li>Accept ugliness that only humans see. Assemblers and disassemblers handle the shuffle once; hardware pays for a bad layout in every instance of every chip.</li>
+<li>Measure the choice. A table like the one above, or a ten-line script, settles the argument faster than opinion.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Building the B-type immediate from the S-type one and shifting left.</strong> The bit positions differ at bit 11 and bit 0, so the result is wrong for offsets with bit 11 set.</li>
+<li><strong>Forgetting that bit 0 of B and J offsets is zero.</strong> The instruction does not encode it.</li>
+<li><strong>Sign-extending from the wrong bit.</strong> It is always instruction bit 31, never the top bit of the reassembled field.</li>
+<li><strong>Testing only small offsets.</strong> Short branches never exercise bit 11 or the upper bits; directed tests need far forward and backward targets.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python function that encodes <code>beq</code> and <code>jal</code> with any offset and a decoder that reverses it. Check them against each other for every even offset in range.</li>
+<li>Simulate the <code>imm_gen</code> module above in Icarus Verilog with a testbench that compares it with your Python model for random instructions of each format.</li>
+<li>Synthesise <code>imm_gen</code> with Yosys (<code>synth -top imm_gen</code>, then <code>stat</code>), then write a naive version with in-order B and J fields and compare the cell counts.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>instruction encoding</li><li>immediates</li><li>decoder</li><li>rtl</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-an-isa-promises.html"><span>Previous in Computer architecture &amp; RISC-V</span>What an instruction set promises, and what it leaves to the hardware</a><a class="next" href="assembly-to-understand-your-c.html"><span>Next in Computer architecture &amp; RISC-V</span>Writing a little RISC-V assembly to understand what your C compiles to</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rv32i-instruction-formats.html">RV32I in one sitting: every instruction format and why it is laid out that way</a></h3>
+          <p>RV32I packs every instruction into one of six 32-bit formats. See each format field by field, decode real instructions by hand, and learn why fixed register positions keep the decoder small.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="data-hazards-and-forwarding.html">Data hazards and forwarding paths, traced cycle by cycle</a></h3>
+          <p>Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

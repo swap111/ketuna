@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Machine, supervisor and user mode: why RISC-V has privilege levels · Ketuna blog</title>
+  <meta name="description" content="What machine, supervisor and user mode may each do, which kinds of systems need which combination, and how traps, delegation and the return instructions move execution between them.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Machine, supervisor and user mode: why RISC-V has privilege levels · Ketuna blog">
+  <meta property="og:description" content="What machine, supervisor and user mode may each do, which kinds of systems need which combination, and how traps, delegation and the return instructions move execution between them.">
+  <link rel="canonical" href="https://ketuna.online/blog/riscv-privilege-modes.html">
+  <meta property="og:url" content="https://ketuna.online/blog/riscv-privilege-modes.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Machine, supervisor and user mode: why RISC-V has privilege levels",
+  "description": "What machine, supervisor and user mode may each do, which kinds of systems need which combination, and how traps, delegation and the return instructions move execution between them.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, privilege modes, pmp, operating systems, security",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 948,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/riscv-privilege-modes.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Machine, supervisor and user mode: why RISC-V has privilege levels</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">What machine, supervisor and user mode may each do, which kinds of systems need which combination, and how traps, delegation and the return instructions move execution between them.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-levels-three-jobs">Three levels, three jobs</a></li><li><a href="#which-systems-need-which-modes">Which systems need which modes</a></li><li><a href="#how-traps-move-between-levels">How traps move between levels</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a tiny sensor node, all the code runs with full access to the hardware, and that is fine: one team wrote all of it and it does one job. On a smart meter or a phone, some code must not be able to touch the key storage, reprogram the clock or read another application's memory. Privilege levels are the hardware mechanism that makes that separation enforceable rather than a convention. RISC-V defines three of them and lets a core implement only the ones its product needs.</p>
+<h2 id="three-levels-three-jobs">Three levels, three jobs</h2>
+<ul>
+<li><strong>Machine mode (M)</strong> is the most privileged and the only mandatory level. Code in M-mode can access every CSR and all of physical memory (subject only to locked protection entries). Every trap starts life aimed at M-mode. On a simple microcontroller, M-mode is where everything runs.</li>
+<li><strong>Supervisor mode (S)</strong> is for an operating system kernel. It has its own set of CSRs (<code>sstatus</code>, <code>stvec</code>, <code>sepc</code>, <code>scause</code>, <code>satp</code> and others) and controls virtual memory through page tables. It cannot touch machine-level CSRs.</li>
+<li><strong>User mode (U)</strong> is for applications. It can execute ordinary instructions and access the memory it has been given, and nothing else. Any attempt to read a privileged CSR or touch protected memory raises an exception that a more privileged level handles.</li>
+</ul>
+<p>The current level is not visible in any user-readable register. It lives inside the core and changes only on a trap (up) or a return instruction (down).</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="pm-title pm-desc" font-size="14">
+<title id="pm-title">RISC-V privilege levels and transitions</title>
+<desc id="pm-desc">Three stacked bands: user mode at the bottom, supervisor mode in the middle, machine mode at the top. Traps such as ecall move execution upward; sret returns from supervisor to user and mret returns from machine mode to a lower level. Delegated traps from user mode go only as far as supervisor mode.</desc>
+<rect x="20" y="20" width="300" height="50" class="dg-core"/><text x="170" y="42" text-anchor="middle" class="dg-text">M: firmware, SBI, secure monitor</text><text x="170" y="60" text-anchor="middle" class="dg-muted">all CSRs, PMP configuration</text>
+<rect x="20" y="90" width="300" height="50" class="dg-box"/><text x="170" y="112" text-anchor="middle" class="dg-text">S: operating system kernel</text><text x="170" y="130" text-anchor="middle" class="dg-muted">page tables, s* CSRs</text>
+<rect x="20" y="160" width="300" height="50" class="dg-track"/><text x="170" y="182" text-anchor="middle" class="dg-text">U: applications</text><text x="170" y="200" text-anchor="middle" class="dg-muted">no privileged CSRs</text>
+<line x1="350" y1="160" x2="350" y2="76" class="dg-line"/><path d="M346,76 L350,70 L354,76 Z" class="dg-arrow"/>
+<line x1="390" y1="160" x2="390" y2="146" class="dg-amber-line"/><path d="M386,146 L390,140 L394,146 Z" class="dg-arrow"/>
+<line x1="430" y1="76" x2="430" y2="154" class="dg-dash"/><path d="M426,154 L430,160 L434,154 Z" class="dg-arrow"/>
+<text x="345" y="120" text-anchor="end" class="dg-muted">trap</text>
+<text x="395" y="156" class="dg-muted">delegated</text>
+<text x="436" y="110" class="dg-muted">mret</text>
+<text x="436" y="130" class="dg-muted">sret</text>
+</svg>
+<figcaption>Execution moves up only by a trap and down only by a return instruction.</figcaption>
+</figure>
+
+<h2 id="which-systems-need-which-modes">Which systems need which modes</h2>
+<p>The specification allows three common combinations, and each matches a class of product:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Modes</th>
+<th>Typical system</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M only</td>
+<td>Small microcontroller, bare metal or a simple RTOS</td>
+<td>One trust domain; no need to pay for separation</td>
+</tr>
+<tr>
+<td>M + U</td>
+<td>Secure embedded device, RTOS with protected tasks</td>
+<td>Keeps application code away from drivers and keys, without virtual memory</td>
+</tr>
+<tr>
+<td>M + S + U</td>
+<td>Linux-class processor</td>
+<td>The kernel needs virtual memory and its own trap handling; firmware stays below it</td>
+</tr>
+</tbody>
+</table></div>
+<p>In an <strong>M + U</strong> system, protection comes from <strong>physical memory protection (PMP)</strong> rather than page tables. M-mode code programs a small number of PMP entries, each describing a region and its read, write and execute permissions for lower levels. User code that steps outside its regions gets an access fault.</p>
+<p>For example, to give U-mode read and write access, but not execute, to a 64 KiB buffer at <code>0x2000_0000</code>, you can use one PMP entry in naturally aligned power-of-two (NAPOT) mode. The address register holds the base and size together: (base + size / 2 − 1) &gt;&gt; 2 = (<code>0x2000_0000</code> + <code>0x8000</code> − 1) &gt;&gt; 2 = <code>0x0800_1FFF</code>. The configuration byte has R = 1 and W = 1 (bits 0 and 1), X = 0, and the address-matching field set to NAPOT (value 3 in bits 4 to 3), giving <code>0x1B</code>.</p>
+<pre><code class="language-c">static inline void pmp_buffer_rw(void)
+{
+    __asm__ volatile (&quot;csrw pmpaddr0, %0&quot; :: &quot;r&quot;(0x08001FFFu));
+    __asm__ volatile (&quot;csrw pmpcfg0,  %0&quot; :: &quot;r&quot;(0x1Bu));
+}
+</code></pre>
+<p>Real firmware usually reads, modifies and writes <code>pmpcfg0</code> so it does not disturb the other three entries packed in the same register, and adds further entries for code and peripherals. Remember that on a core that implements PMP, U-mode accesses that match no entry fail, so U-mode needs explicit entries for everything it uses.</p>
+<h2 id="how-traps-move-between-levels">How traps move between levels</h2>
+<p>By default, every trap, from any level, goes to M-mode. That is simple but wasteful in a Linux system: a page fault in a user program is the kernel's business, and bouncing it through firmware costs time. So M-mode can <strong>delegate</strong> selected exceptions and interrupts to S-mode using two CSRs, <code>medeleg</code> and <code>mideleg</code>. A delegated trap taken from U-mode or S-mode goes to <code>stvec</code>, updates <code>sepc</code>, <code>scause</code> and <code>sstatus</code>, and the kernel returns with <code>sret</code>. A trap is never delegated to a lower level than the one it was taken in.</p>
+<p>The <code>ecall</code> instruction is the deliberate way to ask a higher level for a service, and its cause code says where it came from: 8 for an <code>ecall</code> from U-mode, 9 from S-mode, 11 from M-mode. A user program's system call arrives in the kernel as cause 8 (delegated). The kernel's own call to firmware, for example to set a timer or start another hart, arrives in M-mode as cause 9. The interface for those kernel-to-firmware calls is standardised as the RISC-V Supervisor Binary Interface (SBI), and OpenSBI is a widely used open-source implementation of the M-mode side.</p>
+<p>Going down is the job of <code>mret</code> and <code>sret</code>. Each restores the PC from its exception PC register and the privilege level from the saved previous-privilege field (<code>MPP</code> or <code>SPP</code>). That is also how a system <strong>starts</strong> a lower level for the first time: M-mode code sets <code>MPP</code> to U or S, writes the entry address into <code>mepc</code>, and executes <code>mret</code>. There is no other instruction that lowers privilege.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Assuming S-mode exists.</strong> Many microcontroller cores implement only M, or M and U; check before porting code that touches <code>s*</code> CSRs.</li>
+<li><strong>Forgetting PMP entries for U-mode code.</strong> With PMP active, U-mode cannot even fetch its own instructions without an entry allowing execute.</li>
+<li><strong>Delegating everything.</strong> Some traps, such as those signalling firmware-level faults, must stay in M-mode.</li>
+<li><strong>Treating privilege as security by itself.</strong> Separation only helps if the more privileged code validates what lower levels ask it to do.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a bare-metal M-mode program that configures one PMP region, sets <code>MPP</code> to U, and uses <code>mret</code> to jump to a user function. Run it on QEMU's <code>virt</code> machine.</li>
+<li>From the user function, read <code>mstatus</code> with <code>csrr</code> and confirm that you get an illegal-instruction trap (<code>mcause</code> = 2) in your M-mode handler.</li>
+<li>Make the user code call <code>ecall</code> and check that <code>mcause</code> is 8; then access memory outside the PMP region and check for a load or store access fault.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>privilege modes</li><li>pmp</li><li>operating systems</li><li>security</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="riscv-interrupt-controllers.html"><span>Previous in Computer architecture &amp; RISC-V</span>Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do</a><a class="next" href="memory-ordering-and-fence.html"><span>Next in Computer architecture &amp; RISC-V</span>Memory ordering and FENCE: why a store may not be visible yet</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="custom-instruction-or-peripheral.html">Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></h3>
+          <p>RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing a skid buffer to break a ready path without losing throughput · Ketuna blog</title>
+  <meta name="description" content="A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing a skid buffer to break a ready path without losing throughput · Ketuna blog">
+  <meta property="og:description" content="A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.">
+  <link rel="canonical" href="https://ketuna.online/blog/skid-buffer-design.html">
+  <meta property="og:url" content="https://ketuna.online/blog/skid-buffer-design.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing a skid buffer to break a ready path without losing throughput",
+  "description": "A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "skid buffer, valid ready, backpressure, timing closure",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 864,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/skid-buffer-design.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Designing a skid buffer to break a ready path without losing throughput</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-one-extra-slot-is-enough">Why one extra slot is enough</a></li><li><a href="#the-rtl">The RTL</a></li><li><a href="#tracing-a-stall-cycle-by-cycle">Tracing a stall cycle by cycle</a></li><li><a href="#trade-offs-and-variants">Trade-offs and variants</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>In a valid/ready pipeline, data and <code>valid</code> flow forward through registers, but <code>ready</code> usually flows backward through combinational logic. A long pipeline, or one whose stages sit far apart on the die, ends up with a <code>ready</code> path that crosses many stages in one cycle and fails timing. You cannot fix it with a plain flop on <code>ready</code>, because the sender would act on stale information and push a word the receiver cannot hold. The skid buffer is the standard answer: register <code>ready</code>, and keep exactly enough storage to absorb the consequence.</p>
+<h2 id="why-one-extra-slot-is-enough">Why one extra slot is enough</h2>
+<p>Suppose the downstream receiver drops <code>out_ready</code> at some edge. If our <code>in_ready</code> is a flop output, the upstream sender does not see the stall until the <em>next</em> cycle. During the cycle in between, it still sees <code>in_ready = 1</code>, and it is allowed to complete a transfer. So one more word arrives after the stall began, and we must store it somewhere other than the output register, which is still holding the word the receiver refused.</p>
+<p>That word is the "skid": like a car that keeps sliding a short distance after the brakes go on. Because <code>in_ready</code> is late by exactly one cycle, exactly one extra word can arrive, so one extra register is enough. With that, the skid buffer has two slots: the <strong>output register</strong>, which drives <code>out_data</code>, and the <strong>skid register</strong>, which only fills during a stall.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 190" role="img" aria-labelledby="sk-title sk-desc" font-size="14">
+<title id="sk-title">Skid buffer structure</title>
+<desc id="sk-desc">Input data goes both to a skid register and to a two-input multiplexer. The multiplexer chooses between the input and the skid register and feeds the output register, which drives out_data. The ready signal sent upstream comes from a flip-flop that indicates the skid register is empty.</desc>
+<text x="6" y="74" class="dg-text">in_data</text>
+<path d="M70,70 H110 V120 H150 M110,70 H250" class="dg-line"/>
+<rect x="150" y="100" width="80" height="40" class="dg-core"/>
+<text x="190" y="125" text-anchor="middle" class="dg-text">skid</text>
+<path d="M230,120 H250" class="dg-line"/>
+<path d="M250,50 L290,62 V128 L250,140 Z" class="dg-box"/>
+<text x="270" y="100" text-anchor="middle" class="dg-text">mux</text>
+<path d="M290,95 H320" class="dg-line"/>
+<rect x="320" y="70" width="80" height="50" class="dg-core"/>
+<text x="360" y="100" text-anchor="middle" class="dg-text">out reg</text>
+<path d="M400,95 H425" class="dg-line"/>
+<path d="M419,91 L425,95 L419,99 Z" class="dg-arrow"/>
+<text x="428" y="99" class="dg-text">out</text>
+<rect x="150" y="150" width="80" height="30" class="dg-box"/>
+<text x="190" y="170" text-anchor="middle" class="dg-text">empty?</text>
+<path d="M150,165 H70" class="dg-amber-line" stroke-width="2"/>
+<path d="M76,161 L70,165 L76,169 Z" class="dg-arrow"/>
+<text x="6" y="169" class="dg-text">in_ready</text>
+<text x="190" y="30" text-anchor="middle" class="dg-muted">in_ready comes straight from a flop</text>
+</svg>
+<figcaption>The output register is normally loaded straight from the input; the skid register catches the one word that arrives after a stall, and the registered "skid empty" flag is the ready sent upstream.</figcaption>
+</figure>
+
+<h2 id="the-rtl">The RTL</h2>
+<pre><code class="language-systemverilog">module skid_buf #(parameter int W = 32) (
+  input  logic         clk, rst_n,
+  input  logic         in_valid,
+  output logic         in_ready,
+  input  logic [W-1:0] in_data,
+  output logic         out_valid,
+  input  logic         out_ready,
+  output logic [W-1:0] out_data
+);
+  logic         skid_valid;
+  logic [W-1:0] skid_data;
+
+  assign in_ready = !skid_valid;          // a flop output, no logic
+
+  wire take = in_valid &amp;&amp; in_ready;        // word accepted this edge
+  wire move = out_ready || !out_valid;     // output slot frees up
+
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      out_valid  &lt;= 1'b0;
+      skid_valid &lt;= 1'b0;
+    end else if (take &amp;&amp; !move) begin      // stalled: catch the skid
+      skid_valid &lt;= 1'b1;
+    end else if (move) begin
+      if (skid_valid) begin                // drain skid first
+        out_valid  &lt;= 1'b1;
+        skid_valid &lt;= 1'b0;
+      end else begin
+        out_valid  &lt;= take;
+      end
+    end
+
+  always_ff @(posedge clk) begin
+    if (take &amp;&amp; !move)                skid_data &lt;= in_data;
+    if (move) out_data &lt;= skid_valid ? skid_data : in_data;
+  end
+endmodule
+</code></pre>
+<p>Note that <code>take</code> and <code>skid_valid</code> cannot both be true, because <code>in_ready</code> is low whenever the skid is full. That is why the <code>move</code> branch can choose between the skid and the input without ever losing one of them. <code>in_ready</code> depends only on a flop, so the upstream sender sees no combinational path from <code>out_ready</code> at all. The forward path from <code>in_data</code> through the mux into the output register is the only logic added.</p>
+<h2 id="tracing-a-stall-cycle-by-cycle">Tracing a stall cycle by cycle</h2>
+<p>The sender always has data (words A, B, C …). The receiver accepts on every cycle except cycles 2 and 3. Each row shows the signals during that cycle, before the edge at its end.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Cycle</th>
+<th>out_ready</th>
+<th>in_ready / skid</th>
+<th>Edge result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>1 / empty</td>
+<td>A accepted into out reg</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>1 / empty</td>
+<td>A leaves; B into out reg</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>1 / empty</td>
+<td>B held; C accepted into skid</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>0 / C</td>
+<td>B held; sender holds D</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>0 / C</td>
+<td>B leaves; C moves to out reg</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1</td>
+<td>1 / empty</td>
+<td>C leaves; D into out reg</td>
+</tr>
+<tr>
+<td>6</td>
+<td>1</td>
+<td>1 / empty</td>
+<td>D leaves; E into out reg</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cycle 2 is the skid itself: the receiver stalled, but <code>in_ready</code> was still 1 from the previous edge, so C arrived and went into the skid register. In cycle 3, <code>in_ready</code> has caught up and the sender holds D. In cycle 4 the receiver takes B, and C moves from the skid into the output register on the same edge. From cycle 5 on, words again flow one per cycle.</p>
+<p>The output side never idles while the receiver is ready: every cycle with <code>out_ready = 1</code> moves a word. The input is stalled only for the cycles the receiver itself stalled. That is what "no throughput loss" means here.</p>
+<h2 id="trade-offs-and-variants">Trade-offs and variants</h2>
+<ul>
+<li><strong>Cost.</strong> One extra data register of width W, a mux on the output path, and two control flops. For a wide bus that is real area, so use skid buffers where timing needs them, not at every stage.</li>
+<li><strong>Latency.</strong> Data passes through one register, the same as a plain pipeline stage.</li>
+<li><strong>Registering both directions.</strong> This design registers <code>ready</code> backward and data forward. Placing skid buffers every few stages along a long pipeline bounds both paths, at the cost of the extra registers.</li>
+<li><strong>Verification.</strong> Skid buffers are a classic place for subtle bugs, such as losing the skid word when <code>out_ready</code> and <code>in_valid</code> change on the same edge. Random stall testing with a scoreboard finds many; formal property checking can prove that no word is lost or duplicated.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Deriving <code>in_ready</code> from <code>out_ready</code> "just a little", which brings back the combinational path the buffer exists to remove</li>
+<li>Draining the skid register and accepting a new word into the output register on the same edge, which drops one of them</li>
+<li>Letting the output register load from the input while the skid is full, so the newer word overtakes the older one and the order is lost</li>
+<li>Testing only with <code>out_ready</code> held high, where the skid register never fills and the interesting logic never runs</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Reproduce the trace table by hand from the RTL, then write a short Python model of the same two registers and check it prints the same rows.</li>
+<li>Simulate <code>skid_buf</code> in <strong>Verilator</strong> or <strong>Icarus Verilog</strong> with a <strong>cocotb</strong> test that toggles <code>out_ready</code> and <code>in_valid</code> randomly, and score every word in and out.</li>
+<li>Write properties for "a word accepted is eventually output, once and in order" in a small formal harness and check them with <strong>SymbiYosys</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>skid buffer</li><li>valid ready</li><li>backpressure</li><li>timing closure</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="register-blocks-firmware-friendly.html"><span>Previous in Digital &amp; VLSI design</span>Designing a memory-mapped register block that firmware engineers will thank you for</a><a class="next" href="draw-the-circuit-before-the-code.html"><span>Next in Digital &amp; VLSI design</span>Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="valid-ready-handshake-rules.html">The valid/ready handshake: the rules that keep pipelines from losing data</a></h3>
+          <p>A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

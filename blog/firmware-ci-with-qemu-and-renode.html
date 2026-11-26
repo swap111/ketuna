@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running firmware without a board: QEMU and Renode in CI · Ketuna blog</title>
+  <meta name="description" content="Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Running firmware without a board: QEMU and Renode in CI · Ketuna blog">
+  <meta property="og:description" content="Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.">
+  <link rel="canonical" href="https://ketuna.online/blog/firmware-ci-with-qemu-and-renode.html">
+  <meta property="og:url" content="https://ketuna.online/blog/firmware-ci-with-qemu-and-renode.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Running firmware without a board: QEMU and Renode in CI",
+  "description": "Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "continuous integration, qemu, renode, firmware testing, emulation",
+  "articleSection": "Embedded systems",
+  "wordCount": 902,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/firmware-ci-with-qemu-and-renode.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Running firmware without a board: QEMU and Renode in CI</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-an-emulator-gives-you">What an emulator gives you</a></li><li><a href="#step-1-let-the-firmware-report-a-result">Step 1: let the firmware report a result</a></li><li><a href="#step-2-script-the-run-with-a-timeout">Step 2: script the run with a timeout</a></li><li><a href="#step-3-arrange-the-pipeline">Step 3: arrange the pipeline</a></li><li><a href="#what-still-needs-a-real-board">What still needs a real board</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Host unit tests check your logic, but they never run the startup code, the linker script, the interrupt vectors or the drivers as compiled for the target. Those break too: a changed compiler flag moves a section, a new interrupt handler is never registered, a stack grows into data. Catching that on every commit used to require a rack of boards. Emulators such as QEMU and Renode run the <em>same binary</em> you would flash, on a laptop or a CI server, with no hardware at all. This article shows how to turn an emulator run into an automated test, and where the emulator stops telling the truth.</p>
+<h2 id="what-an-emulator-gives-you">What an emulator gives you</h2>
+<p>QEMU and Renode both execute the target's instructions and model a set of peripherals: interrupt controllers, timers, UARTs and more, depending on the machine. The firmware cannot tell the difference for anything that is modelled. So an emulator run checks:</p>
+<ul>
+<li>that the image boots: reset vector, stack, <code>.data</code> copy, <code>.bss</code> zeroing;</li>
+<li>that interrupts are wired: trap vector, controller configuration, handler dispatch;</li>
+<li>that drivers talk to the modelled peripherals correctly;</li>
+<li>that integration works: the scheduler, the protocol stack and the application together.</li>
+</ul>
+<p>QEMU is fast and widely packaged, with machines such as the RISC-V <code>virt</code> board used throughout the Ketuna track D labs. Renode focuses on modelling whole microcontroller boards and multi-node systems, describes platforms in its own text files, and comes with a Robot Framework integration for writing tests.</p>
+<h2 id="step-1-let-the-firmware-report-a-result">Step 1: let the firmware report a result</h2>
+<p>A CI job needs a pass or fail, not a human reading a console. The firmware must therefore be able to end the emulation with a status.</p>
+<p>QEMU's RISC-V <code>virt</code> machine has a small "test finisher" device. Writing <code>0x5555</code> to it exits QEMU with status 0; writing <code>(code &lt;&lt; 16) | 0x3333</code> exits with status <code>code</code>:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define TEST_FINISHER 0x00100000u
+
+void test_finish(int code)
+{
+    volatile uint32_t *fin = (volatile uint32_t *)TEST_FINISHER;
+    *fin = (code == 0) ? 0x5555u : (((uint32_t)code &lt;&lt; 16) | 0x3333u);
+    for (;;) { }                      /* not reached on QEMU */
+}
+</code></pre>
+<p>Firmware built for CI runs its self-tests and calls <code>test_finish(0)</code> or <code>test_finish(n)</code> with a failure number. Keep this in a test build only; production firmware should never write to an address that does nothing on real hardware. On machines without such a device, semihosting or simply a final "PASS" line on the UART does the same job.</p>
+<h2 id="step-2-script-the-run-with-a-timeout">Step 2: script the run with a timeout</h2>
+<p>Firmware that hangs must fail the job, not block it forever. Wrap the emulator in <code>timeout</code>, capture the UART output, and compare it with an expected file:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+# run_fw_test.sh ELF EXPECTED: boot firmware on QEMU and check its output
+set -euo pipefail
+elf=$1
+expected=$2
+log=$(mktemp)
+
+status=0
+timeout 20 qemu-system-riscv32 -M virt -bios none -nographic \
+    -monitor none -icount shift=3 -kernel &quot;$elf&quot; &gt; &quot;$log&quot; || status=$?
+
+if [ &quot;$status&quot; -eq 124 ]; then
+    echo &quot;FAIL: timed out&quot;; cat &quot;$log&quot;; exit 1
+fi
+if [ &quot;$status&quot; -ne 0 ]; then
+    echo &quot;FAIL: firmware reported status $status&quot;; cat &quot;$log&quot;; exit 1
+fi
+if ! diff -u --strip-trailing-cr &quot;$expected&quot; &quot;$log&quot;; then
+    echo &quot;FAIL: output differs from $expected&quot;; exit 1
+fi
+echo &quot;PASS: $elf&quot;
+</code></pre>
+<p><code>timeout</code> returns 124 when it had to kill the process, which separates a hang from a reported failure. The <code>-icount shift=3</code> option makes virtual time advance by a fixed amount per instruction, so timer-driven output is identical on every run and every machine. Without it, QEMU's clocks follow the host and a busy CI server can change what timer-based firmware prints. Keep expected output free of anything that legitimately varies, or compare only the lines that matter.</p>
+<p>With Renode, the same idea is written as a Robot Framework test: load the platform and binary, create a terminal tester on the board's UART, and wait for an expected line with a timeout. The <code>renode-test</code> command runs such files and produces the pass or fail result for CI.</p>
+<h2 id="step-3-arrange-the-pipeline">Step 3: arrange the pipeline</h2>
+<p>Order jobs by cost, so that cheap failures stop expensive work:</p>
+<ol>
+<li><strong>Host unit tests</strong> of the pure logic, in seconds.</li>
+<li><strong>Cross-build</strong> of every target configuration with warnings as errors. Keep the ELF, the map file and the size report as artefacts; the map file of a failed build is the first thing you will want.</li>
+<li><strong>Emulator tests</strong>, one script call per firmware test image.</li>
+<li><strong>Hardware-in-the-loop</strong> on a few real boards, nightly or before a release.</li>
+</ol>
+<p>Each stage should be a script that runs identically on a developer's laptop and on the CI server. If a test can only run in CI, people stop running it before they push.</p>
+<h2 id="what-still-needs-a-real-board">What still needs a real board</h2>
+<p>An emulator models behaviour, not physics, and its device models are simplified. Plan for these on hardware:</p>
+<ul>
+<li><strong>Timing.</strong> Emulators have no pipeline, cache or bus timing that matches silicon. Instruction counts are meaningful; microseconds are not.</li>
+<li><strong>Overruns and back-pressure.</strong> QEMU's UART, for example, holds host input back when its receive buffer is full, so bytes are delayed rather than lost. A real UART drops them.</li>
+<li><strong>Analog, power and RF.</strong> ADC noise, brown-outs, current draw, radio links.</li>
+<li><strong>Peripheral details and silicon errata.</strong> A model implements the documented behaviour; the real chip may differ, and the model may not implement every mode you use.</li>
+<li><strong>Electrical problems.</strong> Pull-ups, signal integrity, connectors, clock tolerance.</li>
+</ul>
+<p>A useful habit: whenever a bug is found on hardware, ask whether an emulator test could have caught it. If yes, add one. If not, write down why, which tells you what your hardware tests must cover.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install <code>qemu-system-misc</code> and <code>gcc-riscv64-unknown-elf</code>, build a minimal bare-metal program for the <code>virt</code> machine that prints one line and calls <code>test_finish(0)</code>, run it with the QEMU command from the script, and check <code>echo $?</code>.</li>
+<li>Write the script above for one of your own images, make the firmware call <code>test_finish(3)</code> on purpose, and check that the job fails with status 3.</li>
+<li>Add an infinite loop to the firmware and confirm the script reports a timeout rather than hanging.</li>
+<li>Install Renode, run one of its bundled demo scripts, then write a Robot test that waits for your firmware's start-up banner on the UART.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>continuous integration</li><li>qemu</li><li>renode</li><li>firmware testing</li><li>emulation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-a-microcontroller-datasheet.html"><span>Previous in Embedded systems</span>Reading a microcontroller datasheet and reference manual efficiently</a><a class="next" href="register-bit-manipulation-in-c.html"><span>Next in Embedded systems</span>Setting, clearing and testing register bits safely in C</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="unit-testing-firmware-on-the-host.html">Unit testing firmware on your laptop: separating logic from hardware</a></h3>
+          <p>Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="dma-double-buffering-for-adc.html">Moving ADC samples with DMA and double buffering</a></h3>
+          <p>Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

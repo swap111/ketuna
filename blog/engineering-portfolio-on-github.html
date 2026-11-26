@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building an engineering portfolio on GitHub that reviewers will read · Ketuna blog</title>
+  <meta name="description" content="A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Building an engineering portfolio on GitHub that reviewers will read · Ketuna blog">
+  <meta property="og:description" content="A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.">
+  <link rel="canonical" href="https://ketuna.online/blog/engineering-portfolio-on-github.html">
+  <meta property="og:url" content="https://ketuna.online/blog/engineering-portfolio-on-github.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building an engineering portfolio on GitHub that reviewers will read",
+  "description": "A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "portfolio, github, careers, projects",
+  "articleSection": "Careers & skills",
+  "wordCount": 868,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/engineering-portfolio-on-github.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Building an engineering portfolio on GitHub that reviewers will read</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-reviewer-actually-looks-at">What a reviewer actually looks at</a></li><li><a href="#fewer-finished-projects">Fewer, finished projects</a></li><li><a href="#evidence-over-claims">Evidence over claims</a></li><li><a href="#an-honest-note-on-what-you-did">An honest note on what you did</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When you list a GitHub link on an application, someone opens it, usually for a few minutes, between other tasks. In that time they want to answer one question: can this person build something real and show that it works? A profile with twenty half-started repositories answers that question badly. Three finished projects with evidence answer it well. This article is about choosing, finishing and presenting those few projects.</p>
+<h2 id="what-a-reviewer-actually-looks-at">What a reviewer actually looks at</h2>
+<p>Put yourself in the reviewer's chair. They open your profile and look at the pinned repositories first, because that is what the page shows at the top. They click one, read the top of the README, glance at the folder structure, maybe open one source file and one test. If something looks interesting, they check the commit history to see whether the work was done steadily or pasted in one go.</p>
+<p>So the reviewer judges:</p>
+<ul>
+<li><strong>Finish.</strong> Does the project do what its README says, end to end?</li>
+<li><strong>Evidence.</strong> Are there tests, results, waveforms, timing reports or measurements that show it works?</li>
+<li><strong>Clarity.</strong> Can they understand what it is in under two minutes?</li>
+<li><strong>Honesty.</strong> Is it clear what you built and what came from a tutorial, a template, a teammate or an AI tool?</li>
+<li><strong>Habits.</strong> Small, well-described commits, no build junk, code a colleague could maintain.</li>
+</ul>
+<p>Notice what is missing: the number of repositories, the green contribution squares and the list of languages. Volume is not evidence.</p>
+<h2 id="fewer-finished-projects">Fewer, finished projects</h2>
+<p>Pick two to four projects and finish them properly. "Finished" does not mean large. A synchronous FIFO with a scoreboard testbench, formal properties and a synthesis report is finished. A RISC-V core that boots halfway is not.</p>
+<p>A useful mix for a core electronics role:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Project type</th>
+<th>What it shows</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A design with verification</td>
+<td>You can build and prove a block</td>
+<td>FIFO or UART with self-checking tests and coverage</td>
+</tr>
+<tr>
+<td>A flow project</td>
+<td>You can take a design through tools</td>
+<td>Small block through Yosys and OpenROAD to a layout with clean DRC</td>
+</tr>
+<tr>
+<td>A firmware project</td>
+<td>You can work close to hardware</td>
+<td>Interrupt-driven driver tested on QEMU or Renode</td>
+</tr>
+<tr>
+<td>A tool or script</td>
+<td>You can automate</td>
+<td>Python parser that summarises a regression log</td>
+</tr>
+</tbody>
+</table></div>
+<p>Choose projects that point at the role you want. A physical design applicant gains more from one clean layout with a timing report than from a web app.</p>
+<p>Archive or make private the experiments you will not finish. Unpinned repositories still exist, but a tidy profile tells the reviewer where to look.</p>
+<h2 id="evidence-over-claims">Evidence over claims</h2>
+<p>A README that says "fully verified" is a claim. A test log that says 2,000 random transactions passed on 10 seeds with every FIFO state reached is evidence. Wherever you can, replace an adjective with something the reviewer can check:</p>
+<ul>
+<li>a <code>make test</code> (or similar) command that runs the tests, and the output it prints</li>
+<li>a coverage summary, a synthesis cell count or a timing slack, with the tool and settings named</li>
+<li>a waveform image of one normal transaction, labelled</li>
+<li>continuous integration that runs the tests on every push, so the badge or the run history shows they still pass</li>
+</ul>
+<p>Also show the limits. "Not tested with back-to-back reads across a clock-domain crossing" is a sign of maturity, not weakness. Reviewers trust a project more when it says where it stops.</p>
+<h2 id="an-honest-note-on-what-you-did">An honest note on what you did</h2>
+<p>Many portfolio projects start from a course lab, a template, a teammate's code or AI-generated drafts. That is normal and not a problem. Hiding it is. A reviewer who later finds that the clever part came from elsewhere will distrust everything else.</p>
+<p>Add a short section near the end of each README, for example:</p>
+<pre><code class="language-text">## What I did
+- Wrote the RTL for the FIFO and the scoreboard testbench
+- Started from the course Makefile; added the coverage target
+- Used an AI assistant to draft the cocotb test skeleton; reviewed
+  and rewrote the checker (see AI_LOG.md)
+- The UART receiver in rtl/uart_rx.v is from a classmate, with credit
+</code></pre>
+<p>This section protects you in interviews too. When someone asks "walk me through your scoreboard", you are talking about work you actually did, and you can go as deep as they like.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Forked repositories pinned as your own work.</strong> A fork with no commits of yours shows nothing. Pin only what you changed meaningfully.</li>
+<li><strong>Build outputs committed.</strong> Waveform dumps, simulation folders and layout run directories bloat the repository and hide the source. Use a <code>.gitignore</code>.</li>
+<li><strong>One giant commit.</strong> "Initial commit" with 4,000 lines looks pasted. Commit as you work, with messages that explain why.</li>
+<li><strong>Broken instructions.</strong> If the run command fails on a clean clone, the reviewer stops there. Test it.</li>
+<li><strong>Coursework copied word for word.</strong> If many students submit the same lab, yours does not stand out. Extend it: add a feature, a formal proof or a better test.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick your best two projects. Clone each one into a fresh folder and follow your own README exactly. Fix everything that breaks.</li>
+<li>Add one piece of checkable evidence to each: a test command with its output, a coverage summary or a timing report, with the tool named (Icarus Verilog, Verilator, cocotb, Yosys or OpenSTA).</li>
+<li>Add a "What I did" section with honest credit, and a <code>.gitignore</code> that keeps build outputs out.</li>
+<li>Ask a classmate to open your profile cold and tell you, after two minutes, what you built and how you showed it works. If their answer is vague, your top README needs work.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>portfolio</li><li>github</li><li>careers</li><li>projects</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="resume-for-core-electronics-roles.html"><span>Previous in Careers &amp; skills</span>A resume for core electronics roles: projects over adjectives</a><a class="next" href="your-own-12-week-learning-plan.html"><span>Next in Careers &amp; skills</span>Building your own 12-week learning plan for VLSI or embedded</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="chip-design-career-paths.html">Career paths in chip design: what each role does day to day</a></h3>
+          <p>Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="embedded-career-paths.html">Career paths in embedded systems: firmware, drivers, board support and test</a></h3>
+          <p>What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

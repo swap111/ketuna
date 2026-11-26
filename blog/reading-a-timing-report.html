@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to read a static timing report line by line · Ketuna blog</title>
+  <meta name="description" content="A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How to read a static timing report line by line · Ketuna blog">
+  <meta property="og:description" content="A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-a-timing-report.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-a-timing-report.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How to read a static timing report line by line",
+  "description": "A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "static timing analysis, opensta, slack, timing report, setup",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 836,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-a-timing-report.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>How to read a static timing report line by line</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A timing report is two sums, one for when data arrives and one for when it is needed. Walk through a setup path line by line and learn what launch, capture, arrival, required time and slack mean.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-header-names-the-race">The header names the race</a></li><li><a href="#the-arrival-section-when-the-data-gets-there">The arrival section: when the data gets there</a></li><li><a href="#the-required-section-when-the-data-is-needed">The required section: when the data is needed</a></li><li><a href="#slack-is-the-gap-between-the-two">Slack is the gap between the two</a></li><li><a href="#questions-to-ask-of-every-failing-path">Questions to ask of every failing path</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A static timing report looks like a column of small numbers with cryptic pin names beside them. Most beginners jump straight to the last line, see "slack (MET)" or "slack (VIOLATED)", and stop. That last line is the answer, but the lines above it are the working, and when a path fails you need the working to know what to change. This article walks through one report from top to bottom.</p>
+<h2 id="the-header-names-the-race">The header names the race</h2>
+<p>Every path report starts by saying which race it describes:</p>
+<pre><code class="language-text">Startpoint: a_q[0] (rising edge-triggered flip-flop clocked by clk)
+Endpoint: sum_q[8] (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+</code></pre>
+<ul>
+<li><strong>Startpoint</strong> is where the data is launched, usually a flip-flop's clock pin or an input port.</li>
+<li><strong>Endpoint</strong> is where it is captured, usually a flip-flop's data pin or an output port.</li>
+<li><strong>Path Type: max</strong> means a setup check: the tool used the <em>longest</em> delays because it wants to know whether data can be too late. A <strong>min</strong> path is a hold check, built from the shortest delays, asking whether data can be too early.</li>
+</ul>
+<p>Both flops here are clocked by <code>clk</code> on the rising edge, so the capture edge is one full period after the launch edge.</p>
+<h2 id="the-arrival-section-when-the-data-gets-there">The arrival section: when the data gets there</h2>
+<p>Here is an illustrative report in the format OpenSTA prints, for a 4.0 ns clock. The numbers are made up for illustration.</p>
+<pre><code class="language-text">  Delay    Time   Description
+-------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.45    0.45   clock network delay (propagated)
+   0.00    0.45 ^ a_q_reg_0_/CLK (dfrtp_1)
+   0.38    0.83 ^ a_q_reg_0_/Q (dfrtp_1)
+   0.21    1.04 v _201_/Y (nand2_1)
+   0.35    1.39 ^ _214_/Y (a21oi_1)
+   0.52    1.91 ^ _230_/X (maj3_1)
+   0.44    2.35 ^ _236_/X (maj3_1)
+   0.30    2.65 v _241_/Y (xnor2_1)
+   0.18    2.83 v _250_/X (buf_2)
+   0.27    3.10 v sum_q_reg_8_/D (dfrtp_1)
+           3.10   data arrival time
+</code></pre>
+<p>Read it as a stopwatch. The <strong>Delay</strong> column is the time added by each line; the <strong>Time</strong> column is the running total.</p>
+<ol>
+<li>At time 0 the ideal clock edge happens at the clock source.</li>
+<li>It takes 0.45 ns to travel through the clock tree to the launch flop. This is the <strong>launch clock latency</strong>.</li>
+<li>The flop's clock-to-Q delay adds 0.38 ns. The new value appears on <code>Q</code> at 0.83 ns.</li>
+<li>Each gate adds its delay. The <code>^</code> and <code>v</code> marks show whether that pin is rising or falling; the tool tracks both because a cell's rise and fall delays differ.</li>
+<li>The data reaches the capture flop's <code>D</code> pin at 3.10 ns. That is the <strong>data arrival time</strong>.</li>
+</ol>
+<p>The delay on each line includes both the cell and the wire driving the next pin. In a report from after routing, wire delay can be a large part; before placement, it is only an estimate.</p>
+<h2 id="the-required-section-when-the-data-is-needed">The required section: when the data is needed</h2>
+<pre><code class="language-text">   4.00    4.00   clock clk (rise edge)
+   0.48    4.48   clock network delay (propagated)
+  -0.25    4.23   clock uncertainty
+   0.00    4.23   clock reconvergence pessimism
+           4.23 ^ sum_q_reg_8_/CLK (dfrtp_1)
+  -0.12    4.11   library setup time
+           4.11   data required time
+</code></pre>
+<p>This is the other runner. The next rising edge happens at 4.00 ns, one period later. It reaches the capture flop 0.48 ns later through its own branch of the clock tree (<strong>capture clock latency</strong>). Then two deductions:</p>
+<ul>
+<li><strong>Clock uncertainty</strong>, set in your constraints, is a margin for jitter and anything not modelled. Here 0.25 ns is taken away.</li>
+<li><strong>Library setup time</strong> of the capture flop, 0.12 ns, comes from the cell library. The data must be there this long before the edge.</li>
+</ul>
+<p>The result, 4.11 ns, is the <strong>data required time</strong>: the latest moment the data may arrive.</p>
+<h2 id="slack-is-the-gap-between-the-two">Slack is the gap between the two</h2>
+<pre><code class="language-text">           4.11   data required time
+          -3.10   data arrival time
+-------------------------------------------------------
+           1.01   slack (MET)
+</code></pre>
+<p>For a setup check, slack = required − arrival. Positive slack means the data arrived with time to spare; negative slack means it was late. Here we have 1.01 ns of margin.</p>
+<p>Slack tells you more than pass or fail:</p>
+<ul>
+<li><strong>How much margin you have.</strong> A path with 1.01 ns of slack at 4.0 ns could tolerate the period shrinking by about that much, all else equal. Remove the 1.01 ns and the period would be 2.99 ns.</li>
+<li><strong>Where to look when it is negative.</strong> A path with −0.05 ns slack is a small fix: resize a cell, shorten a wire. A path with −1.5 ns needs a change in architecture or RTL.</li>
+<li><strong>That the clock tree helps or hurts.</strong> The capture latency (0.48) is larger than the launch latency (0.45), so the 0.03 ns of skew gave this setup path a little extra time. The same skew would make a hold check on these flops harder.</li>
+</ul>
+<p>For a hold report the subtraction flips: slack = arrival − required, because data must arrive <em>after</em> the hold requirement, and the capture edge is the same edge as the launch.</p>
+<h2 id="questions-to-ask-of-every-failing-path">Questions to ask of every failing path</h2>
+<ul>
+<li>Is most of the delay in cells or in wires? Many small cell delays mean deep logic; one big jump on a single line usually means a long wire or a weak driver with a heavy load.</li>
+<li>Is the clock latency very different between launch and capture? Large skew may be a clock tree problem rather than a logic problem.</li>
+<li>Is this even a real path? A path between two unrelated clocks, or through a configuration register that never changes during operation, may need a constraint rather than a fix.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Synthesise a small registered adder with <strong>Yosys</strong> against a sky130 standard-cell library.</li>
+<li>In <strong>OpenSTA</strong>, run <code>read_liberty</code>, <code>read_verilog</code>, <code>link_design</code>, then <code>create_clock -period 4 [get_ports clk]</code>.</li>
+<li>Run <code>report_checks -path_delay max -fields {slew cap}</code> and match every line to the sections above. Then run <code>report_checks -path_delay min</code> for the hold view.</li>
+<li>Before running, add up the cell delays you expect by hand. Compare, and explain any difference.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>static timing analysis</li><li>opensta</li><li>slack</li><li>timing report</li><li>setup</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="librelane-first-run.html"><span>Previous in Physical design &amp; tape-out</span>Hardening your first block with LibreLane: a guided first run</a><a class="next" href="ir-drop-and-electromigration.html"><span>Next in Physical design &amp; tape-out</span>IR drop and electromigration in plain terms</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="signoff-corners-for-digital-timing.html">Which corners to sign off: process, voltage and temperature for digital timing</a></h3>
+          <p>Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="timing-closure-when-paths-will-not-close.html">Timing closure when the last few paths will not close</a></h3>
+          <p>When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-hold-violations-are-worse.html">Why hold violations are worse than setup violations, and how tools fix them</a></h3>
+          <p>A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

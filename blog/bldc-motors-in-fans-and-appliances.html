@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why BLDC motors are spreading in fans and appliances, and the chip inside · Ketuna blog</title>
+  <meta name="description" content="How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why BLDC motors are spreading in fans and appliances, and the chip inside · Ketuna blog">
+  <meta property="og:description" content="How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.">
+  <link rel="canonical" href="https://ketuna.online/blog/bldc-motors-in-fans-and-appliances.html">
+  <meta property="og:url" content="https://ketuna.online/blog/bldc-motors-in-fans-and-appliances.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why BLDC motors are spreading in fans and appliances, and the chip inside",
+  "description": "How a brushless DC motor uses electronic commutation instead of an induction motor's slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bldc, motor control, power electronics, energy efficiency, appliances",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1001,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/bldc-motors-in-fans-and-appliances.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Why BLDC motors are spreading in fans and appliances, and the chip inside</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#how-an-ordinary-fan-motor-works">How an ordinary fan motor works</a></li><li><a href="#how-a-bldc-motor-is-different">How a BLDC motor is different</a></li><li><a href="#a-worked-comparison">A worked comparison</a></li><li><a href="#what-the-controller-chip-does">What the controller chip does</a></li><li><a href="#pitfalls-in-bldc-controller-design">Pitfalls in BLDC controller design</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Ceiling fans run for many hours a day in many Indian homes, so even a modest saving per fan adds up. Fans, pumps, mixers, refrigerators and air-conditioners are increasingly moving from traditional induction motors to <strong>brushless DC</strong> (BLDC) motors. The motor itself is not complicated. What makes it work, and what makes it efficient, is the small electronic controller that switches current into its windings at exactly the right moments. This article explains why that saves energy and what the controller does.</p>
+<h2 id="how-an-ordinary-fan-motor-works">How an ordinary fan motor works</h2>
+<p>A conventional ceiling fan uses a single-phase <strong>induction motor</strong>. Mains current in the stator windings creates a rotating magnetic field, helped by a capacitor that shifts the phase of one winding. That field induces currents in the rotor, and the induced currents create the rotor's own magnetic field, which is dragged around by the stator field.</p>
+<p>Two features of this design waste energy:</p>
+<ul>
+<li><strong>The rotor needs induced current.</strong> To induce it, the rotor must turn slightly slower than the field, called <strong>slip</strong>. The induced current heats the rotor, and that heat is lost power.</li>
+<li><strong>Speed control is often lossy.</strong> Older regulators drop voltage across a resistor or reactor, wasting energy as heat, and an induction motor running slowly is less efficient than one at full speed.</li>
+</ul>
+<h2 id="how-a-bldc-motor-is-different">How a BLDC motor is different</h2>
+<p>A BLDC motor puts <strong>permanent magnets</strong> on the rotor. The rotor already has a magnetic field, so no current needs to be induced in it, and the rotor losses largely disappear. The stator usually has three sets of windings.</p>
+<p>But permanent magnets introduce a problem: the stator field must stay just ahead of the rotor's magnets to pull them around. A brushed DC motor does this mechanically with brushes and a commutator. A BLDC motor has no brushes, so the switching has to be done electronically. That is <strong>electronic commutation</strong>: a controller measures where the rotor is and switches current into the right windings at the right time.</p>
+<p>Because the controller is already there, speed control comes almost free. The controller varies the effective voltage by switching rapidly (pulse-width modulation, PWM) rather than burning off excess voltage, so the motor stays efficient across its speed range. The same controller can take commands from a remote, run timers and protect the motor.</p>
+<h2 id="a-worked-comparison">A worked comparison</h2>
+<p>The numbers below are made up for illustration, not measurements of any product. Suppose an induction fan draws 75 W at full speed and a BLDC fan delivering the same airflow draws 30 W. If each runs 10 hours a day for a year:</p>
+<blockquote>
+<p>Induction: 75 W × 10 h × 365 = 273.75 kWh</p>
+<p>BLDC: 30 W × 10 h × 365 = 109.5 kWh</p>
+<p>Saving: 164.25 kWh per fan per year</p>
+</blockquote>
+<p>The saving is larger at low speed settings, where the induction fan's regulator and its slip losses waste a larger fraction of the input. To see real figures, look at the power ratings and energy labels on actual products; energy-efficiency labelling programmes exist so that buyers can compare them. A BLDC fan costs more to buy because of the magnets and the electronics, so whether it pays back depends on how many hours it runs.</p>
+<h2 id="what-the-controller-chip-does">What the controller chip does</h2>
+<p>Inside a BLDC fan, a small board sits in the motor housing or canopy. Its main blocks are:</p>
+<ol>
+<li><strong>Power input stage:</strong> a rectifier and filter turn mains AC into a DC bus, with surge protection and often power factor correction</li>
+<li><strong>Three-phase inverter:</strong> six power transistors, two per phase, switch each winding to the high or low side of the DC bus</li>
+<li><strong>Gate drivers:</strong> circuits that switch the transistors quickly and safely, never turning both transistors of one phase on at once, which would short the DC bus</li>
+<li><strong>Rotor position sensing:</strong> either Hall-effect sensors, or <strong>sensorless</strong> sensing of the back-EMF, the voltage the spinning magnets induce in the winding that is not being driven at that moment</li>
+<li><strong>Control logic:</strong> a microcontroller or dedicated motor-control chip that decides which transistors to switch, sets PWM duty for speed, handles start-up and runs protection</li>
+<li><strong>Auxiliary functions:</strong> the remote-control receiver, timers, low-voltage supply</li>
+</ol>
+<p>The simplest commutation scheme is <strong>six-step</strong> (trapezoidal): at any time, one winding is driven high, one low and one floats, and the pattern advances through six steps per electrical revolution. The controller watches the floating winding's back-EMF cross zero, waits a short delay and moves to the next step. Smoother, quieter schemes such as <strong>field-oriented control</strong> drive sinusoidal currents into all three windings, at the cost of more computation.</p>
+<p>Start-up is the tricky part of sensorless control: at standstill there is no back-EMF to measure. Controllers start by driving a fixed sequence open-loop, accelerating the rotor until back-EMF is strong enough to lock onto, and must detect a stalled or blocked rotor to avoid overheating.</p>
+<p>Because six-step control is a small state machine with timers, comparators and PWM, it is a natural fit for a dedicated mixed-signal chip that combines the gate drivers, comparators, an ADC and simple digital logic, which reduces cost and part count.</p>
+<h2 id="pitfalls-in-bldc-controller-design">Pitfalls in BLDC controller design</h2>
+<ul>
+<li><strong>Shoot-through:</strong> both transistors of a leg on at once; prevent it with dead time in hardware, not only in software</li>
+<li><strong>Surges on the mains:</strong> the DC bus capacitor and inverter need protection on unstable supplies</li>
+<li><strong>Noisy back-EMF sensing:</strong> PWM switching couples into the measurement; sample at the right moment in the PWM cycle</li>
+<li><strong>Audible noise:</strong> commutation steps and PWM frequency in the audible range make fans hum</li>
+</ul>
+<p>Mains-powered motor drives are dangerous. Work on them only with an isolated supply and qualified supervision.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Redo the worked comparison with power ratings from the labels of two real fans and your own hours of use.</li>
+<li>Write the six-step commutation table, which transistors are on in each step, and simulate it as a Verilog state machine with <strong>Icarus Verilog</strong>.</li>
+<li>Model one inverter leg with dead time in <strong>ngspice</strong>, and see what happens to the supply current when you remove the dead time.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bldc</li><li>motor control</li><li>power electronics</li><li>energy efficiency</li><li>appliances</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="inside-an-assembly-and-test-facility.html"><span>Previous in India&#x27;s electronics ecosystem</span>What happens in an assembly and test facility: from wafer to packaged, tested part</a><a class="next" href="why-low-cost-water-quality-sensing-is-hard.html"><span>Next in India&#x27;s electronics ecosystem</span>Why low-cost water quality sensing matters, and what makes it hard</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="electronics-in-e-rickshaw-batteries.html">The electronics inside e-rickshaw battery systems, and where a BMS chip fits</a></h3>
+          <p>How a small traction battery pack is built from cells, and how its battery management system measures, protects, balances and reports, with a worked balancing calculation and what a dedicated chip could integrate.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

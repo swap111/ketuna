@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model-based systems engineering without the jargon · Ketuna blog</title>
+  <meta name="description" content="Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Model-based systems engineering without the jargon · Ketuna blog">
+  <meta property="og:description" content="Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.">
+  <link rel="canonical" href="https://ketuna.online/blog/mbse-without-the-jargon.html">
+  <meta property="og:url" content="https://ketuna.online/blog/mbse-without-the-jargon.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Model-based systems engineering without the jargon",
+  "description": "Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "mbse, systems engineering, architecture, sysml, modelling",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 913,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/mbse-without-the-jargon.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Model-based systems engineering without the jargon</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#documents-versus-a-model">Documents versus a model</a></li><li><a href="#four-questions-the-model-answers">Four questions the model answers</a></li><li><a href="#why-functions-come-before-parts">Why functions come before parts</a></li><li><a href="#interfaces-are-part-of-the-model">Interfaces are part of the model</a></li><li><a href="#you-can-start-without-a-big-tool">You can start without a big tool</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a typical small project the description of the system lives in many places: a requirements spreadsheet, a block diagram in a slide deck, a pin list in another spreadsheet, and a few decisions in someone's email. Each was correct on the day it was written. Three months later they disagree, and nobody knows which one is right. Model-based systems engineering (MBSE) is a name for a simple remedy: keep one connected description, the model, and treat documents and diagrams as views generated from it.</p>
+<h2 id="documents-versus-a-model">Documents versus a model</h2>
+<p>A document is a picture of the system frozen at one moment. If the radio changes from one interface to another, you have to find every document that mentions it and edit each by hand. Miss one and the team now has two truths.</p>
+<p>A model stores each fact once, as an element with properties and links. "The radio module" is a single element. The block diagram, the interface table and the power budget all <em>refer</em> to that element. Change its interface once and every view that shows it changes too. That is the whole idea. The jargon around MBSE (languages, methods, tools) is about how to store and draw such a model, not about a different way of thinking.</p>
+<h2 id="four-questions-the-model-answers">Four questions the model answers</h2>
+<p>Most MBSE methods describe a system from several angles, called views. You can think of them as four questions, asked in order:</p>
+<ol>
+<li><strong>Operational:</strong> what do the people around the system do with it? A farmer checks soil moisture on a phone each morning.</li>
+<li><strong>Functional:</strong> what must the system do, independent of parts? Sense moisture, filter the reading, package it, transmit it.</li>
+<li><strong>Logical:</strong> what abstract building blocks perform those functions? A sensor interface, a processing block, a radio link.</li>
+<li><strong>Physical:</strong> what real things implement the blocks? A probe and an ADC, a microcontroller, a radio module, an antenna.</li>
+</ol>
+<p>The valuable part is the links between the layers, called allocations: "filter the reading" is allocated to the processing block, which is realised by the microcontroller firmware. With those links in place, you can ask the model questions that are tedious to answer from documents, such as "which physical parts are involved in sending a reading?"</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 270" role="img" aria-labelledby="mb-title mb-desc" font-size="14">
+<title id="mb-title">Four views of a soil sensor linked by allocations</title>
+<desc id="mb-desc">Four horizontal rows labelled operational, functional, logical and physical. The operational row has one box for the farmer reading moisture. The functional row has sense, filter, package and transmit. The logical row has sensor interface, processing and radio link. The physical row has probe plus ADC, microcontroller and radio module. Dashed lines connect each function to the logical block it is allocated to, and each logical block to the physical part that realises it.</desc>
+<text x="8" y="30" class="dg-muted">operational</text>
+<rect x="150" y="12" width="200" height="30" rx="4" class="dg-box"/>
+<text x="250" y="32" text-anchor="middle" class="dg-text">farmer reads moisture</text>
+<text x="8" y="100" class="dg-muted">functional</text>
+<rect x="100" y="82" width="80" height="30" rx="4" class="dg-core"/>
+<text x="140" y="102" text-anchor="middle" class="dg-text">sense</text>
+<rect x="190" y="82" width="80" height="30" rx="4" class="dg-core"/>
+<text x="230" y="102" text-anchor="middle" class="dg-text">filter</text>
+<rect x="280" y="82" width="80" height="30" rx="4" class="dg-core"/>
+<text x="320" y="102" text-anchor="middle" class="dg-text">package</text>
+<rect x="370" y="82" width="90" height="30" rx="4" class="dg-core"/>
+<text x="415" y="102" text-anchor="middle" class="dg-text">transmit</text>
+<line x1="250" y1="42" x2="140" y2="82" class="dg-line"/>
+<text x="8" y="170" class="dg-muted">logical</text>
+<rect x="100" y="152" width="110" height="30" rx="4" class="dg-box"/>
+<text x="155" y="172" text-anchor="middle" class="dg-text">sensor i/f</text>
+<rect x="225" y="152" width="110" height="30" rx="4" class="dg-box"/>
+<text x="280" y="172" text-anchor="middle" class="dg-text">processing</text>
+<rect x="350" y="152" width="110" height="30" rx="4" class="dg-box"/>
+<text x="405" y="172" text-anchor="middle" class="dg-text">radio link</text>
+<line x1="140" y1="112" x2="155" y2="152" class="dg-dash"/>
+<line x1="230" y1="112" x2="270" y2="152" class="dg-dash"/>
+<line x1="320" y1="112" x2="290" y2="152" class="dg-dash"/>
+<line x1="415" y1="112" x2="405" y2="152" class="dg-dash"/>
+<text x="8" y="240" class="dg-muted">physical</text>
+<rect x="100" y="222" width="110" height="30" rx="4" class="dg-track"/>
+<text x="155" y="242" text-anchor="middle" class="dg-text">probe + ADC</text>
+<rect x="225" y="222" width="110" height="30" rx="4" class="dg-track"/>
+<text x="280" y="242" text-anchor="middle" class="dg-text">MCU firmware</text>
+<rect x="350" y="222" width="110" height="30" rx="4" class="dg-track"/>
+<text x="405" y="242" text-anchor="middle" class="dg-text">radio module</text>
+<line x1="155" y1="182" x2="155" y2="222" class="dg-dash"/>
+<line x1="280" y1="182" x2="280" y2="222" class="dg-dash"/>
+<line x1="405" y1="182" x2="405" y2="222" class="dg-dash"/>
+</svg>
+<figcaption>The same system asked four questions; the dashed allocation links are what a model keeps consistent and a pile of documents does not.</figcaption>
+</figure>
+
+<h2 id="why-functions-come-before-parts">Why functions come before parts</h2>
+<p>Beginners often start at the physical row: "we will use this microcontroller and that radio". It feels productive, but it quietly fixes the design before anyone has listed what the system must do. Starting from functions has two benefits. First, it exposes forgotten functions, such as "report low battery" or "recover after a brown-out", while they are still cheap to add. Second, it keeps alternatives open: "filter the reading" could live in firmware or in a small hardware block, and a trade study can decide which, with the function's requirements in hand.</p>
+<h2 id="interfaces-are-part-of-the-model">Interfaces are part of the model</h2>
+<p>Every arrow between blocks is an interface, and most integration problems happen at interfaces. In a model, an interface is an element in its own right, with properties: the signals, the protocol, voltage levels, timing, units and the team that owns it. When the sensor interface is described as "SPI, mode 0, up to 1 MHz, 3.3 V, 16-bit reading in units of 0.1 % volumetric moisture, owned by the hardware team", the firmware engineer can write the driver without waiting for the board, and a mismatch is caught at review rather than at bring-up.</p>
+<h2 id="you-can-start-without-a-big-tool">You can start without a big tool</h2>
+<p>MBSE has standard languages and tools. SysML is a widely used open modelling language for systems, and Eclipse Capella is an open-source modelling tool built around a method called Arcadia. These are worth learning, and on large programs they earn their keep. But the habit matters more than the tool. On a student project you can get most of the benefit with plain text:</p>
+<ul>
+<li>a CSV of functions, each with an ID and the logical block it is allocated to</li>
+<li>a CSV of blocks, each with the physical part that realises it</li>
+<li>a CSV of interfaces, each with endpoints, signals, units and owner</li>
+<li>a short Python script that checks every function is allocated, every interface has an owner, and draws the diagram from the data</li>
+</ul>
+<p>Because the diagram is generated from the tables, it cannot drift away from them. That is the model-based idea in its smallest form.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Drawing pictures and calling them a model.</strong> If changing a block means editing three diagrams by hand, it is still a set of documents.</li>
+<li><strong>Boxes without interface definitions.</strong> An arrow labelled "data" hides every question that will matter at integration.</li>
+<li><strong>Modelling everything.</strong> Model what the team needs to reason about; a model nobody reads is overhead.</li>
+<li><strong>Letting documents and the model diverge.</strong> Generate documents from the model, or the team will stop trusting either.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>For a device you know, such as a digital thermometer, write the four rows: one operational scenario, four or five functions, three logical blocks and the physical parts.</li>
+<li>Put the functions, blocks and allocations into CSV files and write a Python script that reports any function without an allocation.</li>
+<li>Install Eclipse Capella, which is free and open source, and redraw the same system with its functional and physical views. Compare how a change propagates in the tool with how it propagates in your CSV files.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>mbse</li><li>systems engineering</li><li>architecture</li><li>sysml</li><li>modelling</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="latency-budgets.html"><span>Previous in Systems &amp; product engineering</span>Latency budgets: splitting end-to-end response time across subsystems</a><a class="next" href="production-test-strategy.html"><span>Next in Systems &amp; product engineering</span>Production test strategy: what to test on every unit and what to sample</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-trade-study.html">Running a trade study: criteria, weights and honest scoring</a></h3>
+          <p>A weighted trade study picks between architectures with criteria and weights agreed before scoring, a sensitivity check on the weights, and a written rationale that says what would change the answer.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interface-control-documents.html">Interface control documents: agreeing on the boundary before building</a></h3>
+          <p>An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

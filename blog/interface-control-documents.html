@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interface control documents: agreeing on the boundary before building · Ketuna blog</title>
+  <meta name="description" content="An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Interface control documents: agreeing on the boundary before building · Ketuna blog">
+  <meta property="og:description" content="An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.">
+  <link rel="canonical" href="https://ketuna.online/blog/interface-control-documents.html">
+  <meta property="og:url" content="https://ketuna.online/blog/interface-control-documents.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Interface control documents: agreeing on the boundary before building",
+  "description": "An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "interfaces, icd, systems engineering, integration, documentation",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 919,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/interface-control-documents.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Interface control documents: agreeing on the boundary before building</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-an-icd-is-for">What an ICD is for</a></li><li><a href="#what-goes-in-it">What goes in it</a></li><li><a href="#make-the-icd-executable-where-you-can">Make the ICD executable where you can</a></li><li><a href="#ownership-and-change-control">Ownership and change control</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Integration is where projects discover that two teams understood the same arrow on a block diagram differently. One side sent 16-bit readings in millivolts, the other expected tenths of a degree; one side's connector numbered pins clockwise, the other's anticlockwise; one side assumed the sensor was ready 10 ms after power-up, the other found it needed 100. An interface control document (ICD) prevents this by turning the arrow into an agreement, written and owned, before either side builds its half.</p>
+<h2 id="what-an-icd-is-for">What an ICD is for</h2>
+<p>An ICD describes one boundary between two parts of a system: two boards, a board and a cable harness, firmware and an FPGA, a device and a phone app. It has three jobs:</p>
+<ul>
+<li><strong>Let teams work in parallel.</strong> The firmware engineer can write and test a driver against the ICD while the board is still being laid out.</li>
+<li><strong>Make integration a check, not a discovery.</strong> Each side verifies its half against the ICD; joining them then confirms what is already expected.</li>
+<li><strong>Control change.</strong> A boundary that changes silently breaks the other side. The ICD has an owner and a change process, so changes are proposed, reviewed and agreed.</li>
+</ul>
+<p>An ICD is not a design document for either side. It says what crosses the boundary and how, not how each side achieves it.</p>
+<h2 id="what-goes-in-it">What goes in it</h2>
+<p>The running example is a small sensor head connected by a 1 m cable to a main controller board. Each is designed by a different team. A useful ICD covers these areas, and the values below are made up for illustration.</p>
+<p><strong>Identification and ownership.</strong> Which two items, the document version, the owner (one person, usually from the systems role, not either side), and the approvers from each team.</p>
+<p><strong>Mechanical and connector.</strong> Connector part on each side, mating part, keying, cable length and type, and the pinout, written from one agreed viewpoint:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pin</th>
+<th>Signal</th>
+<th>Direction (head view)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>VSUP</td>
+<td>in</td>
+<td>3.3 V ± 5 %, 20 mA max</td>
+</tr>
+<tr>
+<td>2</td>
+<td>GND</td>
+<td>—</td>
+<td>Return for VSUP and signals</td>
+</tr>
+<tr>
+<td>3</td>
+<td>SDA</td>
+<td>bidirectional</td>
+<td>I2C data, pull-up on controller</td>
+</tr>
+<tr>
+<td>4</td>
+<td>SCL</td>
+<td>in</td>
+<td>I2C clock, pull-up on controller</td>
+</tr>
+<tr>
+<td>5</td>
+<td>INT_N</td>
+<td>out</td>
+<td>Open drain, active low, pull-up on controller</td>
+</tr>
+<tr>
+<td>6</td>
+<td>GND</td>
+<td>—</td>
+<td>Second ground, beside SCL</td>
+</tr>
+</tbody>
+</table></div>
+<p>State whose view the pin numbers use, as seen looking into the connector on the head, for example. Mirror-image errors are among the most common integration faults.</p>
+<p><strong>Electrical.</strong> Voltage levels, input thresholds, maximum current, which side provides pull-ups and what value, ESD protection responsibility, and what happens if the cable is hot-plugged.</p>
+<p><strong>Protocol and data.</strong> Bus type and speed (I2C at up to 100 kHz over the 1 m cable), the device address, the register map, byte order, and units and scaling of every value: "TEMP register, signed 16-bit, two's complement, units of 0.01 °C".</p>
+<p><strong>Timing.</strong> Power-up sequence ("head ready for I2C 50 ms after VSUP reaches 3.0 V"), sample rate, maximum latency from a measurement to INT_N asserting, and timeouts.</p>
+<p><strong>Behaviour on errors.</strong> What the head does on a bus error, what the controller does if INT_N is stuck low or the head stops responding, and how a fault is reported.</p>
+<p><strong>Verification.</strong> How each side proves compliance: a test harness that emulates the other side, a loopback test, measurements at the connector.</p>
+<h2 id="make-the-icd-executable-where-you-can">Make the ICD executable where you can</h2>
+<p>Text that people re-type into code is a source of errors. Where possible, generate or share artefacts directly from the ICD so both sides use the same definitions. For a register map, a single header both teams include is a good start:</p>
+<pre><code class="language-c">/* sensor_head_icd.h -- generated from ICD-SH-01 rev C. Do not edit. */
+#ifndef SENSOR_HEAD_ICD_H
+#define SENSOR_HEAD_ICD_H
+
+#define SH_I2C_ADDR         0x48u   /* 7-bit address */
+#define SH_READY_MS         50u     /* after VSUP &gt;= 3.0 V */
+
+#define SH_REG_ID           0x00u   /* read-only, reads 0xA5 */
+#define SH_REG_STATUS       0x01u   /* bit0 DATA_RDY, bit1 FAULT */
+#define SH_REG_TEMP_H       0x02u   /* signed 16-bit, 0.01 degC/LSB */
+#define SH_REG_TEMP_L       0x03u
+#define SH_REG_CTRL         0x10u   /* bit0 START, bits3:1 RATE */
+
+#define SH_ID_VALUE         0xA5u
+#define SH_TEMP_LSB_mC      10      /* 0.01 degC = 10 milli-degC */
+
+#endif
+</code></pre>
+<p>The head's firmware or RTL implements these registers; the controller's driver reads them. A script can also generate the register table in the ICD and a test that reads every register and checks its reset value, so the document, the code and the test cannot drift apart.</p>
+<h2 id="ownership-and-change-control">Ownership and change control</h2>
+<p>The ICD needs one owner who is not on either side, because each side will naturally want the other to absorb changes. A workable process:</p>
+<ol>
+<li>A change request states what changes, why, and the impact on each side.</li>
+<li>Both sides review it and agree, or escalate to the project lead.</li>
+<li>The ICD revision increments, the change log records it, and generated artefacts are regenerated.</li>
+<li>Each side updates its implementation and reruns its compliance tests against the new revision.</li>
+</ol>
+<p>Version the ICD in the same repository as the code and design files, so the revision a board or firmware build was made against is always known.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Arrows labelled "data" on a block diagram, and nothing more.</strong> Every question that matters at integration is hidden.</li>
+<li><strong>Units and scaling left implicit.</strong> A value without units is a bug waiting for a meeting.</li>
+<li><strong>Pinouts without a stated viewpoint.</strong></li>
+<li><strong>No error behaviour.</strong> Teams test the happy path and discover the failure path in the field.</li>
+<li><strong>Changes agreed in a hallway.</strong> If it is not in the ICD revision, it did not happen.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a boundary in a project you know, such as a sensor module to a microcontroller, and write a one-page ICD covering pinout, electrical levels, protocol, units and timing.</li>
+<li>Write a small Python script that reads the register table from a CSV and generates both the C header above and a Markdown table for the document.</li>
+<li>Write a <strong>cocotb</strong> testbench or a C test that emulates one side of the interface and checks the other side against the ICD's timing and register values, and run it with <strong>Icarus Verilog</strong> or <strong>GCC</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>interfaces</li><li>icd</li><li>systems engineering</li><li>integration</li><li>documentation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="first-board-in-kicad.html"><span>Previous in Systems &amp; product engineering</span>From schematic to Gerbers: designing a first board in KiCad</a><a class="next" href="latency-budgets.html"><span>Next in Systems &amp; product engineering</span>Latency budgets: splitting end-to-end response time across subsystems</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="latency-budgets.html">Latency budgets: splitting end-to-end response time across subsystems</a></h3>
+          <p>A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="mbse-without-the-jargon.html">Model-based systems engineering without the jargon</a></h3>
+          <p>Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

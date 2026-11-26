@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why low-cost water quality sensing matters, and what makes it hard · Ketuna blog</title>
+  <meta name="description" content="Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why low-cost water quality sensing matters, and what makes it hard · Ketuna blog">
+  <meta property="og:description" content="Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.">
+  <link rel="canonical" href="https://ketuna.online/blog/why-low-cost-water-quality-sensing-is-hard.html">
+  <meta property="og:url" content="https://ketuna.online/blog/why-low-cost-water-quality-sensing-is-hard.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why low-cost water quality sensing matters, and what makes it hard",
+  "description": "Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "water quality, sensors, calibration, drift, environmental monitoring",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 873,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/why-low-cost-water-quality-sensing-is-hard.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Why low-cost water quality sensing matters, and what makes it hard</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-is-commonly-measured">What is commonly measured</a></li><li><a href="#the-electronics-are-the-easy-part">The electronics are the easy part</a></li><li><a href="#drift-fouling-and-why-readings-wander">Drift, fouling and why readings wander</a></li><li><a href="#a-simulation-of-drift-and-recalibration">A simulation of drift and recalibration</a></li><li><a href="#designing-for-calibration-and-maintenance">Designing for calibration and maintenance</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Clean water is a health issue, and knowing what is in the water is the first step to keeping it clean. Testing usually means taking a sample to a lab or using a test kit by hand, which gives an accurate picture of one moment at one place. Continuous, low-cost sensors could watch tanks, wells, pipelines and rivers all the time and raise an alarm when something changes. The electronics for this are not the hard part. The hard part is the sensor that sits in the water, because water slowly changes it. This article explains why.</p>
+<h2 id="what-is-commonly-measured">What is commonly measured</h2>
+<p>A few parameters are popular for continuous monitoring because electronic sensors exist for them:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>What it tells you</th>
+<th>Common sensing principle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pH</td>
+<td>Acidity or alkalinity</td>
+<td>Glass electrode producing a small voltage</td>
+</tr>
+<tr>
+<td>Conductivity or dissolved solids</td>
+<td>How much dissolved salt and mineral is present</td>
+<td>AC current between electrodes</td>
+</tr>
+<tr>
+<td>Turbidity</td>
+<td>Cloudiness from suspended particles</td>
+<td>Light scattered by the particles</td>
+</tr>
+<tr>
+<td>Residual chlorine</td>
+<td>Whether disinfection is still effective</td>
+<td>Electrochemical cell</td>
+</tr>
+<tr>
+<td>Dissolved oxygen</td>
+<td>Health of rivers and ponds</td>
+<td>Electrochemical or optical sensor</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>Needed to correct most other readings</td>
+<td>Thermistor or digital sensor</td>
+</tr>
+</tbody>
+</table></div>
+<p>Notice what is missing: most bacteria, many metals and many chemical contaminants cannot be measured reliably by a cheap continuous sensor. A low-cost node can tell you that something has changed, which is valuable, but it is not a replacement for laboratory testing against the national drinking water standard. Be clear about that in anything you build or claim.</p>
+<h2 id="the-electronics-are-the-easy-part">The electronics are the easy part</h2>
+<p>The readout circuits are well understood. A pH electrode produces roughly 59 mV per pH unit at 25 °C, from a source with very high internal resistance, so it needs an amplifier with extremely low input bias current and careful guarding on the board. A conductivity cell is driven with alternating current to avoid polarising the electrodes. A turbidity sensor needs an LED, a photodiode and a way to reject ambient light. Each is a solid but standard analog design exercise, and a microcontroller with a decent ADC handles the rest.</p>
+<p>What these circuits cannot fix is a sensor whose response has changed.</p>
+<h2 id="drift-fouling-and-why-readings-wander">Drift, fouling and why readings wander</h2>
+<p>Sensors in water change over time in several ways:</p>
+<ul>
+<li><strong>Drift:</strong> the sensor's offset and sensitivity change slowly as it ages. A pH electrode's reference junction gets contaminated, and its glass membrane responds more sluggishly.</li>
+<li><strong>Fouling:</strong> a film of bacteria and algae, called biofilm, grows on any surface in water, along with mineral scale and sediment. A fouled turbidity window reads cloudy when the water is clear; a fouled conductivity cell reads low.</li>
+<li><strong>Damage and exposure:</strong> electrodes dry out if a tank empties, membranes crack and cables are chewed by animals.</li>
+<li><strong>Temperature effects:</strong> almost every reading depends on temperature, which changes through the day.</li>
+</ul>
+<p>The insidious part is that a drifting sensor still produces smooth, plausible numbers. Nothing in the data looks broken. Only a comparison against a known reference reveals the error.</p>
+<h2 id="a-simulation-of-drift-and-recalibration">A simulation of drift and recalibration</h2>
+<p>The script below models a pH electrode whose offset and slope drift with age. All drift rates are made up for illustration. The water's true pH stays at 7.8. One estimate uses only the factory calibration; the other recalibrates with pH 4 and pH 7 buffer solutions every 14 days.</p>
+<pre><code class="language-python">import numpy as np
+
+days = np.arange(0, 61)
+offset = 0.5 * days                  # mV of offset drift per day, made up
+slope = -59.16 * (1 - 0.002 * days)  # mV/pH, ageing electrode, made up
+true_ph = 7.8                        # the water does not change
+
+mv = offset + slope * (true_ph - 7.0)          # electrode output
+naive = 7.0 + mv / -59.16                      # factory calibration only
+
+def calibrate(day):                  # two-point calibration with pH 4 and 7
+    m7 = offset[day]
+    m4 = offset[day] + slope[day] * (4.0 - 7.0)
+    return m7, (m7 - m4) / 3.0       # offset and slope seen that day
+
+recal = np.empty_like(naive)
+for d in days:
+    m7, s = calibrate(d - d % 14)    # recalibrate every 14 days
+    recal[d] = 7.0 + (mv[d] - m7) / s
+
+for d in (0, 13, 30, 60):
+    print(d, round(naive[d], 2), round(recal[d], 2))
+</code></pre>
+<p>The output, day by day:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Factory calibration only</th>
+<th>Recalibrated every 14 days</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>7.80</td>
+<td>7.80</td>
+</tr>
+<tr>
+<td>13</td>
+<td>7.67</td>
+<td>7.67</td>
+</tr>
+<tr>
+<td>30</td>
+<td>7.50</td>
+<td>7.78</td>
+</tr>
+<tr>
+<td>60</td>
+<td>7.20</td>
+<td>7.75</td>
+</tr>
+</tbody>
+</table></div>
+<p>Without recalibration the reading slides steadily away from the truth, and nothing in the data shows it. With periodic recalibration the error stays bounded, but only if someone actually visits with buffer solutions. That visit is the real cost of the system.</p>
+<h2 id="designing-for-calibration-and-maintenance">Designing for calibration and maintenance</h2>
+<p>Since maintenance cannot be avoided, the design should make it easy and make its absence visible:</p>
+<ul>
+<li><strong>Make sensors easy to reach and swap,</strong> with connectors rather than soldered cables, so a fouled probe can be replaced in the field</li>
+<li><strong>Measure temperature alongside everything</strong> and correct for it in firmware</li>
+<li><strong>Use redundancy and cross-checks,</strong> such as two sensors of the same kind, or physically linked parameters that should move together</li>
+<li><strong>Detect fouling</strong> where possible, for example by watching for slow, steady trends that real water rarely shows, or a slower sensor response</li>
+<li><strong>Reduce fouling</strong> with wipers, flow-through cells kept away from light, or measuring only when a sample is drawn</li>
+<li><strong>Record calibration history</strong> on the device, so every reading can be traced to the calibration that produced it</li>
+<li><strong>Report sensor age and time since calibration</strong> with the data, so users know how much to trust it</li>
+</ul>
+<p>These choices cost more than the electronics, and they decide whether the system is still telling the truth after three months.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script, then change the recalibration interval to 7 and 30 days and plot the error with <strong>matplotlib</strong>.</li>
+<li>Build a pH amplifier around a low-bias op-amp model in <strong>ngspice</strong>, include a source resistance in the hundreds of megaohms, and see how input bias current shifts the reading.</li>
+<li>Leave a cheap conductivity or turbidity probe in a bucket of tap water for two weeks, log its readings with a microcontroller, and photograph the probe at the end.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>water quality</li><li>sensors</li><li>calibration</li><li>drift</li><li>environmental monitoring</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="bldc-motors-in-fans-and-appliances.html"><span>Previous in India&#x27;s electronics ecosystem</span>Why BLDC motors are spreading in fans and appliances, and the chip inside</a><a class="next" href="why-design-ip-ownership-matters.html"><span>Next in India&#x27;s electronics ecosystem</span>Why owning design IP matters for an electronics ecosystem</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="electronics-for-farms.html">Electronics for farms: sensing, connectivity and power in rural deployments</a></h3>
+          <p>The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-field-pilot.html">Running a field pilot for sensing hardware: from a handful of prototypes to real users</a></h3>
+          <p>How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

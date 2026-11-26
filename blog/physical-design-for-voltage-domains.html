@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physical design for multiple voltage domains: level shifters, isolation and floorplan · Ketuna blog</title>
+  <meta name="description" content="An always-on domain plus a switchable one needs separate power grids, power switches, isolation and level-shifter cells at the right boundaries. How to floorplan and place them, with a switch-sizing calculation.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Physical design for multiple voltage domains: level shifters, isolation and floorplan · Ketuna blog">
+  <meta property="og:description" content="An always-on domain plus a switchable one needs separate power grids, power switches, isolation and level-shifter cells at the right boundaries. How to floorplan and place them, with a switch-sizing calculation.">
+  <link rel="canonical" href="https://ketuna.online/blog/physical-design-for-voltage-domains.html">
+  <meta property="og:url" content="https://ketuna.online/blog/physical-design-for-voltage-domains.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Physical design for multiple voltage domains: level shifters, isolation and floorplan",
+  "description": "An always-on domain plus a switchable one needs separate power grids, power switches, isolation and level-shifter cells at the right boundaries. How to floorplan and place them, with a switch-sizing calculation.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "low power, power gating, level shifters, isolation, upf",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 1025,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/physical-design-for-voltage-domains.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Physical design for multiple voltage domains: level shifters, isolation and floorplan</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An always-on domain plus a switchable one needs separate power grids, power switches, isolation and level-shifter cells at the right boundaries. How to floorplan and place them, with a switch-sizing calculation.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-intent-comes-first">The intent comes first</a></li><li><a href="#special-cells-and-where-they-go">Special cells and where they go</a></li><li><a href="#floorplanning-the-domains">Floorplanning the domains</a></li><li><a href="#sizing-the-switches">Sizing the switches</a></li><li><a href="#checks-that-single-domain-flows-skip">Checks that single-domain flows skip</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A design with a single supply has one power grid and every cell connects to it the same way. Add a second domain, for example an always-on controller that stays alive while a larger block is switched off, and the physical design changes in kind, not just degree. Cells now belong to regions, each region has its own grid, special cells must sit on the right side of each boundary, and some cells need two supplies. Getting this wrong produces failures that ordinary timing and DRC do not catch: outputs floating into live logic, signals crossing voltages without translation, or a domain that cannot wake up.</p>
+<h2 id="the-intent-comes-first">The intent comes first</h2>
+<p>Before any layout, the power intent is written down, usually in UPF (the IEEE 1801 standard): which instances belong to which domain, which supplies feed each domain, which domains can be switched off, and where isolation, level shifting and retention are required. Physical design tools read the same file, which keeps implementation consistent with what was verified in power-aware simulation.</p>
+<p>For the running example, assume two domains:</p>
+<ul>
+<li><strong>AON</strong> (always-on): a small controller, wake-up logic and the power-management state machine, on a supply that is never switched.</li>
+<li><strong>SW</strong> (switchable): a larger compute block whose supply is cut by power switches when idle. It might also run at a different voltage from AON.</li>
+</ul>
+<h2 id="special-cells-and-where-they-go">Special cells and where they go</h2>
+<p><strong>Power switches</strong> (header switches on VDD, or footer switches on ground) connect the global supply to the switchable domain's <em>virtual</em> supply. They are distributed through the SW region in rows or columns, controlled by an enable signal from AON. When off, the virtual rail floats down and the domain's leakage nearly disappears.</p>
+<p><strong>Isolation cells</strong> clamp the outputs of SW to a known value while SW is off, so that AON logic never sees a floating input (which can cause wrong behaviour and crowbar current in the receiving gate). An isolation cell must be powered by a supply that stays on when SW is off, so it is placed in AON, or in a region of SW fed by the always-on supply.</p>
+<p><strong>Level shifters</strong> translate signal levels when the two domains run at different voltages. They need both supplies: the input side from the source domain and the output side from the destination. They usually sit at the boundary, in the destination domain, and often combine with isolation in a single cell when a signal both leaves a switchable domain and changes voltage.</p>
+<p><strong>Retention flip-flops</strong> in SW keep a copy of selected state on an always-on supply during power-down, so the block can resume without reloading everything.</p>
+<p><strong>Always-on buffers</strong> carry signals that must stay alive across a switched region, for example the switch enables or a wake-up signal routed through SW. They have a secondary supply pin connected to the always-on rail.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="vd-title vd-desc" font-size="14">
+<title id="vd-title">Floorplan of an always-on and a switchable domain</title>
+<desc id="vd-desc">A core split into a small always-on region on the left and a larger switchable region on the right. Columns of power switches run through the switchable region. A strip of isolation and level-shifter cells lines the boundary on the always-on side. Signals cross the boundary through this strip.</desc>
+<rect x="10" y="20" width="460" height="220" fill="none" class="dg-line"/>
+<rect x="10" y="20" width="130" height="220" class="dg-track"/>
+<text x="75" y="125" text-anchor="middle" class="dg-text">AON</text>
+<text x="75" y="145" text-anchor="middle" class="dg-muted">controller</text>
+<rect x="140" y="20" width="22" height="220" class="dg-amber" fill-opacity="0.45"/>
+<text x="151" y="255" text-anchor="middle" class="dg-muted">iso / LS</text>
+<rect x="162" y="20" width="308" height="220" class="dg-box"/>
+<text x="320" y="125" text-anchor="middle" class="dg-text">SW domain</text>
+<text x="320" y="145" text-anchor="middle" class="dg-muted">virtual VDD</text>
+<rect x="210" y="30" width="10" height="200" class="dg-core"/>
+<rect x="290" y="30" width="10" height="70" class="dg-core"/>
+<rect x="290" y="160" width="10" height="70" class="dg-core"/>
+<rect x="420" y="30" width="10" height="200" class="dg-core"/>
+<text x="360" y="225" text-anchor="middle" class="dg-muted">switch columns</text>
+<line x1="250" y1="70" x2="168" y2="70" class="dg-line"/>
+<path d="M168,66 L162,70 L168,74 Z" class="dg-arrow"/>
+<line x1="110" y1="190" x2="250" y2="190" class="dg-dash"/>
+<path d="M250,186 L256,190 L250,194 Z" class="dg-arrow"/>
+<text x="250" y="62" class="dg-muted">outputs</text>
+<text x="60" y="183" class="dg-muted">enables</text>
+</svg>
+<figcaption>Switch columns run through the switchable region; signals leaving it pass through isolation and level-shifter cells on the always-on side of the boundary.</figcaption>
+</figure>
+
+<h2 id="floorplanning-the-domains">Floorplanning the domains</h2>
+<p><strong>Define each domain as a region</strong> (often called a voltage area or power domain region) with a fixed boundary. The placer keeps every cell of that domain inside it, and keeps other cells out.</p>
+<p><strong>Keep boundaries simple and short.</strong> Every signal crossing needs a special cell, and every special cell needs both supplies nearby. A rectangle shared along one edge is easiest. Group the crossings so that isolation and level-shifter cells form neat strips along the boundary instead of scattered islands.</p>
+<p><strong>Give each domain its own grid.</strong> AON gets a normal grid on its always-on supply. SW gets two: the global supply grid that feeds the switches, and the virtual grid on the switch outputs that feeds the domain's cells. Dual-supply cells (level shifters, retention flops, always-on buffers) need a route to their secondary pin, usually a dedicated strap or a secondary rail.</p>
+<p><strong>Leave a gap at boundaries.</strong> Wells at different voltages need spacing, and the rails of adjacent rows in different domains must not short. The PDK rules and the cell library dictate how much.</p>
+<h2 id="sizing-the-switches">Sizing the switches</h2>
+<p>The power switches add resistance in series with the domain's supply, so they create IR drop. A rough sizing, with illustrative numbers: the SW domain draws a peak of 20 mA, and you allow 18 mV of drop across the switch network.</p>
+<ul>
+<li>Allowed network resistance = 0.018 V / 0.020 A = 0.9 Ω.</li>
+<li>If one switch cell has an on-resistance of 100 Ω, you need 100 / 0.9 ≈ 111.1, so at least 112 switches in parallel, spread through the domain so that no area is far from a switch.</li>
+</ul>
+<p>Switch count also sets wake-up behaviour. Turning on all switches at once draws a large inrush current to charge the domain's capacitance, which can disturb the always-on supply. So switches are often chained: a weak set turns on first, then the enable ripples through the rest. The chain's delay is the domain's wake-up time, which the power controller must respect.</p>
+<h2 id="checks-that-single-domain-flows-skip">Checks that single-domain flows skip</h2>
+<ul>
+<li><strong>Power-aware LVS and connectivity:</strong> every cell's supply pins connect to the right net, including secondary pins.</li>
+<li><strong>Isolation and level-shifter coverage:</strong> every crossing that the intent requires has the right cell, on the right side.</li>
+<li><strong>Always-on paths:</strong> signals routed through SW that must stay alive use always-on buffers, not ordinary ones.</li>
+<li><strong>Multi-voltage timing:</strong> each domain is analysed at its own voltage corners, and level shifter delays are included.</li>
+<li><strong>IR drop through the switches</strong> at peak current, and inrush at wake-up.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small design with an AON counter and a SW block, and describe the domains in a short UPF file by hand: domains, supplies, a switch and isolation on SW outputs.</li>
+<li>Simulate the isolation behaviour in <strong>Icarus Verilog</strong> by modelling the clamp explicitly: force SW outputs to X when "off" and check that AON sees only clamped values.</li>
+<li>Look up how <strong>OpenROAD</strong> defines placement regions and voltage domains in its documentation, constrain the two parts of the design to two regions, and observe how placement respects them. Open-flow support for full multi-supply implementation is still limited, so treat this as a placement experiment.</li>
+<li>Repeat the switch-sizing calculation for your own current and drop budget in <strong>Python</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>low power</li><li>power gating</li><li>level shifters</li><li>isolation</li><li>upf</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="extraction-and-signoff-timing.html"><span>Previous in Physical design &amp; tape-out</span>Parasitic extraction and sign-off timing: why post-route numbers change</a><a class="next" href="placement-and-congestion.html"><span>Next in Physical design &amp; tape-out</span>Placement and congestion: reading the heat map before routing fails</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

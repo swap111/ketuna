@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hardening your first block with LibreLane: a guided first run · Ketuna blog</title>
+  <meta name="description" content="Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Hardening your first block with LibreLane: a guided first run · Ketuna blog">
+  <meta property="og:description" content="Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.">
+  <link rel="canonical" href="https://ketuna.online/blog/librelane-first-run.html">
+  <meta property="og:url" content="https://ketuna.online/blog/librelane-first-run.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Hardening your first block with LibreLane: a guided first run",
+  "description": "Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "librelane, sky130, openroad, rtl to gds, open source eda",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 843,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/librelane-first-run.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Hardening your first block with LibreLane: a guided first run</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#pick-a-design-worth-hardening">Pick a design worth hardening</a></li><li><a href="#a-minimal-configuration">A minimal configuration</a></li><li><a href="#running-the-flow">Running the flow</a></li><li><a href="#what-to-open-first">What to open first</a></li><li><a href="#then-change-one-thing">Then change one thing</a></li><li><a href="#common-first-run-problems">Common first-run problems</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>LibreLane is an open-source flow that takes Verilog and produces a layout, by running Yosys, OpenROAD, OpenSTA, Magic, KLayout and Netgen as a sequence of configurable steps. Your first run will print a lot and finish with a GDS file. The harder part is knowing what to look at afterwards, so that "the flow completed" becomes "I understand this layout and I know whether it is good". This guide walks through one run on a small design.</p>
+<h2 id="pick-a-design-worth-hardening">Pick a design worth hardening</h2>
+<p>Choose something small, synchronous and already verified: an 8-bit ALU with registers on its inputs and outputs is ideal. It has a clock, real logic between flip-flops, and a few hundred cells, so a run takes minutes on a laptop.</p>
+<pre><code class="language-verilog">module alu8_reg (
+  input  wire       clk, rst_n,
+  input  wire [7:0] a, b,
+  input  wire [1:0] op,
+  output reg  [7:0] y
+);
+  reg [7:0] a_q, b_q;
+  reg [1:0] op_q;
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      a_q &lt;= 0; b_q &lt;= 0; op_q &lt;= 0; y &lt;= 0;
+    end else begin
+      a_q &lt;= a; b_q &lt;= b; op_q &lt;= op;
+      case (op_q)
+        2'b00: y &lt;= a_q + b_q;
+        2'b01: y &lt;= a_q - b_q;
+        2'b10: y &lt;= a_q &amp; b_q;
+        default: y &lt;= a_q ^ b_q;
+      endcase
+    end
+endmodule
+</code></pre>
+<p>Simulate it first with Icarus Verilog or Verilator. Physical design does not find functional bugs; it faithfully builds whatever you give it.</p>
+<h2 id="a-minimal-configuration">A minimal configuration</h2>
+<p>LibreLane reads a JSON or YAML configuration. For a first run you need very little:</p>
+<pre><code class="language-text">{
+  &quot;DESIGN_NAME&quot;: &quot;alu8_reg&quot;,
+  &quot;VERILOG_FILES&quot;: [&quot;dir::src/alu8_reg.v&quot;],
+  &quot;PDK&quot;: &quot;sky130A&quot;,
+  &quot;STD_CELL_LIBRARY&quot;: &quot;sky130_fd_sc_hd&quot;,
+  &quot;CLOCK_PORT&quot;: &quot;clk&quot;,
+  &quot;CLOCK_PERIOD&quot;: 10,
+  &quot;FP_SIZING&quot;: &quot;relative&quot;,
+  &quot;FP_CORE_UTIL&quot;: 40,
+  &quot;PL_TARGET_DENSITY_PCT&quot;: 50
+}
+</code></pre>
+<p>What each line does:</p>
+<ul>
+<li><code>DESIGN_NAME</code> is the top module name. It must match the Verilog exactly.</li>
+<li><code>VERILOG_FILES</code> lists the sources; <code>dir::</code> means "relative to this configuration file".</li>
+<li><code>PDK</code> and <code>STD_CELL_LIBRARY</code> choose the process and the cell library. The high-density library is the usual default.</li>
+<li><code>CLOCK_PORT</code> and <code>CLOCK_PERIOD</code> (in ns) let LibreLane write a basic timing constraint for you. Here 10 ns, a relaxed 100 MHz, so the first run should close timing easily.</li>
+<li><code>FP_SIZING</code> set to <code>relative</code> sizes the core from the synthesised cell area, and <code>FP_CORE_UTIL</code> sets the target utilisation in percent.</li>
+<li><code>PL_TARGET_DENSITY_PCT</code> tells global placement how tightly to pack cells locally. Keep it a little above the utilisation.</li>
+</ul>
+<p>Leave every other variable at its default for now. Copying long configurations from older projects is a common source of trouble, because variable names changed between flow generations. Use the current LibreLane variable reference when you add anything.</p>
+<h2 id="running-the-flow">Running the flow</h2>
+<p>Install LibreLane following its official documentation (a Nix environment or the published container image are the usual routes), and make sure the PDK version matches the one your LibreLane version expects. A mismatched PDK is the most common reason for a first run to stop in its first few steps.</p>
+<p>From the directory containing the configuration:</p>
+<pre><code class="language-bash">librelane --run-tag first config.json
+</code></pre>
+<p>The flow creates <code>runs/first/</code>. Each step gets its own numbered folder, in the order it ran, holding that step's logs, reports and output views. The <code>final/</code> folder collects the finished views: the netlist, DEF and ODB databases, SPEF parasitics, the GDS, and a <code>metrics.json</code> summary.</p>
+<h2 id="what-to-open-first">What to open first</h2>
+<p>Resist the urge to open the GDS straight away. Go in this order:</p>
+<ol>
+<li><strong>The metrics summary</strong> in <code>final/metrics.json</code>. Check worst setup and hold slack (<code>timing__setup__ws</code>, <code>timing__hold__ws</code>), the detailed routing DRC count (<code>route__drc_errors</code>), the LVS error count and antenna violations. Any red number tells you which step's reports to read next.</li>
+<li><strong>The synthesis report.</strong> Find the cell count and area. Count the flip-flops: this design has 8 + 8 + 2 + 8 = 26. If the number differs, find out why before going further.</li>
+<li><strong>The timing reports</strong> from the sign-off STA step. Read the worst setup path line by line: launch clock, cells, arrival, required, slack. At 10 ns there should be plenty of slack.</li>
+<li><strong>The floorplan and placement views.</strong> Open the final ODB in the OpenROAD GUI. Look at the core outline, the rows, the power straps, the placed cells and the pins. Does the core look as full as 40% suggests? Remember that tap cells, buffers and fillers are added after sizing.</li>
+<li><strong>The GDS in KLayout.</strong> Now look at the layout, layer by layer. Find a flip-flop, a clock buffer, a power strap and a pin.</li>
+</ol>
+<h2 id="then-change-one-thing">Then change one thing</h2>
+<p>The run becomes a lesson when you change one variable and predict the effect first.</p>
+<ul>
+<li>Lower <code>CLOCK_PERIOD</code> until setup slack turns negative, and find the step where it first failed.</li>
+<li>Raise <code>FP_CORE_UTIL</code> to 70 and watch routing congestion and DRC.</li>
+<li>Change <code>FP_ASPECT_RATIO</code> and compare wire length.</li>
+</ul>
+<p>Keep each run under its own tag so you can compare them side by side. Write your prediction down before each run; checking it afterwards is where the understanding comes from.</p>
+<h2 id="common-first-run-problems">Common first-run problems</h2>
+<ul>
+<li><strong>The flow stops in synthesis.</strong> Check that <code>DESIGN_NAME</code> matches the module and that every file in <code>VERILOG_FILES</code> exists. Then check the PDK and LibreLane versions match.</li>
+<li><strong>Timing fails at a generous clock.</strong> Usually the clock port name is wrong, so the design is effectively unconstrained or the clock is not recognised.</li>
+<li><strong>Every run looks identical.</strong> You may be editing a different configuration file from the one you pass on the command line.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Save the ALU above, simulate it in <strong>Icarus Verilog</strong>, then harden it with the configuration shown.</li>
+<li>Open <code>final/metrics.json</code> and write down setup slack, hold slack, die area and cell count.</li>
+<li>Rerun with <code>--run-tag fast -c CLOCK_PERIOD=3</code> (the <code>-c</code> option overrides one configuration variable), compare the two metrics files, and find the worst path in the new timing report.</li>
+<li>Open both GDS files in <strong>KLayout</strong> and note any visible difference.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>librelane</li><li>sky130</li><li>openroad</li><li>rtl to gds</li><li>open source eda</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="floorplanning-decisions.html"><span>Previous in Physical design &amp; tape-out</span>Floorplanning decisions that make or break a block</a><a class="next" href="reading-a-timing-report.html"><span>Next in Physical design &amp; tape-out</span>How to read a static timing report line by line</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rtl-to-gds-in-one-page.html">RTL to GDS in one page: what each step of the flow takes in and hands out</a></h3>
+          <p>The RTL-to-GDS flow is a chain of steps, each reading files and writing files you can open. Learn what goes in and comes out of synthesis, floorplan, placement, clock tree, routing and sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reproducible-physical-design-flows.html">Making a physical design flow reproducible: pinned tools, configs and seeds</a></h3>
+          <p>A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-for-a-shared-shuttle-tile.html">Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL</a></h3>
+          <p>A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

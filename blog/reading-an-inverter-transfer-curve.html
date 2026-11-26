@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading a CMOS inverter&#x27;s transfer curve: noise margins and switching point · Ketuna blog</title>
+  <meta name="description" content="The voltage transfer curve of a CMOS inverter shows where it switches and how much noise it tolerates. Learn to read the switching point and noise margins, and how transistor sizing moves them.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reading a CMOS inverter&#x27;s transfer curve: noise margins and switching point · Ketuna blog">
+  <meta property="og:description" content="The voltage transfer curve of a CMOS inverter shows where it switches and how much noise it tolerates. Learn to read the switching point and noise margins, and how transistor sizing moves them.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-an-inverter-transfer-curve.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-an-inverter-transfer-curve.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading a CMOS inverter's transfer curve: noise margins and switching point",
+  "description": "The voltage transfer curve of a CMOS inverter shows where it switches and how much noise it tolerates. Learn to read the switching point and noise margins, and how transistor sizing moves them.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "cmos inverter, noise margin, transfer curve, transistor sizing",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1003,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-an-inverter-transfer-curve.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Reading a CMOS inverter&#x27;s transfer curve: noise margins and switching point</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The voltage transfer curve of a CMOS inverter shows where it switches and how much noise it tolerates. Learn to read the switching point and noise margins, and how transistor sizing moves them.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-curve-looks-like-and-why">What the curve looks like and why</a></li><li><a href="#the-points-that-matter">The points that matter</a></li><li><a href="#the-switching-point-and-how-sizing-moves-it">The switching point and how sizing moves it</a></li><li><a href="#pitfalls-when-reading-a-real-curve">Pitfalls when reading a real curve</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A logic gate is an analog circuit that we agree to read as digital. The inverter's <strong>voltage transfer curve</strong> (VTC), output voltage plotted against input voltage, is where that agreement is made precise. It tells you which input voltages count as a clean 0 or 1, how much noise a signal can pick up between gates before it is misread, and where the gate flips. Reading one is the first analog skill a digital designer should have.</p>
+<h2 id="what-the-curve-looks-like-and-why">What the curve looks like and why</h2>
+<p>A CMOS inverter is a PMOS from V<sub>DD</sub> to the output and an NMOS from the output to ground, with their gates tied together as the input. Sweep the input slowly from 0 to V<sub>DD</sub> and watch the output.</p>
+<ul>
+<li><strong>Input near 0:</strong> the NMOS is off and the PMOS is fully on. The output sits at V<sub>DD</sub>.</li>
+<li><strong>Input near V<sub>DD</sub>:</strong> the PMOS is off and the NMOS is fully on. The output sits at 0.</li>
+<li><strong>In between:</strong> both transistors conduct, fighting each other. Over a narrow input range, a small change of input makes a large change of output. This steep part is where the inverter acts as a high-gain amplifier.</li>
+</ul>
+<p>The output reaches the rails at both ends because, in steady state, one device is off and the other has no current to carry, so there is no voltage drop across it. That full rail-to-rail swing is a big reason CMOS logic is so robust.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="vtc-title vtc-desc" font-size="14">
+<title id="vtc-title">CMOS inverter voltage transfer curve</title>
+<desc id="vtc-desc">Output voltage against input voltage. The output stays high for low inputs, falls steeply through the middle and stays low for high inputs. A dashed diagonal line where output equals input crosses the curve at the switching point VM. Two points of slope minus one mark VIL and VIH, and the shaded bands below VIL and above VIH are the valid low and high input ranges.</desc>
+<rect x="70" y="20" width="102" height="230" class="dg-amber" fill-opacity="0.15"/>
+<rect x="268" y="20" width="182" height="230" class="dg-amber" fill-opacity="0.15"/>
+<line x1="70" y1="250" x2="450" y2="250" class="dg-line"/>
+<line x1="70" y1="250" x2="70" y2="20" class="dg-line"/>
+<line x1="70" y1="250" x2="300" y2="20" class="dg-dash"/>
+<path d="M70,30 L150,32 C185,40 205,90 220,140 C235,190 255,240 290,247 L450,248" class="dg-line" fill="none" stroke-width="2"/>
+<circle cx="210" cy="110" r="4" class="dg-arrow"/>
+<text x="218" y="106" class="dg-text">VM</text>
+<line x1="172" y1="60" x2="172" y2="250" class="dg-dash"/>
+<line x1="268" y1="230" x2="268" y2="250" class="dg-dash"/>
+<text x="150" y="270" class="dg-text">VIL</text>
+<text x="252" y="270" class="dg-text">VIH</text>
+<text x="380" y="290" class="dg-text">input</text>
+<text x="8" y="30" class="dg-text">output</text>
+<text x="80" y="235" class="dg-muted">reads as 0</text>
+<text x="350" y="80" class="dg-muted">reads as 1</text>
+</svg>
+<figcaption>The switching point V<sub>M</sub> is where the curve crosses output = input; V<sub>IL</sub> and V<sub>IH</sub> are where its slope is −1.</figcaption>
+</figure>
+
+<h2 id="the-points-that-matter">The points that matter</h2>
+<p>Four voltages describe the curve:</p>
+<ul>
+<li><strong>V<sub>OH</sub> and V<sub>OL</sub>:</strong> the output high and low levels. For a static CMOS inverter they are essentially V<sub>DD</sub> and 0.</li>
+<li><strong>V<sub>IL</sub>:</strong> the highest input still guaranteed to be read as a 0.</li>
+<li><strong>V<sub>IH</sub>:</strong> the lowest input still guaranteed to be read as a 1.</li>
+</ul>
+<p>V<sub>IL</sub> and V<sub>IH</sub> are defined as the two points where the slope of the curve equals −1. The reason is gain. Between those points the magnitude of the slope is greater than 1, so the gate <em>amplifies</em> any disturbance on its input. Outside them, the slope is shallower than 1 and the gate <em>attenuates</em> disturbances, so noise shrinks as it passes through a chain of gates. That is the real meaning of a valid logic level: a region where errors die out instead of growing.</p>
+<p>From these come the <strong>noise margins</strong>:</p>
+<blockquote>
+<p>NM<sub>L</sub> = V<sub>IL</sub> − V<sub>OL</sub>  and  NM<sub>H</sub> = V<sub>OH</sub> − V<sub>IH</sub></p>
+</blockquote>
+<p>A noise margin is how much noise a driven signal can pick up on the wire, from coupling or ground bounce, before the next gate might misread it. Suppose, for illustration, a 1.8 V inverter has V<sub>IL</sub> = 0.75 V and V<sub>IH</sub> = 1.05 V. Then NM<sub>L</sub> = 0.75 V and NM<sub>H</sub> = 1.8 − 1.05 = 0.75 V. The margins are equal, which happens when the switching point is near the middle of the supply.</p>
+<h2 id="the-switching-point-and-how-sizing-moves-it">The switching point and how sizing moves it</h2>
+<p>The <strong>switching threshold</strong> V<sub>M</sub> is the input voltage at which output equals input. At that point both transistors are in saturation and carry the same current. Setting the two square-law saturation currents equal and solving gives:</p>
+<blockquote>
+<p>V<sub>M</sub> = (V<sub>TN</sub> + r(V<sub>DD</sub> − |V<sub>TP</sub>|)) / (1 + r),  with r = √(k<sub>p</sub> / k<sub>n</sub>)</p>
+</blockquote>
+<p>Here k<sub>n</sub> = μ<sub>n</sub>C<sub>ox</sub>(W/L)<sub>n</sub> and k<sub>p</sub> = μ<sub>p</sub>C<sub>ox</sub>(W/L)<sub>p</sub> are the strengths of the two devices. If r = 1 and the thresholds match, V<sub>M</sub> sits exactly at V<sub>DD</sub>/2. A stronger PMOS (larger r) pulls V<sub>M</sub> up; a stronger NMOS pulls it down.</p>
+<p>Holes move more slowly than electrons, so for equal sizes the PMOS is weaker. Here is a worked example with numbers made up for illustration: V<sub>DD</sub> = 1.8 V, V<sub>TN</sub> = |V<sub>TP</sub>| = 0.45 V, equal lengths, and electron mobility 2.5 times hole mobility.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>PMOS width / NMOS width</th>
+<th>r</th>
+<th>V<sub>M</sub></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0.63</td>
+<td>0.80 V</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.89</td>
+<td>0.87 V</td>
+</tr>
+<tr>
+<td>2.5</td>
+<td>1.00</td>
+<td>0.90 V</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1.41</td>
+<td>0.98 V</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two lessons hide in this table. First, with equal widths V<sub>M</sub> sits below the middle, which shrinks NM<sub>L</sub>. Second, V<sub>M</sub> depends on the <em>square root</em> of the strength ratio, so it moves slowly: doubling the PMOS width from 2.5 to 5 moves V<sub>M</sub> by only about 80 mV. That is good news for robustness, because process variation that changes device strength by a few per cent hardly moves the switching point.</p>
+<p>Designers sometimes skew V<sub>M</sub> on purpose. A gate that should react early to a rising input, or a level detector, may be sized with a deliberately strong NMOS or PMOS.</p>
+<h2 id="pitfalls-when-reading-a-real-curve">Pitfalls when reading a real curve</h2>
+<ul>
+<li><strong>Assuming V<sub>M</sub> = V<sub>DD</sub>/2.</strong> It is only true when the strengths are balanced; always measure it.</li>
+<li><strong>Reading noise margins at one corner.</strong> At a slow-NMOS, fast-PMOS corner the curve shifts right, and one margin shrinks. Check the corners that skew the two devices in opposite directions.</li>
+<li><strong>Sweeping too fast.</strong> The VTC is a DC curve. A transient with fast edges adds delay and makes the curve look skewed. Use a <code>.dc</code> sweep.</li>
+<li><strong>Confusing the VTC with delay.</strong> Equal noise margins do not guarantee equal rise and fall times; those also depend on load capacitance and drive current.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>With <strong>ngspice</strong> and the sky130 PDK models, write an inverter netlist and run <code>.dc VIN 0 1.8 0.005</code>. Use <code>meas dc vm when v(out)=v(in)</code> to find V<sub>M</sub>.</li>
+<li>Plot the derivative of the output with <code>let gain = deriv(v(out))</code> and find the two inputs where <code>gain</code> crosses −1. Those are V<sub>IL</sub> and V<sub>IH</sub>; compute both noise margins.</li>
+<li>Change the PMOS width in steps and fill in a table like the one above. Compare the trend with the formula, then rerun at the <code>sf</code> and <code>fs</code> corners and see which margin suffers.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>cmos inverter</li><li>noise margin</li><li>transfer curve</li><li>transistor sizing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="analog-and-digital-on-one-die.html"><span>Previous in Analog &amp; mixed-signal</span>Putting analog and digital on one die: substrate noise, supplies and isolation</a><a class="next" href="sampling-and-aliasing.html"><span>Next in Analog &amp; mixed-signal</span>Sampling and aliasing: why an anti-alias filter comes before every ADC</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-circuit-in-xschem-and-ngspice.html">Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</a></h3>
+          <p>Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

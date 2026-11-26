@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do · Ketuna blog</title>
+  <meta name="description" content="Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do · Ketuna blog">
+  <meta property="og:description" content="Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.">
+  <link rel="canonical" href="https://ketuna.online/blog/riscv-interrupt-controllers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/riscv-interrupt-controllers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do",
+  "description": "Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, interrupts, plic, clint, soc design",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 886,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/riscv-interrupt-controllers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-units-two-jobs">Two units, two jobs</a></li><li><a href="#the-claimcomplete-handshake">The claim/complete handshake</a></li><li><a href="#where-the-latency-goes">Where the latency goes</a></li><li><a href="#the-64-bit-timer-on-a-32-bit-hart">The 64-bit timer on a 32-bit hart</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A RISC-V hart has exactly three machine-level interrupt inputs: timer, software and external. A real SoC has dozens of interrupt sources, from UARTs and DMA channels to GPIO pins, and possibly several harts that could serve them. Two kinds of controller bridge that gap. A core-local unit provides the timer and software interrupts for each hart, and a platform-level controller funnels every peripheral interrupt into each hart's single external interrupt input, with priorities and a handshake that keeps sources from being lost or served twice. Knowing how they divide the work explains most interrupt latency and most interrupt bugs.</p>
+<h2 id="two-units-two-jobs">Two units, two jobs</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="ic-title ic-desc" font-size="14">
+<title id="ic-title">Core-local and platform-level interrupt units</title>
+<desc id="ic-desc">Peripheral interrupt sources on the left pass through gateways into a platform-level interrupt controller, which applies priorities, enables and a per-context threshold and drives the external interrupt input of each hart. A separate core-local unit holding mtime, mtimecmp and msip drives the timer and software interrupt inputs of each hart directly.</desc>
+<rect x="10" y="20" width="90" height="26" class="dg-box"/><text x="55" y="38" text-anchor="middle" class="dg-text">UART</text>
+<rect x="10" y="54" width="90" height="26" class="dg-box"/><text x="55" y="72" text-anchor="middle" class="dg-text">DMA</text>
+<rect x="10" y="88" width="90" height="26" class="dg-box"/><text x="55" y="106" text-anchor="middle" class="dg-text">GPIO</text>
+<line x1="100" y1="33" x2="140" y2="50" class="dg-line"/><line x1="100" y1="67" x2="140" y2="67" class="dg-line"/><line x1="100" y1="101" x2="140" y2="84" class="dg-line"/>
+<rect x="140" y="20" width="160" height="100" class="dg-core"/><text x="220" y="44" text-anchor="middle" class="dg-text">platform-level</text><text x="220" y="62" text-anchor="middle" class="dg-text">controller</text><text x="220" y="82" text-anchor="middle" class="dg-muted">priority, enable,</text><text x="220" y="100" text-anchor="middle" class="dg-muted">threshold, claim</text>
+<line x1="300" y1="70" x2="364" y2="70" class="dg-line"/><path d="M364,66 L370,70 L364,74 Z" class="dg-arrow"/><text x="334" y="62" text-anchor="middle" class="dg-muted">MEI</text>
+<rect x="140" y="160" width="160" height="56" class="dg-box"/><text x="220" y="184" text-anchor="middle" class="dg-text">core-local unit</text><text x="220" y="204" text-anchor="middle" class="dg-muted">mtime, mtimecmp, msip</text>
+<line x1="300" y1="178" x2="400" y2="178" class="dg-line"/><line x1="400" y1="178" x2="400" y2="126" class="dg-line"/><path d="M396,126 L400,120 L404,126 Z" class="dg-arrow"/>
+<line x1="300" y1="200" x2="440" y2="200" class="dg-line"/><line x1="440" y1="200" x2="440" y2="126" class="dg-line"/><path d="M436,126 L440,120 L444,126 Z" class="dg-arrow"/>
+<text x="352" y="172" class="dg-muted">MTI</text><text x="352" y="194" class="dg-muted">MSI</text>
+<rect x="370" y="40" width="100" height="80" class="dg-amber" fill-opacity="0.3"/><text x="420" y="76" text-anchor="middle" class="dg-text">hart</text><text x="420" y="96" text-anchor="middle" class="dg-muted">mip / mie</text>
+</svg>
+<figcaption>Peripherals share one external input per hart and context; timer and software interrupts come from the core-local unit.</figcaption>
+</figure>
+
+<p><strong>The core-local unit</strong> (historically called the CLINT; the newer ACLINT specification splits it into timer and software-interrupt devices) holds a free-running 64-bit <code>mtime</code> counter shared by the platform, one <code>mtimecmp</code> register per hart, and one <code>msip</code> bit per hart. The timer interrupt of a hart is pending while <code>mtime</code> ≥ its <code>mtimecmp</code>. Writing 1 to a hart's <code>msip</code> raises its software interrupt, which is how one hart pokes another. These signals go straight into the hart's <code>mip</code> register with no arbitration, because each belongs to exactly one hart.</p>
+<p><strong>The platform-level controller</strong> (the PLIC in its standard form) handles everything else. Each interrupt source gets a number from 1 upwards (0 means "none") and a programmable priority. For each <strong>context</strong>, typically one per hart per privilege mode that takes interrupts, it has an enable bit per source and a priority <strong>threshold</strong>. The controller asserts a context's external interrupt line when at least one enabled source is pending with a priority above that context's threshold.</p>
+<h2 id="the-claimcomplete-handshake">The claim/complete handshake</h2>
+<p>The heart of the platform controller is a two-step handshake that serves each interrupt exactly once, even with several harts competing:</p>
+<ol>
+<li><strong>Claim.</strong> The handler reads the context's claim register. The controller returns the ID of the highest-priority pending, enabled source and atomically clears its pending bit. If another hart claims at the same moment, only one gets the ID; the other gets the next one, or 0.</li>
+<li><strong>Service.</strong> The handler deals with the peripheral and clears the cause in the peripheral itself.</li>
+<li><strong>Complete.</strong> The handler writes the same ID back to the complete register (the same address as the claim register). Until then, the controller's <strong>gateway</strong> for that source will not forward a new request from it.</li>
+</ol>
+<p>The gateway also converts the source's signalling: a level-triggered source is re-sampled after completion, so if the peripheral still holds its line high, a new request appears; an edge-triggered source is latched once per edge.</p>
+<p>With the register layout from the PLIC specification, an M-mode external interrupt handler for context <code>ctx</code> looks like this:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define PLIC_BASE      0x0C000000u
+#define PLIC_CLAIM(c)  (*(volatile uint32_t *) \
+                        (PLIC_BASE + 0x200004u + 0x1000u * (c)))
+
+typedef void (*irq_fn)(void);
+extern irq_fn irq_table[];   /* indexed by source ID */
+
+void external_irq(uint32_t ctx)
+{
+    uint32_t id;
+    while ((id = PLIC_CLAIM(ctx)) != 0u) {   /* drain all pending */
+        irq_table[id]();                      /* clears the source */
+        PLIC_CLAIM(ctx) = id;                 /* complete */
+    }
+}
+</code></pre>
+<p>The loop matters. Each trap costs entry and exit overhead, so serving every pending source per trap reduces work when interrupts arrive in bursts.</p>
+<h2 id="where-the-latency-goes">Where the latency goes</h2>
+<p>The platform-level approach is flexible and scales to many sources and harts, but it adds steps to every external interrupt: the trap entry, a register save, a read of the claim register across the bus (often several cycles, and serialising), a table dispatch, and a write to complete. All sources share one trap vector, so software must find the handler. Priority between harts and nesting are managed in software through thresholds.</p>
+<p>For microcontrollers that need fast, deterministic, nested interrupts, a separate core-local interrupt controller specification (CLIC) adds per-interrupt levels, hardware vectoring per source and preemption. For large systems with many harts and virtualisation, the Advanced Interrupt Architecture defines message-signalled interrupts delivered to per-hart interrupt files. Check the current ratification status of each before committing a design to it; the choice depends on whether you need determinism, scale, or simplicity.</p>
+<h2 id="the-64-bit-timer-on-a-32-bit-hart">The 64-bit timer on a 32-bit hart</h2>
+<p><code>mtime</code> and <code>mtimecmp</code> are 64 bits even on RV32, so software writes <code>mtimecmp</code> in two halves. Writing the low half first can momentarily form a value smaller than <code>mtime</code> and fire a spurious interrupt. A safe sequence writes all ones to the low half, then the new high half, then the new low half, so the intermediate value is never below the target. For a 1 ms tick with <code>mtime</code> counting at 10 MHz (an illustrative frequency), each tick adds 10,000 to the previous compare value. Add to the last compare value, not to the current <code>mtime</code>, or the tick period drifts by the handler latency every time.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Forgetting to complete.</strong> The source is never forwarded again, and that peripheral appears dead.</li>
+<li><strong>Completing before clearing the peripheral.</strong> A level-triggered source immediately raises a new, spurious request.</li>
+<li><strong>Leaving priority at 0.</strong> Priority 0 means "never interrupt"; enabled sources still do nothing.</li>
+<li><strong>Confusing contexts.</strong> Enabling a source for the S-mode context of hart 0 does nothing for hart 0's M-mode handler.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run a bare-metal program on the QEMU <code>virt</code> machine, which includes a standard core-local timer and PLIC, and take a UART receive interrupt through the claim/complete loop above.</li>
+<li>Set the context threshold above the UART's priority and confirm that the interrupt is masked; lower it and confirm it arrives.</li>
+<li>Implement a tiny PLIC model with two sources and one context in Verilog, and verify the claim/complete rules with assertions in SymbiYosys.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>interrupts</li><li>plic</li><li>clint</li><li>soc design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-the-riscv-specification.html"><span>Previous in Computer architecture &amp; RISC-V</span>How to read the RISC-V specification without getting lost</a><a class="next" href="riscv-privilege-modes.html"><span>Next in Computer architecture &amp; RISC-V</span>Machine, supervisor and user mode: why RISC-V has privilege levels</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-an-soc-memory-map.html">Designing an SoC memory map: regions, alignment and room to grow</a></h3>
+          <p>Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="riscv-traps-and-csrs.html">RISC-V traps and CSRs: what happens between an interrupt and your handler</a></h3>
+          <p>Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

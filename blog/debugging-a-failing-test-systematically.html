@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debugging a failing test systematically: from the first mismatch to root cause · Ketuna blog</title>
+  <meta name="description" content="A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Debugging a failing test systematically: from the first mismatch to root cause · Ketuna blog">
+  <meta property="og:description" content="A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.">
+  <link rel="canonical" href="https://ketuna.online/blog/debugging-a-failing-test-systematically.html">
+  <meta property="og:url" content="https://ketuna.online/blog/debugging-a-failing-test-systematically.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Debugging a failing test systematically: from the first mismatch to root cause",
+  "description": "A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "debugging, waveforms, root cause, simulation, verification",
+  "articleSection": "Verification",
+  "wordCount": 916,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/debugging-a-failing-test-systematically.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Debugging a failing test systematically: from the first mismatch to root cause</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#step-1-reproduce-it-exactly">Step 1: reproduce it exactly</a></li><li><a href="#step-2-find-the-first-divergence">Step 2: find the first divergence</a></li><li><a href="#step-3-narrow-in-time-and-hierarchy">Step 3: narrow in time and hierarchy</a></li><li><a href="#step-4-write-down-each-hypothesis">Step 4: write down each hypothesis</a></li><li><a href="#step-5-fix-then-prove-the-fix">Step 5: fix, then prove the fix</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A failing hardware test usually reports its problem far from where the problem began. The scoreboard complains at cycle 9,000 that a byte is wrong; the byte went wrong at cycle 4,100 when a pointer skipped; the pointer skipped because a flag was one cycle late. Beginners open the waveform at cycle 9,000 and start scrolling. That can take an afternoon. A systematic method takes a fraction of the time and, more importantly, works every time.</p>
+<h2 id="step-1-reproduce-it-exactly">Step 1: reproduce it exactly</h2>
+<p>You cannot debug a failure you cannot repeat. Before anything else, rerun the failing test with the same seed, the same build options and the same simulator version, and confirm it fails the same way at the same time.</p>
+<p>If it does not reproduce, that is the first finding, and a serious one. Common causes are an unrecorded random seed, a test that depends on what an earlier test left behind, or a race between testbench and design at a clock edge. Fix reproducibility first; otherwise every later step is guesswork.</p>
+<p>Then make the failure as small as you can. Shorten the test until it still fails. A failure at cycle 300 is much easier to read than one at cycle 9,000.</p>
+<h2 id="step-2-find-the-first-divergence">Step 2: find the first divergence</h2>
+<p>The reported mismatch is a symptom. What you want is the <strong>first moment the design's behaviour differs from what it should be</strong>. Everything after that is consequence.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 160" role="img" aria-labelledby="dbg-title dbg-desc" font-size="14">
+<title id="dbg-title">First divergence versus reported failure</title>
+<desc id="dbg-desc">A timeline from the start of the test to the end. Early on, design and model agree. At an earlier point marked first divergence, the design state starts to differ. Much later, at a point marked reported failure, the scoreboard detects a wrong output. The region between them is shaded as consequences.</desc>
+<line x1="20" y1="80" x2="460" y2="80" class="dg-line"/>
+<path d="M454,76 L460,80 L454,84 Z" class="dg-arrow"/>
+<text x="20" y="110" class="dg-muted">start</text>
+<text x="440" y="110" class="dg-muted">time</text>
+<rect x="180" y="60" width="200" height="40" class="dg-amber" fill-opacity="0.25"/>
+<text x="280" y="85" text-anchor="middle" class="dg-muted">consequences</text>
+<line x1="180" y1="40" x2="180" y2="120" class="dg-amber-line"/>
+<text x="180" y="32" text-anchor="middle" class="dg-text">first divergence</text>
+<line x1="380" y1="40" x2="380" y2="120" class="dg-dash"/>
+<text x="380" y="32" text-anchor="middle" class="dg-text">reported failure</text>
+<text x="100" y="140" text-anchor="middle" class="dg-muted">design = model</text>
+<text x="280" y="140" text-anchor="middle" class="dg-muted">look here, not there</text>
+</svg>
+<figcaption>Debugging starts at the first divergence, which is usually well before the failure the test reports.</figcaption>
+</figure>
+
+<p>The fastest way to find it is to compare traces, not to scroll waveforms. If your reference model can log its internal state per transaction or per cycle, and your monitor can log the design's observable state in the same format, a few lines of Python find the first line where they disagree.</p>
+<pre><code class="language-python">import sys
+
+def first_divergence(model_log, dut_log):
+    with open(model_log) as m, open(dut_log) as d:
+        for n, (exp, got) in enumerate(zip(m, d), start=1):
+            if exp.strip() != got.strip():
+                return n, exp.strip(), got.strip()
+    return None
+
+result = first_divergence(sys.argv[1], sys.argv[2])
+if result:
+    n, exp, got = result
+    print(f&quot;line {n}: expected '{exp}'\n        got      '{got}'&quot;)
+else:
+    print(&quot;logs agree&quot;)
+</code></pre>
+<p>If each line carries a cycle number, the output tells you exactly where to open the waveform. Logging a few extra internal values, such as FIFO occupancy or FSM state, at every transaction makes this far more powerful, because internal state usually diverges before outputs do.</p>
+<h2 id="step-3-narrow-in-time-and-hierarchy">Step 3: narrow in time and hierarchy</h2>
+<p>Open the waveform at the first divergence, not before. Now walk backwards through the logic, one level at a time.</p>
+<ol>
+<li><strong>Which signal is wrong at this time?</strong> Name it precisely, for example "<code>count</code> is 3, should be 4".</li>
+<li><strong>What drives it?</strong> Find the always block or assignment. Add its inputs to the waveform.</li>
+<li><strong>Which input is wrong, or are they all correct and the logic is wrong?</strong> If an input is wrong, it becomes the new signal of interest, and you repeat from step 1, usually a cycle or two earlier.</li>
+<li><strong>Stop when the inputs are right and the output is wrong.</strong> That block contains the bug.</li>
+</ol>
+<p>This is a search through the cone of logic feeding the failure, and each step moves you closer. It also stops you wandering: at every moment you are looking at one signal and one driver.</p>
+<p>When the failing behaviour is buried deep in a large design, you can narrow the hierarchy first instead: check the outputs of each major sub-block at the divergence time, find the first sub-block whose outputs are wrong while its inputs are right, and descend into it.</p>
+<h2 id="step-4-write-down-each-hypothesis">Step 4: write down each hypothesis</h2>
+<p>The biggest time sink in debugging is not slow tools. It is chasing the same wrong idea twice, or forgetting what you already ruled out. Keep a short log as you go:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Hypothesis</th>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Scoreboard drops an item on simultaneous read and write</td>
+<td>Log scoreboard queue length per cycle</td>
+<td>Queue length correct; ruled out</td>
+</tr>
+<tr>
+<td>2</td>
+<td>FIFO <code>full</code> asserts one cycle late</td>
+<td>Check <code>full</code> vs occupancy at divergence</td>
+<td><code>full</code> low with 8 entries; confirmed</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Comparator uses old count value</td>
+<td>Read RTL for <code>full</code></td>
+<td>Compares registered count before update; root cause</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each hypothesis must make a prediction you can check. "Something is wrong with the FIFO" predicts nothing. "<code>full</code> asserts one cycle late" predicts exactly what the waveform will show at the divergence. Writing it down also makes it easy to ask a colleague for help: they can read what you tried instead of starting over.</p>
+<h2 id="step-5-fix-then-prove-the-fix">Step 5: fix, then prove the fix</h2>
+<p>When you find the cause, resist the urge to patch and move on.</p>
+<ul>
+<li><strong>Explain the whole failure.</strong> Your root cause should account for every symptom, including the cycle at which the test failed. If it does not, there may be a second bug.</li>
+<li><strong>Add a test that fails without the fix.</strong> A directed test aimed at the exact condition makes sure the bug never returns.</li>
+<li><strong>Rerun the original seed and the full regression.</strong> A fix that breaks something else is not a fix.</li>
+<li><strong>Ask why existing checks missed it for so long.</strong> Often an assertion near the root cause would have fired at the first divergence. Add it.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a small FIFO and a cocotb test with a scoreboard on Icarus Verilog, and plant a bug that makes <code>full</code> assert one cycle late.</li>
+<li>Make the model and monitor each write one line per transaction with cycle number and occupancy, and use the script above to find the first divergence.</li>
+<li>Open the waveform in GTKWave at that cycle and walk back through the cone, keeping a hypothesis table as you go.</li>
+<li>Add an assertion that would have fired at the first divergence, and confirm it does.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>debugging</li><li>waveforms</li><li>root cause</li><li>simulation</li><li>verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="bounded-proof-vs-k-induction.html"><span>Previous in Verification</span>Bounded proof or full proof? Model-checking depth and k-induction explained</a><a class="next" href="directed-or-constrained-random.html"><span>Next in Verification</span>Directed tests or constrained random? Using each where it pays off</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fpga-prototyping-as-verification.html">FPGA prototyping as a verification step: what it finds that simulation misses</a></h3>
+          <p>Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="full-code-coverage-is-not-done.html">Why 100% code coverage does not mean the design is verified</a></h3>
+          <p>Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where dynamic power goes: activity, capacitance, voltage and frequency · Ketuna blog</title>
+  <meta name="description" content="Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Where dynamic power goes: activity, capacitance, voltage and frequency · Ketuna blog">
+  <meta property="og:description" content="Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.">
+  <link rel="canonical" href="https://ketuna.online/blog/where-dynamic-power-goes.html">
+  <meta property="og:url" content="https://ketuna.online/blog/where-dynamic-power-goes.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Where dynamic power goes: activity, capacitance, voltage and frequency",
+  "description": "Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "low power, dynamic power, clock gating, rtl design",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 1049,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/where-dynamic-power-goes.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Where dynamic power goes: activity, capacitance, voltage and frequency</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-switching-power-equation">The switching-power equation</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#what-each-term-means-for-an-rtl-designer">What each term means for an RTL designer</a></li><li><a href="#how-to-know-not-guess">How to know, not guess</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A battery-powered sensor node, a wearable or a hand-held instrument lives or dies by its power budget. Most of the power a CMOS chip burns while it is busy is dynamic power: the energy used to charge and discharge wires and transistor gates every time a signal switches. One short equation describes it, and once you can read that equation you can tell which design decisions matter and which are noise.</p>
+<h2 id="the-switching-power-equation">The switching-power equation</h2>
+<p>Every node in a CMOS circuit has some capacitance: the gates it drives, the wire it runs along, the drains of the transistors driving it. When the node rises from 0 to the supply voltage V, it draws a charge C × V from the supply, and half of that energy ends up stored on the node while half is lost as heat in the pull-up transistor. When the node falls, the stored half is lost in the pull-down. So each full 0 → 1 → 0 cycle costs C × V<sup>2</sup> of energy from the supply.</p>
+<p>Multiply by how often that happens and you get power:</p>
+<blockquote>
+<p>P<sub>dyn</sub> = α × C × V<sup>2</sup> × f</p>
+</blockquote>
+<ul>
+<li><strong>f</strong> is the clock frequency.</li>
+<li><strong>α</strong> (alpha), the activity factor, is the average number of 0 → 1 transitions per node per clock cycle. A clock net has α = 1. A data bit that changes on a quarter of cycles, rising half of those times, has α = 0.125.</li>
+<li><strong>C</strong> is the switched capacitance.</li>
+<li><strong>V</strong> is the supply voltage.</li>
+</ul>
+<p>There are two other contributions you should know by name. <strong>Short-circuit power</strong> flows for the brief moment during a transition when both transistors of a gate are partly on; it grows with slow input edges. <strong>Leakage power</strong> flows even when nothing switches, and it matters most for devices that sleep most of the time. This article stays with the dynamic term, which usually dominates while a block is active.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Take a small processing block, with numbers made up for illustration:</p>
+<ul>
+<li>20,000 logic nodes, each with an average of 2.5 fF, so C<sub>logic</sub> = 50 pF</li>
+<li>average activity in the logic α = 0.1</li>
+<li>a clock network (clock buffers plus the clock pins of all flops) with C<sub>clk</sub> = 5 pF and α = 1</li>
+<li>V = 1.2 V, f = 100 MHz</li>
+</ul>
+<p><strong>Logic:</strong> 0.1 × 50 pF × 1.44 V<sup>2</sup> × 100 MHz = 0.72 mW.</p>
+<p><strong>Clock:</strong> 1 × 5 pF × 1.44 V<sup>2</sup> × 100 MHz = 0.72 mW.</p>
+<p>Total: 1.44 mW. Notice the clock network burns as much as all the logic, despite having one tenth of the capacitance, because it toggles every single cycle. That is typical of why clock power gets so much attention.</p>
+<h2 id="what-each-term-means-for-an-rtl-designer">What each term means for an RTL designer</h2>
+<p><strong>Voltage</strong> has the biggest effect, because it is squared. Dropping from 1.2 V to 1.0 V cuts dynamic power to (1.0 / 1.2)<sup>2</sup> ≈ 69 % of its value. But the supply voltage is chosen at the system and technology level: it depends on the process, the library characterisation and the speed you need, since gates get slower at lower voltage. An RTL designer influences it indirectly, by designing logic with enough timing slack that the chip can run at a lower voltage, or by splitting a design into voltage or power domains with the architecture team.</p>
+<p><strong>Frequency</strong> is mostly fixed by the throughput you need. Halving f halves power, but it also halves the work done per second, so the energy per operation does not change. What does help is not clocking things that have nothing to do, which is really a way of reducing α.</p>
+<p><strong>Capacitance</strong> follows from how much hardware you build and how far signals travel. RTL choices affect it: a smaller adder architecture where timing allows, fewer pipeline registers, narrower datapaths, not duplicating logic that could be shared. Wire capacitance depends on placement, which is downstream of RTL but influenced by how you partition the design.</p>
+<p><strong>Activity</strong> is the term the RTL designer controls most directly:</p>
+<ul>
+<li><strong>Clock gating.</strong> Stop the clock to registers that are not loading new data. In the example, suppose 4 pF of the 5 pF clock capacitance belongs to registers that only need clocking a quarter of the time. Gating them gives 1 pF × 1 + 4 pF × 0.25 = 2 pF effective, and clock power falls from 0.72 mW to 0.288 mW. Total power drops from 1.44 mW to about 1.01 mW.</li>
+<li><strong>Operand isolation.</strong> A multiplier whose inputs keep changing burns power even if nobody uses its output. Hold its inputs steady (with a register enable, or by forcing them to zero) when the result is not needed.</li>
+<li><strong>Avoiding needless toggles.</strong> Do not reset or reload datapath registers when the value does not matter. Do not drive a wide bus with new junk values every cycle when it is idle.</li>
+<li><strong>Glitch reduction.</strong> Deep combinational logic with unbalanced paths produces glitches, short extra transitions that each cost C × V<sup>2</sup>. Pipelining or restructuring can cut them.</li>
+<li><strong>Encoding.</strong> On a bus that counts up, Gray code changes one bit per step instead of up to all of them.</li>
+</ul>
+<h2 id="how-to-know-not-guess">How to know, not guess</h2>
+<p>Power estimation tools take the netlist, the library's capacitance and energy data, and an <strong>activity file</strong> recorded from simulation, often a VCD or a SAIF file, which records how often each signal toggled. The activity file is the key input: the same netlist can show very different power with different workloads. Run the simulation with a realistic workload, not a reset-and-idle test, or the estimate will mislead you.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Optimising capacitance in a block whose clock is never gated, while the clock tree dominates</li>
+<li>Lowering frequency and calling it an energy saving, when the work takes proportionally longer</li>
+<li>Estimating power from a testbench that toggles inputs randomly every cycle, which overstates α for real traffic</li>
+<li>Forgetting leakage in designs that spend most of their life asleep</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put the equation into a few lines of Python and reproduce the worked example. Then change one term at a time and rank them by effect.</li>
+<li>Simulate a small counter and an enabled register bank in <strong>Icarus Verilog</strong>, dump a VCD, and count toggles per signal with a short Python script that parses the VCD. Compare a version with and without an enable that holds the bank steady.</li>
+<li>Synthesise both versions with <strong>Yosys</strong> and compare cell counts, to see the capacitance side of the trade.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>low power</li><li>dynamic power</li><li>clock gating</li><li>rtl design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="where-accidental-latches-come-from.html"><span>Previous in Digital &amp; VLSI design</span>Where accidental latches come from, and how to read the synthesis warning</a><a class="next" href="why-a-two-flop-synchronizer-works.html"><span>Next in Digital &amp; VLSI design</span>Why a two-flop synchronizer works, and when it doesn&#x27;t</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="glitch-free-clock-gating.html">Clock gating without glitches: the latch-based integrated clock gate</a></h3>
+          <p>ANDing a clock with an enable can chop clock pulses and clock flops at the wrong time. See how a latch that is transparent while the clock is low keeps the gated clock clean, and how to use the cell properly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debouncing-a-button-in-rtl.html">Debouncing a push button in RTL, and why a counter beats a delay chain</a></h3>
+          <p>A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="draw-the-circuit-before-the-code.html">Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></h3>
+          <p>Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

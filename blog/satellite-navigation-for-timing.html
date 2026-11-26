@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Satellite navigation for timing: how receivers discipline clocks for grids and networks · Ketuna blog</title>
+  <meta name="description" content="How a timing receiver uses satellite time to steer a local oscillator, why the loop trades short-term and long-term stability, what happens in holdover when signals are lost, and why grids and networks depend on it.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Satellite navigation for timing: how receivers discipline clocks for grids and networks · Ketuna blog">
+  <meta property="og:description" content="How a timing receiver uses satellite time to steer a local oscillator, why the loop trades short-term and long-term stability, what happens in holdover when signals are lost, and why grids and networks depend on it.">
+  <link rel="canonical" href="https://ketuna.online/blog/satellite-navigation-for-timing.html">
+  <meta property="og:url" content="https://ketuna.online/blog/satellite-navigation-for-timing.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Satellite navigation for timing: how receivers discipline clocks for grids and networks",
+  "description": "How a timing receiver uses satellite time to steer a local oscillator, why the loop trades short-term and long-term stability, what happens in holdover when signals are lost, and why grids and networks depend on it.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "timing, gnss, navic, oscillators, synchronisation",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 912,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/satellite-navigation-for-timing.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Satellite navigation for timing: how receivers discipline clocks for grids and networks</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a timing receiver uses satellite time to steer a local oscillator, why the loop trades short-term and long-term stability, what happens in holdover when signals are lost, and why grids and networks depend on it.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-a-receiver-alone-is-not-a-good-clock">Why a receiver alone is not a good clock</a></li><li><a href="#the-disciplining-loop">The disciplining loop</a></li><li><a href="#a-worked-simulation-including-holdover">A worked simulation, including holdover</a></li><li><a href="#holdover-designing-for-lost-signals">Holdover: designing for lost signals</a></li><li><a href="#why-timing-users-care-and-what-they-worry-about">Why timing users care, and what they worry about</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most people think of satellite navigation as a way to find position. For a large class of infrastructure, position is a by-product and <strong>time</strong> is the product. Mobile networks need base stations aligned in time so their transmissions do not collide; power grids compare the phase of voltages measured hundreds of kilometres apart, which only works if every measurement carries an accurate timestamp; data centres and financial systems order events by time. A satellite receiver at a fixed site can deliver time traceable to a national or international reference, anywhere with sky view. This article explains how a receiver turns satellite signals into a stable local clock and what happens when the signals disappear.</p>
+<h2 id="why-a-receiver-alone-is-not-a-good-clock">Why a receiver alone is not a good clock</h2>
+<p>A navigation receiver solves for its clock bias along with its position, so after each fix it knows the offset between its own clock and the system time. Most timing receivers output this as a <strong>one-pulse-per-second</strong> (1PPS) signal, whose edge is aligned to the start of each second, plus a message saying which second it was.</p>
+<p>But the 1PPS edge from a receiver is noisy. Each fix carries measurement noise, multipath and the effects of changing satellite geometry, so the edge jitters by some tens of nanoseconds from one second to the next. It is accurate on average over long periods but not stable in the short term. A local quartz or atomic oscillator has the opposite character: very smooth from second to second, but it drifts over hours and days as it ages and as temperature changes.</p>
+<p>The solution is to combine them, letting the satellite time correct the oscillator's long-term drift while the oscillator provides short-term smoothness. This is called <strong>disciplining</strong> the oscillator.</p>
+<h2 id="the-disciplining-loop">The disciplining loop</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 210" role="img" aria-labelledby="gt-title gt-desc" font-size="14">
+<title id="gt-title">Disciplined oscillator loop</title>
+<desc id="gt-desc">A satellite receiver produces a 1PPS reference. A phase comparator measures the time difference between it and a 1PPS divided down from a local oscillator. The difference goes through a loop filter that steers the oscillator's frequency. The oscillator drives the outputs. A switch in front of the loop filter opens in holdover.</desc>
+<rect x="10" y="30" width="110" height="46" rx="6" class="dg-box"/>
+<text x="65" y="58" text-anchor="middle" class="dg-text">Receiver</text>
+<rect x="160" y="30" width="110" height="46" rx="6" class="dg-core"/>
+<text x="215" y="58" text-anchor="middle" class="dg-text">Compare</text>
+<rect x="310" y="30" width="110" height="46" rx="6" class="dg-core"/>
+<text x="365" y="58" text-anchor="middle" class="dg-text">Loop filter</text>
+<rect x="310" y="130" width="110" height="46" rx="6" class="dg-box"/>
+<text x="365" y="158" text-anchor="middle" class="dg-text">Oscillator</text>
+<rect x="160" y="130" width="110" height="46" rx="6" class="dg-box"/>
+<text x="215" y="158" text-anchor="middle" class="dg-text">Divider</text>
+<path d="M120,53 H154" class="dg-line"/>
+<path d="M154,49 L160,53 L154,57 Z" class="dg-arrow"/>
+<path d="M270,53 H304" class="dg-line"/>
+<path d="M304,49 L310,53 L304,57 Z" class="dg-arrow"/>
+<path d="M365,76 V124" class="dg-line"/>
+<path d="M361,124 L365,130 L369,124 Z" class="dg-arrow"/>
+<path d="M310,153 H276" class="dg-line"/>
+<path d="M276,149 L270,153 L276,157 Z" class="dg-arrow"/>
+<path d="M215,130 V82" class="dg-line"/>
+<path d="M211,82 L215,76 L219,82 Z" class="dg-arrow"/>
+<path d="M420,153 H470" class="dg-line"/>
+<path d="M464,149 L470,153 L464,157 Z" class="dg-arrow"/>
+<text x="445" y="195" text-anchor="middle" class="dg-muted">outputs</text>
+<text x="65" y="100" text-anchor="middle" class="dg-muted">noisy 1PPS</text>
+<text x="290" y="22" text-anchor="middle" class="dg-muted">phase error</text>
+<text x="375" y="106" class="dg-muted">steer</text>
+</svg>
+<figcaption>The receiver's 1PPS corrects the oscillator slowly; the oscillator supplies clean, stable outputs.</figcaption>
+</figure>
+
+<p>The loop is a phase-locked loop with a very long time constant. Each second, a time-interval counter measures the difference between the receiver's 1PPS and a 1PPS derived from the local oscillator, typically with a resolution of a few nanoseconds or better. A loop filter, usually proportional-integral so it can remove a constant frequency error completely, computes a frequency correction and applies it to the oscillator, either through a control voltage or digitally by adjusting a synthesiser.</p>
+<p>The <strong>time constant</strong> is the central design choice. A short one follows the receiver closely, passing its jitter straight through. A long one averages the receiver noise away but lets the oscillator's own wander through for longer before correcting it. The best value is where the two noise sources cross, and it depends on the oscillator: a cheap crystal oscillator wants a short time constant, while a high-quality oven-controlled or atomic oscillator can average for much longer.</p>
+<h2 id="a-worked-simulation-including-holdover">A worked simulation, including holdover</h2>
+<p>The script below disciplines a made-up oscillator with an initial frequency error and slow ageing, compares it each second against a receiver 1PPS with 20 ns of noise, and steers it with a PI loop. At t = 2000 s the satellite signal is lost and the controller enters <strong>holdover</strong>, freezing its last correction. All values are illustrative.</p>
+<pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(3)
+T = 3000                         # seconds simulated, one step per second
+f_err = 2e-8                     # oscillator's initial fractional error
+aging = 1e-12                    # fractional drift per second, made up
+kp, ki = 0.05, 0.001             # loop gains, chosen for illustration
+
+phase, steer, integ = 0.0, 0.0, 0.0
+log = {}
+for t in range(T):
+    f_err += aging                         # the crystal slowly ages
+    phase += f_err - steer                 # seconds of error gained
+    have_gnss = t &lt; 2000                   # signal lost at t = 2000
+    if have_gnss:
+        meas = phase + rng.normal(0, 20e-9)    # 1PPS comparison, 20 ns noise
+        integ += meas
+        steer = kp * meas + ki * integ     # PI loop sets the correction
+    # in holdover, steer is simply frozen at its last value
+    if t in (10, 200, 1000, 1999, 2300, 2999):
+        log[t] = phase * 1e9
+for t, ns in log.items():
+    print(t, round(ns))
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Time (s)</th>
+<th>Phase error (ns)</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>170</td>
+<td>Locking: initial frequency error still present</td>
+</tr>
+<tr>
+<td>200</td>
+<td>−8</td>
+<td>Locked</td>
+</tr>
+<tr>
+<td>1000</td>
+<td>−2</td>
+<td>Locked</td>
+</tr>
+<tr>
+<td>1999</td>
+<td>0</td>
+<td>Locked, just before the signal is lost</td>
+</tr>
+<tr>
+<td>2300</td>
+<td>326</td>
+<td>Holdover</td>
+</tr>
+<tr>
+<td>2999</td>
+<td>1431</td>
+<td>Holdover</td>
+</tr>
+</tbody>
+</table></div>
+<p>While locked, the error stays within nanoseconds even though each measurement is noisy by 20 ns: the loop averages. In holdover, the frozen correction no longer matches the ageing oscillator, so the frequency error grows linearly and the phase error grows roughly with the square of time. After about 1000 seconds the clock is more than a microsecond off.</p>
+<h2 id="holdover-designing-for-lost-signals">Holdover: designing for lost signals</h2>
+<p>Signals are lost for ordinary reasons: a blocked antenna, a cable fault, an equipment failure, interference or deliberate jamming. A timing system must keep operating within its specification for a defined holdover period. Three things determine how long it can:</p>
+<ul>
+<li><strong>Oscillator quality:</strong> a better oscillator ages more slowly and is less sensitive to temperature, so it drifts less while unsteered</li>
+<li><strong>Learning the drift:</strong> a controller that has estimated the ageing rate while locked can keep applying it in holdover, which in the simulation would remove most of the error</li>
+<li><strong>Temperature stability:</strong> keeping the oscillator's environment steady, or compensating with a temperature model</li>
+</ul>
+<p>Holdover requirements, together with the accuracy the application needs, usually decide the oscillator, and the oscillator is often the most expensive part of a timing receiver.</p>
+<h2 id="why-timing-users-care-and-what-they-worry-about">Why timing users care, and what they worry about</h2>
+<p>Because satellite signals arrive extremely weak, they are easy to jam and can be spoofed with fake signals. Critical timing users therefore combine sources: receivers for several constellations, including NavIC over India, which adds a regionally controlled source; time delivered over networks using the precision time protocol (IEEE 1588); and good holdover oscillators. Timing receivers also check consistency, flagging sudden jumps in time or position that a genuinely fixed antenna should never show. The antenna position is surveyed once and then held fixed, so every satellite measured contributes to time alone.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the simulation, then change the loop gains to make the loop faster and slower and compare the locked phase noise.</li>
+<li>Add drift estimation: track the integrator's slope while locked and keep extrapolating it in holdover, and compare the holdover error.</li>
+<li>Feed a recorded 1PPS-versus-oscillator time-interval log, from a counter or a microcontroller timer capture, into the same loop.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>timing</li><li>gnss</li><li>navic</li><li>oscillators</li><li>synchronisation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="running-a-field-pilot.html"><span>Previous in India&#x27;s electronics ecosystem</span>Running a field pilot for sensing hardware: from a handful of prototypes to real users</a><a class="next" href="college-vlsi-lab-on-open-source-tools.html"><span>Next in India&#x27;s electronics ecosystem</span>Setting up a college VLSI lab on open-source EDA tools</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Advanced</span></div>
+          <h3><a href="navic-with-other-satellite-systems.html">Using NavIC alongside other satellite systems in one receiver</a></h3>
+          <p>Why multi-constellation receivers track more satellites, how they cope with different signal structures and bands, and how one extra unknown per system absorbs the offset between their time references.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-is-navic.html">What NavIC is, and what it takes to build a receiver for it</a></h3>
+          <p>NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

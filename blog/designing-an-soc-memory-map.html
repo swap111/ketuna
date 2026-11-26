@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing an SoC memory map: regions, alignment and room to grow · Ketuna blog</title>
+  <meta name="description" content="Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing an SoC memory map: regions, alignment and room to grow · Ketuna blog">
+  <meta property="og:description" content="Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.">
+  <link rel="canonical" href="https://ketuna.online/blog/designing-an-soc-memory-map.html">
+  <meta property="og:url" content="https://ketuna.online/blog/designing-an-soc-memory-map.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing an SoC memory map: regions, alignment and room to grow",
+  "description": "Lay out a small RISC-V SoC's memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "soc design, memory map, address decoding, risc-v, firmware",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 837,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/designing-an-soc-memory-map.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Designing an SoC memory map: regions, alignment and room to grow</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-has-to-fit">What has to fit</a></li><li><a href="#a-worked-layout">A worked layout</a></li><li><a href="#alignment-makes-decoding-cheap">Alignment makes decoding cheap</a></li><li><a href="#make-the-holes-fault-not-alias">Make the holes fault, not alias</a></li><li><a href="#leave-room-for-the-next-chip">Leave room for the next chip</a></li><li><a href="#one-source-of-truth">One source of truth</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The memory map is one of the first decisions in an SoC and one of the hardest to change later. The RTL decoder, the linker script, the C headers, the boot ROM, the debugger configuration and every driver depend on it. A careless map works for the first chip and then forces a painful software break on the second, or hides bugs by letting a wrong address silently hit a real peripheral. This article lays out a map for a small RISC-V microcontroller and explains each choice.</p>
+<h2 id="what-has-to-fit">What has to fit</h2>
+<p>A typical small SoC has these address consumers:</p>
+<ul>
+<li><strong>Boot ROM:</strong> a few kilobytes of code that runs out of reset.</li>
+<li><strong>On-chip SRAM:</strong> data, stack, and often code copied from flash.</li>
+<li><strong>Flash or an external memory window:</strong> for execute-in-place code or a memory-mapped serial flash.</li>
+<li><strong>Core-local timer and software interrupt registers:</strong> in RISC-V systems, the machine timer (<code>mtime</code>, <code>mtimecmp</code>) is memory-mapped.</li>
+<li><strong>A platform interrupt controller:</strong> priorities, enables, and claim/complete registers.</li>
+<li><strong>Peripherals:</strong> UART, SPI, I2C, GPIO, timers, ADC, each with a small block of registers.</li>
+<li><strong>Debug:</strong> a debug module that an external debugger reaches.</li>
+</ul>
+<p>A 32-bit address space is 4 GiB, vastly more than these need. That is a gift: you can be generous with alignment and spacing, which makes hardware cheaper and software simpler.</p>
+<h2 id="a-worked-layout">A worked layout</h2>
+<p>Here is one reasonable map, with the sizes made up for illustration but the reasoning general.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 290" role="img" aria-labelledby="mm-title mm-desc" font-size="14">
+<title id="mm-title">Example memory map for a small RISC-V SoC</title>
+<desc id="mm-desc">A vertical address bar, low addresses at the top. Boot ROM at 0x0000_0000, timer at 0x0200_0000, interrupt controller at 0x0C00_0000, flash window at 0x1000_0000, SRAM at 0x2000_0000, peripherals at 0x4000_0000 in 4 KiB slots, and everything above 0x5000_0000 reserved. Gaps between regions are marked reserved and return a bus error.</desc>
+<text x="10" y="32" class="dg-muted">0x0000_0000</text><rect x="120" y="14" width="190" height="28" class="dg-core"/><text x="215" y="33" text-anchor="middle" class="dg-text">boot ROM 16 KiB</text>
+<text x="10" y="64" class="dg-muted">0x0200_0000</text><rect x="120" y="46" width="190" height="28" class="dg-box"/><text x="215" y="65" text-anchor="middle" class="dg-text">timer (mtime) 64 KiB</text>
+<text x="10" y="96" class="dg-muted">0x0C00_0000</text><rect x="120" y="78" width="190" height="28" class="dg-box"/><text x="215" y="97" text-anchor="middle" class="dg-text">interrupt ctrl 64 MiB</text>
+<text x="10" y="128" class="dg-muted">0x1000_0000</text><rect x="120" y="110" width="190" height="28" class="dg-box"/><text x="215" y="129" text-anchor="middle" class="dg-text">flash window 256 MiB</text>
+<text x="10" y="160" class="dg-muted">0x2000_0000</text><rect x="120" y="142" width="190" height="28" class="dg-core"/><text x="215" y="161" text-anchor="middle" class="dg-text">SRAM 64 KiB used</text>
+<text x="10" y="192" class="dg-muted">0x4000_0000</text><rect x="120" y="174" width="190" height="56" class="dg-box"/><text x="215" y="194" text-anchor="middle" class="dg-text">peripherals</text><text x="215" y="214" text-anchor="middle" class="dg-muted">4 KiB slot each</text>
+<text x="10" y="252" class="dg-muted">0x5000_0000</text><rect x="120" y="234" width="190" height="40" class="dg-track"/><text x="215" y="259" text-anchor="middle" class="dg-muted">reserved</text>
+<line x1="320" y1="28" x2="340" y2="28" class="dg-dash"/><text x="345" y="32" class="dg-text">reset vector</text>
+<line x1="320" y1="156" x2="340" y2="156" class="dg-dash"/><text x="345" y="152" class="dg-text">room to grow</text><text x="345" y="170" class="dg-muted">to 512 MiB</text>
+<line x1="320" y1="200" x2="340" y2="200" class="dg-dash"/><text x="345" y="196" class="dg-text">UART, SPI,</text><text x="345" y="214" class="dg-text">GPIO, timers</text>
+<line x1="320" y1="254" x2="340" y2="254" class="dg-dash"/><text x="345" y="258" class="dg-text">bus error</text>
+</svg>
+<figcaption>Low addresses at the top, not to scale; every gap between regions is decoded and returns an error.</figcaption>
+</figure>
+
+<p>Placing the timer and interrupt controller at these particular addresses follows a layout used by several open-source RISC-V platforms and simulators, including the QEMU <code>virt</code> machine. Following an existing convention means boot software and RTOS ports need less configuration; it is a choice, not a requirement of the ISA.</p>
+<h2 id="alignment-makes-decoding-cheap">Alignment makes decoding cheap</h2>
+<p>Make every region a <strong>power of two in size and aligned to its size</strong>. Then the decoder only compares the upper address bits:</p>
+<pre><code class="language-verilog">// Region selects; addr is the 32-bit bus address.
+wire sel_rom  = (addr[31:14] == 18'h0);      // 0x0000_0000, 16 KiB
+wire sel_sram = (addr[31:16] == 16'h2000);   // 0x2000_0000, 64 KiB
+wire sel_uart = (addr[31:12] == 20'h40000);  // 0x4000_0000, 4 KiB
+wire sel_gpio = (addr[31:12] == 20'h40001);  // 0x4000_1000, 4 KiB
+wire sel_tmr  = (addr[31:12] == 20'h40002);  // 0x4000_2000, 4 KiB
+wire sel_none = ~(sel_rom | sel_sram | sel_uart | sel_gpio | sel_tmr);
+</code></pre>
+<p>Each select is a single equality compare: no adders, no less-than comparators. A region of 48 KiB at an odd base would need a range check, which is bigger, slower and easier to get wrong.</p>
+<p>Alignment also helps software. Physical memory protection in RISC-V can describe a naturally aligned power-of-two region with a single entry, and a Linux-class system maps memory in 4 KiB pages. Giving each peripheral its <strong>own 4 KiB slot</strong>, even if it has only four registers, lets either mechanism protect or map each peripheral separately. A UART that shares a page with the key-storage block cannot be handed to an untrusted task without handing over the keys as well.</p>
+<h2 id="make-the-holes-fault-not-alias">Make the holes fault, not alias</h2>
+<p>Look at <code>sel_none</code>. Any address that selects nothing must return a <strong>bus error</strong>, which the core turns into an access-fault exception. The tempting shortcut is partial decoding: compare fewer bits, so the 4 KiB UART also answers at <code>0x4000_8000</code>, <code>0x4001_0000</code> and thousands of other addresses. It saves a few gates and costs days of debugging, because a wrong pointer that should have faulted instead writes a real register. The same applies inside a peripheral: undefined register offsets should read as zero and ignore writes, and should be documented as reserved.</p>
+<h2 id="leave-room-for-the-next-chip">Leave room for the next chip</h2>
+<p>The map above uses 64 KiB of SRAM but reserves the region up to 512 MiB, keeps the peripheral area sparse, and leaves everything above <code>0x5000_0000</code> untouched. On the next chip the SRAM can grow, new peripherals can take the next free slots, and existing binaries and drivers keep working, because nothing that existed has moved. A good rule is that a peripheral, once placed, never moves and its existing registers never change meaning; new features get new registers.</p>
+<h2 id="one-source-of-truth">One source of truth</h2>
+<p>The map lives in many places: RTL decoder, linker script, C header, device tree, debugger configuration, documentation, test register model. Keep one machine-readable description and generate the rest from it. SystemRDL is an open standard for describing registers and address maps, and open-source tools exist that generate RTL, C headers and documentation from it. Hand-maintained copies drift apart, and the drift is usually discovered on silicon.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Packing peripherals tightly to "save space".</strong> Address space is free; protection granularity is not.</li>
+<li><strong>Partial decoding.</strong> Aliases turn wild pointers into silent register writes.</li>
+<li><strong>No bus error response.</strong> A read from a hole that returns stale bus data hides bugs.</li>
+<li><strong>Moving a peripheral between chip versions.</strong> Every driver and binary must change with it.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the map above as a small table in Python and generate both the Verilog select lines and a C header of <code>#define</code> base addresses from it.</li>
+<li>Simulate the decoder in Icarus Verilog with a testbench that sweeps addresses at region boundaries and in holes, checking that exactly one select, or <code>sel_none</code>, is active.</li>
+<li>Write a linker script for the map with ROM and SRAM regions, build a small program with a RISC-V GCC cross-compiler, and check the section addresses with <code>riscv64-unknown-elf-objdump -h</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>soc design</li><li>memory map</li><li>address decoding</li><li>risc-v</li><li>firmware</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="data-hazards-and-forwarding.html"><span>Previous in Computer architecture &amp; RISC-V</span>Data hazards and forwarding paths, traced cycle by cycle</a><a class="next" href="single-cycle-to-five-stage-pipeline.html"><span>Next in Computer architecture &amp; RISC-V</span>From single-cycle to a five-stage pipeline: what changes and why</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="riscv-interrupt-controllers.html">Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do</a></h3>
+          <p>Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="riscv-traps-and-csrs.html">RISC-V traps and CSRs: what happens between an interrupt and your handler</a></h3>
+          <p>Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

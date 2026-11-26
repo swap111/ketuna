@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your first time as a technical lead: planning, unblocking and reviewing · Ketuna blog</title>
+  <meta name="description" content="A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Your first time as a technical lead: planning, unblocking and reviewing · Ketuna blog">
+  <meta property="og:description" content="A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.">
+  <link rel="canonical" href="https://ketuna.online/blog/first-time-technical-lead.html">
+  <meta property="og:url" content="https://ketuna.online/blog/first-time-technical-lead.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Your first time as a technical lead: planning, unblocking and reviewing",
+  "description": "A new technical lead's job shifts from doing the work to making the team's work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "technical lead, planning, code review, teamwork, hardware projects",
+  "articleSection": "Careers & skills",
+  "wordCount": 997,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/first-time-technical-lead.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Your first time as a technical lead: planning, unblocking and reviewing</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#breaking-work-down-so-it-can-be-tracked">Breaking work down so it can be tracked</a></li><li><a href="#keeping-the-team-unblocked">Keeping the team unblocked</a></li><li><a href="#reviewing-without-becoming-the-bottleneck">Reviewing without becoming the bottleneck</a></li><li><a href="#still-doing-some-engineering">Still doing some engineering</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first time you lead a small team, the work that made you good, solving hard problems yourself, becomes only part of the job. Your output is now the team's output: whether the block closes timing, whether the firmware is ready for the board, whether the verification sign-off is honest. Most new leads struggle not with technical questions but with the change of emphasis. Four habits carry most of the load: breaking work down, keeping people unblocked, reviewing well, and protecting some time to engineer.</p>
+<h2 id="breaking-work-down-so-it-can-be-tracked">Breaking work down so it can be tracked</h2>
+<p>A task like "verify the DMA engine" cannot be estimated, assigned or tracked. A useful breakdown produces pieces that are small enough to finish in a few days, have one owner, and have a clear definition of done.</p>
+<p>Start from the deliverables and their gates, then work backwards. For hardware, some dates are fixed and irreversible: a shuttle deadline, a board order, a demo. Inside those milestones, iterate in short cycles on the work that can change, such as RTL, testbenches and firmware.</p>
+<p>A breakdown for one block might look like this:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Owner</th>
+<th>Done means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interface spec reviewed</td>
+<td>lead</td>
+<td>signed off by both neighbouring block owners</td>
+</tr>
+<tr>
+<td>RTL feature-complete</td>
+<td>engineer A</td>
+<td>lint clean, smoke test passes in CI</td>
+</tr>
+<tr>
+<td>Reference model</td>
+<td>engineer B</td>
+<td>agrees with spec examples, reviewed</td>
+</tr>
+<tr>
+<td>Random test with scoreboard</td>
+<td>engineer B</td>
+<td>runs nightly, fails on three planted bugs</td>
+</tr>
+<tr>
+<td>Timing closed at target clock</td>
+<td>engineer A</td>
+<td>no setup or hold violations at all corners</td>
+</tr>
+</tbody>
+</table></div>
+<p>The "done means" column is the most important. "RTL written" is not done; "lint clean and passing in CI" is. Without an agreed definition, you discover at integration that three tasks were only mostly finished.</p>
+<p>Then find the <strong>critical path</strong>: the chain of dependent tasks with no slack. In the table, the random test depends on both the RTL and the reference model. If the model slips, the whole sign-off slips. Knowing this tells you where to look first every week.</p>
+<h2 id="keeping-the-team-unblocked">Keeping the team unblocked</h2>
+<p>A blocked engineer is the most expensive thing on a project, because their time passes with nothing to show. Your most valuable daily question is "what is stopping you?", and your job is to answer it faster than the engineer could alone.</p>
+<p>Typical blockers and what a lead does about them:</p>
+<ul>
+<li><strong>A missing decision.</strong> An interface detail is ambiguous. Make the call, or get the right person to make it today, and write it into the spec.</li>
+<li><strong>A dependency on another team.</strong> A library, a pin map, a test board. Chase it yourself; that is a better use of your time than theirs.</li>
+<li><strong>A tool or licence problem.</strong> Escalate early with specifics.</li>
+<li><strong>Being stuck on a hard bug.</strong> Pair for half an hour, or suggest a time-box: if not found by tomorrow, bring in a second person.</li>
+</ul>
+<p>Keep stand-ups short and about blockers. When a problem needs discussion, note it and solve it afterwards with the two or three people involved. A fifteen-minute meeting that becomes an hour of debugging costs the whole team.</p>
+<p>Report bad news early. If the critical path slips, tell your manager the same week with the cause, the new estimate and the options: cut scope, add time, or accept a risk. Adding people to a late task rarely helps in the short term, because they need time to learn the design and take time from those who already know it.</p>
+<h2 id="reviewing-without-becoming-the-bottleneck">Reviewing without becoming the bottleneck</h2>
+<p>New leads often try to review everything in detail and soon become the reason work waits. Review where the risk is highest: interfaces between blocks, clock domain crossings, reset behaviour, anything going to silicon or to a board order. For lower-risk changes, let team members review each other and spot-check.</p>
+<p>When you review, be specific and ask questions rather than issue verdicts. "If <code>err</code> arrives in <code>WAIT_ACK</code> instead of <code>ack</code>, there is no transition. Should it return to <code>IDLE</code>?" teaches more than "the FSM is wrong", and leaves room for the engineer to know something you missed. Record findings with an owner and a severity so they do not evaporate after the meeting.</p>
+<p>Reviews are also where you grow people. Ask the engineer to walk you through their reasoning before you comment. Over time, aim for them to find the issues you would have found.</p>
+<h2 id="still-doing-some-engineering">Still doing some engineering</h2>
+<p>If you stop engineering entirely, your technical judgement fades and your reviews get shallower. If you take a large critical-path task, it slips every time the team needs you. The middle path is to take work that is valuable but not on the critical path: a regression script, a reference model for a corner case, a timing investigation, a tricky integration test.</p>
+<p>Block out time for it in your calendar, and accept that it will be smaller than before. The point is to stay close enough to the tools and the design that your estimates and reviews remain grounded.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Doing the hardest task yourself.</strong> It feels efficient, but the team waits on you and nobody else learns that part of the design.</li>
+<li><strong>Vague task definitions.</strong> Without "done means", progress reports are optimistic until the end.</li>
+<li><strong>Hiding a slip.</strong> Late bad news removes options; early bad news keeps them.</li>
+<li><strong>Rewriting other people's work.</strong> Fix it through review and explanation, or the team learns to wait for you.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a past or current project and break it into tasks of two to four days, each with an owner and a "done means" line. Mark the critical path.</li>
+<li>Set up a small CI job, or at least a local <code>make check</code> target, that runs lint (<code>verilator --lint-only -Wall</code>) and a smoke test, so "done" can be checked automatically.</li>
+<li>Review one change from a teammate using only questions, and record findings with severity and owner.</li>
+<li>At the end of a week, list what blocked people and how long each blocker lasted. Look for the ones you could have cleared sooner.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>technical lead</li><li>planning</li><li>code review</li><li>teamwork</li><li>hardware projects</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="weekly-status-update.html"><span>Previous in Careers &amp; skills</span>Writing a weekly status update that managers and peers can scan</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="giving-and-receiving-code-review.html">Giving and receiving code review without bruised egos</a></h3>
+          <p>Code review goes well when changes are small, comments are specific, reviewers ask questions instead of issuing verdicts, and authors respond to every point. Practical habits for both sides of a pull request.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="blameless-postmortems.html">Writing a blameless postmortem after a failed lab or project</a></h3>
+          <p>How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

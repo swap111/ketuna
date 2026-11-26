@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budgets as a design tool: allocating mass, cost and margin across subsystems · Ketuna blog</title>
+  <meta name="description" content="A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Budgets as a design tool: allocating mass, cost and margin across subsystems · Ketuna blog">
+  <meta property="og:description" content="A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.">
+  <link rel="canonical" href="https://ketuna.online/blog/budgets-as-a-design-tool.html">
+  <meta property="og:url" content="https://ketuna.online/blog/budgets-as-a-design-tool.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Budgets as a design tool: allocating mass, cost and margin across subsystems",
+  "description": "A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "budgets, margin, systems engineering, mass budget, cost",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1012,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/budgets-as-a-design-tool.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Budgets as a design tool: allocating mass, cost and margin across subsystems</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#top-down-and-bottom-up">Top-down and bottom-up</a></li><li><a href="#margin-and-contingency">Margin and contingency</a></li><li><a href="#a-worked-mass-budget">A worked mass budget</a></li><li><a href="#the-same-method-for-cost">The same method for cost</a></li><li><a href="#keeping-a-budget-useful">Keeping a budget useful</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A product requirement such as "the badge shall weigh no more than 40 g" belongs to the whole system, but no single engineer designs the whole system. The enclosure designer, the board designer and the person choosing the battery each control a piece of the total, and each will naturally assume the others have room to spare. A budget is the tool that turns one system number into a set of numbers each person owns, and tells the team early when the pieces no longer add up.</p>
+<h2 id="top-down-and-bottom-up">Top-down and bottom-up</h2>
+<p>A budget is built from two directions, and the gap between them is where the information is.</p>
+<ul>
+<li><strong>Top-down allocation.</strong> The systems engineer starts from the requirement and splits it into allowances for each subsystem, based on experience, similar products and rough calculations. Each owner now has a target.</li>
+<li><strong>Bottom-up estimate.</strong> Each owner estimates what their subsystem will actually come to, from part data, calculations or measurements, and reports it against the allowance.</li>
+</ul>
+<p>If the bottom-up total sits comfortably under the top-down limit, the design has room. If it does not, you know before anyone has ordered parts, while the choices are still cheap to change. A budget that only exists top-down is a wish list. One that only exists bottom-up tells you the total but not who should fix it.</p>
+<h2 id="margin-and-contingency">Margin and contingency</h2>
+<p>Early estimates are always optimistic, because they leave out the things nobody has thought of yet: the extra screw, the thicker wall needed to pass a drop test, the shielding can added after an EMC scan. Budgets protect against this in two layers.</p>
+<p><strong>Contingency</strong> is added by each owner to their own estimate, sized by how mature the estimate is. A guess deserves more than a calculation, and a calculation more than a weighed part. An example policy, made up for illustration but typical in shape:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Estimate maturity</th>
+<th>Contingency added</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Engineering estimate (similar part, judgement)</td>
+<td>20 %</td>
+</tr>
+<tr>
+<td>Calculated from drawings or datasheets</td>
+<td>10 %</td>
+</tr>
+<tr>
+<td>Measured on a real part</td>
+<td>5 %</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>System margin</strong> is held back by the systems engineer and not given to any subsystem. It is the reserve for problems that cross boundaries or that no owner foresaw. When an owner overruns, they ask for some of it, and the request is recorded. As the design matures and estimates become measurements, the contingency shrinks and the margin can be released or kept for late changes.</p>
+<h2 id="a-worked-mass-budget">A worked mass budget</h2>
+<p>Take a clip-on safety badge with a requirement of at most 40 g. The systems engineer holds 4 g (10 %) as system margin and allocates the remaining 36 g. All numbers are made up for illustration.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Allocation (g)</th>
+<th>Estimate (g), maturity</th>
+<th>With contingency (g)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enclosure and clip</td>
+<td>14.0</td>
+<td>12.0, estimate (+20 %)</td>
+<td>14.4</td>
+</tr>
+<tr>
+<td>Battery</td>
+<td>10.0</td>
+<td>9.5, datasheet (+5 %)</td>
+<td>9.98</td>
+</tr>
+<tr>
+<td>Main board, assembled</td>
+<td>7.0</td>
+<td>6.0, calculated (+10 %)</td>
+<td>6.6</td>
+</tr>
+<tr>
+<td>Buzzer, LED, light pipe</td>
+<td>3.0</td>
+<td>2.5, estimate (+20 %)</td>
+<td>3.0</td>
+</tr>
+<tr>
+<td>Strap, screws, label</td>
+<td>2.0</td>
+<td>2.0, estimate (+20 %)</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>36.0</strong></td>
+<td><strong>32.0</strong></td>
+<td><strong>36.38</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>(The battery is listed at 5 % because its mass comes straight from the cell's datasheet, which is close to a measurement.)</p>
+<p>Three things fall out of the table:</p>
+<ol>
+<li>The raw estimates total 32.0 g, which looks like 8 g of headroom. That is the trap. With contingency the total is 36.38 g, slightly over the 36 g allocated.</li>
+<li>Two lines exceed their allocations: the enclosure (14.4 against 14.0) and the strap and screws (2.4 against 2.0). Those owners have a decision to make now: find savings, or ask for margin.</li>
+<li>The system is still inside the requirement: about 3.6 g (40 − 36.38) remains of the system margin. Nothing is broken yet, but the margin is already partly spent at concept stage, which is worth saying out loud at the next review.</li>
+</ol>
+<h2 id="the-same-method-for-cost">The same method for cost</h2>
+<p>A unit cost target works the same way. Allocate the target across components, the circuit board, assembly, test, enclosure and packaging, and hold back margin for price changes and yield loss. Bottom-up estimates come from quotes at the right quantity, not from the price of a single part on a distributor's page. The structure is identical; only the risks differ. Cost estimates tend to move with quantity and supply, so their contingency often stays larger for longer than a mass estimate's does.</p>
+<p>Other budgets that use the same pattern include power and energy, latency, data rate, memory and flash size, thermal dissipation, and the error budget of a measurement chain. Each has its own article's worth of detail, but the discipline is the same: a top-down limit, owned allocations, honest bottom-up estimates and a margin someone guards.</p>
+<h2 id="keeping-a-budget-useful">Keeping a budget useful</h2>
+<ul>
+<li><strong>One owner per line.</strong> If nobody owns the enclosure mass, nobody will fight to reduce it.</li>
+<li><strong>Record maturity, not just numbers.</strong> "6 g, measured" and "6 g, guessed" are not the same number.</li>
+<li><strong>Update at every milestone.</strong> A budget filled in once at concept and never again gives false comfort.</li>
+<li><strong>Make margin requests visible.</strong> A log of who took how much margin and why is the early-warning signal for a project in trouble.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Giving away all the margin at the start.</strong> If every gram is allocated, the first surprise becomes a crisis instead of a decision.</li>
+<li><strong>Adding contingency twice.</strong> If owners pad their estimates and also add a contingency percentage, the budget overstates the problem and people stop believing it.</li>
+<li><strong>Hiding overruns.</strong> An owner who quietly absorbs an overrun into "rounding" deprives the team of time to fix it elsewhere.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Weigh the parts of a small device you can safely take apart, such as an old remote control, on a kitchen scale and build a bottom-up mass table from your measurements.</li>
+<li>Write a short Python script, or a LibreOffice Calc sheet, that takes each line's estimate and maturity, applies a contingency policy, compares it with its allocation and prints the remaining system margin.</li>
+<li>Change one estimate from "guess" to "measured" and watch how the margin moves. Then set a target 10 % lower and decide, as a team, which subsystem should take the cut and why.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>budgets</li><li>margin</li><li>systems engineering</li><li>mass budget</li><li>cost</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="agile-for-hardware-teams.html"><span>Previous in Systems &amp; product engineering</span>Agile for hardware teams: what works when you cannot ship every week</a><a class="next" href="costing-a-bill-of-materials.html"><span>Next in Systems &amp; product engineering</span>Costing a bill of materials: what changes from prototype to volume</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="latency-budgets.html">Latency budgets: splitting end-to-end response time across subsystems</a></h3>
+          <p>A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="board-to-fpga-to-chip.html">From board to FPGA to chip: when a product earns a custom chip</a></h3>
+          <p>How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="costing-a-bill-of-materials.html">Costing a bill of materials: what changes from prototype to volume</a></h3>
+          <p>Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

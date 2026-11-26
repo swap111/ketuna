@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering · Ketuna blog</title>
+  <meta name="description" content="A sensor-fusion controller needs many channels sampled at known instants. Design the digital sequencer that schedules several multiplexed ADCs, respects settling time, timestamps each sample and buffers the results.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering · Ketuna blog">
+  <meta property="og:description" content="A sensor-fusion controller needs many channels sampled at known instants. Design the digital sequencer that schedules several multiplexed ADCs, respects settling time, timestamps each sample and buffers the results.">
+  <link rel="canonical" href="https://ketuna.online/blog/sequencing-an-adc-array-from-rtl.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sequencing-an-adc-array-from-rtl.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering",
+  "description": "A sensor-fusion controller needs many channels sampled at known instants. Design the digital sequencer that schedules several multiplexed ADCs, respects settling time, timestamps each sample and buffers the results.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "adc, sequencer, sensor fusion, timestamps, mixed signal",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 896,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sequencing-an-adc-array-from-rtl.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A sensor-fusion controller needs many channels sampled at known instants. Design the digital sequencer that schedules several multiplexed ADCs, respects settling time, timestamps each sample and buffers the results.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-architecture">The architecture</a></li><li><a href="#building-the-schedule">Building the schedule</a></li><li><a href="#the-sequencer-state-machine">The sequencer state machine</a></li><li><a href="#tagging-and-buffering">Tagging and buffering</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A sensor-fusion controller combines readings from many sources, such as accelerometer axes, current sensors and temperature probes, and the fusion algorithm assumes it knows <em>when</em> each reading was taken. The converters do the analog work, but the digital sequencer around them decides which channel each converter looks at, when it samples, how long the input mux is given to settle, and how each result is tagged and stored. Getting that logic right is what turns a box of ADCs into a measurement system.</p>
+<h2 id="the-architecture">The architecture</h2>
+<p>Take an illustrative array: four successive-approximation (SAR) ADCs, each with a 4-to-1 analog input multiplexer, giving 16 channels. Each ADC has a simple digital interface: a <code>start</code> pulse begins a conversion by sampling the input, and <code>done</code> with <code>data</code> reports the result some cycles later.</p>
+<p>The sequencer's jobs:</p>
+<ul>
+<li>step each ADC's mux through its channels in a programmed order;</li>
+<li>wait for the mux and the sampling capacitor to settle before each <code>start</code>;</li>
+<li>start conversions so that channels which must be compared are sampled together;</li>
+<li>capture each result with its channel number and the time it was <em>sampled</em>;</li>
+<li>push tagged results into a buffer that software or a DMA engine drains.</li>
+</ul>
+<h2 id="building-the-schedule">Building the schedule</h2>
+<p>Use these numbers, made up for illustration: each conversion takes 1.0 µs, and after switching the mux the input needs 0.25 µs to settle to within the required accuracy. One slot is therefore 1.25 µs, and each ADC visits its four channels in 5 µs, so every channel is sampled at 200 kS/s.</p>
+<p>The key design choice is <strong>simultaneous sampling across converters</strong>. All four ADCs start on the same clock cycle, each on its own channel. Channels that the fusion algorithm compares directly, for example the three phase currents of a motor, should be placed on <em>different</em> ADCs in the same slot, so they are sampled at the same instant. Channels on the same ADC are sampled 1.25 µs apart, which matters for fast signals.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 210" role="img" aria-labelledby="ad-title ad-desc" font-size="14">
+<title id="ad-title">Sampling schedule for four multiplexed ADCs</title>
+<desc id="ad-desc">A grid with four rows, one per ADC, and four time slots. In each slot all four ADCs sample at the same instant, marked by a dashed vertical line. ADC 0 samples channels 0 to 3 in turn, ADC 1 samples channels 4 to 7, ADC 2 channels 8 to 11, and ADC 3 channels 12 to 15. Each slot has a short settle period followed by a conversion.</desc>
+<text x="6" y="58" class="dg-text">ADC0</text>
+<text x="6" y="98" class="dg-text">ADC1</text>
+<text x="6" y="138" class="dg-text">ADC2</text>
+<text x="6" y="178" class="dg-text">ADC3</text>
+<g font-size="14">
+<rect x="70" y="40" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="90" y="40" width="72" height="28" class="dg-box"/><text x="126" y="59" text-anchor="middle" class="dg-text">ch0</text>
+<rect x="170" y="40" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="190" y="40" width="72" height="28" class="dg-box"/><text x="226" y="59" text-anchor="middle" class="dg-text">ch1</text>
+<rect x="270" y="40" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="290" y="40" width="72" height="28" class="dg-box"/><text x="326" y="59" text-anchor="middle" class="dg-text">ch2</text>
+<rect x="370" y="40" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="390" y="40" width="72" height="28" class="dg-box"/><text x="426" y="59" text-anchor="middle" class="dg-text">ch3</text>
+<rect x="70" y="80" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="90" y="80" width="72" height="28" class="dg-box"/><text x="126" y="99" text-anchor="middle" class="dg-text">ch4</text>
+<rect x="170" y="80" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="190" y="80" width="72" height="28" class="dg-box"/><text x="226" y="99" text-anchor="middle" class="dg-text">ch5</text>
+<rect x="270" y="80" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="290" y="80" width="72" height="28" class="dg-box"/><text x="326" y="99" text-anchor="middle" class="dg-text">ch6</text>
+<rect x="370" y="80" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="390" y="80" width="72" height="28" class="dg-box"/><text x="426" y="99" text-anchor="middle" class="dg-text">ch7</text>
+<rect x="70" y="120" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="90" y="120" width="72" height="28" class="dg-box"/><text x="126" y="139" text-anchor="middle" class="dg-text">ch8</text>
+<rect x="170" y="120" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="190" y="120" width="72" height="28" class="dg-box"/><text x="226" y="139" text-anchor="middle" class="dg-text">ch9</text>
+<rect x="270" y="120" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="290" y="120" width="72" height="28" class="dg-box"/><text x="326" y="139" text-anchor="middle" class="dg-text">ch10</text>
+<rect x="370" y="120" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="390" y="120" width="72" height="28" class="dg-box"/><text x="426" y="139" text-anchor="middle" class="dg-text">ch11</text>
+<rect x="70" y="160" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="90" y="160" width="72" height="28" class="dg-box"/><text x="126" y="179" text-anchor="middle" class="dg-text">ch12</text>
+<rect x="170" y="160" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="190" y="160" width="72" height="28" class="dg-box"/><text x="226" y="179" text-anchor="middle" class="dg-text">ch13</text>
+<rect x="270" y="160" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="290" y="160" width="72" height="28" class="dg-box"/><text x="326" y="179" text-anchor="middle" class="dg-text">ch14</text>
+<rect x="370" y="160" width="20" height="28" class="dg-amber" fill-opacity="0.3"/><rect x="390" y="160" width="72" height="28" class="dg-box"/><text x="426" y="179" text-anchor="middle" class="dg-text">ch15</text>
+</g>
+<line x1="90" y1="30" x2="90" y2="196" class="dg-dash"/>
+<line x1="190" y1="30" x2="190" y2="196" class="dg-dash"/>
+<line x1="290" y1="30" x2="290" y2="196" class="dg-dash"/>
+<line x1="390" y1="30" x2="390" y2="196" class="dg-dash"/>
+<text x="80" y="22" text-anchor="middle" class="dg-muted">settle</text>
+<text x="126" y="22" text-anchor="middle" class="dg-muted">convert</text>
+<text x="290" y="22" text-anchor="middle" class="dg-muted">sample instants (dashed)</text>
+</svg>
+<figcaption>All four converters sample on the same instants; each slot starts with a settle period after the mux switches, then the conversion.</figcaption>
+</figure>
+
+<p>Rather than hard-coding the order, store the schedule in a small table that software writes: one entry per slot, holding the mux setting for each ADC and flags such as "end of sequence" or "repeat". Then firmware can sample a fast channel twice per sequence and a slow one once, or skip unused channels, without an RTL change.</p>
+<h2 id="the-sequencer-state-machine">The sequencer state machine</h2>
+<pre><code class="language-systemverilog">typedef enum logic [1:0] {IDLE, SETTLE, CONVERT, STORE} seq_t;
+seq_t st;
+
+always_ff @(posedge clk or negedge rst_n)
+  if (!rst_n) begin
+    st &lt;= IDLE; slot &lt;= '0; tmr &lt;= '0; start &lt;= 1'b0;
+  end else begin
+    start &lt;= 1'b0;                          // one-cycle pulse
+    case (st)
+      IDLE:    if (run) begin
+                 mux_sel &lt;= sched[0]; tmr &lt;= settle_cyc; st &lt;= SETTLE;
+               end
+      SETTLE:  if (tmr == '0) begin
+                 start  &lt;= 1'b1;            // all ADCs together
+                 ts_hold &lt;= timebase;       // time of sampling
+                 st     &lt;= CONVERT;
+               end else tmr &lt;= tmr - 1'b1;
+      CONVERT: if (&amp;adc_done) st &lt;= STORE;  // wait for all four
+      STORE:   begin                        // results pushed this cycle
+                 slot    &lt;= next_slot;
+                 mux_sel &lt;= sched[next_slot];
+                 tmr     &lt;= settle_cyc;
+                 st      &lt;= (run) ? SETTLE : IDLE;
+               end
+    endcase
+  end
+</code></pre>
+<p>Three details deserve attention:</p>
+<ul>
+<li><strong>The mux switches as early as possible.</strong> It changes in <code>STORE</code>, right after the previous conversion is done, so the settle time starts immediately. In many SAR converters the sampling capacitor is disconnected from the input once a conversion begins, so switching the mux during the previous conversion is often allowed too, which hides the settle time entirely. Whether that is legal depends on the converter; check its timing requirements.</li>
+<li><strong>Settle time is a counter, not a guess.</strong> <code>settle_cyc</code> is a register, so it can be tuned after silicon is measured.</li>
+<li><strong>The timestamp is taken at the sampling instant.</strong> A sample's time is when the input was captured, not when the result appeared. <code>ts_hold</code> latches a free-running <code>timebase</code> counter on the same cycle as <code>start</code>. Tagging with the time of <code>done</code> would add the conversion latency to every timestamp and, if latency varies, add jitter to the data.</li>
+</ul>
+<h2 id="tagging-and-buffering">Tagging and buffering</h2>
+<p>Each result is packed with its channel number and timestamp, for example a 64-bit word holding the 12-bit sample, a 4-bit channel ID and a 32-bit timestamp. With 16 channels at 200 kS/s, that is 3.2 million words per second, or 25.6 MB/s, so the downstream bus and the software that consumes it must be checked against that rate. A FIFO absorbs the burst of four results produced at the end of each slot and the variable latency of whoever drains it. Report overflow with a sticky flag and an interrupt; silently dropped samples are the worst outcome for a fusion algorithm, because it cannot tell a gap from a steady signal.</p>
+<p>Grouping the four simultaneous samples under one shared timestamp saves buffer space, at the cost of a more complex format.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Channel crosstalk through the mux.</strong> Switching from a channel near full scale to one near zero needs more settling. Order the schedule so large jumps are rare, or give those slots extra settle time.</li>
+<li><strong>Clock domain crossings.</strong> ADC <code>done</code> and <code>data</code> may come from the converter's own clock. Synchronize them properly; a multi-bit result needs a handshake or a qualified capture, not per-bit synchronizers.</li>
+<li><strong>Timebase wrap.</strong> A 32-bit counter at 50 MHz wraps after about 86 seconds. Software must handle the wrap, or use a wider counter.</li>
+<li><strong>Changing the schedule while running.</strong> Use a shadow copy that takes effect at the end of a sequence, so one sequence never mixes old and new entries.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the slot timeline for your own channel list on paper, mark which channels are sampled together, and compute each channel's sample rate.</li>
+<li>Write a behavioural ADC model in SystemVerilog that returns a sine wave value per channel after a fixed latency, and simulate the sequencer with <strong>Verilator</strong> or <strong>Icarus Verilog</strong>.</li>
+<li>Dump the tagged words to a file, load them with numpy, and plot each channel against its timestamp. Check that simultaneous channels share exactly the same timestamp.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>adc</li><li>sequencer</li><li>sensor fusion</li><li>timestamps</li><li>mixed signal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="ripple-carry-vs-carry-lookahead.html"><span>Previous in Digital &amp; VLSI design</span>Ripple-carry vs carry-lookahead: where the delay goes in an adder</a><a class="next" href="setup-and-hold-time-explained.html"><span>Next in Digital &amp; VLSI design</span>Setup and hold time, explained with one flip-flop and a clock edge</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

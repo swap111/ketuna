@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Switching between two clocks without a glitch · Ketuna blog</title>
+  <meta name="description" content="A plain mux between two clocks can emit a runt pulse when its select changes. See how the cross-coupled glitch-free clock mux used for low-power modes works, and the assumptions it quietly relies on.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Switching between two clocks without a glitch · Ketuna blog">
+  <meta property="og:description" content="A plain mux between two clocks can emit a runt pulse when its select changes. See how the cross-coupled glitch-free clock mux used for low-power modes works, and the assumptions it quietly relies on.">
+  <link rel="canonical" href="https://ketuna.online/blog/glitch-free-clock-switching.html">
+  <meta property="og:url" content="https://ketuna.online/blog/glitch-free-clock-switching.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Switching between two clocks without a glitch",
+  "description": "A plain mux between two clocks can emit a runt pulse when its select changes. See how the cross-coupled glitch-free clock mux used for low-power modes works, and the assumptions it quietly relies on.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "clock switching, low power, glitch-free mux, cdc",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 906,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/glitch-free-clock-switching.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Switching between two clocks without a glitch</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A plain mux between two clocks can emit a runt pulse when its select changes. See how the cross-coupled glitch-free clock mux used for low-power modes works, and the assumptions it quietly relies on.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-goes-wrong-with-a-plain-mux">What goes wrong with a plain mux</a></li><li><a href="#the-cross-coupled-structure">The cross-coupled structure</a></li><li><a href="#walking-through-a-switch">Walking through a switch</a></li><li><a href="#the-assumptions-it-relies-on">The assumptions it relies on</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Low-power chips routinely change their clock source at run time: a fast oscillator or PLL while there is work to do, a slow low-power oscillator while waiting for the next sensor sample. The switch must happen while the logic downstream keeps running, and the clock it receives during the switch must contain no pulse shorter than either source's. A combinational mux cannot promise that. The standard circuit that can is small, but every flop and gate in it is there for a reason, and it depends on assumptions that are easy to violate at the system level.</p>
+<h2 id="what-goes-wrong-with-a-plain-mux">What goes wrong with a plain mux</h2>
+<p><code>assign clk_out = sel ? clk1 : clk0;</code> switches the instant <code>sel</code> changes. If <code>sel</code> changes while <code>clk0</code> is high and <code>clk1</code> is low, the output falls early, chopping a <code>clk0</code> pulse short. If it changes while <code>clk0</code> is low and <code>clk1</code> is high, the output rises immediately, partway through a <code>clk1</code> pulse, producing a short high pulse. Either way the downstream flops see a <strong>runt pulse</strong>: an edge that no timing analysis accounted for, or a pulse narrower than the flops' minimum pulse width. The result can be corrupted state or metastability in flops all over the clock domain.</p>
+<p>The select usually comes from a register clocked by one of the two clocks, or from a third domain entirely, so it has no fixed relationship to both clocks at once. No amount of timing closure on <code>sel</code> fixes this.</p>
+<h2 id="the-cross-coupled-structure">The cross-coupled structure</h2>
+<p>The glitch-free mux gives each clock its own enable, and enforces two rules: an enable may only change while its own clock is low, and a clock may only be enabled after the other has been disabled.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="gm-title gm-desc" font-size="14">
+<title id="gm-title">Glitch-free clock multiplexer</title>
+<desc id="gm-desc">Two symmetric branches. In the top branch, the inverted select is ANDed with the inverse of the other branch's enable, passed through two flip-flops clocked on the falling edge of clock zero, and the resulting enable is ANDed with clock zero. The bottom branch does the same with the select, clock one and the top branch's enable. The two gated clocks are ORed to form the output. Each branch's enable feeds back to the other branch's input gate.</desc>
+<text x="2" y="49" class="dg-text">~sel</text>
+<text x="6" y="194" class="dg-text">sel</text>
+<path d="M38,45 H50 M38,190 H50" class="dg-line"/>
+<rect x="50" y="35" width="40" height="34" class="dg-box"/>
+<text x="70" y="57" text-anchor="middle" class="dg-text">&amp;</text>
+<rect x="50" y="165" width="40" height="34" class="dg-box"/>
+<text x="70" y="187" text-anchor="middle" class="dg-text">&amp;</text>
+<rect x="110" y="35" width="50" height="34" class="dg-core"/>
+<rect x="175" y="35" width="50" height="34" class="dg-core"/>
+<text x="167" y="27" text-anchor="middle" class="dg-muted">negedge clk0</text>
+<rect x="110" y="165" width="50" height="34" class="dg-core"/>
+<rect x="175" y="165" width="50" height="34" class="dg-core"/>
+<text x="167" y="218" text-anchor="middle" class="dg-muted">negedge clk1</text>
+<path d="M90,52 H110 M160,52 H175 M90,182 H110 M160,182 H175" class="dg-line"/>
+<rect x="290" y="35" width="40" height="34" class="dg-box"/>
+<text x="310" y="57" text-anchor="middle" class="dg-text">&amp;</text>
+<rect x="290" y="165" width="40" height="34" class="dg-box"/>
+<text x="310" y="187" text-anchor="middle" class="dg-text">&amp;</text>
+<path d="M225,52 H290 M225,182 H290" class="dg-line"/>
+<text x="258" y="45" text-anchor="middle" class="dg-text">en0</text>
+<text x="258" y="175" text-anchor="middle" class="dg-text">en1</text>
+<text x="345" y="30" class="dg-muted">clk0</text>
+<path d="M340,26 H320 V35" class="dg-line"/>
+<text x="345" y="214" class="dg-muted">clk1</text>
+<path d="M340,210 H320 V199" class="dg-line"/>
+<rect x="380" y="95" width="40" height="44" class="dg-box"/>
+<text x="400" y="122" text-anchor="middle" class="dg-text">OR</text>
+<path d="M330,52 H360 V105 H380 M330,182 H360 V129 H380 M420,117 H440" class="dg-line"/>
+<path d="M434,113 L440,117 L434,121 Z" class="dg-arrow"/>
+<text x="444" y="121" class="dg-text">out</text>
+<path d="M250,52 V95 H40 V172 H50" class="dg-amber-line" stroke-width="2"/>
+<path d="M265,182 V140 H30 V62 H50" class="dg-amber-line" stroke-width="2"/>
+<text x="60" y="90" class="dg-muted">~en0 to lower gate</text>
+<text x="60" y="157" class="dg-muted">~en1 to upper gate</text>
+</svg>
+<figcaption>Each enable is synchronized on the falling edge of its own clock and blocks the other branch, so one clock is fully off before the other turns on.</figcaption>
+</figure>
+
+<pre><code class="language-systemverilog">module clk_mux_gf (
+  input  logic clk0, clk1,
+  input  logic rst_n,
+  input  logic sel,           // 0 selects clk0, 1 selects clk1
+  output logic clk_out
+);
+  logic en0_m, en0, en1_m, en1;
+
+  always_ff @(negedge clk0 or negedge rst_n)
+    if (!rst_n) begin en0_m &lt;= 1'b0; en0 &lt;= 1'b0; end
+    else begin
+      en0_m &lt;= ~sel &amp; ~en1;   // request clk0 only if clk1 is off
+      en0   &lt;= en0_m;
+    end
+
+  always_ff @(negedge clk1 or negedge rst_n)
+    if (!rst_n) begin en1_m &lt;= 1'b0; en1 &lt;= 1'b0; end
+    else begin
+      en1_m &lt;= sel &amp; ~en0;    // request clk1 only if clk0 is off
+      en1   &lt;= en1_m;
+    end
+
+  assign clk_out = (clk0 &amp; en0) | (clk1 &amp; en1);
+endmodule
+</code></pre>
+<h2 id="walking-through-a-switch">Walking through a switch</h2>
+<p>Start with <code>sel = 0</code>, <code>en0 = 1</code>, <code>en1 = 0</code>: the output follows <code>clk0</code>. Now <code>sel</code> rises.</p>
+<ol>
+<li>On the next falling edge of <code>clk0</code>, <code>en0_m</code> captures 0, and on the one after that, <code>en0</code> goes to 0. Both changes happen while <code>clk0</code> is low, so the AND gate's output is already low and does not glitch. The last <code>clk0</code> pulse at the output is a complete one.</li>
+<li><code>en1_m</code> has been waiting on <code>~en0</code>. Once <code>en0</code> is 0, it crosses into the <code>clk1</code> domain through the two <code>clk1</code> flops, and <code>en1</code> rises on a falling edge of <code>clk1</code>, while <code>clk1</code> is low. The first <code>clk1</code> pulse at the output is complete too.</li>
+<li>Between the two, the output stays low for a short gap. A gap is harmless: it is just a longer-than-usual low phase.</li>
+</ol>
+<p>The two flops per branch serve a second purpose. The other branch's enable, and <code>sel</code> itself, are asynchronous to this branch's clock, so the first flop can go metastable. The second flop is a synchronizer. The falling-edge clocking is what keeps the enable changes inside the low phase.</p>
+<p>The cost of the switch is latency: roughly two falling edges of the old clock plus two of the new. When switching to a slow clock, that can be a long time in absolute terms, and logic waiting for the switch must allow for it.</p>
+<h2 id="the-assumptions-it-relies-on">The assumptions it relies on</h2>
+<p><strong>Both clocks must be running during the switch.</strong> If you switch away from a clock that has already stopped, its branch's flops never see a falling edge, <code>en0</code> never drops, and <code>en1</code> waits forever. The output is stuck. Power-management sequences must therefore keep the old clock alive until the switch completes, start the new clock and let it stabilise first, and only then gate or power down the old one. Some designs add a timeout or a forced-switch path for a failed oscillator, which needs its own careful analysis.</p>
+<p><strong>Reset must leave a defined state.</strong> With both enables reset to 0, the output is quiet until <code>sel</code> propagates through one branch. If logic needs a clock during reset, reset the appropriate enable to 1 instead, and check that the other branch cannot also start.</p>
+<p><strong>Implement it with real cells.</strong> The AND and OR gates are on the clock path. Synthesis may restructure them or merge them with other logic, reintroducing hazards. Use dedicated clock-gating or clock-mux cells from the library, mark the instances so optimisation leaves them alone, and check the netlist.</p>
+<p><strong>Timing tools need to be told.</strong> The output carries either clock. In STA, define both clocks at the mux output and declare them logically exclusive, so the tools do not try to time paths between them. Check scan test, too: test usually requires a way to force one clock through.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Using a combinational clock mux and relying on software to switch "when it is safe"</li>
+<li>Clocking the enable flops on the rising edge, which lets enables change while the clock is high</li>
+<li>Turning off the old oscillator before the switch has completed</li>
+<li>Letting synthesis optimise the clock-path gates</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate <code>clk_mux_gf</code> in <strong>Icarus Verilog</strong> with clocks of 10 ns and 34 ns periods and toggle <code>sel</code> at random times. Measure the narrowest high and low pulse on <code>clk_out</code> with a small checker in the testbench.</li>
+<li>Replace it with a plain mux and repeat. Count the runt pulses.</li>
+<li>Stop <code>clk0</code> just before switching away from it and watch the output stick. Then write down, as a list, the power-management sequence that avoids it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>clock switching</li><li>low power</li><li>glitch-free mux</li><li>cdc</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="setup-and-hold-time-explained.html"><span>Previous in Digital &amp; VLSI design</span>Setup and hold time, explained with one flip-flop and a clock edge</a><a class="next" href="async-assert-sync-deassert-reset.html"><span>Next in Digital &amp; VLSI design</span>Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="glitch-free-clock-gating.html">Clock gating without glitches: the latch-based integrated clock gate</a></h3>
+          <p>ANDing a clock with an enable can chop clock pulses and clock flops at the wrong time. See how a latch that is transparent while the clock is low keeps the gated clock clean, and how to use the cell properly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

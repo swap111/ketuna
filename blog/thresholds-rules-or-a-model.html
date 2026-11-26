@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Making decisions on a soil sensor node: thresholds, rules or a model? · Ketuna blog</title>
+  <meta name="description" content="Start a sensor node&#x27;s decision logic with a threshold and hysteresis, add readable rules as needs appear, and bring in a model only when logged data shows the simple logic failing, using a soil moisture node.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Making decisions on a soil sensor node: thresholds, rules or a model? · Ketuna blog">
+  <meta property="og:description" content="Start a sensor node&#x27;s decision logic with a threshold and hysteresis, add readable rules as needs appear, and bring in a model only when logged data shows the simple logic failing, using a soil moisture node.">
+  <link rel="canonical" href="https://ketuna.online/blog/thresholds-rules-or-a-model.html">
+  <meta property="og:url" content="https://ketuna.online/blog/thresholds-rules-or-a-model.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Making decisions on a soil sensor node: thresholds, rules or a model?",
+  "description": "Start a sensor node's decision logic with a threshold and hysteresis, add readable rules as needs appear, and bring in a model only when logged data shows the simple logic failing, using a soil moisture node.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "decision logic, hysteresis, sensor nodes, agriculture, embedded c",
+  "articleSection": "Edge AI",
+  "wordCount": 911,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/thresholds-rules-or-a-model.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Making decisions on a soil sensor node: thresholds, rules or a model?</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Start a sensor node&#x27;s decision logic with a threshold and hysteresis, add readable rules as needs appear, and bring in a model only when logged data shows the simple logic failing, using a soil moisture node.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#step-1-a-threshold">Step 1: a threshold</a></li><li><a href="#step-2-hysteresis">Step 2: hysteresis</a></li><li><a href="#step-3-a-few-readable-rules">Step 3: a few readable rules</a></li><li><a href="#step-4-a-model-if-the-data-says-so">Step 4: a model, if the data says so</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A soil sensor node in a field has a simple job: measure moisture and decide whether to open a valve, raise an alert or just report. It is tempting to put machine learning on it from the start, because "smart irrigation" sounds like a model. But every layer of cleverness costs battery, flash, testing effort and, most importantly, explainability to the farmer who has to trust it. The better path is to begin with the simplest logic that could work, find out from real data where it fails, and add complexity only to fix those specific failures.</p>
+<h2 id="step-1-a-threshold">Step 1: a threshold</h2>
+<p>The simplest decision is a threshold: if soil moisture falls below a set point, irrigate. The node reads its capacitive moisture sensor, converts the raw reading to a moisture value using a calibration for that soil (measured once, in dry and saturated soil), and compares.</p>
+<p>This already captures most of the value. It is a few lines of code, uses almost no energy, and anyone can understand and adjust it: "the valve opens when moisture drops below 25 %." The numbers here and below are illustrative; the right values depend on the soil and the crop, and come from the agronomist or the farmer's experience.</p>
+<p>A single threshold has one flaw, which shows up on the first day: <strong>chatter</strong>. Near the set point, sensor noise makes the reading cross back and forth, and the valve opens and closes repeatedly, wearing it out and wasting the battery.</p>
+<h2 id="step-2-hysteresis">Step 2: hysteresis</h2>
+<p>The fix is <strong>hysteresis</strong>: two thresholds instead of one. Start irrigating when moisture falls below the lower one; stop only when it rises above the upper one. Between them, keep doing whatever you were doing.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="hy-title hy-desc" font-size="14">
+<title id="hy-title">Irrigation control with hysteresis</title>
+<desc id="hy-desc">Soil moisture falls slowly over time until it crosses the lower threshold at 25 percent, where the valve opens. Moisture then rises until it crosses the upper threshold at 32 percent, where the valve closes, and the cycle repeats. Below the plot, the valve state is shown as on during each rise.</desc>
+<line x1="60" y1="20" x2="60" y2="150" class="dg-line"/>
+<line x1="60" y1="150" x2="460" y2="150" class="dg-line"/>
+<path d="M60,60 H460" class="dg-dash"/>
+<path d="M60,105 H460" class="dg-dash"/>
+<text x="10" y="64" class="dg-text">32 %</text>
+<text x="10" y="109" class="dg-text">25 %</text>
+<path d="M60,70 L170,105 L210,60 L330,105 L370,60 L460,88" class="dg-line" stroke-width="2"/>
+<text x="250" y="45" class="dg-muted">upper: stop</text>
+<text x="250" y="128" class="dg-muted">lower: start</text>
+<text x="10" y="195" class="dg-text">valve</text>
+<path d="M60,200 H170 V180 H210 V200 H330 V180 H370 V200 H460" class="dg-amber-line" stroke-width="2"/>
+<text x="190" y="173" text-anchor="middle" class="dg-muted">on</text>
+<text x="350" y="173" text-anchor="middle" class="dg-muted">on</text>
+<text x="260" y="222" text-anchor="middle" class="dg-muted">time</text>
+</svg>
+<figcaption>The valve opens at the lower threshold and stays open until the upper one, so noise near either line cannot make it chatter.</figcaption>
+</figure>
+
+<p>As long as the gap between the thresholds is larger than the sensor noise, the valve switches once per cycle. It is the same idea as a thermostat, and it remains the core of the node's logic in every later step.</p>
+<h2 id="step-3-a-few-readable-rules">Step 3: a few readable rules</h2>
+<p>Once the node is in the field and its decisions are logged, specific problems appear, and each can be fixed by a rule that a person can read:</p>
+<ul>
+<li><strong>It rained, but the node irrigated anyway</strong>, because the sensor responds a little later than the rain arrives. Rule: if a rain gauge (or a sudden rise in moisture) shows rain in the last few hours, wait.</li>
+<li><strong>It irrigated at midday</strong>, losing water to evaporation. Rule: if irrigation is needed between late morning and afternoon and moisture is not critically low, defer to the evening.</li>
+<li><strong>A broken sensor read zero and opened the valve indefinitely.</strong> Rule: if the reading is outside the physically possible range, or has not changed at all for a day, stop and raise a sensor-fault alert. A <strong>maximum valve-open time</strong> guards against any failure.</li>
+</ul>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+#define START_BELOW   25.0f   /* % moisture, illustrative */
+#define STOP_ABOVE    32.0f
+#define CRITICAL      15.0f
+#define MAX_OPEN_MIN  60
+
+typedef struct {
+    bool valve_on;
+    bool fault;               /* latched until a person clears it */
+    uint16_t open_min;        /* minutes the valve has been open */
+} ctrl_t;
+
+/* Called every minute with a calibrated moisture reading. */
+bool decide(ctrl_t *c, float moisture, bool sensor_ok,
+            bool rained_recently, bool midday)
+{
+    if (!sensor_ok || c-&gt;open_min &gt;= MAX_OPEN_MIN)
+        c-&gt;fault = true;                     /* raise an alert */
+    if (c-&gt;fault) {
+        c-&gt;valve_on = false;                 /* fail safe: close */
+    } else if (c-&gt;valve_on) {
+        if (moisture &gt; STOP_ABOVE)
+            c-&gt;valve_on = false;             /* upper threshold */
+    } else if (moisture &lt; START_BELOW &amp;&amp; !rained_recently &amp;&amp;
+               (!midday || moisture &lt; CRITICAL)) {
+        c-&gt;valve_on = true;                  /* lower threshold */
+    }
+    c-&gt;open_min = c-&gt;valve_on ? c-&gt;open_min + 1 : 0;
+    return c-&gt;valve_on;
+}
+</code></pre>
+<p>The fault flag is latched on purpose: after a sensor failure or an over-long irrigation, the node keeps the valve closed until someone has looked, rather than reopening on the next reading. Each rule is one condition with a reason, and every decision can be explained in a sentence: "did not irrigate because it rained two hours ago." That explanation is what lets a farmer trust the node, or correct it.</p>
+<h2 id="step-4-a-model-if-the-data-says-so">Step 4: a model, if the data says so</h2>
+<p>A model becomes worth considering when the logs show a pattern the rules cannot capture well, and when you have the data to learn it. For example:</p>
+<ul>
+<li>the best irrigation time depends on how fast each field dries, which varies with soil, crop stage and weather in a way that is hard to write as rules, and you have months of moisture logs to learn drying rates from</li>
+<li>several sensors at different depths interact, and hand-written rules for every combination become unmanageable</li>
+</ul>
+<p>Even then, the model often does not replace the logic; it feeds it. A small regression model might predict moisture six hours ahead, and the existing hysteresis rule acts on the prediction instead of the current reading. The fail-safe rules stay exactly as they are, outside the model, because a model should never be the only thing standing between a fault and an empty water tank.</p>
+<p>To justify the step, compare against the simple logic on the same logged data: how much water would each have used, and how often would moisture have dropped below the critical level? If the model does not clearly win on numbers that matter to the farmer, keep the rules.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>starting with a model before logging what the simple logic does</li>
+<li>a single threshold without hysteresis, so actuators chatter</li>
+<li>no limit on valve-open time or check for impossible sensor readings</li>
+<li>thresholds copied from elsewhere instead of calibrated for the soil</li>
+<li>letting a model override safety rules</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate the node in Python: moisture falls by a small amount per step, rises while the valve is on, plus random noise. Compare a single threshold with hysteresis and count valve switches.</li>
+<li>Add a rain event to the simulation and implement the rain rule.</li>
+<li>Port <code>decide()</code> to a microcontroller with a capacitive soil sensor, log every decision with its reason over a week, and review the log.</li>
+<li>From the logs, fit a simple drying-rate model per day with <code>numpy.polyfit</code> and check whether predicting ahead would have changed any decisions.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>decision logic</li><li>hysteresis</li><li>sensor nodes</li><li>agriculture</li><li>embedded c</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="mac-units-and-systolic-arrays.html"><span>Previous in Edge AI</span>MAC units and systolic arrays: how ML accelerators reuse data</a><a class="next" href="measuring-model-accuracy-honestly.html"><span>Next in Edge AI</span>Measuring model accuracy honestly: test sets, leakage and confusion matrices</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-activation-functions.html">Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></h3>
+          <p>ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

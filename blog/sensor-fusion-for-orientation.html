@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sensor fusion basics: complementary and Kalman filters for orientation · Ketuna blog</title>
+  <meta name="description" content="A gyroscope drifts and an accelerometer is noisy, but together they give a stable tilt estimate. How a complementary filter and a two-state Kalman filter combine them, with C and Python you can test.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Sensor fusion basics: complementary and Kalman filters for orientation · Ketuna blog">
+  <meta property="og:description" content="A gyroscope drifts and an accelerometer is noisy, but together they give a stable tilt estimate. How a complementary filter and a two-state Kalman filter combine them, with C and Python you can test.">
+  <link rel="canonical" href="https://ketuna.online/blog/sensor-fusion-for-orientation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sensor-fusion-for-orientation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sensor fusion basics: complementary and Kalman filters for orientation",
+  "description": "A gyroscope drifts and an accelerometer is noisy, but together they give a stable tilt estimate. How a complementary filter and a two-state Kalman filter combine them, with C and Python you can test.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sensor fusion, imu, kalman filter, complementary filter, drones",
+  "articleSection": "Edge AI",
+  "wordCount": 889,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sensor-fusion-for-orientation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Sensor fusion basics: complementary and Kalman filters for orientation</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A gyroscope drifts and an accelerometer is noisy, but together they give a stable tilt estimate. How a complementary filter and a two-state Kalman filter combine them, with C and Python you can test.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-neither-sensor-works-alone">Why neither sensor works alone</a></li><li><a href="#the-complementary-filter">The complementary filter</a></li><li><a href="#the-kalman-filter-view">The Kalman filter view</a></li><li><a href="#practical-notes-and-limits">Practical notes and limits</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A drone's flight controller needs to know, hundreds of times a second, how far it is tilted. Small inertial measurement units (IMUs) give it two sensors that each answer that question badly in a different way. The gyroscope measures rotation rate precisely but has to be integrated, so its errors pile up. The accelerometer can tell which way gravity points, so it never drifts, but it is noisy and fooled by every vibration and manoeuvre. Sensor fusion combines them so that each covers the other's weakness, and the two classic ways to do that are short enough to write in an afternoon.</p>
+<h2 id="why-neither-sensor-works-alone">Why neither sensor works alone</h2>
+<p><strong>Gyroscope.</strong> A gyro reports angular rate ω in degrees per second. Integrating it, angle += ω × dt, gives orientation, and over a fraction of a second this is very accurate. But every gyro has a small <strong>bias</strong>, a non-zero reading when it is still, and integration turns a constant bias into a growing error. With an illustrative bias of 0.5 °/s, the angle is off by 30° after one minute.</p>
+<p><strong>Accelerometer.</strong> At rest, an accelerometer measures only gravity, so the tilt follows from trigonometry. For one common axis convention:</p>
+<blockquote>
+<p>roll = atan2(a<sub>y</sub>, a<sub>z</sub>), pitch = atan2(−a<sub>x</sub>, √(a<sub>y</sub><sup>2</sup> + a<sub>z</sub><sup>2</sup>))</p>
+</blockquote>
+<p>Check the axis directions on your own sensor; conventions differ. This estimate does not drift, but it is noisy, and whenever the device accelerates, or the motors shake the frame, the measured vector is no longer just gravity and the angle jumps.</p>
+<p>So the gyro is trustworthy at high frequencies (short time scales) and the accelerometer at low frequencies (long time scales). That observation is the whole idea of the first filter.</p>
+<h2 id="the-complementary-filter">The complementary filter</h2>
+<p>The <strong>complementary filter</strong> high-pass filters the gyro-integrated angle and low-pass filters the accelerometer angle, with the same time constant so that the two filters add up to exactly one at every frequency. In code it collapses to one line per axis:</p>
+<blockquote>
+<p>angle = α × (angle + ω × dt) + (1 − α) × angle<sub>acc</sub></p>
+</blockquote>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="sf-title sf-desc" font-size="14">
+<title id="sf-title">Complementary filter structure</title>
+<desc id="sf-desc">The gyroscope rate is integrated and passed through a high-pass filter. The accelerometer is converted to an angle with atan2 and passed through a low-pass filter. The two filtered angles are added to give the estimate.</desc>
+<rect x="10" y="30" width="70" height="40" class="dg-box"/>
+<text x="45" y="55" text-anchor="middle" class="dg-text">gyro ω</text>
+<rect x="110" y="30" width="80" height="40" class="dg-box"/>
+<text x="150" y="55" text-anchor="middle" class="dg-text">integrate</text>
+<rect x="220" y="30" width="90" height="40" class="dg-core"/>
+<text x="265" y="55" text-anchor="middle" class="dg-text">high-pass</text>
+<rect x="10" y="120" width="70" height="40" class="dg-box"/>
+<text x="45" y="145" text-anchor="middle" class="dg-text">accel</text>
+<rect x="110" y="120" width="80" height="40" class="dg-box"/>
+<text x="150" y="145" text-anchor="middle" class="dg-text">atan2</text>
+<rect x="220" y="120" width="90" height="40" class="dg-core"/>
+<text x="265" y="145" text-anchor="middle" class="dg-text">low-pass</text>
+<circle cx="360" cy="95" r="16" class="dg-amber" fill-opacity="0.4"/>
+<text x="360" y="100" text-anchor="middle" class="dg-text">+</text>
+<path d="M80,50 H104 M190,50 H214 M80,140 H104 M190,140 H214 M310,50 H360 V73 M310,140 H360 V117 M376,95 H414" class="dg-line"/>
+<path d="M104,46 L110,50 L104,54 Z M214,46 L220,50 L214,54 Z M104,136 L110,140 L104,144 Z M214,136 L220,140 L214,144 Z M356,73 L360,79 L364,73 Z M356,117 L360,111 L364,117 Z M414,91 L420,95 L414,99 Z" class="dg-arrow"/>
+<text x="425" y="100" class="dg-text">angle</text>
+<text x="265" y="190" text-anchor="middle" class="dg-muted">same time constant τ: the two filters sum to one</text>
+</svg>
+<figcaption>The gyro supplies fast changes, the accelerometer supplies the long-term reference, and the crossover is set by τ.</figcaption>
+</figure>
+
+<p>The coefficient comes from the crossover time constant τ and the sample period dt: α = τ / (τ + dt). For a 500 Hz loop (dt = 2 ms) and τ = 0.5 s, α = 0.5 / 0.502 ≈ 0.996. Each step trusts the gyro 99.6 % and nudges the estimate 0.4 % towards the accelerometer, which is enough to pull out drift over a second or so while averaging away accelerometer noise.</p>
+<p>The bias does not vanish entirely. In steady state the filter settles where the gyro's push each step balances the accelerometer's pull, which leaves an error of bias × τ: with 0.5 °/s and τ = 0.5 s, about 0.25°, compared with 30° after a minute for the gyro alone. A shorter τ reduces that error but lets more accelerometer noise and vibration through.</p>
+<pre><code class="language-c">typedef struct { float angle, alpha; } cf_t;
+
+void cf_init(cf_t *f, float tau, float dt)
+{
+    f-&gt;angle = 0.0f;
+    f-&gt;alpha = tau / (tau + dt);
+}
+
+/* gyro_dps: rate in deg/s; acc_deg: tilt from atan2 in degrees */
+float cf_update(cf_t *f, float gyro_dps, float acc_deg, float dt)
+{
+    f-&gt;angle = f-&gt;alpha * (f-&gt;angle + gyro_dps * dt)
+             + (1.0f - f-&gt;alpha) * acc_deg;
+    return f-&gt;angle;
+}
+</code></pre>
+<h2 id="the-kalman-filter-view">The Kalman filter view</h2>
+<p>A <strong>Kalman filter</strong> does the same blending, but chooses the weight each step from explicit noise models instead of a fixed α, and it can estimate quantities you cannot measure directly, such as the gyro bias. For tilt on one axis, a common formulation has a two-element state: the angle and the gyro bias.</p>
+<ul>
+<li><strong>Predict:</strong> advance the angle with the gyro reading minus the current bias estimate, and grow the uncertainty P by the process noise Q, which says how much you distrust the gyro model.</li>
+<li><strong>Update:</strong> compare the prediction with the accelerometer angle. The <strong>Kalman gain</strong> K weighs the correction by how uncertain the prediction is relative to the measurement noise R. Both the angle and the bias are corrected.</li>
+</ul>
+<pre><code class="language-python">import numpy as np
+
+def kalman_angle(gyro, acc_angle, dt, q_angle=1e-4, q_bias=1e-6, r=0.03):
+    x = np.zeros(2)                    # [angle (deg), bias (deg/s)]
+    P = np.eye(2)
+    F = np.array([[1, -dt], [0, 1]])
+    B = np.array([dt, 0])
+    H = np.array([1.0, 0.0])
+    Q = np.diag([q_angle, q_bias])
+    out = []
+    for w, z in zip(gyro, acc_angle):
+        x = F @ x + B * w              # predict with the gyro
+        P = F @ P @ F.T + Q
+        K = P @ H / (H @ P @ H + r)    # Kalman gain
+        x = x + K * (z - H @ x)        # correct with the accelerometer
+        P = P - np.outer(K, H) @ P
+        out.append(x.copy())
+    return np.array(out)
+</code></pre>
+<p>On synthetic data with a 0.5 °/s bias, this filter's bias estimate converges close to 0.5, and subtracting it removes the steady offset the complementary filter keeps. Do not assume it is automatically better: with poorly chosen Q and R it can do worse than a well-tuned complementary filter. Its strengths are a principled way to tune, a bias estimate you can log, and a clean path to more states (three axes, magnetometer, quaternion orientation) when you need them.</p>
+<h2 id="practical-notes-and-limits">Practical notes and limits</h2>
+<ul>
+<li><strong>Run at a fixed rate.</strong> Both filters assume a known dt. Drive them from a timer interrupt, and measure dt if jitter is possible.</li>
+<li><strong>Gate the accelerometer.</strong> If the measured acceleration magnitude is far from 1 g, the device is manoeuvring; reduce or skip the accelerometer correction for that step.</li>
+<li><strong>Calibrate first.</strong> Average the gyro at rest at start-up to remove most of the bias before the filter ever runs.</li>
+<li><strong>Yaw is different.</strong> Gravity says nothing about heading, so yaw needs a magnetometer or another reference.</li>
+</ul>
+<p>A safety note: a flight controller's attitude estimate keeps an aircraft in the air. Test fusion code on a bench rig and in simulation, with propellers removed, long before it flies, and follow the rules that apply to flying drones where you are.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Generate synthetic data in numpy (a slow sinusoidal tilt, a gyro with bias and noise, a noisy accelerometer angle) and compare gyro-only integration, the complementary filter and the Kalman filter.</li>
+<li>Vary τ and plot the trade-off between steady offset and noise.</li>
+<li>Log real data from an IMU breakout board at a fixed rate and run both filters offline before porting either to firmware.</li>
+<li>Port <code>cf_update</code> to a microcontroller and check its output against the Python version on the same logged data.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sensor fusion</li><li>imu</li><li>kalman filter</li><li>complementary filter</li><li>drones</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="tflm-interpreter-arena-operators.html"><span>Previous in Edge AI</span>Running a model with TensorFlow Lite Micro: the interpreter, arena and operators</a><a class="next" href="drift-or-event-in-water-quality-data.html"><span>Next in Edge AI</span>Telling sensor drift from real events in water quality data</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="gesture-recognition-from-an-imu.html">Gesture recognition from an IMU: data, features and a small model</a></h3>
+          <p>From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

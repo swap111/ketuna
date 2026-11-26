@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The M and C extensions: what multiply and compressed instructions cost in hardware · Ketuna blog</title>
+  <meta name="description" content="Adding M means choosing a multiplier and divider; adding C means a decompressor and a fetch unit that handles 16-bit alignment. What each costs, what it buys, and how to measure the trade for your product.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The M and C extensions: what multiply and compressed instructions cost in hardware · Ketuna blog">
+  <meta property="og:description" content="Adding M means choosing a multiplier and divider; adding C means a decompressor and a fetch unit that handles 16-bit alignment. What each costs, what it buys, and how to measure the trade for your product.">
+  <link rel="canonical" href="https://ketuna.online/blog/m-and-c-extensions-cost.html">
+  <meta property="og:url" content="https://ketuna.online/blog/m-and-c-extensions-cost.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The M and C extensions: what multiply and compressed instructions cost in hardware",
+  "description": "Adding M means choosing a multiplier and divider; adding C means a decompressor and a fetch unit that handles 16-bit alignment. What each costs, what it buys, and how to measure the trade for your product.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, extensions, multiplier, compressed instructions, area",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1027,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/m-and-c-extensions-cost.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>The M and C extensions: what multiply and compressed instructions cost in hardware</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Adding M means choosing a multiplier and divider; adding C means a decompressor and a fetch unit that handles 16-bit alignment. What each costs, what it buys, and how to measure the trade for your product.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-m-adds">What M adds</a></li><li><a href="#what-c-adds">What C adds</a></li><li><a href="#what-c-buys">What C buys</a></li><li><a href="#deciding-for-a-product">Deciding for a product</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A RISC-V core can implement just the base integer set, RV32I, and run any program. So why do most microcontroller cores add M (multiply and divide) and C (compressed 16-bit instructions)? Because each one moves work from software into hardware, or bytes out of flash, at a cost in gates. The right answer for a product depends on the workload and the memory budget. This article looks at what each extension asks of the hardware and how to decide with measurements rather than habit.</p>
+<h2 id="what-m-adds">What M adds</h2>
+<p>The M extension adds eight instructions: <code>mul</code> (low 32 bits of the product), <code>mulh</code>, <code>mulhu</code> and <code>mulhsu</code> (high 32 bits for signed, unsigned and mixed operands), and <code>div</code>, <code>divu</code>, <code>rem</code>, <code>remu</code>. Without them, the compiler calls library routines that multiply by shifting and adding, and divide by shifting and subtracting, one bit at a time.</p>
+<p>The ISA specifies the results, not the speed. That leaves a wide range of implementations:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Multiplier option</th>
+<th>Latency</th>
+<th>Relative area</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iterative, 1 bit per cycle</td>
+<td>about 32 cycles</td>
+<td>smallest: an adder and shift registers</td>
+<td>Area-critical control cores</td>
+</tr>
+<tr>
+<td>Iterative, 2 to 4 bits per cycle</td>
+<td>about 8 to 16 cycles</td>
+<td>moderate</td>
+<td>Balanced microcontrollers</td>
+</tr>
+<tr>
+<td>Single-cycle or pipelined array</td>
+<td>1 to 3 cycles</td>
+<td>large: tens of adders in a tree</td>
+<td>Signal processing, ML kernels</td>
+</tr>
+</tbody>
+</table></div>
+<p>The division side is almost always iterative, because a fast divider is expensive and division is rare in most code. A simple restoring or non-restoring divider produces one quotient bit per cycle, so roughly 32 cycles plus setup.</p>
+<p>To see what the hardware buys, compare with software. A shift-and-add multiply loop in RV32I runs 32 iterations of roughly four or five instructions (test a bit, conditionally add, shift two registers, decrement and branch), so on the order of 130 to 160 instructions before overheads. Even the smallest 32-cycle iterative multiplier is several times faster, and a single-cycle one is two orders of magnitude faster. Whether that matters depends on how often your code multiplies. A protocol state machine barely does; a filter or a fixed-point control loop does constantly.</p>
+<p>Two specification details reduce the hardware further. <strong>Division by zero does not trap</strong>: <code>div</code> returns all ones and <code>rem</code> returns the dividend, so the divider needs no exception path. And the <strong>Zmmul</strong> extension provides only the multiply instructions, for designs that want fast multiplication without paying for a divider.</p>
+<h2 id="what-c-adds">What C adds</h2>
+<p>The C extension defines 16-bit encodings for the most common instructions, for example <code>c.addi</code>, <code>c.lw</code>, <code>c.sw</code>, <code>c.mv</code>, <code>c.j</code> and <code>c.beqz</code>. Every compressed instruction is an exact equivalent of one 32-bit instruction; it adds no new operations. Its restrictions are what make it fit in 16 bits: many forms reach only the eight "popular" registers x8 to x15 through a 3-bit field, immediates are short, and some forms require the destination to equal a source.</p>
+<p>The decoding cost is modest: a <strong>decompressor</strong> in front of the normal decoder that expands each 16-bit instruction into its 32-bit equivalent. Take <code>c.addi x10, -1</code>. Its encoding is <code>0x157D</code>: the low two bits <code>01</code> select quadrant 1, bits 15 to 13 (<code>000</code>) select <code>c.addi</code>, bits 11 to 7 hold rd = 10, and the 6-bit immediate −1 is split into bit 12 and bits 6 to 2. The decompressor rewrites it as <code>addi x10, x10, -1</code>, which is <code>0xFFF50513</code>, and the rest of the pipeline never knows the difference.</p>
+<p>The larger cost is in <strong>fetch</strong>. With C, instructions are aligned to 2 bytes, not 4. A 32-bit instruction can start in the upper half of one fetched word and finish in the lower half of the next, so the fetch unit needs a small buffer to stitch halves together, and a branch target can land mid-word. Branch predictors and target buffers must index with bit 1 of the PC as well. In a pipelined core, that fetch logic is often where the real complexity of C lives.</p>
+<h2 id="what-c-buys">What C buys</h2>
+<p>The benefit is code size, and therefore flash or instruction memory, which on a small SoC can occupy more area than the core itself. Code that fits in less memory may also need fewer instruction cache lines and fetch cycles. How much smaller depends heavily on the program and the compiler, so do not take a number from anyone else's slide: build your own firmware with and without C and compare.</p>
+<pre><code class="language-bash">riscv64-unknown-elf-gcc -Os -march=rv32im  -mabi=ilp32 \
+    -o fw_im.elf  main.c drivers.c
+riscv64-unknown-elf-gcc -Os -march=rv32imc -mabi=ilp32 \
+    -o fw_imc.elf main.c drivers.c
+riscv64-unknown-elf-size fw_im.elf fw_imc.elf
+</code></pre>
+<p>The <code>text</code> column gives the code size of each build. Multiply the difference by the cost of the memory it saves and compare that with the area of the decompressor and fetch changes. For a core paired with a large external flash, the saving may not matter; for a core with a few kilobytes of on-chip ROM, it can decide whether the firmware fits.</p>
+<h2 id="deciding-for-a-product">Deciding for a product</h2>
+<ul>
+<li><strong>Profile first.</strong> Count multiplies and divides in the instruction trace of real workloads before choosing a multiplier.</li>
+<li><strong>Consider Zmmul.</strong> If divides are rare, keep them in software and add only a multiplier.</li>
+<li><strong>Size the multiplier to the loop.</strong> A fixed-point control loop at a few kilohertz may be fine with an iterative multiplier; a sensor-fusion filter may not be.</li>
+<li><strong>Measure C with your own code.</strong> Build with and without it, and count the memory you actually save.</li>
+<li><strong>Budget verification.</strong> Each extension adds instructions to test, and C adds fetch corner cases that only appear with particular alignments.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Mismatched <code>-march</code>.</strong> Code built with M or C traps as illegal on a core without them.</li>
+<li><strong>Forgetting multiply latency in timing estimates.</strong> A 32-cycle multiplier inside an interrupt handler changes worst-case latency.</li>
+<li><strong>Testing C only with aligned code.</strong> Bugs hide in 32-bit instructions that straddle a fetch word.</li>
+<li><strong>Expecting division by zero to trap.</strong> It returns a defined value; software must check if it cares.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile a small fixed-point filter with <code>-march=rv32i</code> and with <code>-march=rv32im</code>, add <code>-S</code>, and find the library call that replaces <code>mul</code> in the first version.</li>
+<li>Run the size comparison above on any firmware you have and record the <code>text</code> difference.</li>
+<li>Write a 1-bit-per-cycle iterative multiplier in Verilog, check it against Python products in Icarus Verilog, and compare its Yosys <code>stat</code> cell count with a single-cycle <code>a * b</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>extensions</li><li>multiplier</li><li>compressed instructions</li><li>area</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="rv32i-instruction-formats.html"><span>Previous in Computer architecture &amp; RISC-V</span>RV32I in one sitting: every instruction format and why it is laid out that way</a><a class="next" href="iron-law-of-performance.html"><span>Next in Computer architecture &amp; RISC-V</span>The iron law of performance: instructions, CPI and clock period</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-the-riscv-specification.html">How to read the RISC-V specification without getting lost</a></h3>
+          <p>A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

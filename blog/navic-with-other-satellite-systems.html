@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Using NavIC alongside other satellite systems in one receiver · Ketuna blog</title>
+  <meta name="description" content="Why multi-constellation receivers track more satellites, how they cope with different signal structures and bands, and how one extra unknown per system absorbs the offset between their time references.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Using NavIC alongside other satellite systems in one receiver · Ketuna blog">
+  <meta property="og:description" content="Why multi-constellation receivers track more satellites, how they cope with different signal structures and bands, and how one extra unknown per system absorbs the offset between their time references.">
+  <link rel="canonical" href="https://ketuna.online/blog/navic-with-other-satellite-systems.html">
+  <meta property="og:url" content="https://ketuna.online/blog/navic-with-other-satellite-systems.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Using NavIC alongside other satellite systems in one receiver",
+  "description": "Why multi-constellation receivers track more satellites, how they cope with different signal structures and bands, and how one extra unknown per system absorbs the offset between their time references.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "navic, gnss, multi-constellation, receivers, positioning",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1059,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/navic-with-other-satellite-systems.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Using NavIC alongside other satellite systems in one receiver</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why multi-constellation receivers track more satellites, how they cope with different signal structures and bands, and how one extra unknown per system absorbs the offset between their time references.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-more-satellites-help">Why more satellites help</a></li><li><a href="#different-signals-shared-hardware">Different signals, shared hardware</a></li><li><a href="#each-system-keeps-its-own-time">Each system keeps its own time</a></li><li><a href="#a-worked-example-two-clocks-in-one-fit">A worked example: two clocks in one fit</a></li><li><a href="#pitfalls-in-multi-system-designs">Pitfalls in multi-system designs</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A receiver that listens only to NavIC works well inside its service region, but it sees a limited number of satellites, and in a city street or under a tree canopy some of them will be blocked. Adding a global system such as GPS, Galileo or BeiDou raises the satellite count and spreads the visible satellites across the sky. That sounds like simply adding more channels, yet each system brings its own signal design, its own bands and, most importantly, its own clock. This article explains what changes inside the receiver when it combines them.</p>
+<h2 id="why-more-satellites-help">Why more satellites help</h2>
+<p>A position fix is a least-squares fit. With four satellites the receiver has exactly enough equations for its four unknowns (three coordinates and a clock bias), so any error in one pseudorange flows straight into the answer and nothing tells you it is wrong. With more satellites the fit is overdetermined: residuals reveal a bad measurement, and the receiver can drop it. This is the basis of integrity checks such as receiver autonomous integrity monitoring.</p>
+<p>Geometry matters as much as count. If all visible satellites sit in one part of the sky, small range errors stretch into large position errors along the poorly constrained direction. The usual figure of merit is <strong>dilution of precision</strong> (DOP), computed from the geometry matrix of the fit. NavIC's geostationary and geosynchronous satellites sit at fixed parts of the sky over the region, while the global systems' satellites move, so together they tend to fill gaps that either would leave on its own. When buildings block half the sky, the extra satellites are often the difference between a fix and no fix.</p>
+<h2 id="different-signals-shared-hardware">Different signals, shared hardware</h2>
+<p>The systems do not transmit identical signals. They differ in carrier frequency, ranging code length and chipping rate, modulation, and navigation message format. Some overlap helps a great deal: NavIC's L5 signal shares its centre frequency with signals of other global systems in the same band, and newer NavIC satellites add a signal in the L1 band used by most consumer receivers. Where bands coincide, one RF front end and one ADC can serve several systems.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Part of the receiver</th>
+<th>Shared across systems</th>
+<th>Specific to each system</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Antenna, LNA, front end</td>
+<td>Yes, if the bands overlap</td>
+<td>Extra paths for bands that do not</td>
+</tr>
+<tr>
+<td>ADC and sample clock</td>
+<td>Usually</td>
+<td>Sample rate chosen to suit the widest signal</td>
+</tr>
+<tr>
+<td>Correlator channels</td>
+<td>Hardware can be generic</td>
+<td>Code generator, code rate, modulation</td>
+</tr>
+<tr>
+<td>Message decoding</td>
+<td>No</td>
+<td>Frame format, ephemeris model, time scale</td>
+</tr>
+</tbody>
+</table></div>
+<p>The practical lesson for a digital designer is to make correlator channels configurable rather than hard-wired: a programmable code generator (or a code memory), a programmable code rate through a numerically controlled oscillator, and support for the subcarrier modulations some modern signals use. Firmware then assigns channels to satellites of whichever system is visible.</p>
+<h2 id="each-system-keeps-its-own-time">Each system keeps its own time</h2>
+<p>Every constellation runs its own system time, steered towards universal time but maintained by its own ground segment. The offsets between these time scales are small, but light covers about 30 cm per nanosecond, so even tens of nanoseconds matter for positioning. A receiver that ignored the offset would see one constellation's pseudoranges consistently too long or too short, and the fit would bend to accommodate them.</p>
+<p>There are two standard ways to handle this:</p>
+<ol>
+<li><strong>Estimate it.</strong> Add one clock-bias unknown per system. With NavIC plus one global system the receiver now solves for five unknowns, and so needs at least five satellites, with at least one from each system.</li>
+<li><strong>Use a broadcast offset.</strong> Some systems broadcast the offset between their time and another system's time, or to universal time, in the navigation message. The receiver can apply it and keep a single clock unknown, at the cost of trusting the broadcast value's accuracy.</li>
+</ol>
+<p>Many receivers estimate the offset when enough satellites are visible and fall back on the broadcast value when they are short of satellites, because spending one satellite on an extra unknown hurts most exactly when satellites are scarce.</p>
+<p>The other parts of each system also need care. Each system defines satellite orbits in its own reference frame and broadcasts its own ephemeris parameters. Differences between the frames are small for most uses, but a receiver aiming at high accuracy must apply the published transformations. There are also small hardware delays that differ between signals of different frequencies inside the receiver itself, which show up as part of the per-system bias and are another reason to estimate it rather than assume it.</p>
+<h2 id="a-worked-example-two-clocks-in-one-fit">A worked example: two clocks in one fit</h2>
+<p>The script below builds a made-up scene with four satellites from system A and three from system B, gives each system a different clock bias, adds 2 m of range noise and solves for five unknowns by Gauss-Newton iteration. All numbers are illustrative and the geometry is random, not real orbits.</p>
+<pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(7)
+def sats(n):                       # unit vectors above the horizon
+    v = rng.normal(size=(n, 3)); v[:, 2] = abs(v[:, 2])
+    return 2.2e7 * v / np.linalg.norm(v, axis=1, keepdims=True)
+
+sv = np.vstack([sats(4), sats(3)])         # 4 from system A, 3 from B
+sys_b = np.array([0, 0, 0, 0, 1, 1, 1])    # which system each belongs to
+pos = np.array([120.0, -45.0, 30.0])       # true position, metres
+bias_a, bias_b = 3000.0, 3040.0            # clock bias per system, metres
+rho = (np.linalg.norm(sv - pos, axis=1)
+       + np.where(sys_b == 1, bias_b, bias_a) + rng.normal(0, 2.0, 7))
+
+x = np.zeros(5)                            # x, y, z, bias A, bias B
+for _ in range(6):                         # Gauss-Newton iterations
+    r = np.linalg.norm(sv - x[:3], axis=1)
+    pred = r + np.where(sys_b == 1, x[4], x[3])
+    H = np.zeros((7, 5))
+    H[:, :3] = (x[:3] - sv) / r[:, None]
+    H[sys_b == 0, 3] = 1.0
+    H[sys_b == 1, 4] = 1.0
+    x += np.linalg.lstsq(H, rho - pred, rcond=None)[0]
+print(np.round(x, 1), round(x[4] - x[3], 1))
+</code></pre>
+<p>It prints a position within a few metres of the truth and an inter-system offset of about 41 m against the 40 m that was put in. Now change the solver to use a single bias column for all seven satellites and run it again: the position error grows, because the fit has to spread a 40 m inconsistency across the coordinates.</p>
+<h2 id="pitfalls-in-multi-system-designs">Pitfalls in multi-system designs</h2>
+<ul>
+<li><strong>Mixing time scales in firmware.</strong> Keep every timestamp tagged with the system it belongs to; converting late and in one place avoids subtle bugs.</li>
+<li><strong>Weighting all signals equally.</strong> Signals differ in chipping rate, power and multipath behaviour. Weight measurements by their expected noise, or one noisy signal type will dominate.</li>
+<li><strong>Assuming the extra band is free.</strong> A second band means another filter, mixer path or wider ADC bandwidth, which costs power and area. Decide which bands earn their place from the use case.</li>
+<li><strong>Testing only in open sky.</strong> The benefit of multiple systems shows up in obstructed conditions. Test there, with recorded data you can replay.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script, then remove satellites from system B one at a time. Note when the five-unknown fit fails and why the geometry matrix becomes rank-deficient.</li>
+<li>Compute DOP from <code>H</code> (the square roots of the diagonal of the inverse of <code>H.T @ H</code>) with and without system B's satellites.</li>
+<li>Read how an open-source software receiver such as <strong>GNSS-SDR</strong> configures channels for different signals, and trace where it handles per-system time.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>navic</li><li>gnss</li><li>multi-constellation</li><li>receivers</li><li>positioning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="electronics-in-e-rickshaw-batteries.html"><span>Previous in India&#x27;s electronics ecosystem</span>The electronics inside e-rickshaw battery systems, and where a BMS chip fits</a><a class="next" href="what-bis-certification-means.html"><span>Next in India&#x27;s electronics ecosystem</span>What BIS registration and certification mean for an electronics product</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Advanced</span></div>
+          <h3><a href="satellite-navigation-for-timing.html">Satellite navigation for timing: how receivers discipline clocks for grids and networks</a></h3>
+          <p>How a timing receiver uses satellite time to steer a local oscillator, why the loop trades short-term and long-term stability, what happens in holdover when signals are lost, and why grids and networks depend on it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-is-navic.html">What NavIC is, and what it takes to build a receiver for it</a></h3>
+          <p>NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

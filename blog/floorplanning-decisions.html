@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Floorplanning decisions that make or break a block · Ketuna blog</title>
+  <meta name="description" content="Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Floorplanning decisions that make or break a block · Ketuna blog">
+  <meta property="og:description" content="Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.">
+  <link rel="canonical" href="https://ketuna.online/blog/floorplanning-decisions.html">
+  <meta property="og:url" content="https://ketuna.online/blog/floorplanning-decisions.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Floorplanning decisions that make or break a block",
+  "description": "Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "floorplanning, utilisation, macros, pin placement, congestion",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 869,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/floorplanning-decisions.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Floorplanning decisions that make or break a block</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#utilisation-how-full-the-core-is">Utilisation: how full the core is</a></li><li><a href="#aspect-ratio-the-shape-of-the-core">Aspect ratio: the shape of the core</a></li><li><a href="#macros-the-big-fixed-rectangles">Macros: the big fixed rectangles</a></li><li><a href="#pin-order-where-signals-enter-and-leave">Pin order: where signals enter and leave</a></li><li><a href="#how-floorplan-mistakes-show-up-later">How floorplan mistakes show up later</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The floorplan is the cheapest step in the physical design flow and the one with the longest reach. It takes a few lines of configuration, runs in seconds, and fixes the shape of everything that follows. Placement, clock tree and routing tools are very good at optimising inside the box you give them, but they cannot move the box. When a block fails late with congestion or a path that will not close, the cause is often a floorplan decision made on the first day.</p>
+<h2 id="utilisation-how-full-the-core-is">Utilisation: how full the core is</h2>
+<p><strong>Core utilisation</strong> is the total area of standard cells divided by the core area. It is the first number you choose, and it sets how much empty space is left for buffers that later steps will add, for routing tracks, and for the placer to spread cells out.</p>
+<p>A worked example with illustrative numbers. Synthesis reports 12,000 µm² of cell area. You choose 50% utilisation:</p>
+<ul>
+<li>Core area = 12,000 / 0.50 = 24,000 µm².</li>
+<li>With a square core, each side is √24,000 ≈ 154.9 µm.</li>
+<li>In a library with 2.72 µm row height (the sky130 high-density library), that core holds about 154.9 / 2.72 ≈ 56.96, so 56 full rows.</li>
+</ul>
+<p>Why not 80%, which would save area? Because the cell area will grow. Placement resizes cells, clock tree synthesis adds buffers, hold fixing adds delay cells, and filler and tap cells take their share. At high starting utilisation the placer has to pack cells tightly, local wire demand exceeds the tracks available, and routing fails or detours. Small blocks with simple logic can go higher; blocks with wide buses, heavy multiplexing or many crossbars need lower utilisation because their wiring is dense even when their cells are not.</p>
+<h2 id="aspect-ratio-the-shape-of-the-core">Aspect ratio: the shape of the core</h2>
+<p><strong>Aspect ratio</strong> here means core height divided by width. A ratio of 1 is a square. The same 24,000 µm² at an aspect ratio of 0.5 is about 219.1 µm wide and 109.5 µm tall, with about 40 rows.</p>
+<p>Shape matters for two reasons:</p>
+<ul>
+<li><strong>Wire length.</strong> For logic that talks to itself in all directions, a square minimises the average distance between cells. A long thin block stretches some paths.</li>
+<li><strong>Neighbours and pins.</strong> If the block sits in a long thin slot in a larger chip, or has most of its pins on one long edge, a matching shape keeps the pins close to the logic that uses them.</li>
+</ul>
+<p>Routing direction also enters. Each metal layer prefers one direction, and if your block has more vertical than horizontal wiring demand (or the reverse), the shape and the layer stack decide whether there are enough tracks.</p>
+<h2 id="macros-the-big-fixed-rectangles">Macros: the big fixed rectangles</h2>
+<p>Memories, analog blocks and pre-hardened sub-blocks are <strong>macros</strong>. They are large, they block placement under them, and they usually block some routing layers too.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="fp-title fp-desc" font-size="14">
+<title id="fp-title">Two macro placements compared</title>
+<desc id="fp-desc">On the left, a core with a memory macro in the centre, leaving narrow channels around it where wires crowd. On the right, the same macro pushed to a corner with its pins facing the open core, leaving one large region for standard cells.</desc>
+<rect x="10" y="30" width="210" height="190" class="dg-track"/>
+<rect x="70" y="80" width="90" height="90" class="dg-core"/>
+<text x="115" y="130" text-anchor="middle" class="dg-text">SRAM</text>
+<rect x="10" y="30" width="60" height="190" class="dg-amber" fill-opacity="0.22"/>
+<rect x="160" y="30" width="60" height="190" class="dg-amber" fill-opacity="0.22"/>
+<text x="115" y="20" text-anchor="middle" class="dg-text">centre: split core</text>
+<rect x="260" y="30" width="210" height="190" class="dg-track"/>
+<rect x="260" y="30" width="90" height="90" class="dg-core"/>
+<text x="305" y="80" text-anchor="middle" class="dg-text">SRAM</text>
+<line x1="350" y1="60" x2="362" y2="60" class="dg-amber-line" stroke-width="3"/>
+<line x1="350" y1="90" x2="362" y2="90" class="dg-amber-line" stroke-width="3"/>
+<text x="365" y="20" text-anchor="middle" class="dg-text">corner: pins inward</text>
+<text x="400" y="170" text-anchor="middle" class="dg-muted">open cell area</text>
+<text x="115" y="245" text-anchor="middle" class="dg-muted">crowded side channels</text>
+<text x="365" y="245" text-anchor="middle" class="dg-muted">one large region</text>
+</svg>
+<figcaption>A macro in the middle splits the core into narrow channels; at an edge with pins facing inward it leaves one open region.</figcaption>
+</figure>
+
+<p>Rules of thumb that follow from this:</p>
+<ul>
+<li><strong>Push macros to the edges or corners</strong>, so the standard-cell area stays one connected region.</li>
+<li><strong>Face macro pins towards the logic</strong> that uses them. A memory whose pins face the die edge forces every data bit to wrap around it.</li>
+<li><strong>Leave a halo</strong> (a keep-out ring) around each macro so the power grid and routing can connect to its pins.</li>
+<li><strong>Align macros to the power grid and the placement rows</strong>, so their power pins land on straps.</li>
+</ul>
+<h2 id="pin-order-where-signals-enter-and-leave">Pin order: where signals enter and leave</h2>
+<p>Pin placement looks cosmetic and is not. Every input pin's first flop wants to sit near that pin, and every output's last flop near its output. If a 32-bit bus enters on the left edge but the logic it feeds is pinned on the right by other constraints, all 32 wires cross the block.</p>
+<ul>
+<li>Group bus bits together and in order.</li>
+<li>Put pins on the edge that faces the block or pad they connect to at the next level up.</li>
+<li>Keep the clock pin where the clock tree root can reach the centre of the flops easily.</li>
+<li>Agree pin positions with whoever integrates the block; changing them later moves everything.</li>
+</ul>
+<h2 id="how-floorplan-mistakes-show-up-later">How floorplan mistakes show up later</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Floorplan choice</th>
+<th>Later symptom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Utilisation too high</td>
+<td>Placement density hot spots, routing overflow, failed detailed route</td>
+</tr>
+<tr>
+<td>Utilisation very low</td>
+<td>Long wires, larger area than needed, more clock tree buffers</td>
+</tr>
+<tr>
+<td>Poor aspect ratio</td>
+<td>Long paths between the far ends, uneven routing demand</td>
+</tr>
+<tr>
+<td>Macro in the middle</td>
+<td>Congested channels, detours, timing paths around the macro</td>
+</tr>
+<tr>
+<td>Pins far from their logic</td>
+<td>Long input or output paths failing timing; buffers on every bit</td>
+</tr>
+</tbody>
+</table></div>
+<p>When you see one of these symptoms, check the floorplan before touching placement or routing settings.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Synthesise a small registered design with <strong>Yosys</strong> and note the cell area from <code>stat -liberty</code>.</li>
+<li>In <strong>LibreLane</strong>, set <code>FP_SIZING</code> to <code>relative</code> and run the flow at <code>FP_CORE_UTIL</code> values of 30, 50 and 70, with <code>PL_TARGET_DENSITY_PCT</code> a little above each.</li>
+<li>Compare die area, worst slack and routing congestion across the runs. Then change <code>FP_ASPECT_RATIO</code> to 0.5 and 2 and repeat.</li>
+<li>Before each run, compute the expected core size and row count by hand, and compare with the floorplan DEF.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>floorplanning</li><li>utilisation</li><li>macros</li><li>pin placement</li><li>congestion</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="floorplanning-a-drone-controller-chip.html"><span>Previous in Physical design &amp; tape-out</span>Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</a><a class="next" href="librelane-first-run.html"><span>Next in Physical design &amp; tape-out</span>Hardening your first block with LibreLane: a guided first run</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="estimating-area-before-rtl.html">Estimating chip area before you write RTL</a></h3>
+          <p>Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="floorplanning-a-drone-controller-chip.html">Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</a></h3>
+          <p>A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

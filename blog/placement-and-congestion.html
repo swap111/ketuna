@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Placement and congestion: reading the heat map before routing fails · Ketuna blog</title>
+  <meta name="description" content="Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Placement and congestion: reading the heat map before routing fails · Ketuna blog">
+  <meta property="og:description" content="Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.">
+  <link rel="canonical" href="https://ketuna.online/blog/placement-and-congestion.html">
+  <meta property="og:url" content="https://ketuna.online/blog/placement-and-congestion.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Placement and congestion: reading the heat map before routing fails",
+  "description": "Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "placement, congestion, global routing, openroad, physical design",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 982,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/placement-and-congestion.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Placement and congestion: reading the heat map before routing fails</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Global placement spreads cells, legalisation and detailed placement make them fit, and the congestion map predicts whether routing will succeed. Learn to read that map and relieve hot spots early.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-placement-does-in-three-passes">What placement does in three passes</a></li><li><a href="#the-density-target-and-why-it-matters">The density target and why it matters</a></li><li><a href="#reading-the-congestion-map">Reading the congestion map</a></li><li><a href="#relieving-congestion-before-routing">Relieving congestion before routing</a></li><li><a href="#timing-and-congestion-pull-together">Timing and congestion pull together</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Routing is where congestion becomes a hard failure: the router runs for a long time, gives up, and leaves shorts or unrouted nets. But the cause almost always existed earlier, in where the cells were placed. The placement step leaves a prediction of routing trouble in the form of a congestion map, and reading it takes minutes. Acting on it then is far cheaper than discovering the problem two hours into detailed routing.</p>
+<h2 id="what-placement-does-in-three-passes">What placement does in three passes</h2>
+<p>Placement takes the floorplan, with its rows, pins, macros and power grid, plus the netlist, and gives every standard cell a legal location.</p>
+<ul>
+<li><strong>Global placement</strong> treats cells as movable points and finds positions that minimise total estimated wire length while keeping density below a target. Modern placers such as the one inside OpenROAD (RePlAce, run as <code>global_placement</code>) model cells like charged particles that repel each other, so they spread out of dense regions while nets pull connected cells together. The result is good but not legal: cells overlap and sit between rows.</li>
+<li><strong>Legalisation</strong> snaps each cell onto a row site, removing overlaps with the smallest possible movement.</li>
+<li><strong>Detailed placement</strong> makes local improvements: swapping neighbouring cells, flipping orientation, shifting cells within a row, all to shorten wires without breaking legality.</li>
+</ul>
+<p>Between these passes, timing-driven optimisation resizes cells, inserts buffers on long or heavily loaded nets, and may move critical cells closer together. That is why the cell count after placement is usually higher than after synthesis.</p>
+<h2 id="the-density-target-and-why-it-matters">The density target and why it matters</h2>
+<p>Global placement aims for a <strong>target density</strong>, the fraction of each small region (bin) filled with cell area. If the floorplan utilisation is 50% and the target density is 55%, the placer may spread cells fairly evenly across the core. If the target density is close to 100%, the placer is allowed to pack cells tightly where wire length benefits, leaving empty space elsewhere.</p>
+<p>Packed regions are a problem because routing demand follows cell density: more pins per square micrometre means more wires competing for the same tracks above them. A dense cluster can be perfectly legal for placement and impossible to route.</p>
+<h2 id="reading-the-congestion-map">Reading the congestion map</h2>
+<p>After placement, a quick global route (or a placement-time routability estimate) divides the core into a grid of <strong>global routing cells</strong> (gcells). For each gcell and each layer, it compares <strong>demand</strong> (how many wires want to pass through) with <strong>capacity</strong> (how many routing tracks exist there, minus blockages such as power straps and macros). The congestion map colours each gcell by demand / capacity, and a value above 1 is <strong>overflow</strong>.</p>
+<p>What to look for:</p>
+<ul>
+<li><strong>Isolated hot spots</strong> a few gcells wide, usually around one high-fanout cell, a wide multiplexer or a tight cluster of logic.</li>
+<li><strong>Hot bands</strong> along macro edges or between two macros, where wires are squeezed into a narrow channel.</li>
+<li><strong>Hot spots near pins</strong>, where a wide bus enters and fans out.</li>
+<li><strong>Direction imbalance.</strong> Horizontal overflow and vertical overflow are reported separately. Overflow in only one direction means one set of layers is short of tracks, and the shape of the block or the power grid on those layers may be to blame.</li>
+</ul>
+<p>A small illustrative calculation makes overflow concrete. Suppose a gcell has 14 horizontal tracks on a layer, the power strap takes 2, so capacity is 12. If global routing wants 15 nets through it, demand / capacity = 15 / 12 = 1.25, and 3 nets must detour. A few such gcells are routine and the router absorbs them. Hundreds in one region become shorts after detailed routing.</p>
+<h2 id="relieving-congestion-before-routing">Relieving congestion before routing</h2>
+<p>Fix congestion with the lightest change that addresses the cause.</p>
+<ol>
+<li><strong>Lower the target density</strong> so the placer spreads cells more evenly. This is often enough for mild, scattered hot spots.</li>
+<li><strong>Add placement blockages or padding.</strong> Partial blockages limit how full a specific region may be; cell padding adds a little space around each cell in a hot area so pins are less crowded.</li>
+<li><strong>Move macros or change their halos.</strong> If congestion lines a macro edge, a wider channel or turning the macro so its pins face the core helps more than any placement setting.</li>
+<li><strong>Reduce utilisation at the floorplan</strong> if the whole core is warm, not just spots.</li>
+<li><strong>Change the logic.</strong> A huge multiplexer or crossbar is congested by nature. Restructuring it in RTL, for example pipelining or splitting it, is sometimes the only real fix.</li>
+</ol>
+<p>Each step back up the flow costs more time but addresses a deeper cause. A common mistake is to keep turning router effort knobs on a design whose placement guarantees overflow.</p>
+<h2 id="timing-and-congestion-pull-together">Timing and congestion pull together</h2>
+<p>Timing-driven placement pulls cells on critical paths close together, which raises local density. Congestion relief spreads them apart, which lengthens wires. The two goals conflict exactly where the design is hardest, so look at timing and congestion together. A hot spot that sits on your worst timing path is a sign that the logic in that region needs a structural change, not just more space.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading only total overflow.</strong> A single number hides whether the problem is spread thin or concentrated in one area.</li>
+<li><strong>Setting density from habit.</strong> The right target depends on the design's wiring character, so sweep it.</li>
+<li><strong>Ignoring the power grid.</strong> Straps consume tracks; a dense grid on a routing layer lowers its capacity everywhere.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run a small design through <strong>LibreLane</strong> on sky130 up to detailed placement, using its option to stop after a given step (<code>--to</code> followed by the step name).</li>
+<li>Open the result in the OpenROAD GUI and view the placement density and routing congestion heat maps.</li>
+<li>Rerun with <code>PL_TARGET_DENSITY_PCT</code> set higher and lower, and compare the heat maps and the global routing overflow reported in the logs.</li>
+<li>Write a short note predicting where the hot spots will be, based on the RTL, before you look. Then check your prediction.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>placement</li><li>congestion</li><li>global routing</li><li>openroad</li><li>physical design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="physical-design-for-voltage-domains.html"><span>Previous in Physical design &amp; tape-out</span>Physical design for multiple voltage domains: level shifters, isolation and floorplan</a><a class="next" href="rtl-to-gds-in-one-page.html"><span>Next in Physical design &amp; tape-out</span>RTL to GDS in one page: what each step of the flow takes in and hands out</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="routing-and-leftover-drc.html">Routing and the DRC violations it leaves behind</a></h3>
+          <p>Global routing plans the paths, detailed routing draws the metal, and sometimes a few spacing, short or via violations remain. Learn what each kind means and how to clear it without breaking timing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rtl-to-gds-in-one-page.html">RTL to GDS in one page: what each step of the flow takes in and hands out</a></h3>
+          <p>The RTL-to-GDS flow is a chain of steps, each reading files and writing files you can open. Learn what goes in and comes out of synthesis, floorplan, placement, clock tree, routing and sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="floorplanning-decisions.html">Floorplanning decisions that make or break a block</a></h3>
+          <p>Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

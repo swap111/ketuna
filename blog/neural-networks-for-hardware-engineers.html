@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neural networks for hardware engineers: layers as multiply-accumulates · Ketuna blog</title>
+  <meta name="description" content="A dense neural network layer is a matrix-vector product. Counting its multiply-accumulates, weights and activations tells you how much compute, flash and RAM the hardware must provide.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Neural networks for hardware engineers: layers as multiply-accumulates · Ketuna blog">
+  <meta property="og:description" content="A dense neural network layer is a matrix-vector product. Counting its multiply-accumulates, weights and activations tells you how much compute, flash and RAM the hardware must provide.">
+  <link rel="canonical" href="https://ketuna.online/blog/neural-networks-for-hardware-engineers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/neural-networks-for-hardware-engineers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Neural networks for hardware engineers: layers as multiply-accumulates",
+  "description": "A dense neural network layer is a matrix-vector product. Counting its multiply-accumulates, weights and activations tells you how much compute, flash and RAM the hardware must provide.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "neural networks, mac, dense layer, inference, memory",
+  "articleSection": "Edge AI",
+  "wordCount": 1044,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/neural-networks-for-hardware-engineers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Neural networks for hardware engineers: layers as multiply-accumulates</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A dense neural network layer is a matrix-vector product. Counting its multiply-accumulates, weights and activations tells you how much compute, flash and RAM the hardware must provide.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-neuron-is-a-dot-product">One neuron is a dot product</a></li><li><a href="#a-dense-layer-is-a-matrix-vector-product">A dense layer is a matrix-vector product</a></li><li><a href="#counting-a-small-network-by-hand">Counting a small network by hand</a></li><li><a href="#a-script-that-does-the-counting">A script that does the counting</a></li><li><a href="#what-this-means-for-hardware">What this means for hardware</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Neural networks are usually explained with brains, neurons and pictures of circles joined by lines. That picture is fine for intuition, but it hides what a chip or a microcontroller actually has to do. At inference time a network is a fixed list of arithmetic steps, and almost all of that arithmetic is one operation repeated many times: multiply two numbers and add the result to a running sum. Once you see a layer as a pile of multiply-accumulates, you can size the hardware for it with a pencil.</p>
+<h2 id="one-neuron-is-a-dot-product">One neuron is a dot product</h2>
+<p>A single artificial neuron takes N inputs x<sub>1</sub> to x<sub>N</sub>, multiplies each by its own weight w<sub>i</sub>, adds them up, adds a bias b, and passes the sum through an <strong>activation function</strong> f:</p>
+<blockquote>
+<p>y = f(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + … + w<sub>N</sub>x<sub>N</sub> + b)</p>
+</blockquote>
+<p>The sum inside the brackets is a <strong>dot product</strong>, and each term costs one <strong>multiply-accumulate</strong> (MAC): multiply w<sub>i</sub> by x<sub>i</sub> and add it to an accumulator. A neuron with 40 inputs costs 40 MACs, one bias addition and one activation.</p>
+<p>The most common activation in small networks is <strong>ReLU</strong>, which outputs the input if it is positive and zero otherwise. In hardware that is a sign-bit check and a multiplexer, so it is almost free. The weights and biases were found during training on a PC; the device only uses them.</p>
+<h2 id="a-dense-layer-is-a-matrix-vector-product">A dense layer is a matrix-vector product</h2>
+<p>A <strong>dense</strong> (fully connected) layer is M neurons that all see the same N inputs. Stack their weight vectors as the rows of an M × N matrix W and the whole layer becomes:</p>
+<blockquote>
+<p>y = f(W·x + b)</p>
+</blockquote>
+<p>where x is the input vector of length N, b is a bias vector of length M and y is the output vector of length M. Each output needs N MACs, so the layer needs <strong>M × N MACs</strong> and stores <strong>M × N weights</strong> plus M biases.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="nn-title nn-desc" font-size="14">
+<title id="nn-title">A dense layer drawn as a matrix-vector product</title>
+<desc id="nn-desc">A weight matrix of four rows and six columns is multiplied by an input vector of six elements. One highlighted row of the matrix combines with the whole input vector to give one highlighted output element.</desc>
+<text x="110" y="22" text-anchor="middle" class="dg-text">W (M × N)</text>
+<rect x="20" y="35" width="180" height="120" class="dg-box"/>
+<rect x="20" y="65" width="180" height="30" class="dg-amber" fill-opacity="0.35"/>
+<path d="M50,35 V155 M80,35 V155 M110,35 V155 M140,35 V155 M170,35 V155 M20,65 H200 M20,95 H200 M20,125 H200" class="dg-dash"/>
+<text x="225" y="100" text-anchor="middle" class="dg-text">×</text>
+<text x="270" y="22" text-anchor="middle" class="dg-text">x (N)</text>
+<rect x="255" y="35" width="30" height="180" class="dg-box"/>
+<path d="M255,65 H285 M255,95 H285 M255,125 H285 M255,155 H285 M255,185 H285" class="dg-dash"/>
+<text x="320" y="100" text-anchor="middle" class="dg-text">=</text>
+<text x="370" y="22" text-anchor="middle" class="dg-text">y (M)</text>
+<rect x="355" y="35" width="30" height="120" class="dg-box"/>
+<rect x="355" y="65" width="30" height="30" class="dg-amber" fill-opacity="0.5"/>
+<path d="M355,65 H385 M355,95 H385 M355,125 H385" class="dg-dash"/>
+<text x="400" y="85" class="dg-muted">one row</text>
+<text x="400" y="103" class="dg-muted">= N MACs</text>
+<text x="110" y="185" text-anchor="middle" class="dg-muted">M × N weights,</text>
+<text x="110" y="205" text-anchor="middle" class="dg-muted">each used once</text>
+</svg>
+<figcaption>Each output is one row of W dotted with the whole input vector, so a dense layer costs M × N multiply-accumulates.</figcaption>
+</figure>
+
+<p>Notice something about the data. With one input vector at a time (batch size 1, which is the normal case on a sensor node), every weight is fetched from memory, used in exactly one MAC and never touched again until the next inference. The input vector, by contrast, is reused by every row. That asymmetry decides a lot about hardware design: a dense layer is limited by how fast you can stream weights, not by how fast you can multiply.</p>
+<h2 id="counting-a-small-network-by-hand">Counting a small network by hand</h2>
+<p>Take a small classifier for a motion sensor: 40 input features, two hidden dense layers of 32 and 16 neurons with ReLU, and 4 output classes. The numbers below follow directly from the layer sizes.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>MACs</th>
+<th>Weights</th>
+<th>Biases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dense 40 → 32</td>
+<td>1,280</td>
+<td>1,280</td>
+<td>32</td>
+</tr>
+<tr>
+<td>Dense 32 → 16</td>
+<td>512</td>
+<td>512</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Dense 16 → 4</td>
+<td>64</td>
+<td>64</td>
+<td>4</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>1,856</strong></td>
+<td><strong>1,856</strong></td>
+<td><strong>52</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Now turn these into hardware questions.</p>
+<ul>
+<li><strong>Compute.</strong> 1,856 MACs per inference. A core that completes one MAC per cycle at 16 MHz needs about 116 µs, before loop overhead. That tells you immediately that this network is not the bottleneck on any reasonable microcontroller.</li>
+<li><strong>Weight storage.</strong> Weights never change on the device, so they live in flash. Stored as 8-bit integers with 32-bit biases (the usual scheme for small devices), the model takes 1,856 + 52 × 4 = 2,064 bytes.</li>
+<li><strong>Activation storage.</strong> The outputs of each layer are produced at run time, so they need RAM. While layer 1 runs, its 40 inputs and 32 outputs are both alive: 72 bytes at 8 bits each. Layer 2 needs 32 + 16 = 48 bytes. The peak is 72 bytes.</li>
+</ul>
+<p>That last point generalises: the RAM you need is set by the largest pair of input and output tensors alive at once, not by the total size of the network. For dense networks this is tiny. For convolutional networks on images or spectrograms, activations become large and RAM, not flash, is often what stops a model from fitting.</p>
+<h2 id="a-script-that-does-the-counting">A script that does the counting</h2>
+<p>Counting by hand is the habit to build first. Once you have done it for one network, a few lines of Python will check your work for larger ones:</p>
+<pre><code class="language-python">layers = [(40, 32), (32, 16), (16, 4)]   # (inputs, outputs)
+
+macs = sum(n * m for n, m in layers)
+weights = macs                            # dense: one weight per MAC
+biases = sum(m for _, m in layers)
+flash = weights * 1 + biases * 4          # int8 weights, int32 biases
+peak_ram = max(n + m for n, m in layers)  # int8 activations
+
+print(f&quot;MACs={macs} flash={flash} B peak activations={peak_ram} B&quot;)
+# MACs=1856 flash=2064 B peak activations=72 B
+</code></pre>
+<p>Write the float version of the layer too, <code>np.maximum(0, W @ x + b)</code>, because every later step, including an integer implementation in C or an accelerator in Verilog, is checked against it.</p>
+<h2 id="what-this-means-for-hardware">What this means for hardware</h2>
+<p>Three numbers summarise a layer for a hardware engineer: MACs (time and energy in the arithmetic), weight bytes (flash size and memory bandwidth) and activation bytes (RAM). Their ratios matter as much as their sizes.</p>
+<ul>
+<li>A <strong>dense layer</strong> does one MAC per weight byte fetched. Adding more multipliers does not help unless the memory can deliver more weights per cycle.</li>
+<li>A <strong>convolution layer</strong> reuses each weight at every position of the input, so it does many MACs per weight byte. Parallel MAC hardware pays off there.</li>
+<li><strong>Precision</strong> sets the cost of each MAC. An 8-bit multiplier is far smaller than a 32-bit floating-point unit, which is why small devices run quantized integer models.</li>
+</ul>
+<p>Common mistakes when sizing a network:</p>
+<ul>
+<li>counting parameters and calling that the cost, when convolutions have few parameters but many MACs</li>
+<li>forgetting activation RAM and discovering on the device that the model fits in flash but not in memory</li>
+<li>assuming the training accuracy will hold on the device without testing on data from the real sensor</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick any small network from a tutorial and fill in the table above for it by hand: MACs, weights, biases and peak activation bytes per layer.</li>
+<li>Build the same network in PyTorch with <code>nn.Linear</code> layers, then loop over <code>model.named_parameters()</code> and print each tensor's <code>numel()</code>. Compare with your hand count.</li>
+<li>Write the forward pass in numpy as <code>np.maximum(0, W @ x + b)</code> per layer and confirm it matches the PyTorch output for a random input to within floating-point rounding.</li>
+<li>Estimate the run time on a microcontroller you know, assuming one MAC per cycle, then ask which of the three numbers would change first if you doubled the input size.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>neural networks</li><li>mac</li><li>dense layer</li><li>inference</li><li>memory</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="measuring-model-accuracy-honestly.html"><span>Previous in Edge AI</span>Measuring model accuracy honestly: test sets, leakage and confusion matrices</a><a class="next" href="signal-classification-on-a-wearable.html"><span>Next in Edge AI</span>On-device signal classification for a health wearable: possibilities and limits</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

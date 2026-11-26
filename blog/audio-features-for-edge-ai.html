@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio features for edge AI: from samples to a spectrogram · Ketuna blog</title>
+  <meta name="description" content="Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Audio features for edge AI: from samples to a spectrogram · Ketuna blog">
+  <meta property="og:description" content="Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.">
+  <link rel="canonical" href="https://ketuna.online/blog/audio-features-for-edge-ai.html">
+  <meta property="og:url" content="https://ketuna.online/blog/audio-features-for-edge-ai.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Audio features for edge AI: from samples to a spectrogram",
+  "description": "Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "audio, fft, spectrogram, mel, signal processing",
+  "articleSection": "Edge AI",
+  "wordCount": 1015,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/audio-features-for-edge-ai.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Audio features for edge AI: from samples to a spectrogram</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-not-raw-samples">Why not raw samples</a></li><li><a href="#step-1-frames-and-windows">Step 1: frames and windows</a></li><li><a href="#step-2-the-fft-and-the-power-spectrum">Step 2: the FFT and the power spectrum</a></li><li><a href="#step-3-mel-scaling">Step 3: mel scaling</a></li><li><a href="#step-4-the-logarithm">Step 4: the logarithm</a></li><li><a href="#the-whole-chain-in-numpy">The whole chain in numpy</a></li><li><a href="#getting-it-onto-a-device">Getting it onto a device</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A microphone sampled at 16 kHz produces 16,000 numbers every second. You could hand those straight to a neural network, and large models sometimes do. Small models on microcontrollers almost never do: they are fed a compact picture of how the sound's energy is spread across frequency over time, called a spectrogram. Building that picture is a short chain of classic signal processing, and every step has a reason you can understand without heavy maths.</p>
+<h2 id="why-not-raw-samples">Why not raw samples</h2>
+<p>Consider the same spoken word recorded twice. The two waveforms look very different sample by sample: the word starts a few milliseconds later, the voice is a little louder, the phase of every frequency component is different. Yet a listener hears the same word, because the ear responds mainly to <em>which frequencies are present and how strong they are</em>, changing over time.</p>
+<p>A spectrogram captures exactly that and throws away what does not matter, such as phase. This has three benefits for a small device:</p>
+<ul>
+<li><strong>Smaller input.</strong> One second becomes about 49 frames of 40 numbers, 1,960 values instead of 16,000.</li>
+<li><strong>Easier learning.</strong> Patterns such as a vowel's resonances become visible as bands, so a small network with few weights can find them.</li>
+<li><strong>Robustness.</strong> Small shifts in timing and level change the spectrogram only a little.</li>
+</ul>
+<h2 id="step-1-frames-and-windows">Step 1: frames and windows</h2>
+<p>Sound changes over time, but over a few tens of milliseconds speech is roughly steady. So you cut the signal into short <strong>frames</strong>, for example 30 ms (480 samples at 16 kHz), starting a new frame every 20 ms (320 samples). The overlap means no sound falls between two frames.</p>
+<p>Cutting a frame out with sharp edges creates a problem. The FFT, used in the next step, assumes the frame repeats forever, so the jump between the frame's last and first sample looks like a click and smears energy across all frequencies. The fix is to multiply each frame by a <strong>window</strong> that tapers smoothly to zero at both ends. The Hann window, a raised cosine, is a common choice.</p>
+<h2 id="step-2-the-fft-and-the-power-spectrum">Step 2: the FFT and the power spectrum</h2>
+<p>The <strong>fast Fourier transform</strong> (FFT) turns a frame of N samples into N frequency components. For a real signal only the first N/2 + 1 are unique. FFTs are fastest for powers of two, so the 480-sample frame is padded with zeros to N = 512. That gives 257 frequency <strong>bins</strong>, spaced 16,000 / 512 = 31.25 Hz apart, from 0 Hz up to 8 kHz, which is half the sample rate and the highest frequency the samples can represent.</p>
+<p>Each bin is a complex number. Its squared magnitude is the <strong>power</strong> at that frequency, and the phase is discarded.</p>
+<h2 id="step-3-mel-scaling">Step 3: mel scaling</h2>
+<p>Human hearing resolves low frequencies finely and high frequencies coarsely: the step from 200 Hz to 300 Hz sounds large, the step from 7,000 Hz to 7,100 Hz hardly noticeable. Speech is organised the same way, with most of its distinguishing detail at lower frequencies. The <strong>mel scale</strong> models this. A common formula is:</p>
+<blockquote>
+<p>mel = 2595 × log<sub>10</sub>(1 + f / 700)</p>
+</blockquote>
+<p>It is roughly linear below 1 kHz and logarithmic above: 1,000 Hz maps to about 1,000 mel, but 8,000 Hz maps to only about 2,840 mel.</p>
+<p>To apply it, you build a <strong>filterbank</strong>: for example 40 triangular filters whose centres are evenly spaced in mel, so they are narrow at low frequencies and wide at high ones. Each filter takes a weighted sum of the power in the bins under it. The 257 power values become 40 band energies.</p>
+<h2 id="step-4-the-logarithm">Step 4: the logarithm</h2>
+<p>Loudness spans a huge range: a whisper and a shout differ in power by several orders of magnitude. Taking the <strong>log</strong> of each band energy compresses that range, so the model sees comparable numbers for quiet and loud speech, and a change in overall volume becomes a constant offset rather than a scaling. A small constant is added first so that silent bands do not produce log(0).</p>
+<p>The result, frame after frame, is a <strong>log-mel spectrogram</strong>. Some pipelines go one step further and apply a discrete cosine transform to each frame to get <strong>MFCCs</strong> (mel-frequency cepstral coefficients), keeping perhaps 10 to 13 of them. That decorrelates and compresses the features further, which suits very small models.</p>
+<h2 id="the-whole-chain-in-numpy">The whole chain in numpy</h2>
+<pre><code class="language-python">import numpy as np
+
+FS, WIN, HOP, NFFT, NMEL = 16000, 480, 320, 512, 40
+
+def hz_to_mel(f):
+    return 2595 * np.log10(1 + f / 700)
+
+def mel_to_hz(m):
+    return 700 * (10 ** (m / 2595) - 1)
+
+def mel_filterbank():
+    edges = mel_to_hz(np.linspace(0, hz_to_mel(FS / 2), NMEL + 2))
+    bins = np.floor((NFFT + 1) * edges / FS).astype(int)
+    fb = np.zeros((NMEL, NFFT // 2 + 1))
+    for m in range(1, NMEL + 1):
+        lo, mid, hi = bins[m - 1], bins[m], bins[m + 1]
+        fb[m - 1, lo:mid] = (np.arange(lo, mid) - lo) / max(mid - lo, 1)
+        fb[m - 1, mid:hi] = (hi - np.arange(mid, hi)) / max(hi - mid, 1)
+    return fb
+
+def log_mel(x):
+    n_frames = 1 + (len(x) - WIN) // HOP
+    window = np.hanning(WIN)
+    fb = mel_filterbank()
+    out = np.empty((n_frames, NMEL))
+    for t in range(n_frames):
+        frame = x[t * HOP : t * HOP + WIN] * window
+        power = np.abs(np.fft.rfft(frame, NFFT)) ** 2
+        out[t] = np.log(fb @ power + 1e-6)
+    return out
+
+t = np.arange(FS) / FS
+x = 0.5 * np.sin(2 * np.pi * 1000 * t)      # one second of a 1 kHz tone
+S = log_mel(x)
+print(S.shape, S.mean(axis=0).argmax())     # (49, 40) 14
+</code></pre>
+<p>For the 1 kHz test tone, the strongest band is filter 14, whose triangle spans roughly 955 Hz to 1,170 Hz. A test like this, where you know the answer in advance, is worth writing before you trust any feature code.</p>
+<h2 id="getting-it-onto-a-device">Getting it onto a device</h2>
+<p>On a microcontroller the same chain runs once per hop, in fixed point: a precomputed window table, an integer FFT, a sparse filterbank stored as start bin and weights per filter, and a log implemented with a table or a few shifts. The filterbank and window are constants in flash, and only one frame's buffers need RAM.</p>
+<p>The one rule that matters most: <strong>the device must compute the same features as the training pipeline</strong>. A different window, a different FFT scaling or a natural log versus log base 10 produces features the model has never seen, and accuracy collapses without any error message. Port one implementation and compare its output against the training code on the same audio clip, frame by frame.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>skipping the window and getting smeared spectra</li>
+<li>training with one library's defaults and writing different defaults into the firmware</li>
+<li>forgetting the small constant before the log, which produces minus infinity on silence</li>
+<li>assuming more mel bands is always better, when it costs input size and model weights</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then plot <code>S.T</code> with matplotlib's <code>imshow</code> for a recording of your own voice.</li>
+<li>Remove the window (multiply by ones) and compare the spectrogram of the pure tone.</li>
+<li>Change <code>NMEL</code> to 20 and to 64 and note how the image changes.</li>
+<li>Write a fixed-point version of one step, for example the filterbank with int16 weights, and compare it with the float output.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>audio</li><li>fft</li><li>spectrogram</li><li>mel</li><li>signal processing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="accumulator-width-in-quantized-inference.html"><span>Previous in Edge AI</span>Accumulator width in quantized inference: avoiding overflow</a><a class="next" href="collecting-your-own-sensor-dataset.html"><span>Next in Edge AI</span>Collecting your own sensor dataset: labels, balance and the boring parts that matter</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="keyword-spotting-pipeline.html">A keyword-spotting pipeline from microphone to decision</a></h3>
+          <p>How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="signal-classification-on-a-wearable.html">On-device signal classification for a health wearable: possibilities and limits</a></h3>
+          <p>Small on-device models can flag patterns in body signals for follow-up, but a flag is not a diagnosis. Signal quality gates, the base-rate problem in numbers, and how to validate a wearable classifier responsibly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="vibration-anomaly-detection-on-mcu.html">Detecting machine anomalies from vibration on a microcontroller</a></h3>
+          <p>Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

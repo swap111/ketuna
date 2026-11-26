@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Associativity, replacement and write policies: cache design choices compared · Ketuna blog</title>
+  <meta name="description" content="Set associativity removes conflict misses, replacement picks a victim, and the write policy decides when memory is updated. Compare each choice with its hardware cost, including a pseudo-LRU tree worked by hand.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Associativity, replacement and write policies: cache design choices compared · Ketuna blog">
+  <meta property="og:description" content="Set associativity removes conflict misses, replacement picks a victim, and the write policy decides when memory is updated. Compare each choice with its hardware cost, including a pseudo-LRU tree worked by hand.">
+  <link rel="canonical" href="https://ketuna.online/blog/cache-associativity-and-policies.html">
+  <meta property="og:url" content="https://ketuna.online/blog/cache-associativity-and-policies.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Associativity, replacement and write policies: cache design choices compared",
+  "description": "Set associativity removes conflict misses, replacement picks a victim, and the write policy decides when memory is updated. Compare each choice with its hardware cost, including a pseudo-LRU tree worked by hand.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "caches, associativity, lru, write-back, memory hierarchy",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1034,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/cache-associativity-and-policies.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Associativity, replacement and write policies: cache design choices compared</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Set associativity removes conflict misses, replacement picks a victim, and the write policy decides when memory is updated. Compare each choice with its hardware cost, including a pseudo-LRU tree worked by hand.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#associativity-more-than-one-place-per-line">Associativity: more than one place per line</a></li><li><a href="#replacement-choosing-the-victim">Replacement: choosing the victim</a></li><li><a href="#write-policies-when-memory-sees-the-store">Write policies: when memory sees the store</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A direct-mapped cache is simple and fast, but two busy addresses that share an index evict each other on every access, even when the rest of the cache sits empty. Real cache designs answer three questions beyond capacity and line size: how many places may a line go (associativity), which line leaves when a set is full (replacement), and when does a store reach the next level of memory (write policy). Each answer buys hit rate or bandwidth with area, power or timing. This article compares them with the hardware cost in view.</p>
+<h2 id="associativity-more-than-one-place-per-line">Associativity: more than one place per line</h2>
+<p>In an <strong>N-way set-associative</strong> cache, the index selects a <strong>set</strong> of N lines, and an incoming line may go into any of them. A lookup reads all N tags of the set at once and compares them in parallel; if one matches and is valid, it is a hit and a multiplexer selects that way's data.</p>
+<p>Associativity attacks <strong>conflict misses</strong>. Two arrays whose addresses differ by a multiple of the cache size collide in a direct-mapped cache, but in a 2-way cache both lines fit in the same set.</p>
+<p>The cost is real, and you can count it. Take a 4 KiB cache with 32-byte lines and 32-bit addresses. There are 4096 / 32 = 128 lines and the offset is 5 bits.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Direct-mapped</th>
+<th>4-way set-associative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sets</td>
+<td>128</td>
+<td>32</td>
+</tr>
+<tr>
+<td>Index bits</td>
+<td>7</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Tag bits per line</td>
+<td>32 − 7 − 5 = 20</td>
+<td>32 − 5 − 5 = 22</td>
+</tr>
+<tr>
+<td>Total tag storage</td>
+<td>128 × 20 = 2560 bits</td>
+<td>128 × 22 = 2816 bits</td>
+</tr>
+<tr>
+<td>Tag comparators</td>
+<td>1</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Data path after compare</td>
+<td>none</td>
+<td>4-to-1 way multiplexer</td>
+</tr>
+</tbody>
+</table></div>
+<p>Fewer sets mean fewer index bits, so every tag grows. More importantly for timing, the way multiplexer sits after the tag compare, on the hit path. That is why level-1 caches, which must answer in a cycle or two, tend to have modest associativity, while larger and slower caches further out can afford more ways. A <strong>fully associative</strong> cache, one set containing every line, removes conflict misses entirely but needs a comparator per line, so it is used only for small structures such as TLBs.</p>
+<h2 id="replacement-choosing-the-victim">Replacement: choosing the victim</h2>
+<p>When a set is full and a new line arrives, one way must be evicted. A direct-mapped cache has no choice to make. With N ways there are several policies:</p>
+<ul>
+<li><strong>Least recently used (LRU).</strong> Evict the way not touched for longest. It matches temporal locality well. Exact LRU for 4 ways must remember an ordering of 4 items, and there are 4! = 24 orderings, so at least 5 bits per set, plus update logic that rewrites the order on every hit.</li>
+<li><strong>Pseudo-LRU (tree PLRU).</strong> Approximate LRU with a binary tree of N − 1 bits per set: 3 bits for 4 ways. Each bit points toward the half that was used less recently.</li>
+<li><strong>Random.</strong> A free-running counter or LFSR picks the way. No per-set state at all, and surprisingly competitive for higher associativity, but harder to reason about when you need predictable timing.</li>
+<li><strong>FIFO / round-robin.</strong> Evict in order of arrival; one small counter per set.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="pl-title pl-desc" font-size="14">
+<title id="pl-title">Tree pseudo-LRU for a four-way set</title>
+<desc id="pl-desc">A binary tree with a root bit b0 and two child bits b1 and b2. The root chooses between the pair of ways 0 and 1 and the pair of ways 2 and 3. Bit b1 chooses between way 0 and way 1; bit b2 chooses between way 2 and way 3. Each bit points toward the victim side.</desc>
+<circle cx="240" cy="40" r="22" class="dg-core"/><text x="240" y="45" text-anchor="middle" class="dg-text">b0</text>
+<circle cx="130" cy="100" r="22" class="dg-core"/><text x="130" y="105" text-anchor="middle" class="dg-text">b1</text>
+<circle cx="350" cy="100" r="22" class="dg-core"/><text x="350" y="105" text-anchor="middle" class="dg-text">b2</text>
+<line x1="222" y1="53" x2="148" y2="87" class="dg-line"/><line x1="258" y1="53" x2="332" y2="87" class="dg-line"/>
+<text x="172" y="62" class="dg-muted">0</text><text x="300" y="62" class="dg-muted">1</text>
+<rect x="40" y="150" width="70" height="34" class="dg-box"/><text x="75" y="172" text-anchor="middle" class="dg-text">way 0</text>
+<rect x="150" y="150" width="70" height="34" class="dg-box"/><text x="185" y="172" text-anchor="middle" class="dg-text">way 1</text>
+<rect x="260" y="150" width="70" height="34" class="dg-box"/><text x="295" y="172" text-anchor="middle" class="dg-text">way 2</text>
+<rect x="370" y="150" width="70" height="34" class="dg-box"/><text x="405" y="172" text-anchor="middle" class="dg-text">way 3</text>
+<line x1="118" y1="119" x2="85" y2="150" class="dg-line"/><line x1="142" y1="119" x2="175" y2="150" class="dg-line"/>
+<line x1="338" y1="119" x2="305" y2="150" class="dg-line"/><line x1="362" y1="119" x2="395" y2="150" class="dg-line"/>
+<text x="88" y="132" class="dg-muted">0</text><text x="166" y="132" class="dg-muted">1</text>
+<text x="308" y="132" class="dg-muted">0</text><text x="386" y="132" class="dg-muted">1</text>
+</svg>
+<figcaption>Three bits per set: follow the bits from the root to find the victim; on each access, flip the bits on its path to point away from it.</figcaption>
+</figure>
+
+<p>Work it by hand. Start with all bits 0. Access ways 0, 1, 2, 3 in turn; each access sets the bits along its path to point to the other side. After way 3, the bits are b0 = 0, b1 = 0, b2 = 0, so the victim is way 0, which agrees with true LRU. Now access way 0 again: b0 becomes 1 and b1 becomes 1. The tree now points to the right pair and then, by b2 = 0, to way 2. True LRU would evict way 1, which has not been used since the start of the sequence. PLRU forgot that ordering because the left subtree's history was overwritten. That is the approximation you accept for 3 bits instead of 5 and much simpler update logic.</p>
+<h2 id="write-policies-when-memory-sees-the-store">Write policies: when memory sees the store</h2>
+<p>A store that hits in the cache updates the cached line. The question is what happens to the next level.</p>
+<ul>
+<li><strong>Write-through.</strong> Every store is also sent to the next level, usually via a small write buffer so the core need not wait. The next level is always up to date, which simplifies coherence with DMA and other masters. The cost is traffic: every store becomes a bus write.</li>
+<li><strong>Write-back.</strong> The store updates only the cache and sets a <strong>dirty</strong> bit. The line is written to the next level only when it is evicted. Repeated stores to the same line cost one write-back at the end.</li>
+</ul>
+<p>Consider a loop that increments a counter in memory 1000 times. With write-through, 1000 writes cross the bus. With write-back, the line stays dirty in the cache and costs one 32-byte write when it is eventually evicted. The price of write-back is a dirty bit per line, eviction logic that must write a line out before refilling, and the fact that memory can be stale, which matters to any other master reading it.</p>
+<p>A second choice applies to store <strong>misses</strong>: <strong>write-allocate</strong> fetches the line into the cache and then updates it; <strong>no-write-allocate</strong> sends the store straight to the next level and leaves the cache alone. Write-back caches usually allocate; write-through caches often do not.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Counting only data storage.</strong> Tags, valid, dirty and replacement bits add a significant fraction of the area of a small cache.</li>
+<li><strong>Putting a slow way multiplexer on a one-cycle hit path.</strong> Check timing before adding ways.</li>
+<li><strong>Choosing write-back without planning for DMA.</strong> Stale memory needs either hardware coherence or software clean and invalidate operations.</li>
+<li><strong>Assuming PLRU equals LRU.</strong> It agrees often, but not always, as the example shows.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Extend a Python cache model with an associativity parameter and LRU, PLRU and random replacement, and replay the same address trace through each.</li>
+<li>Count bus writes in the model for write-through and write-back while replaying a trace with repeated stores.</li>
+<li>Write a 4-way tag array with PLRU in Verilog, simulate it in Verilator against the Python model, and compare its area to a direct-mapped version with Yosys <code>stat</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>caches</li><li>associativity</li><li>lru</li><li>write-back</li><li>memory hierarchy</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="smart-meter-soc-architecture.html"><span>Previous in Computer architecture &amp; RISC-V</span>Architecture of a smart energy meter SoC: core, metering engine, security and communications</a><a class="next" href="branch-prediction-basics.html"><span>Next in Computer architecture &amp; RISC-V</span>Branch prediction from static rules to two-bit counters</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="direct-mapped-cache-by-hand.html">Caches from scratch: a direct-mapped cache worked by hand</a></h3>
+          <p>Split an address into tag, index and offset, then trace hits and misses for a short program in a tiny direct-mapped cache. One shifted array turns a 0% hit rate into 75%.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="amdahls-law-for-soc-designers.html">Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a></h3>
+          <p>Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

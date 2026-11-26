@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reliability basics: failure rates, MTBF and the bathtub curve · Ketuna blog</title>
+  <meta name="description" content="What a failure rate and MTBF actually say, why an MTBF of centuries does not mean a product lasts centuries, how early failures and wear-out differ, and how derating parts keeps the failure rate low.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reliability basics: failure rates, MTBF and the bathtub curve · Ketuna blog">
+  <meta property="og:description" content="What a failure rate and MTBF actually say, why an MTBF of centuries does not mean a product lasts centuries, how early failures and wear-out differ, and how derating parts keeps the failure rate low.">
+  <link rel="canonical" href="https://ketuna.online/blog/reliability-basics-mtbf.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reliability-basics-mtbf.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reliability basics: failure rates, MTBF and the bathtub curve",
+  "description": "What a failure rate and MTBF actually say, why an MTBF of centuries does not mean a product lasts centuries, how early failures and wear-out differ, and how derating parts keeps the failure rate low.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "reliability, mtbf, failure rate, derating, bathtub curve",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 986,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reliability-basics-mtbf.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Reliability basics: failure rates, MTBF and the bathtub curve</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">What a failure rate and MTBF actually say, why an MTBF of centuries does not mean a product lasts centuries, how early failures and wear-out differ, and how derating parts keeps the failure rate low.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#failure-rate-and-fit">Failure rate and FIT</a></li><li><a href="#mtbf-is-a-rate-inverted">MTBF is a rate, inverted</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#the-bathtub-curve">The bathtub curve</a></li><li><a href="#derating-keeps-low">Derating keeps λ low</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A reliability figure of "MTBF 6.8 million hours" sounds like a promise that the product will run for seven centuries. It is nothing of the kind, and engineers who read it that way make poor decisions about warranties, spares and maintenance. This article explains what failure rate and MTBF mean, where they apply, and where they do not, using one illustrative board as a worked example.</p>
+<h2 id="failure-rate-and-fit">Failure rate and FIT</h2>
+<p>The <strong>failure rate</strong>, written λ (lambda), is the expected number of failures per unit of operating time, for a population of units. For electronic parts it is tiny, so it is usually quoted in <strong>FIT</strong>: failures per 10<sup>9</sup> device-hours. A part with λ = 20 FIT is expected to produce 20 failures if a billion device-hours are accumulated, for example one million parts running for 1,000 hours each.</p>
+<p>Two points matter. First, λ describes a <em>population</em>. It says nothing about which unit fails, only how many to expect. Second, the figure is only meaningful under stated conditions: temperature, voltage stress and environment. A capacitor running hot and near its rated voltage has a higher failure rate than the same part run cool and lightly loaded.</p>
+<h2 id="mtbf-is-a-rate-inverted">MTBF is a rate, inverted</h2>
+<p>If the failure rate is constant, the <strong>mean time between failures</strong> is simply its inverse:</p>
+<blockquote>
+<p>MTBF = 1 / λ</p>
+</blockquote>
+<p>With a constant failure rate, the probability that one unit survives to time t is</p>
+<blockquote>
+<p>R(t) = e<sup>−λt</sup> = e<sup>−t / MTBF</sup></p>
+</blockquote>
+<p>Put t = MTBF into that formula and you get e<sup>−1</sup>, about 0.37. Only 37 % of units are expected to survive to the MTBF; 63 % will have failed. MTBF is not a typical lifetime, not a minimum lifetime, and not even the time by which half have failed. It is the reciprocal of a rate, and its natural use is to predict how many failures a fleet will see per year.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Here is a small sensor board with failure rates made up for illustration. Real values come from part reliability data, test results or a recognised prediction method, at your operating conditions.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Quantity</th>
+<th>λ each (FIT)</th>
+<th>λ total (FIT)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microcontroller</td>
+<td>1</td>
+<td>20</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Voltage regulator</td>
+<td>1</td>
+<td>15</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Ceramic capacitors</td>
+<td>40</td>
+<td>0.5</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Resistors</td>
+<td>60</td>
+<td>0.2</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Connectors</td>
+<td>3</td>
+<td>10</td>
+<td>30</td>
+</tr>
+<tr>
+<td>Radio module</td>
+<td>1</td>
+<td>40</td>
+<td>40</td>
+</tr>
+<tr>
+<td>Crystal</td>
+<td>1</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td><strong>Board</strong></td>
+<td></td>
+<td></td>
+<td><strong>147</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>For a <strong>series system</strong>, where any one part failing stops the board, the failure rates add. The board's λ is 147 FIT, so</p>
+<ul>
+<li>MTBF = 10<sup>9</sup> / 147 ≈ 6.8 million hours.</li>
+<li>Probability one board survives 5 years of continuous use (43,800 hours): exp(−147 × 10<sup>−9</sup> × 43,800) ≈ 0.9936, about 99.4 %.</li>
+<li>A fleet of 2,000 boards running all year (8,760 hours each) accumulates 17.52 million device-hours, so expect about 2,000 × 8,760 × 147 × 10<sup>−9</sup> ≈ 2.6 failures per year.</li>
+</ul>
+<p>The last number is the useful one. It tells you how many spares to stock and how many field visits to plan. The 6.8 million hours says nothing about how long a board lasts, because the constant-rate assumption stops being true long before then.</p>
+<pre><code class="language-python">import math
+
+fit = {&quot;mcu&quot;: 20, &quot;reg&quot;: 15, &quot;caps&quot;: 40 * 0.5, &quot;res&quot;: 60 * 0.2,
+       &quot;conn&quot;: 3 * 10, &quot;radio&quot;: 40, &quot;xtal&quot;: 10}
+lam = sum(fit.values()) * 1e-9            # failures per hour
+print(f&quot;board lambda = {sum(fit.values()):.0f} FIT&quot;)
+print(f&quot;MTBF = {1 / lam:,.0f} h&quot;)
+print(f&quot;R(5 years) = {math.exp(-lam * 5 * 8760):.4f}&quot;)
+print(f&quot;failures/year in 2,000 units = {2000 * 8760 * lam:.1f}&quot;)
+</code></pre>
+<h2 id="the-bathtub-curve">The bathtub curve</h2>
+<p>Plot the failure rate of a population against age and you often get a shape like a bathtub. It has three regions, and the constant-λ maths above applies only to the middle one.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="bt-title bt-desc" font-size="14">
+<title id="bt-title">The bathtub curve of failure rate against time</title>
+<desc id="bt-desc">A graph with failure rate on the vertical axis and time on the horizontal axis. The curve starts high and falls quickly in the early-life region, stays flat through a long useful-life region where the failure rate is constant, then rises in the wear-out region on the right.</desc>
+<line x1="50" y1="20" x2="50" y2="180" class="dg-line"/>
+<line x1="50" y1="180" x2="460" y2="180" class="dg-line"/>
+<text x="20" y="100" class="dg-muted" transform="rotate(-90 20 100)" text-anchor="middle">failure rate λ</text>
+<text x="455" y="205" text-anchor="end" class="dg-muted">time (age)</text>
+<rect x="50" y="20" width="80" height="160" class="dg-amber" fill-opacity="0.15"/>
+<rect x="360" y="20" width="100" height="160" class="dg-amber" fill-opacity="0.15"/>
+<path d="M55,35 C70,95 95,130 130,138 L360,138 C400,136 430,110 455,45" fill="none" class="dg-line" stroke-width="2.5"/>
+<line x1="130" y1="20" x2="130" y2="180" class="dg-dash"/>
+<line x1="360" y1="20" x2="360" y2="180" class="dg-dash"/>
+<text x="90" y="200" text-anchor="middle" class="dg-text">early life</text>
+<text x="245" y="200" text-anchor="middle" class="dg-text">useful life</text>
+<text x="410" y="200" text-anchor="middle" class="dg-text">wear-out</text>
+<text x="245" y="125" text-anchor="middle" class="dg-muted">constant λ, MTBF applies</text>
+</svg>
+<figcaption>MTBF describes only the flat middle; early-life defects and wear-out need their own treatment.</figcaption>
+</figure>
+
+<p><strong>Early life (infant mortality).</strong> A falling failure rate caused by manufacturing defects: a marginal solder joint, a contaminated part, a cracked capacitor from board flexing. Screening removes these before shipping: good process control, inspection, functional test and, for some products, a period of powered burn-in at elevated temperature.</p>
+<p><strong>Useful life.</strong> A low, roughly constant rate of random failures. This is where FIT, MTBF and the fleet calculation above are valid.</p>
+<p><strong>Wear-out.</strong> A rising rate as parts with finite life reach it. Electrolytic capacitors dry out, faster when hot. Rechargeable batteries lose capacity with cycles and age. Fans, relays, switches and connectors wear mechanically. Flash memory has a limited number of erase cycles. Wear-out is not described by MTBF at all; it is handled by choosing parts whose rated life exceeds the product's design life at its real operating conditions, and by planning replacement where that is not possible.</p>
+<h2 id="derating-keeps-low">Derating keeps λ low</h2>
+<p><strong>Derating</strong> means operating a part well inside its ratings: a capacitor at a fraction of its rated voltage, a resistor at a fraction of its rated power, a semiconductor junction well below its maximum temperature. Failure mechanisms in electronics generally speed up with temperature and electrical stress, so a modest reduction in stress can lower the failure rate and extend wear-out life noticeably. Many organisations write a derating policy, with a fraction for each part type, and check every schematic against it at design review. It is one of the cheapest reliability measures available, because it costs a slightly larger part rather than a redesign.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading MTBF as lifetime.</strong> Use it for fleet failure counts in the useful-life region; plan life from wear-out data.</li>
+<li><strong>Ignoring conditions.</strong> A failure rate quoted at 25 °C does not hold inside a hot enclosure.</li>
+<li><strong>Adding parallel parts as if they were in series.</strong> Redundant paths need a different calculation; the simple sum applies only when any failure stops the system.</li>
+<li><strong>Leaving out connectors, solder joints and cables.</strong> They are often among the larger contributors in field failures.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python snippet above, then add a second radio module in parallel and work out by hand why the simple sum no longer applies.</li>
+<li>Pick a board you have designed and list every part with a rated voltage, power or temperature. Compare each with its actual stress, from your schematic or an <strong>ngspice</strong> simulation, and flag any above 50 % of rating for discussion.</li>
+<li>Write down which parts on that board wear out (batteries, electrolytics, buttons, flash) and estimate their life at your operating conditions from their datasheets.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>reliability</li><li>mtbf</li><li>failure rate</li><li>derating</li><li>bathtub curve</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="production-test-strategy.html"><span>Previous in Systems &amp; product engineering</span>Production test strategy: what to test on every unit and what to sample</a><a class="next" href="running-a-trade-study.html"><span>Next in Systems &amp; product engineering</span>Running a trade study: criteria, weights and honest scoring</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-for-indian-environments.html">Designing for dust, heat and moisture: environmental requirements for Indian conditions</a></h3>
+          <p>How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fmea-step-by-step.html">FMEA step by step: severity, occurrence, detection and what to do next</a></h3>
+          <p>A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="thermal-design-basics.html">Thermal design basics: junction temperature and heat paths</a></h3>
+          <p>How to estimate a part&#x27;s junction temperature from its power and the thermal resistances between die and air, why copper area and airflow change the answer, and how to check the result against the part&#x27;s limits.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

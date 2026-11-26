@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The load-use hazard: why one bubble remains even with forwarding · Ketuna blog</title>
+  <meta name="description" content="A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The load-use hazard: why one bubble remains even with forwarding · Ketuna blog">
+  <meta property="og:description" content="A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.">
+  <link rel="canonical" href="https://ketuna.online/blog/the-load-use-hazard.html">
+  <meta property="og:url" content="https://ketuna.online/blog/the-load-use-hazard.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The load-use hazard: why one bubble remains even with forwarding",
+  "description": "A load's data arrives at the end of the memory stage, one cycle too late to forward into the next instruction's ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pipelining, hazards, load-use, stalls, risc-v",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 924,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/the-load-use-hazard.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>The load-use hazard: why one bubble remains even with forwarding</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-forwarding-cannot-reach">Why forwarding cannot reach</a></li><li><a href="#detecting-the-hazard">Detecting the hazard</a></li><li><a href="#a-store-after-a-load-is-a-special-case">A store after a load is a special case</a></li><li><a href="#how-the-compiler-hides-the-bubble">How the compiler hides the bubble</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Forwarding removes almost every data hazard in a five-stage pipeline: an ALU result can be sent straight back to the next instruction without waiting for write-back. There is one exception that every in-order pipeline of this shape keeps. When an instruction uses the result of a load immediately after it, the data simply does not exist yet at the moment it is needed, and no wire can fix that. The pipeline must wait one cycle. This article shows why, how the hardware detects the case, and how software makes the wait disappear most of the time.</p>
+<h2 id="why-forwarding-cannot-reach">Why forwarding cannot reach</h2>
+<p>Recall the stages: IF, ID (register read), EX (ALU), MEM (data memory) and WB. An ALU instruction has its result at the end of EX. A load has its result only at the end of MEM, because the address is computed in EX and the memory is read in the following cycle.</p>
+<p>Now put a dependent instruction straight after the load:</p>
+<pre><code class="language-text">lw   x1, 0(x2)      # x1 arrives at the end of MEM
+add  x3, x1, x4     # needs x1 at the start of its EX
+</code></pre>
+<p>Without a stall, the add would be in EX in the same cycle that the load is in MEM. The add needs x1 at the <strong>start</strong> of that cycle to feed its ALU; the load produces x1 at the <strong>end</strong> of that cycle. Forwarding moves data between stages within a cycle boundary; it cannot send a value backwards in time. The only fix is to delay the add by one cycle so that it reaches EX when the load reaches WB, and then forward from the MEM/WB register as usual.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Instruction</th>
+<th>C1</th>
+<th>C2</th>
+<th>C3</th>
+<th>C4</th>
+<th>C5</th>
+<th>C6</th>
+<th>C7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lw x1, 0(x2)</code></td>
+<td>IF</td>
+<td>ID</td>
+<td>EX</td>
+<td>MEM</td>
+<td>WB</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>add x3, x1, x4</code></td>
+<td></td>
+<td>IF</td>
+<td>ID</td>
+<td>ID (stall)</td>
+<td>EX</td>
+<td>MEM</td>
+<td>WB</td>
+</tr>
+<tr>
+<td>next instruction</td>
+<td></td>
+<td></td>
+<td>IF</td>
+<td>IF (stall)</td>
+<td>ID</td>
+<td>EX</td>
+<td>MEM</td>
+</tr>
+</tbody>
+</table></div>
+<p>In C4 a bubble, an empty slot that does nothing, enters EX in place of the add. In C5 the add is in EX and the loaded x1 is forwarded from MEM/WB. The cost is exactly one cycle.</p>
+<h2 id="detecting-the-hazard">Detecting the hazard</h2>
+<p>The check is made when the consumer is in ID and the load is one stage ahead in EX. That is the last moment to hold the consumer back before it would read a wrong operand.</p>
+<pre><code class="language-verilog">// Stall if the instruction in EX is a load whose destination
+// is a source of the instruction in ID.
+wire uses_rs1 = dec_uses_rs1;   // from the decoder
+wire uses_rs2 = dec_uses_rs2;   // false for I-type, U-type, J-type
+
+assign load_use_stall =
+    idex_memread &amp;&amp; (idex_rd != 5'd0) &amp;&amp;
+    ((uses_rs1 &amp;&amp; idex_rd == ifid_ins[19:15]) ||
+     (uses_rs2 &amp;&amp; idex_rd == ifid_ins[24:20]));
+</code></pre>
+<p>The <code>uses_rs2</code> term is worth the few extra gates. An <code>addi x3, x1, 8</code> has an immediate in bits 24 to 20, not a register number. Without the term, those bits can match the load's destination by accident and cause a stall that is not needed. It does not break correctness, but it costs cycles for no reason.</p>
+<p>When <code>load_use_stall</code> is high, three things happen together:</p>
+<ol>
+<li>The PC does not advance, so the instruction in IF is fetched again.</li>
+<li>The IF/ID register holds, so the consumer stays in ID.</li>
+<li>The control bits entering ID/EX are cleared, so EX receives a bubble with no register write and no memory access.</li>
+</ol>
+<p>All three must happen in the same cycle. Freezing the PC but not IF/ID skips an instruction; freezing IF/ID but not the PC duplicates one. Clearing only the register-write bit but not the memory-write bit lets a ghost store through.</p>
+<h2 id="a-store-after-a-load-is-a-special-case">A store after a load is a special case</h2>
+<pre><code class="language-text">lw  x1, 0(x2)
+sw  x1, 0(x5)
+</code></pre>
+<p>The store needs x1 only as <strong>data</strong> to write, and it needs it in MEM, not in EX. If the core adds a forwarding path from MEM/WB into the store-data input of the MEM stage, this pair runs without a stall. The simple stall logic above, which only knows "rs2 is used", will still stall here. Whether the extra path is worth it depends on how often your code copies memory word by word; it is a design choice to make with measurements, not a rule.</p>
+<h2 id="how-the-compiler-hides-the-bubble">How the compiler hides the bubble</h2>
+<p>The stall is architectural only in the sense that the hardware must handle it. Software can often move an independent instruction into the gap. Take a loop that sums an array:</p>
+<pre><code class="language-text">loop: lw   t1, 0(a0)
+      add  t0, t0, t1     # uses t1 immediately: stall
+      addi a0, a0, 4
+      addi a1, a1, -1
+      bnez a1, loop
+</code></pre>
+<p>Each iteration issues five instructions and loses one cycle to the load-use stall, so ignoring branch costs it takes 6 cycles. Reorder it:</p>
+<pre><code class="language-text">loop: lw   t1, 0(a0)
+      addi a0, a0, 4      # independent: fills the slot
+      addi a1, a1, -1
+      add  t0, t0, t1     # t1 is ready now
+      bnez a1, loop
+</code></pre>
+<p>The result is identical, because neither <code>addi</code> touches <code>t0</code> or <code>t1</code>. Each iteration now takes 5 cycles. Over 100 iterations that is 600 cycles against 500 for the same work. Optimising compilers do this routinely when they schedule instructions for a pipeline, which is one reason the same C code can run faster at <code>-O2</code> than at <code>-O0</code>. When you write assembly by hand, the job is yours.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Checking for the hazard too late.</strong> By the time the consumer is in EX it has already used a wrong operand; detect in ID.</li>
+<li><strong>Ignoring x0.</strong> A load into x0 is legal and its result is discarded; it must not trigger a stall or a forward.</li>
+<li><strong>Stalling without the bubble.</strong> Holding IF and ID but letting the consumer's control bits into EX executes it twice.</li>
+<li><strong>Assuming the cost is fixed.</strong> On cores with longer memory pipelines or caches, the load-to-use distance can be two or more cycles, and a cache miss stalls far longer.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write both versions of the summing loop in assembly and count cycles by hand with a timing table like the one above.</li>
+<li>Run both on a pipelined RV32I core in Verilator or Icarus Verilog with a cycle counter in the testbench, and confirm the one-cycle difference per iteration.</li>
+<li>Compile a C loop with a RISC-V GCC cross-compiler at <code>-O0</code> and at <code>-O2</code> (add <code>-S</code>), and find where the compiler placed an independent instruction after each load.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pipelining</li><li>hazards</li><li>load-use</li><li>stalls</li><li>risc-v</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="iron-law-of-performance.html"><span>Previous in Computer architecture &amp; RISC-V</span>The iron law of performance: instructions, CPI and clock period</a><a class="next" href="virtual-memory-and-the-tlb.html"><span>Next in Computer architecture &amp; RISC-V</span>Virtual memory and the TLB: translating addresses without slowing down</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="data-hazards-and-forwarding.html">Data hazards and forwarding paths, traced cycle by cycle</a></h3>
+          <p>Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="single-cycle-to-five-stage-pipeline.html">From single-cycle to a five-stage pipeline: what changes and why</a></h3>
+          <p>Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

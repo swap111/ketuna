@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing a README that explains your project in two minutes · Ketuna blog</title>
+  <meta name="description" content="A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing a README that explains your project in two minutes · Ketuna blog">
+  <meta property="og:description" content="A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.">
+  <link rel="canonical" href="https://ketuna.online/blog/a-readme-that-explains-in-two-minutes.html">
+  <meta property="og:url" content="https://ketuna.online/blog/a-readme-that-explains-in-two-minutes.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing a README that explains your project in two minutes",
+  "description": "A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "readme, technical writing, documentation, projects",
+  "articleSection": "Careers & skills",
+  "wordCount": 884,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/a-readme-that-explains-in-two-minutes.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Writing a README that explains your project in two minutes</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#five-questions-in-this-order">Five questions, in this order</a></li><li><a href="#what-is-it-and-why-it-matters">What is it, and why it matters</a></li><li><a href="#how-to-run-it">How to run it</a></li><li><a href="#results-and-limits">Results and limits</a></li><li><a href="#keep-it-current">Keep it current</a></li><li><a href="#a-template-you-can-copy">A template you can copy</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The README is the first file anyone opens in your project, and often the only one. A reviewer, a new teammate or you in six months will read the top of it and decide whether to keep going. If they cannot tell what the project is and whether it works within a couple of minutes, they move on. A good README is not long; it answers the right questions in the right order.</p>
+<h2 id="five-questions-in-this-order">Five questions, in this order</h2>
+<p>A reader arrives with questions, and they arrive in a predictable sequence. Answer them in that sequence:</p>
+<ol>
+<li><strong>What is it?</strong> One or two sentences, in plain words.</li>
+<li><strong>Why does it matter?</strong> The problem it solves or what it demonstrates.</li>
+<li><strong>How do I run it?</strong> Exact commands, from a clean clone.</li>
+<li><strong>What are the results?</strong> Evidence that it works: test output, numbers, a picture.</li>
+<li><strong>What are the limits?</strong> What is not done, not tested or known to be wrong.</li>
+</ol>
+<p>Everything else, such as design notes, file layout, credits and history, comes after these five. A reader who stops after question 1 should still know what your project is. A reader who stops after question 4 should know whether to trust it.</p>
+<h2 id="what-is-it-and-why-it-matters">What is it, and why it matters</h2>
+<p>The first lines carry most of the weight. Compare two openings:</p>
+<blockquote>
+<p><em>Weak:</em> This repository contains my project work for the digital design course. It was a very interesting learning experience.</p>
+<p><em>Strong:</em> A 16-entry by 8-bit synchronous FIFO in Verilog, with a cocotb scoreboard testbench and formal checks of the full and empty flags. It is the receive buffer for a UART that runs at 115,200 baud.</p>
+</blockquote>
+<p>The strong version names the thing, its size, the language, how it is checked and where it is used. It does not say "interesting", because that tells the reader nothing about the project.</p>
+<p>For "why", one short paragraph is enough. Say what problem the design solves or what you wanted to learn and show. If it is a course lab, say so; then say what you added beyond the lab.</p>
+<h2 id="how-to-run-it">How to run it</h2>
+<p>This section fails more often than any other. The author runs the project from a folder full of leftover state and never tries a clean clone. Write the commands as a reader would type them:</p>
+<pre><code class="language-bash">git clone &lt;your-repo-url&gt;
+cd sync-fifo
+make sim        # directed testbench, Icarus Verilog
+make cocotb     # random scoreboard test, 10 seeds
+make lint       # Verilator lint
+</code></pre>
+<p>List the prerequisites just above, with versions you tested: for example "Icarus Verilog 12, Verilator 5, Python 3.12 with cocotb". Then do the one thing that makes this section trustworthy: clone the repository into a new folder and run every command exactly as written. If it fails for you, it will fail for the reader.</p>
+<h2 id="results-and-limits">Results and limits</h2>
+<p>Results are where the reader decides to believe you. Show what the tests print, and add one or two numbers with their context:</p>
+<pre><code class="language-text">make cocotb
+  test_random_traffic  PASS  (10 seeds, 2,000 transactions each)
+  test_full_empty      PASS  (full reached 37 times, empty 41 times)
+  TESTS=2 PASS=2 FAIL=0
+</code></pre>
+<p>If the project goes through synthesis or layout, add the cell count, the clock period it meets and the tool that reported it. A waveform screenshot of one normal transaction, with the signals labelled, helps a reader see the behaviour in seconds. (These sample figures are made up for illustration; use your own.)</p>
+<p>Then state the limits plainly. For example:</p>
+<ul>
+<li>Only tested in simulation; not run on an FPGA</li>
+<li>Simultaneous read and write when full drops the write by design (see spec section 3)</li>
+<li>Formal checks cover the flags, not the data ordering</li>
+</ul>
+<p>A limits section does not make the project look weaker. It shows that you know where the edges are, which is exactly what a reviewer wants to see in an engineer.</p>
+<h2 id="keep-it-current">Keep it current</h2>
+<p>A README that was right in March and wrong in June is worse than a short one, because readers trust it and act on stale instructions. Update it in the same commit that changes what it describes: a new make target, a renamed folder, a new result. If you keep a status line near the top ("complete", "in progress: formal checks not finished"), change it when the status changes. Reviewing a pull request is a good moment to ask whether the README still matches the code.</p>
+<h2 id="a-template-you-can-copy">A template you can copy</h2>
+<pre><code class="language-text"># &lt;Project name&gt;
+&lt;One or two sentences: what it is.&gt;
+
+## Why
+&lt;The problem, or what this demonstrates.&gt;
+
+## Run it
+Prerequisites: &lt;tools and versions tested&gt;
+&lt;exact commands from a clean clone&gt;
+
+## Results
+&lt;test output, key numbers with tool names, one picture&gt;
+
+## Limits
+&lt;what is not done, not tested or known wrong&gt;
+
+## Layout
+&lt;three to six lines: which folder holds what&gt;
+
+## What I did / credits
+&lt;your part, starting points, AI use, other people's code&gt;
+</code></pre>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Starting with history.</strong> "First I tried X, then Y" makes the reader hunt for the point. History, if it matters, goes at the end.</li>
+<li><strong>Instructions that need your machine.</strong> Absolute paths, a tool you installed by hand and forgot, a file you never committed.</li>
+<li><strong>Claims without numbers.</strong> "Efficient", "robust" and "fully tested" are untestable. Replace each with a result.</li>
+<li><strong>A wall of auto-generated text.</strong> A README that lists every file and function is a reference manual, not an introduction.</li>
+<li><strong>No date or status.</strong> Say whether the project is complete, in progress or abandoned.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick one of your projects and rewrite its first two sentences so a stranger knows what it is, its size and how it is checked.</li>
+<li>Clone it into an empty folder and follow your own run instructions literally. Fix every step that fails.</li>
+<li>Add a results block with real test output from Icarus Verilog, Verilator or cocotb, and a limits list with at least two honest entries.</li>
+<li>Give the README to a classmate, set a two-minute timer, then ask them what the project does and whether it works. Every question they ask is a gap to fill.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>readme</li><li>technical writing</li><li>documentation</li><li>projects</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="working-in-a-capstone-team.html"><span>Previous in Careers &amp; skills</span>Working in a capstone team: roles, milestones and disagreements</a><a class="next" href="blameless-postmortems.html"><span>Next in Careers &amp; skills</span>Writing a blameless postmortem after a failed lab or project</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="lead-with-the-conclusion.html">Technical writing for engineers: lead with the conclusion</a></h3>
+          <p>Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="engineering-portfolio-on-github.html">Building an engineering portfolio on GitHub that reviewers will read</a></h3>
+          <p>A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keeping-an-ai-log.html">Keeping an AI log: recording what you asked, what you kept and why</a></h3>
+          <p>An AI log is a short record of each prompt, what came back, what you checked and what you kept. It makes AI use reviewable, shows you where the tool helps, and gives you honest answers in an interview.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

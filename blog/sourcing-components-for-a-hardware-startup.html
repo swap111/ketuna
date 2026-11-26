@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sourcing components for a hardware startup: from prototypes to production · Ketuna blog</title>
+  <meta name="description" content="How sourcing changes from prototype to production: authorised channels, lifecycle status, lead times and reorder points, tested alternates, counterfeit risk and design choices that make a BOM buildable.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Sourcing components for a hardware startup: from prototypes to production · Ketuna blog">
+  <meta property="og:description" content="How sourcing changes from prototype to production: authorised channels, lifecycle status, lead times and reorder points, tested alternates, counterfeit risk and design choices that make a BOM buildable.">
+  <link rel="canonical" href="https://ketuna.online/blog/sourcing-components-for-a-hardware-startup.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sourcing-components-for-a-hardware-startup.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sourcing components for a hardware startup: from prototypes to production",
+  "description": "How sourcing changes from prototype to production: authorised channels, lifecycle status, lead times and reorder points, tested alternates, counterfeit risk and design choices that make a BOM buildable.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "supply chain, components, bom, hardware startup, manufacturing",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 918,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sourcing-components-for-a-hardware-startup.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Sourcing components for a hardware startup: from prototypes to production</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How sourcing changes from prototype to production: authorised channels, lifecycle status, lead times and reorder points, tested alternates, counterfeit risk and design choices that make a BOM buildable.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#how-sourcing-changes-as-you-grow">How sourcing changes as you grow</a></li><li><a href="#buy-from-authorised-channels">Buy from authorised channels</a></li><li><a href="#lifecycle-status-and-lead-times">Lifecycle status and lead times</a></li><li><a href="#alternates-are-a-design-decision">Alternates are a design decision</a></li><li><a href="#production-ready-bom-habits">Production-ready BOM habits</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Ordering parts for ten prototypes is easy: add everything to a cart and wait a few days. Ordering parts for a thousand units, every month, for years, is a different job. The same microcontroller that arrived overnight may have a lead time of months, a connector may be discontinued, and the cheapest offer on a marketplace may be a relabelled reject. Many hardware startups learn this after they have committed to customers. Sourcing is an engineering problem as much as a purchasing one, because the choices that make a bill of materials (BOM) buildable are made in the schematic.</p>
+<h2 id="how-sourcing-changes-as-you-grow">How sourcing changes as you grow</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Quantities</th>
+<th>What matters most</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prototype</td>
+<td>A few units</td>
+<td>Speed, availability from stock, easy-to-solder packages</td>
+</tr>
+<tr>
+<td>Pilot</td>
+<td>Tens to hundreds</td>
+<td>Real production parts, assembly-friendly packages, first alternates</td>
+</tr>
+<tr>
+<td>Production</td>
+<td>Hundreds to many thousands, repeatedly</td>
+<td>Lead time, price at volume, lifecycle, second sources, traceability</td>
+</tr>
+</tbody>
+</table></div>
+<p>The mistake is to carry prototype habits into production: parts chosen because they were in the lab drawer, a single source for everything and no idea of lead times.</p>
+<h2 id="buy-from-authorised-channels">Buy from authorised channels</h2>
+<p>An <strong>authorised distributor</strong> buys directly from the component manufacturer, stores parts properly and can trace each reel back to the factory. Parts from <strong>brokers</strong> and open marketplaces may be genuine surplus, but they may also be recycled parts pulled from scrap boards, remarked lower-grade parts, out-of-specification rejects or outright fakes. Counterfeits can look perfect, then fail early, behave strangely at temperature or fail only in some units.</p>
+<p>Practical rules:</p>
+<ul>
+<li>buy from authorised channels whenever possible, and keep the paperwork</li>
+<li>if you must use a broker during a shortage, buy from a known one, ask for traceability, and inspect and test samples before building with them</li>
+<li>be suspicious of prices far below the authorised channel; there is usually a reason</li>
+<li>record the source and date code of the parts that go into each production batch, so a bad lot can be traced</li>
+</ul>
+<h2 id="lifecycle-status-and-lead-times">Lifecycle status and lead times</h2>
+<p>Every part has a lifecycle. Manufacturers and distributors mark status such as <strong>active</strong>, <strong>not recommended for new designs</strong>, <strong>last-time buy</strong> and <strong>obsolete</strong>. Check the status of every line on the BOM before you freeze the design. Designing in a part that is already marked not recommended for new designs means planning a redesign before you have even launched.</p>
+<p><strong>Lead time</strong> is how long the manufacturer takes to supply parts you order beyond what distributors have in stock. It can stretch dramatically during shortages. For each part, plan when you need to reorder so you never run out. A simple reorder point, with made-up numbers:</p>
+<blockquote>
+<p>weekly use = 120 boards per week × 2 parts per board = 240 parts</p>
+<p>reorder point = weekly use × (lead time + safety weeks) = 240 × (12 + 4) = 3840 parts</p>
+</blockquote>
+<p>When stock falls to 3840, place the next order. The safety weeks cover delays and demand spikes. Long-lead parts, such as microcontrollers, power devices, radio modules and custom parts like enclosures and displays, deserve the closest attention, and sometimes ordering well ahead of need.</p>
+<h2 id="alternates-are-a-design-decision">Alternates are a design decision</h2>
+<p>The most effective protection against shortages is designing so that more than one part fits:</p>
+<ul>
+<li><strong>Passives:</strong> specify resistors and capacitors by value, tolerance, voltage, dielectric and package, so any qualified maker's part works</li>
+<li><strong>Common ICs:</strong> choose regulators, op-amps and logic in industry-standard pinouts and packages that several manufacturers offer</li>
+<li><strong>Footprints:</strong> where pin-compatible options differ slightly, a footprint that accepts both can save a redesign</li>
+<li><strong>Microcontrollers:</strong> these are rarely drop-in replaceable; keep firmware hardware-abstracted, and choose a family with several memory sizes in the same package</li>
+</ul>
+<p>Record approved alternates in an <strong>approved vendor list</strong> alongside the BOM, and test each alternate, because "equivalent" parts differ in subtle ways: a regulator's stability with ceramic capacitors, an op-amp's input range, a MOSFET's gate charge. An alternate nobody tested is a risk, not a backup.</p>
+<h2 id="production-ready-bom-habits">Production-ready BOM habits</h2>
+<p>A BOM that a contract manufacturer can build from should include, for each line, the manufacturer part number, approved alternates, quantity per board, reference designators, package and any special handling. Some habits help across the board:</p>
+<ul>
+<li><strong>Reduce unique part numbers.</strong> Using the same resistor value in several places, where the design allows, means fewer reels and simpler purchasing.</li>
+<li><strong>Mind moisture sensitivity.</strong> Many ICs must be kept dry and baked if exposed too long before reflow; follow the handling level on the packaging.</li>
+<li><strong>Plan for imports.</strong> Parts that come from abroad involve customs, duties and paperwork; build that time into lead times, and check current rules.</li>
+<li><strong>Watch minimum order quantities and reel sizes,</strong> which may force you to buy more than one batch needs.</li>
+<li><strong>Keep a single source of truth.</strong> One version-controlled BOM, tied to the board revision, avoids building with the wrong part list.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Designing in parts from the lab drawer without checking lifecycle status</li>
+<li>One source for every part, with no tested alternates</li>
+<li>Buying from the cheapest marketplace offer during a shortage, untested</li>
+<li>Ignoring lead time until the first production order</li>
+<li>A BOM in someone's spreadsheet that does not match the board revision</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Export the BOM from a <strong>KiCad</strong> project of yours and add columns for lifecycle status, lead time and an alternate for each line.</li>
+<li>Count unique part numbers and see how many you could merge without affecting the design.</li>
+<li>Compute a reorder point for your three longest-lead parts using the formula above and a realistic build rate.</li>
+<li>Pick one IC with an alternate, read both datasheets side by side and list every difference that could matter in your circuit.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>supply chain</li><li>components</li><li>bom</li><li>hardware startup</li><li>manufacturing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="skilling-paths-into-embedded.html"><span>Previous in India&#x27;s electronics ecosystem</span>Skilling paths into embedded systems in India: from college lab to product team</a><a class="next" href="first-technical-decisions-for-a-chip-startup.html"><span>Next in India&#x27;s electronics ecosystem</span>Starting a chip-design startup: the first technical decisions</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

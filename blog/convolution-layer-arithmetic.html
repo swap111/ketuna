@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convolution layer arithmetic: output size, MACs and memory by hand · Ketuna blog</title>
+  <meta name="description" content="From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Convolution layer arithmetic: output size, MACs and memory by hand · Ketuna blog">
+  <meta property="og:description" content="From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.">
+  <link rel="canonical" href="https://ketuna.online/blog/convolution-layer-arithmetic.html">
+  <meta property="og:url" content="https://ketuna.online/blog/convolution-layer-arithmetic.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Convolution layer arithmetic: output size, MACs and memory by hand",
+  "description": "From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "convolution, cnn, mac, memory, neural networks",
+  "articleSection": "Edge AI",
+  "wordCount": 975,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/convolution-layer-arithmetic.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Convolution layer arithmetic: output size, MACs and memory by hand</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-convolution-layer-does">What a convolution layer does</a></li><li><a href="#output-size">Output size</a></li><li><a href="#counting-macs-weights-and-activations">Counting MACs, weights and activations</a></li><li><a href="#a-depthwise-separable-comparison">A depthwise-separable comparison</a></li><li><a href="#a-helper-to-check-your-arithmetic">A helper to check your arithmetic</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Convolutional layers are the workhorse of small vision and audio models, and they are where most of a network's arithmetic usually happens. Before you can say whether a model will fit a microcontroller or how long it will take, you need four numbers for each convolution: its output shape, its multiply-accumulate count, its weight count and its activation size. All four come from a handful of layer parameters and some multiplication. Working them out by hand once makes every later model summary readable.</p>
+<h2 id="what-a-convolution-layer-does">What a convolution layer does</h2>
+<p>The input to a 2-D convolution is a <strong>feature map</strong>: a grid of height H and width W with C<sub>in</sub> channels (for an RGB image, C<sub>in</sub> = 3; for an audio spectrogram, often 1). A <strong>kernel</strong> (or filter) is a small block of weights of size K × K × C<sub>in</sub>. The layer slides the kernel across the input; at each position it multiplies every kernel weight by the input value underneath and adds them up, giving one output number. A layer has C<sub>out</sub> different kernels, so each position produces C<sub>out</sub> outputs: the output feature map has C<sub>out</sub> channels.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="cv-title cv-desc" font-size="14">
+<title id="cv-title">A three by three kernel sliding over a five by five input</title>
+<desc id="cv-desc">A five by five input grid with its top-left three by three block highlighted. An arrow leads to a three by three output grid whose top-left cell is highlighted, showing that one kernel position produces one output value.</desc>
+<rect x="30" y="40" width="150" height="150" class="dg-box"/>
+<rect x="30" y="40" width="90" height="90" class="dg-amber" fill-opacity="0.4"/>
+<path d="M60,40 V190 M90,40 V190 M120,40 V190 M150,40 V190 M30,70 H180 M30,100 H180 M30,130 H180 M30,160 H180" class="dg-dash"/>
+<text x="105" y="25" text-anchor="middle" class="dg-text">input 5 × 5</text>
+<text x="105" y="215" text-anchor="middle" class="dg-muted">kernel 3 × 3, stride 1</text>
+<path d="M195,115 H274" class="dg-line"/>
+<path d="M268,111 L274,115 L268,119 Z" class="dg-arrow"/>
+<text x="235" y="105" text-anchor="middle" class="dg-muted">9 MACs</text>
+<rect x="290" y="70" width="90" height="90" class="dg-box"/>
+<rect x="290" y="70" width="30" height="30" class="dg-amber" fill-opacity="0.6"/>
+<path d="M320,70 V160 M350,70 V160 M290,100 H380 M290,130 H380" class="dg-dash"/>
+<text x="335" y="55" text-anchor="middle" class="dg-text">output 3 × 3</text>
+<text x="335" y="185" text-anchor="middle" class="dg-muted">(5 − 3) / 1 + 1 = 3</text>
+</svg>
+<figcaption>Each position of the kernel produces one output value per filter; with no padding a 5 × 5 input gives a 3 × 3 output.</figcaption>
+</figure>
+
+<p>Two more parameters control the sliding:</p>
+<ul>
+<li><strong>Stride</strong> S: how many positions the kernel moves each step. Stride 2 skips every other position and roughly halves the output size.</li>
+<li><strong>Padding</strong> P: how many rows and columns of zeros are added around the input border. Padding of 1 with a 3 × 3 kernel keeps the output the same size as the input ("same" padding); no padding ("valid") shrinks it.</li>
+</ul>
+<h2 id="output-size">Output size</h2>
+<p>Along each spatial dimension:</p>
+<blockquote>
+<p>H<sub>out</sub> = ⌊(H + 2P − K) / S⌋ + 1</p>
+</blockquote>
+<p>and the same for width. The floor means any leftover positions where the kernel would hang off the edge are dropped.</p>
+<p>Check it on a few cases:</p>
+<ul>
+<li>5 × 5 input, K = 3, S = 1, P = 0: (5 − 3) / 1 + 1 = 3. That is the figure.</li>
+<li>32 × 32 input, K = 3, S = 1, P = 1: (32 + 2 − 3) / 1 + 1 = 32. Same padding keeps the size.</li>
+<li>32 × 32 input, K = 3, S = 2, P = 0: ⌊29 / 2⌋ + 1 = 14 + 1 = 15.</li>
+<li>32 × 32 input, K = 3, S = 2, P = 1: ⌊31 / 2⌋ + 1 = 16.</li>
+</ul>
+<p>The last two show why padding matters with stride: the same layer gives 15 or 16 depending on one row of zeros, and a mismatch between your training framework and your hand calculation shows up here first.</p>
+<h2 id="counting-macs-weights-and-activations">Counting MACs, weights and activations</h2>
+<p>Take a worked example: a 32 × 32 RGB input (C<sub>in</sub> = 3), a 3 × 3 kernel, 16 filters, stride 1, padding 1. The output is 32 × 32 × 16.</p>
+<p><strong>MACs.</strong> Every output value needs one full kernel's worth of multiply-accumulates, K × K × C<sub>in</sub> = 3 × 3 × 3 = 27. There are 32 × 32 × 16 = 16,384 output values, so:</p>
+<blockquote>
+<p>MACs = H<sub>out</sub> × W<sub>out</sub> × C<sub>out</sub> × K × K × C<sub>in</sub> = 32 × 32 × 16 × 27 = 442,368</p>
+</blockquote>
+<p><strong>Weights.</strong> Each of the 16 filters has 27 weights: 3 × 3 × 3 × 16 = 432 weights, plus 16 biases. In int8 with int32 biases, that is 432 + 64 = 496 bytes. Tiny.</p>
+<p><strong>Activations.</strong> The input is 32 × 32 × 3 = 3,072 values and the output 32 × 32 × 16 = 16,384 values. In int8, the layer needs 3,072 + 16,384 = 19,456 bytes of RAM while it runs, because the input and output both exist at that moment.</p>
+<p>Notice the contrast. The weights fit in under 500 bytes, yet the layer performs nearly half a million MACs and needs about 19 kB of RAM. Each weight is reused at every one of the 1,024 output positions. That reuse is why convolutions suit parallel hardware, and why on microcontrollers it is usually activation RAM, not weight flash, that limits image models.</p>
+<p>Changing the stride to 2 (with padding 1) makes the output 16 × 16 × 16: the MACs drop by four to 110,592, the output activations by four to 4,096 bytes, and the weights stay exactly the same.</p>
+<h2 id="a-depthwise-separable-comparison">A depthwise-separable comparison</h2>
+<p>Small models often replace a standard convolution with a <strong>depthwise-separable</strong> one: a 3 × 3 <em>depthwise</em> convolution that filters each input channel separately, followed by a 1 × 1 <em>pointwise</em> convolution that mixes channels. For a 32 × 32 map going from 16 to 32 channels:</p>
+<ul>
+<li>standard: 32 × 32 × 32 × 3 × 3 × 16 = 4,718,592 MACs</li>
+<li>depthwise: 32 × 32 × 16 × 3 × 3 = 147,456 MACs</li>
+<li>pointwise: 32 × 32 × 32 × 16 = 524,288 MACs</li>
+</ul>
+<p>The separable version needs 671,744 MACs, about 7 times fewer, for a similar job. It usually costs some accuracy and is harder to quantize, which is why the trade-off is measured rather than assumed.</p>
+<h2 id="a-helper-to-check-your-arithmetic">A helper to check your arithmetic</h2>
+<pre><code class="language-python">def conv2d_cost(h, w, c_in, c_out, k, s=1, p=0, bytes_per_act=1):
+    h_out = (h + 2 * p - k) // s + 1
+    w_out = (w + 2 * p - k) // s + 1
+    macs = h_out * w_out * c_out * k * k * c_in
+    weights = k * k * c_in * c_out
+    act_bytes = (h * w * c_in + h_out * w_out * c_out) * bytes_per_act
+    return (h_out, w_out, c_out), macs, weights, act_bytes
+
+print(conv2d_cost(32, 32, 3, 16, 3, s=1, p=1))
+# ((32, 32, 16), 442368, 432, 19456)
+</code></pre>
+<p>Do the numbers on paper first, then run the helper, then compare with your framework's model summary. When all three agree, you understand the layer.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>forgetting C<sub>in</sub> in the MAC count, which underestimates by the number of input channels</li>
+<li>treating parameter count as cost: this layer has 432 weights but 442,368 MACs</li>
+<li>assuming "same" padding with stride 2 gives exactly half the size without checking odd input sizes</li>
+<li>counting only output activations and forgetting that the input is still alive</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Work out by hand the output shape, MACs, weights and activation bytes for a 49 × 10 × 1 spectrogram input, 3 × 3 kernel, 8 filters, stride 1, padding 1.</li>
+<li>Check your answer with <code>conv2d_cost</code>, then build the layer in PyTorch with <code>nn.Conv2d(1, 8, 3, padding=1)</code> and confirm the output shape with a random input tensor.</li>
+<li>Repeat with stride 2 on the 10-wide axis and see which dimension shrinks to 5.</li>
+<li>Count the total MACs of a small CNN from a tutorial layer by layer and find which layer dominates.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>convolution</li><li>cnn</li><li>mac</li><li>memory</li><li>neural networks</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="collecting-your-own-sensor-dataset.html"><span>Previous in Edge AI</span>Collecting your own sensor dataset: labels, balance and the boring parts that matter</a><a class="next" href="vibration-anomaly-detection-on-mcu.html"><span>Next in Edge AI</span>Detecting machine anomalies from vibration on a microcontroller</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="neural-networks-for-hardware-engineers.html">Neural networks for hardware engineers: layers as multiply-accumulates</a></h3>
+          <p>A dense neural network layer is a matrix-vector product. Counting its multiply-accumulates, weights and activations tells you how much compute, flash and RAM the hardware must provide.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="keyword-spotting-pipeline.html">A keyword-spotting pipeline from microphone to decision</a></h3>
+          <p>How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

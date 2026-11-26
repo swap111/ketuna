@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The hardware product lifecycle from concept to end-of-life · Ketuna blog</title>
+  <meta name="description" content="The stages a hardware product passes through, from concept and prototypes through engineering, design and production validation builds to mass production, support and planned end-of-life, and what each gate decides.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The hardware product lifecycle from concept to end-of-life · Ketuna blog">
+  <meta property="og:description" content="The stages a hardware product passes through, from concept and prototypes through engineering, design and production validation builds to mass production, support and planned end-of-life, and what each gate decides.">
+  <link rel="canonical" href="https://ketuna.online/blog/hardware-product-lifecycle.html">
+  <meta property="og:url" content="https://ketuna.online/blog/hardware-product-lifecycle.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The hardware product lifecycle from concept to end-of-life",
+  "description": "The stages a hardware product passes through, from concept and prototypes through engineering, design and production validation builds to mass production, support and planned end-of-life, and what each gate decides.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "product lifecycle, evt, dvt, pvt, obsolescence",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1059,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/hardware-product-lifecycle.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>The hardware product lifecycle from concept to end-of-life</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The stages a hardware product passes through, from concept and prototypes through engineering, design and production validation builds to mass production, support and planned end-of-life, and what each gate decides.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#concept-and-feasibility">Concept and feasibility</a></li><li><a href="#three-validation-builds">Three validation builds</a></li><li><a href="#mass-production-and-sustaining">Mass production and sustaining</a></li><li><a href="#end-of-life-is-planned-not-discovered">End-of-life is planned, not discovered</a></li><li><a href="#what-the-stages-have-in-common">What the stages have in common</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Software can be patched next week. Hardware, once built in thousands, is what it is: a wrong footprint, a missing protection diode or a part that goes out of production cannot be fixed by an update. That is why hardware teams move through a sequence of stages, each ending in a decision, and spend money in larger steps only when the risk has been brought down. Knowing the stages helps you understand why a senior engineer asks for "one more build" or refuses to order production parts yet.</p>
+<h2 id="concept-and-feasibility">Concept and feasibility</h2>
+<p>Every product starts with a problem and a user. The concept stage answers three questions: what need are we meeting, can it be done with available technology, and can it be done at a cost someone will pay? The outputs are a first set of requirements, rough budgets for cost, power and size, and an early view of certification needs.</p>
+<p>Feasibility work often includes a <strong>proof of concept</strong>: development boards, breadboards and borrowed modules wired together to show that the core idea works. It is meant to be ugly. Its only job is to retire the biggest technical risk, for example whether a sensor can detect a fall reliably, before anyone designs a custom board.</p>
+<p>The gate at the end of concept is usually a decision to fund development, based on approved requirements and a credible plan.</p>
+<h2 id="three-validation-builds">Three validation builds</h2>
+<h3 id="engineering-validation-does-it-work">Engineering validation: does it work</h3>
+<p>The first custom boards are built in an <strong>engineering validation test (EVT)</strong> phase. The question is simple: does the design work? Engineers bring up the boards, check every power rail, interface and function, and find the mistakes every first design has. It is normal to rework EVT boards by hand with wires and replaced parts.</p>
+<p>Builds at this stage are small, enough for the engineering team and early firmware work. The exit gate is that every function has been demonstrated on the custom hardware, with a list of changes for the next revision. Early pre-compliance scans for electromagnetic emissions are worth doing here too, because fixing an emissions problem in layout is far cheaper now than later.</p>
+<h3 id="design-validation-does-it-meet-the-spec">Design validation: does it meet the spec</h3>
+<p>The <strong>design validation test (DVT)</strong> build uses the corrected design, built closer to production methods and in larger numbers. The question changes: does the product meet <em>every</em> requirement, across all conditions? This is when the full verification plan runs: temperature and humidity, drop and vibration, battery life, electromagnetic compatibility, electrical safety and radio tests, and the formal certification tests the product needs for its markets.</p>
+<p>DVT units are also the ones that go to field trials and user validation. The exit gate is a validation report showing each requirement met, with any waivers explicitly approved. Changing the design after DVT means repeating the affected tests, so teams try hard to make DVT the last design change.</p>
+<h3 id="production-validation-can-the-factory-build-it">Production validation: can the factory build it</h3>
+<p>The <strong>production validation test (PVT)</strong> run is built on the real production line, with production tooling, fixtures and test stations, by the people who will build the product every day. The design is frozen; the question is whether the <em>process</em> works. Teams measure first-pass yield, test time per unit, rework rates and assembly problems. The production test plan, calibration procedures and packaging are proven here.</p>
+<p>The exit gate is a yield and quality level that the business case can live with, a stable supply of every part, and a factory that can build without engineers standing beside the line.</p>
+<h2 id="mass-production-and-sustaining">Mass production and sustaining</h2>
+<p>Once in <strong>mass production</strong>, the work does not stop. A sustaining team watches yield and test data for drift, analyses field returns, and manages <strong>engineering change orders (ECOs)</strong>: controlled changes to fix a field issue, replace a part that has become hard to buy, or reduce cost. Every change is reviewed for its impact, and the affected tests are repeated before the change reaches production. Firmware updates, if the product supports them, are released through the same discipline.</p>
+<h2 id="end-of-life-is-planned-not-discovered">End-of-life is planned, not discovered</h2>
+<p>Parts go out of production. Manufacturers usually announce this with a product change or discontinuance notice, giving customers time to react. A team that tracks the lifecycle status of every part in its bill of materials sees the notice coming and has options:</p>
+<ul>
+<li><strong>Qualify an alternate part</strong> and introduce it through an ECO.</li>
+<li><strong>Make a last-time buy:</strong> purchase enough of the old part to cover remaining production and spares, accepting the cost of holding that stock.</li>
+<li><strong>Redesign the affected section</strong>, or plan a successor product.</li>
+</ul>
+<p>Eventually the product itself reaches end-of-life. Plan what the company will still support: spare parts, repairs, firmware security fixes, and for how long. Customers who depend on a product deserve a clear answer, and some markets have rules on support and on electronic waste. Check what applies to yours.</p>
+<h2 id="what-the-stages-have-in-common">What the stages have in common</h2>
+<p>Each stage spends more money than the last and builds more units, so each gate exists to stop the next, larger spend if the current risk has not been retired. The most expensive mistakes are loops backwards: a specification failure found at DVT that sends the design back to EVT, or a yield problem at PVT that forces a design change after validation. Most good engineering habits, such as early pre-compliance scans, design for manufacture, production test planning at layout time and checking part lifecycle status at schematic time, exist to prevent those loops.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating the proof of concept as the product.</strong> Development-board shortcuts become production problems.</li>
+<li><strong>Leaving certification to DVT.</strong> A failure found then forces a respin and repeated testing.</li>
+<li><strong>Changing the design during PVT.</strong> It mixes a process question with a design question and invalidates earlier tests.</li>
+<li><strong>Ignoring part lifecycle until a part disappears.</strong> Production stops while the team scrambles.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a project you have built and write which stage it reached, the question that stage answers, and what evidence you would need to pass its gate.</li>
+<li>Export the bill of materials from a <strong>KiCad</strong> design and look up the lifecycle status of each part on public manufacturer pages. Mark any part that is not active and find an alternate.</li>
+<li>Write a one-page plan for an EVT build of your design: how many boards, who uses them, which functions must be demonstrated, and what would block the move to DVT.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>product lifecycle</li><li>evt</li><li>dvt</li><li>pvt</li><li>obsolescence</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="smart-meter-tamper-and-security.html"><span>Previous in Systems &amp; product engineering</span>Tamper detection and security requirements for an energy meter</a><a class="next" href="thermal-design-basics.html"><span>Next in Systems &amp; product engineering</span>Thermal design basics: junction temperature and heat paths</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="agile-for-hardware-teams.html">Agile for hardware teams: what works when you cannot ship every week</a></h3>
+          <p>Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

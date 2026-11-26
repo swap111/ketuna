@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing a blameless postmortem after a failed lab or project · Ketuna blog</title>
+  <meta name="description" content="How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing a blameless postmortem after a failed lab or project · Ketuna blog">
+  <meta property="og:description" content="How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.">
+  <link rel="canonical" href="https://ketuna.online/blog/blameless-postmortems.html">
+  <meta property="og:url" content="https://ketuna.online/blog/blameless-postmortems.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing a blameless postmortem after a failed lab or project",
+  "description": "How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with \"why\" questions, what went well, and concrete actions with owners, all without blaming people.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "postmortem, teamwork, root cause, project management",
+  "articleSection": "Careers & skills",
+  "wordCount": 969,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/blameless-postmortems.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Writing a blameless postmortem after a failed lab or project</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-blame-destroys-the-evidence">Why blame destroys the evidence</a></li><li><a href="#the-parts-of-a-postmortem">The parts of a postmortem</a></li><li><a href="#finding-contributing-causes">Finding contributing causes</a></li><li><a href="#what-went-well-is-not-filler">What went well is not filler</a></li><li><a href="#actions-that-actually-change-something">Actions that actually change something</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Projects fail. A capstone demo does not boot, a board comes back with a swapped connector, a tape-out precheck fails the night before the deadline. What separates a team that improves from one that repeats the failure is what happens in the week after. A <strong>postmortem</strong> is a short written analysis of what happened and what will change, and a <strong>blameless</strong> one describes systems and decisions rather than naming culprits, because that is the only way to get the honest facts it needs.</p>
+<h2 id="why-blame-destroys-the-evidence">Why blame destroys the evidence</h2>
+<p>Suppose a team's FPGA demo failed because nobody re-ran the full regression after a late change to the UART baud divider. The easy story is "a teammate pushed an untested change". It is quick, it feels satisfying, and it teaches the team nothing except to hide mistakes next time.</p>
+<p>The useful questions are different. Why was it possible to push without the regression? Why did the change happen the night before? Why did nobody notice the baud rate in the demo rehearsal? Each answer points at something the team can change: a CI check, a freeze date, a rehearsal checklist. Everyone makes mistakes; good processes catch them before they matter. If the write-up names a person, everyone involved becomes defensive and starts leaving facts out, and a postmortem without facts is just an argument on paper.</p>
+<p>Blameless does not mean consequence-free or vague. It means the analysis assumes everyone acted reasonably given what they knew at the time, and then asks why what they knew was not enough.</p>
+<h2 id="the-parts-of-a-postmortem">The parts of a postmortem</h2>
+<p>Keep it to one or two pages. The structure below follows the postmortem template used in the program's capstone, and it works for a two-week lab as well as a long project.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Section</th>
+<th>What goes in it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summary</td>
+<td>One line: what happened and its impact</td>
+</tr>
+<tr>
+<td>Timeline</td>
+<td>Dated events and the decisions made at each point</td>
+</tr>
+<tr>
+<td>What went well</td>
+<td>Things to keep doing</td>
+</tr>
+<tr>
+<td>What went badly</td>
+<td>Facts, not feelings</td>
+</tr>
+<tr>
+<td>Contributing causes</td>
+<td>Found by repeatedly asking "why"</td>
+</tr>
+<tr>
+<td>Estimates vs actuals</td>
+<td>Planned against real dates, with the gap explained</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>Specific change, owner, due date, what it prevents</td>
+</tr>
+</tbody>
+</table></div>
+<p>Write the timeline first, from evidence: commit history, CI logs, chat messages, the issue tracker. Memory reorders events and fills gaps with guesses; logs do not. Each row should record not just what happened but what the team <em>decided</em>, because decisions are where the process can improve.</p>
+<h2 id="finding-contributing-causes">Finding contributing causes</h2>
+<p>The common tool is <strong>five whys</strong>: start with the problem and ask why it happened, then ask why about the answer, and continue until you reach something the team controls. Five is a rough number, not a rule; stop when the next answer is outside your control or is a person's name. Here is an illustrative example from a made-up capstone:</p>
+<pre><code class="language-text">Problem: the demo board printed garbage on the UART.
+
+1. Why? The firmware used a 9600 baud divider; the
+   host terminal was set to 115200.
+2. Why? A late commit changed the divider while
+   testing a slower sensor link, and it was merged.
+3. Why was it merged? The PR was approved without the
+   hardware-in-the-loop test, which only ran manually.
+4. Why only manually? The test needed the board, and
+   nobody had set up a scripted run.
+5. Why not? It was never on the plan; we assumed the
+   simulation regression was enough.
+
+Contributing causes:
+- No automated hardware test before merge
+- No code freeze before the demo
+- Demo rehearsal did not check the console output
+</code></pre>
+<p>Notice that there is rarely one root cause. Real failures come from several small gaps lining up. Listing them as <strong>contributing causes</strong> is more honest than forcing a single "root cause", and it gives you more places to put a fix.</p>
+<h2 id="what-went-well-is-not-filler">What went well is not filler</h2>
+<p>Teams skip this section because it feels like a consolation prize. It is evidence too. If the team recovered in two hours because one member had written a clear README for flashing the board, that practice should be kept on purpose, not by luck. Writing it down also keeps the document balanced, which makes people more willing to be candid in the "went badly" section.</p>
+<h2 id="actions-that-actually-change-something">Actions that actually change something</h2>
+<p>An action is only useful if someone could check, later, whether it was done. Compare:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Weak action</th>
+<th>Useful action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Be more careful before demos</td>
+<td>Code freeze 48 hours before any demo; only fixes for logged blockers after it</td>
+</tr>
+<tr>
+<td>Test more</td>
+<td>Add the UART loopback test to CI so a wrong baud divider fails the PR</td>
+</tr>
+<tr>
+<td>Communicate better</td>
+<td>Rehearsal checklist includes "console output read aloud"; owner signs it</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every action needs an owner and a date, and the list should be short, two to five items. A list of fifteen actions is a list of none, because nobody will do them all. Prefer actions that change the system (a check, a template, a gate) over actions that ask people to try harder, since effort fades and a CI job does not.</p>
+<p>Finally, revisit the actions at the next team meeting or review. A postmortem whose actions are never checked becomes a ritual, and people notice.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Writing it weeks later.</strong> Details fade within days; write the timeline while logs and memory are fresh.</li>
+<li><strong>Names in the causes.</strong> Replace "X forgot" with the gap that let it happen: "the release step was not on a checklist".</li>
+<li><strong>Stopping at the first why.</strong> "The baud rate was wrong" is a symptom; keep asking.</li>
+<li><strong>Only the leader writes it.</strong> Ask each member for one sentence on what they would carry to the next team; different people saw different parts.</li>
+<li><strong>No estimates versus actuals.</strong> The gap between planned and real dates is often where the deepest lesson is.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a lab or project that went worse than planned. Rebuild its timeline from <code>git log --date=short --format='%ad %s'</code> and any CI history, before you write a word of analysis.</li>
+<li>Run five whys on the biggest problem with a teammate. Each time an answer names a person, rewrite it as the process gap behind it.</li>
+<li>Write two to four actions, each with an owner, a date and the failure it prevents. If one of them can be a test, write that test in your regression flow (for example a cocotb test or a <code>make check</code> target) and confirm it fails on the old code.</li>
+<li>Put the postmortem in the project repository next to the README, and check the actions at your next review.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>postmortem</li><li>teamwork</li><li>root cause</li><li>project management</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="a-readme-that-explains-in-two-minutes.html"><span>Previous in Careers &amp; skills</span>Writing a README that explains your project in two minutes</a><a class="next" href="weekly-status-update.html"><span>Next in Careers &amp; skills</span>Writing a weekly status update that managers and peers can scan</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="working-in-a-capstone-team.html">Working in a capstone team: roles, milestones and disagreements</a></h3>
+          <p>How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="first-time-technical-lead.html">Your first time as a technical lead: planning, unblocking and reviewing</a></h3>
+          <p>A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

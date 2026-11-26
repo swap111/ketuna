@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moving ADC samples with DMA and double buffering · Ketuna blog</title>
+  <meta name="description" content="Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Moving ADC samples with DMA and double buffering · Ketuna blog">
+  <meta property="og:description" content="Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.">
+  <link rel="canonical" href="https://ketuna.online/blog/dma-double-buffering-for-adc.html">
+  <meta property="og:url" content="https://ketuna.online/blog/dma-double-buffering-for-adc.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Moving ADC samples with DMA and double buffering",
+  "description": "Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "dma, adc, double buffering, interrupts, signal processing",
+  "articleSection": "Embedded systems",
+  "wordCount": 906,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/dma-double-buffering-for-adc.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Moving ADC samples with DMA and double buffering</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#dma-in-one-paragraph">DMA in one paragraph</a></li><li><a href="#one-buffer-two-halves">One buffer, two halves</a></li><li><a href="#the-code">The code</a></li><li><a href="#the-time-budget">The time budget</a></li><li><a href="#pitfalls-that-cost-days">Pitfalls that cost days</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Sampling a microphone or a vibration sensor at tens of kilohertz with one interrupt per sample works on paper and fails in practice: the CPU spends most of its time entering and leaving the handler, and any other interrupt causes a missed sample. The standard answer is to let the DMA controller move samples from the ADC into memory by itself, and to let the CPU work on blocks. Double buffering is what lets the two run at the same time without stepping on each other.</p>
+<h2 id="dma-in-one-paragraph">DMA in one paragraph</h2>
+<p>A DMA (direct memory access) controller is a small bus master that copies data without the CPU. You configure a channel with a source address (the ADC data register), a destination (an array in RAM), an element size (16 bits for a 12-bit ADC result), a count, and whether each address increments. Here the source stays fixed and the destination increments. Each time the ADC finishes a conversion it raises a DMA request, and the DMA moves one sample. The CPU is not involved at all until the DMA tells it, through an interrupt, that it has reached some point in the buffer.</p>
+<h2 id="one-buffer-two-halves">One buffer, two halves</h2>
+<p>The usual arrangement is a single array of 2N samples with the DMA in <strong>circular mode</strong>: when it writes the last element, it wraps to the first and carries on. Two interrupts mark the halfway points:</p>
+<ul>
+<li><strong>Half transfer (HT)</strong> fires when the first N samples are written. The DMA is now filling the second half, so the first half is safe to read.</li>
+<li><strong>Transfer complete (TC)</strong> fires when the second half is written. The DMA has wrapped and is filling the first half again, so the second half is safe.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="dd-title dd-desc" font-size="14">
+<title id="dd-title">DMA filling buffer halves while the CPU processes the other half</title>
+<desc id="dd-desc">The top row shows the DMA alternately filling half A and half B of a circular buffer over four periods. Half-transfer and transfer-complete interrupts mark the boundaries. The bottom row shows the CPU processing half A while the DMA fills half B, then half B while the DMA fills half A, with idle time after each processing block.</desc>
+<text x="10" y="44" class="dg-text">DMA</text>
+<rect x="60" y="26" width="100" height="30" class="dg-box"/>
+<text x="110" y="46" text-anchor="middle" class="dg-text">fill A</text>
+<rect x="160" y="26" width="100" height="30" class="dg-core"/>
+<text x="210" y="46" text-anchor="middle" class="dg-text">fill B</text>
+<rect x="260" y="26" width="100" height="30" class="dg-box"/>
+<text x="310" y="46" text-anchor="middle" class="dg-text">fill A</text>
+<rect x="360" y="26" width="100" height="30" class="dg-core"/>
+<text x="410" y="46" text-anchor="middle" class="dg-text">fill B</text>
+<path d="M160,62 V100 M260,62 V100 M360,62 V100" class="dg-dash"/>
+<text x="160" y="80" text-anchor="middle" class="dg-muted">HT</text>
+<text x="260" y="80" text-anchor="middle" class="dg-muted">TC</text>
+<text x="360" y="80" text-anchor="middle" class="dg-muted">HT</text>
+<text x="10" y="124" class="dg-text">CPU</text>
+<rect x="164" y="106" width="62" height="30" class="dg-amber" fill-opacity="0.4"/>
+<text x="195" y="126" text-anchor="middle" class="dg-text">A</text>
+<rect x="264" y="106" width="62" height="30" class="dg-amber" fill-opacity="0.4"/>
+<text x="295" y="126" text-anchor="middle" class="dg-text">B</text>
+<rect x="364" y="106" width="62" height="30" class="dg-amber" fill-opacity="0.4"/>
+<text x="395" y="126" text-anchor="middle" class="dg-text">A</text>
+<path d="M164,160 H260" class="dg-line"/>
+<path d="M256,156 L262,160 L256,164 Z" class="dg-arrow"/>
+<text x="212" y="182" text-anchor="middle" class="dg-muted">deadline: one half-period</text>
+</svg>
+<figcaption>Each half must be processed before the DMA comes back round to it, one half-period after its interrupt.</figcaption>
+</figure>
+
+<p>Some DMA controllers support two separate buffers with a "current target" bit instead (often called double-buffer mode). The principle is identical; only the bookkeeping differs.</p>
+<h2 id="the-code">The code</h2>
+<p>The interrupt handlers do almost nothing: clear the flag, note which half is ready, and detect whether the previous block was ever processed. The processing runs in the main loop or a task. The <code>dma_*</code> names stand for your part's driver calls.</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+#define HALF  256u
+static uint16_t adc_buf[2 * HALF];     /* static: DMA needs it forever */
+
+static volatile int16_t  ready_half = -1;   /* -1 none, 0 first, 1 second */
+static volatile uint32_t overruns;
+
+void dma_isr(void)
+{
+    int16_t half;
+    if (dma_half_transfer_flag()) {
+        dma_clear_half_transfer_flag();
+        half = 0;
+    } else if (dma_transfer_complete_flag()) {
+        dma_clear_transfer_complete_flag();
+        half = 1;
+    } else {
+        return;
+    }
+    if (ready_half != -1)              /* last block not taken yet */
+        overruns++;
+    ready_half = half;
+}
+
+int main(void)
+{
+    adc_dma_start(adc_buf, 2 * HALF);  /* circular, HT + TC enabled */
+    for (;;) {
+        int16_t h = ready_half;
+        if (h &lt; 0)
+            continue;                  /* or sleep until an interrupt */
+        ready_half = -1;               /* take the block */
+        process_block(&amp;adc_buf[h * HALF], HALF);
+    }
+}
+</code></pre>
+<p>There is a short window between reading <code>ready_half</code> and clearing it in which the ISR could post the other half; the overrun counter catches that too, because if it ever happens your processing is far too slow anyway. Clearing a slot before the work starts, rather than after, also makes the overrun check stricter: the counter measures whether you <em>started</em> every block in time. To check that you also <em>finish</em> in time, compare a timestamp at the end of <code>process_block</code> with the next interrupt, or record the DMA's remaining count when processing ends and confirm it never passed into the half you were reading.</p>
+<h2 id="the-time-budget">The time budget</h2>
+<p>Suppose the ADC runs at 16,000 samples per second and each half holds 256 samples. A half fills in 256 / 16,000 s = 16 ms. That is the deadline: processing of one half must finish within 16 ms of its interrupt, or the DMA starts overwriting samples you are still reading.</p>
+<p>If <code>process_block</code> takes 5 ms in the worst case, the CPU is busy about 31 % of the time and has 11 ms of slack per block for everything else: other interrupts, communication, logging. Measure the real worst case with a GPIO toggle around <code>process_block</code> rather than estimating it.</p>
+<p>The block size is a trade-off. Bigger halves mean fewer interrupts and more efficient processing (filters and FFTs like long blocks), but more RAM and more delay between a sound happening and your code seeing it. With 256-sample halves at 16 kHz, a sample can wait up to 16 ms before its block is even ready. For a vibration logger that is fine; for a control loop it may not be.</p>
+<h2 id="pitfalls-that-cost-days">Pitfalls that cost days</h2>
+<ul>
+<li><strong>Buffer on the stack.</strong> If <code>adc_buf</code> is a local variable in a function that returns, the DMA keeps writing into memory that now belongs to something else. DMA buffers are <code>static</code> or global.</li>
+<li><strong>Data caches.</strong> On parts with a data cache, the DMA writes RAM but the CPU may read stale cached copies. Invalidate the cache lines of a half before processing it, align and size the buffer to whole cache lines, or place it in a non-cacheable region.</li>
+<li><strong>Unreachable memory.</strong> Some RAM blocks on some chips are not connected to the DMA. Check the bus matrix table and place the buffer with a linker section if needed.</li>
+<li><strong>Element size mismatch.</strong> A 16-bit peripheral read into an 8-bit destination drops or packs bytes. Match both sides to the data.</li>
+<li><strong>Processing in the ISR.</strong> It turns the DMA interrupt into exactly the long handler you were trying to avoid.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Before using hardware, model the scheme in Python with numpy: generate a test signal, split it into 256-sample halves, and write <code>process_block</code> there first, so you know the expected output of each block.</li>
+<li>Port <code>process_block</code> to C and test it on your laptop with <code>gcc</code> against the numpy results, block by block.</li>
+<li>On a board, wrap <code>process_block</code> in a GPIO toggle, view it next to the HT/TC interrupts on a logic analyser with sigrok PulseView, and confirm the busy fraction matches your budget. Then make the processing deliberately slow and watch the overrun counter rise.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>dma</li><li>adc</li><li>double buffering</li><li>interrupts</li><li>signal processing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="low-power-sleep-and-wake.html"><span>Previous in Embedded systems</span>Low-power firmware: sleep modes, wake sources and measuring the current you saved</a><a class="next" href="priority-inversion-and-inheritance.html"><span>Next in Embedded systems</span>Priority inversion, and how priority inheritance fixes it</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
+          <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

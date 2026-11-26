@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blocking vs non-blocking assignments: the one rule and why it exists · Ketuna blog</title>
+  <meta name="description" content="Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Blocking vs non-blocking assignments: the one rule and why it exists · Ketuna blog">
+  <meta property="og:description" content="Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.">
+  <link rel="canonical" href="https://ketuna.online/blog/blocking-vs-nonblocking-assignments.html">
+  <meta property="og:url" content="https://ketuna.online/blog/blocking-vs-nonblocking-assignments.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Blocking vs non-blocking assignments: the one rule and why it exists",
+  "description": "Use <= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator's scheduler makes this rule necessary.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "verilog, simulation, rtl coding, shift register",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 851,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/blocking-vs-nonblocking-assignments.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Blocking vs non-blocking assignments: the one rule and why it exists</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-one-rule">The one rule</a></li><li><a href="#what-the-two-operators-do-in-the-simulator">What the two operators do in the simulator</a></li><li><a href="#a-shift-register-that-silently-breaks">A shift register that silently breaks</a></li><li><a href="#the-race-between-blocks">The race between blocks</a></li><li><a href="#why-combinational-blocks-use">Why combinational blocks use =</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Verilog gives you two ways to assign a value inside an <code>always</code> block: <code>=</code> (blocking) and <code>&lt;=</code> (non-blocking). Beginners are told a rule, "non-blocking for flip-flops, blocking for combinational logic", and usually follow it without knowing why. The reason is worth learning, because when the rule is broken the code often still compiles, still synthesises, and simulates differently from the hardware you meant.</p>
+<h2 id="the-one-rule">The one rule</h2>
+<ul>
+<li>In a clocked block (<code>always @(posedge clk)</code>), assign every register with <code>&lt;=</code>.</li>
+<li>In a combinational block (<code>always @*</code>), assign with <code>=</code>.</li>
+<li>Never assign the same variable from more than one <code>always</code> block, and never mix <code>=</code> and <code>&lt;=</code> for the same variable.</li>
+</ul>
+<p>That is the whole rule. The rest of this article explains the mechanism behind it.</p>
+<h2 id="what-the-two-operators-do-in-the-simulator">What the two operators do in the simulator</h2>
+<p>A blocking assignment <code>a = b;</code> evaluates <code>b</code> and updates <code>a</code> immediately. The next statement in the block already sees the new value of <code>a</code>. It behaves like a line of C.</p>
+<p>A non-blocking assignment <code>a &lt;= b;</code> evaluates <code>b</code> now but <em>schedules</em> the update of <code>a</code> for later in the same simulation time step, after every block triggered by this clock edge has finished reading its inputs. Every statement in every block therefore sees the values from <em>before</em> the edge.</p>
+<p>You can picture each time step as two phases. In the first, the simulator runs every block that the clock edge woke up and evaluates all the right-hand sides of the non-blocking assignments, writing the results into a waiting list. In the second, it applies everything on the waiting list at once.</p>
+<p>That second behaviour is exactly what a flip-flop does. On a clock edge, all flip-flops sample their D inputs at the same instant, using the old values, and only then do the outputs change. Non-blocking assignment is how a sequential, one-statement-at-a-time simulator imitates thousands of flops all switching at once.</p>
+<h2 id="a-shift-register-that-silently-breaks">A shift register that silently breaks</h2>
+<p>Here is a three-stage shift register written the right way:</p>
+<pre><code class="language-verilog">module shift3_ok (
+  input  wire clk,
+  input  wire din,
+  output reg  q3
+);
+  reg q1, q2;
+  always @(posedge clk) begin
+    q1 &lt;= din;
+    q2 &lt;= q1;
+    q3 &lt;= q2;
+  end
+endmodule
+</code></pre>
+<p>At each edge, <code>q1</code> takes <code>din</code>, <code>q2</code> takes the <em>old</em> <code>q1</code> and <code>q3</code> takes the <em>old</em> <code>q2</code>. A bit entering on <code>din</code> reaches <code>q3</code> three clocks later, as intended.</p>
+<p>Now change only the operators:</p>
+<pre><code class="language-verilog">  always @(posedge clk) begin
+    q1 = din;
+    q2 = q1;   // q1 already holds din
+    q3 = q2;   // q2 already holds din
+  end
+</code></pre>
+<p>Each line now sees the value written by the line above. After one edge, <code>q1</code>, <code>q2</code> and <code>q3</code> all equal <code>din</code>. The three-stage delay has become a one-stage delay. In simulation you see <code>q3</code> follow <code>din</code> after a single clock. Synthesis tools usually build what the simulation shows here: one flop driving <code>q3</code>, with <code>q1</code> and <code>q2</code> optimised away because nothing needs them.</p>
+<p>Reverse the order of the three lines (<code>q3 = q2; q2 = q1; q1 = din;</code>) and the blocking version happens to work again, because each register is read before it is overwritten. That is the trap: correctness now depends on statement order, and a later edit that reorders lines or splits the block breaks it without any warning.</p>
+<h2 id="the-race-between-blocks">The race between blocks</h2>
+<p>The problem gets worse when registers live in different <code>always</code> blocks:</p>
+<pre><code class="language-verilog">  always @(posedge clk) q1 = din;
+  always @(posedge clk) q2 = q1;
+</code></pre>
+<p>The standard does not say which of these two blocks the simulator runs first on a clock edge. If it runs the first, <code>q2</code> gets the new <code>q1</code>; if the second, <code>q2</code> gets the old one. Two simulators, or the same simulator after an unrelated change, can disagree. This is a classic <strong>race condition</strong>. With <code>&lt;=</code> in both blocks the race disappears, because all right-hand sides are read before any left-hand side is updated, whatever the order.</p>
+<h2 id="why-combinational-blocks-use">Why combinational blocks use =</h2>
+<p>Inside a combinational block you often compute intermediate values and use them a line later:</p>
+<pre><code class="language-verilog">  always @* begin
+    sum   = a + b;
+    carry = sum[8];
+    y     = carry ? 8'hFF : sum[7:0];
+  end
+</code></pre>
+<p>You <em>want</em> each line to see the result of the line above, because that is how the wires connect in the gates. With <code>&lt;=</code>, <code>carry</code> would be computed from the previous value of <code>sum</code>, the block would need extra passes to settle, and in some simulators the output could lag or show transient wrong values. Blocking assignment makes the block evaluate top to bottom in one pass, like the logic it describes.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Using <code>=</code> in a clocked block "because it worked".</strong> It worked because of statement order. It will stop working when someone reorders the code.</li>
+<li><strong>Mixing both operators on one variable.</strong> Linters flag this; some synthesis tools reject it. Pick one per variable, following the rule.</li>
+<li><strong>Reading a variable assigned with <code>&lt;=</code> and expecting the new value on the same edge.</strong> You get the old value. That is not a bug; it is the flip-flop behaviour you asked for.</li>
+<li><strong>Trusting synthesis to catch it.</strong> Synthesis only builds the logic the code describes. A wrong operator usually produces a working but <em>different</em> circuit, not an error.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put both versions of the shift register in one file with a small testbench and simulate with <strong>Icarus Verilog</strong> (<code>iverilog -o sim shift.v tb.v &amp;&amp; vvp sim</code>). Dump a VCD with <code>$dumpfile</code> and <code>$dumpvars</code> and compare <code>q3</code> in <strong>GTKWave</strong>.</li>
+<li>Synthesise each version with <strong>Yosys</strong> (<code>yosys -p "synth -top shift3_ok; stat"</code>) and compare the flip-flop counts in the <code>stat</code> report.</li>
+<li>Run <strong>Verilator</strong> in lint mode (<code>verilator --lint-only -Wall shift.v</code>) on a version that mixes <code>=</code> and <code>&lt;=</code> and read the warning it gives. Predict the warning before you run it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>verilog</li><li>simulation</li><li>rtl coding</li><li>shift register</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="fsm-state-encoding-choices.html"><span>Previous in Digital &amp; VLSI design</span>Binary, one-hot or Gray: how state encoding changes area, speed and safety</a><a class="next" href="smart-meter-energy-accumulator.html"><span>Next in Digital &amp; VLSI design</span>Building the energy accumulator of a smart meter in fixed-point RTL</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="parameterized-verilog-modules.html">Writing reusable Verilog with parameters and generate blocks</a></h3>
+          <p>Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="draw-the-circuit-before-the-code.html">Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></h3>
+          <p>Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

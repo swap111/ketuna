@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your first cocotb testbench: clock, reset, drive and check a counter · Ketuna blog</title>
+  <meta name="description" content="Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Your first cocotb testbench: clock, reset, drive and check a counter · Ketuna blog">
+  <meta property="og:description" content="Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.">
+  <link rel="canonical" href="https://ketuna.online/blog/first-cocotb-testbench.html">
+  <meta property="og:url" content="https://ketuna.online/blog/first-cocotb-testbench.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Your first cocotb testbench: clock, reset, drive and check a counter",
+  "description": "Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "cocotb, python, testbench, icarus verilog",
+  "articleSection": "Verification",
+  "wordCount": 872,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/first-cocotb-testbench.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Your first cocotb testbench: clock, reset, drive and check a counter</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-design-under-test">The design under test</a></li><li><a href="#how-cocotb-and-the-simulator-take-turns">How cocotb and the simulator take turns</a></li><li><a href="#the-complete-testbench">The complete testbench</a></li><li><a href="#reading-the-testbench-line-by-line">Reading the testbench line by line</a></li><li><a href="#mistakes-worth-avoiding">Mistakes worth avoiding</a></li><li><a href="#reading-a-failure">Reading a failure</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A testbench that only produces waveforms makes you the checker: you scroll, squint and decide whether the design looks right. That works once. It does not work on the fiftieth change to the RTL, at midnight, in a regression with two hundred tests. cocotb lets you write the testbench in Python so that it drives the design and checks every result itself, and it runs on free simulators such as Icarus Verilog and Verilator.</p>
+<h2 id="the-design-under-test">The design under test</h2>
+<p>We will test a 4-bit counter with a synchronous active-high reset and an enable. It is small, but it has the three things every block has: a clock, a reset and behaviour that depends on an input.</p>
+<pre><code class="language-verilog">module counter4 (
+  input  wire       clk,
+  input  wire       rst,     // synchronous, active high
+  input  wire       en,
+  output reg  [3:0] count
+);
+  always @(posedge clk) begin
+    if (rst)     count &lt;= 4'd0;
+    else if (en) count &lt;= count + 4'd1;
+  end
+endmodule
+</code></pre>
+<p>Before writing any test, write down what "correct" means: after reset the count is 0; with <code>en</code> high it adds one per clock and wraps from 15 to 0; with <code>en</code> low it holds.</p>
+<h2 id="how-cocotb-and-the-simulator-take-turns">How cocotb and the simulator take turns</h2>
+<p>The simulator owns time. Your Python code runs only in between simulator events, and every <code>await</code> hands control back until the thing you are waiting for happens. When you write <code>await RisingEdge(dut.clk)</code>, cocotb asks the simulator to call back when <code>clk</code> rises, the simulator advances time and evaluates the RTL, and then your test resumes.</p>
+<p>Two details trip up almost everyone:</p>
+<ul>
+<li><strong>Writes are scheduled.</strong> <code>dut.en.value = 1</code> takes effect at the end of the current time step, not instantly. Reading <code>dut.en.value</code> on the next line still shows the old value.</li>
+<li><strong>Registered outputs update just after the edge.</strong> At the moment <code>RisingEdge</code> resumes your test, the flip-flops may not have updated yet. <code>await ReadOnly()</code> waits until every signal in the current time step has settled, which makes it the safe point to read outputs.</li>
+</ul>
+<h2 id="the-complete-testbench">The complete testbench</h2>
+<p>Save this as <code>test_counter4.py</code>. It uses cocotb 2.x names.</p>
+<pre><code class="language-python">import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, ReadOnly, ClockCycles
+
+async def reset(dut, cycles=2):
+    dut.rst.value = 1
+    dut.en.value = 0
+    await ClockCycles(dut.clk, cycles)
+    dut.rst.value = 0
+
+async def check_after_edge(dut, expected):
+    await RisingEdge(dut.clk)
+    await ReadOnly()
+    got = int(dut.count.value)
+    assert got == expected, f&quot;count={got}, expected {expected}&quot;
+
+@cocotb.test()
+async def test_reset_value(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit=&quot;ns&quot;).start())
+    await reset(dut)
+    await ReadOnly()
+    assert int(dut.count.value) == 0
+
+@cocotb.test()
+async def test_counts_and_wraps(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit=&quot;ns&quot;).start())
+    await reset(dut)
+    dut.en.value = 1
+    model = 0
+    for _ in range(40):              # 40 &gt; 16, so it wraps twice
+        model = (model + 1) % 16
+        await check_after_edge(dut, model)
+
+@cocotb.test()
+async def test_enable_low_holds(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit=&quot;ns&quot;).start())
+    await reset(dut)
+    dut.en.value = 1
+    await ClockCycles(dut.clk, 5)
+    dut.en.value = 0
+    await ReadOnly()
+    held = int(dut.count.value)
+    for _ in range(8):
+        await check_after_edge(dut, held)
+</code></pre>
+<p>And a <code>Makefile</code> next to it:</p>
+<pre><code class="language-text">SIM ?= icarus
+TOPLEVEL_LANG = verilog
+VERILOG_SOURCES = $(PWD)/counter4.v
+COCOTB_TOPLEVEL = counter4
+COCOTB_TEST_MODULES = test_counter4
+include $(shell cocotb-config --makefiles)/Makefile.sim
+</code></pre>
+<p>Run <code>make</code>. cocotb compiles the Verilog, runs each <code>@cocotb.test()</code> in turn, and prints a pass/fail table. It also writes <code>results.xml</code>, which a CI system can read.</p>
+<h2 id="reading-the-testbench-line-by-line">Reading the testbench line by line</h2>
+<p><strong>The clock.</strong> <code>Clock(dut.clk, 10, unit="ns")</code> describes a 10 ns period clock (100 MHz). <code>.start()</code> returns a coroutine that toggles the pin forever, and <code>cocotb.start_soon</code> runs it in the background. If you forget this line, the first <code>await RisingEdge</code> waits forever and the test hangs.</p>
+<p><strong>The reset.</strong> The helper holds <code>rst</code> high for two rising edges with <code>en</code> low, then releases it. Putting it in a function means every test resets the same way, and a change to the reset sequence happens in one place.</p>
+<p><strong>The model.</strong> <code>model = (model + 1) % 16</code> is the reference model: the simplest possible statement of what the counter should do. The test compares the design against it on every cycle, not just at the end. Checking every cycle means a failure message names the first cycle that went wrong, which is where debugging should start.</p>
+<p><strong>The checks.</strong> <code>int(dut.count.value)</code> raises an exception if any bit is X or Z. That is helpful: if you forget the reset, the test fails loudly instead of comparing garbage.</p>
+<h2 id="mistakes-worth-avoiding">Mistakes worth avoiding</h2>
+<ul>
+<li><strong>Calling a coroutine without <code>await</code>.</strong> <code>reset(dut)</code> on its own creates a coroutine object and never runs it. Always <code>await</code> it or <code>start_soon</code> it.</li>
+<li><strong>Reading outputs right at the edge.</strong> Without <code>ReadOnly()</code>, you can read the pre-edge value of <code>count</code> and see an off-by-one that is not in the design.</li>
+<li><strong>Writing during <code>ReadOnly()</code>.</strong> Signals cannot be changed in the read-only phase; await the next edge first. In the hold test, the write to <code>en</code> happens before <code>ReadOnly()</code> for that reason.</li>
+<li><strong>One giant test.</strong> Separate tests for reset, counting and holding mean a failure tells you which behaviour broke.</li>
+</ul>
+<h2 id="reading-a-failure">Reading a failure</h2>
+<p>When a check fails, cocotb stops that test, prints the assertion message with the simulation time, and moves on to the next test. The time tells you where to look in the waveform; the message tells you what was expected. Write messages that include both the observed and the expected value, as the helper does, so that most failures can be understood without opening a waveform at all.</p>
+<p>All the tests in a module run one after another in the same simulation, so simulation time and the design's state carry over from one test to the next. That is why every test above starts the clock and applies reset itself: a test that relies on the previous one's leftovers passes or fails depending on test order.</p>
+<p>To convince yourself the bench can fail, break the RTL on purpose: change the wrap or invert the enable, and confirm a test reports it. A testbench that has never failed has not been tested.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install Icarus Verilog and cocotb in a Python virtual environment (<code>pip install cocotb</code>), save the two files above with <code>counter4.v</code>, and run <code>make</code>.</li>
+<li>Add <code>WAVES=1</code> to the <code>make</code> command line to dump waveforms, and open them in GTKWave to see where the test sampled each value.</li>
+<li>Add a <code>load</code> input with a <code>load_value</code> to the RTL, write the plan item first, then a test that loads 14 and checks the wrap two cycles later.</li>
+<li>Switch to Verilator with <code>make SIM=verilator</code> and confirm the same tests pass unchanged.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>cocotb</li><li>python</li><li>testbench</li><li>icarus verilog</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="x-propagation-in-rtl-simulation.html"><span>Previous in Verification</span>X in RTL simulation: how unknowns hide bugs and how to flush them out</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="scoreboards-and-reference-models.html">Scoreboards and reference models: checking outputs you did not predict by hand</a></h3>
+          <p>Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

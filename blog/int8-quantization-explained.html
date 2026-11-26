@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Int8 quantization explained: scale, zero point and what you lose · Ketuna blog</title>
+  <meta name="description" content="How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Int8 quantization explained: scale, zero point and what you lose · Ketuna blog">
+  <meta property="og:description" content="How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.">
+  <link rel="canonical" href="https://ketuna.online/blog/int8-quantization-explained.html">
+  <meta property="og:url" content="https://ketuna.online/blog/int8-quantization-explained.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Int8 quantization explained: scale, zero point and what you lose",
+  "description": "How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "quantization, int8, fixed point, tinyml, inference",
+  "articleSection": "Edge AI",
+  "wordCount": 950,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/int8-quantization-explained.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Int8 quantization explained: scale, zero point and what you lose</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-affine-mapping">The affine mapping</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#symmetric-and-asymmetric-schemes">Symmetric and asymmetric schemes</a></li><li><a href="#where-the-accuracy-goes">Where the accuracy goes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A trained network arrives as 32-bit floating-point numbers. A small microcontroller may have no floating-point unit, a few hundred kilobytes of memory and a tight energy budget, and an accelerator built for it will almost certainly use 8-bit integer multipliers. Quantization is the bridge: it replaces each real number with an 8-bit integer plus a little bookkeeping. The bookkeeping is just two numbers, a scale and a zero point, and understanding them is what lets you debug a model that runs on the device but gives the wrong answers.</p>
+<h2 id="the-affine-mapping">The affine mapping</h2>
+<p>Int8 quantization uses one linear rule to go between a real value r and an integer q:</p>
+<blockquote>
+<p>r = s × (q − z)</p>
+</blockquote>
+<p>Here s is the <strong>scale</strong>, a positive real number that says how much one integer step is worth, and z is the <strong>zero point</strong>, the integer that represents real 0. Going the other way, you quantize with rounding and clamping:</p>
+<blockquote>
+<p>q = clamp(round(r / s) + z, −128, 127)</p>
+</blockquote>
+<p>To pick s and z you need the range of values the tensor takes, [r<sub>min</sub>, r<sub>max</sub>]. Spread that range over the 256 available codes:</p>
+<ul>
+<li>s = (r<sub>max</sub> − r<sub>min</sub>) / 255</li>
+<li>z = round(−r<sub>min</sub> / s) − 128</li>
+</ul>
+<p>Because z is an integer, real 0 maps to an integer exactly. That matters: zero padding in convolutions and the zeros that ReLU produces must stay exactly zero, or every padded border pixel would add a small error.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 190" role="img" aria-labelledby="q8-title q8-desc" font-size="14">
+<title id="q8-title">Mapping a real range onto int8 codes</title>
+<desc id="q8-desc">A real number line from minus 1 to 3 is mapped by straight lines onto an integer line from minus 128 to 127. Real zero maps to the integer minus 64, the zero point. Real values beyond the range are clamped to the end codes.</desc>
+<text x="10" y="45" class="dg-text">real</text>
+<line x1="70" y1="40" x2="450" y2="40" class="dg-line"/>
+<text x="70" y="28" text-anchor="middle" class="dg-text">−1</text>
+<text x="165" y="28" text-anchor="middle" class="dg-text">0</text>
+<text x="450" y="28" text-anchor="middle" class="dg-text">3</text>
+<text x="10" y="145" class="dg-text">int8</text>
+<line x1="70" y1="140" x2="450" y2="140" class="dg-line"/>
+<text x="70" y="165" text-anchor="middle" class="dg-text">−128</text>
+<text x="165" y="165" text-anchor="middle" class="dg-text">−64 = z</text>
+<text x="450" y="165" text-anchor="middle" class="dg-text">127</text>
+<path d="M70,40 L70,140 M450,40 L450,140" class="dg-dash"/>
+<path d="M165,40 L165,140" class="dg-amber-line" stroke-width="2"/>
+<text x="270" y="95" class="dg-muted">one step = s ≈ 0.0157</text>
+</svg>
+<figcaption>With a range of −1 to 3, real 0 lands on the integer −64, which becomes the zero point.</figcaption>
+</figure>
+
+<h2 id="a-worked-example">A worked example</h2>
+<p>Suppose calibration showed an activation tensor lies in [−1, 3]. Then s = 4 / 255 ≈ 0.015686 and z = round(63.75) − 128 = −64. Quantize a few values and convert them back:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Real r</th>
+<th>q</th>
+<th>s × (q − z)</th>
+<th>Error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.0</td>
+<td>−64</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>0.5</td>
+<td>−32</td>
+<td>0.50196</td>
+<td>+0.00196</td>
+</tr>
+<tr>
+<td>1.234</td>
+<td>15</td>
+<td>1.23922</td>
+<td>+0.00522</td>
+</tr>
+<tr>
+<td>3.0</td>
+<td>127</td>
+<td>2.99608</td>
+<td>−0.00392</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every error is at most half a step, s / 2 ≈ 0.0078, because rounding can be off by at most half a code. This is the <strong>rounding error</strong>, and it is the price you always pay. You can check the table with a few lines of Python:</p>
+<pre><code class="language-python">import numpy as np
+
+def qparams(rmin, rmax):
+    s = (rmax - rmin) / 255
+    z = int(round(-rmin / s)) - 128
+    return s, z
+
+def quantize(r, s, z):
+    return np.clip(np.round(r / s) + z, -128, 127).astype(np.int8)
+
+def dequantize(q, s, z):
+    return s * (q.astype(np.int32) - z)
+
+s, z = qparams(-1.0, 3.0)
+r = np.array([0.0, 0.5, 1.234, 3.0])
+q = quantize(r, s, z)
+print(q, dequantize(q, s, z) - r)
+</code></pre>
+<h2 id="symmetric-and-asymmetric-schemes">Symmetric and asymmetric schemes</h2>
+<p>The scheme above is <strong>asymmetric</strong>: the range does not have to be centred on zero, so z can be anything. The alternative is <strong>symmetric</strong> quantization, which forces z = 0 and uses s = max|r| / 127.</p>
+<p>Why would you give up flexibility? Look at what a multiply-accumulate becomes. With real inputs x and weights w, the integer dot product is Σ (q<sub>x</sub> − z<sub>x</sub>)(q<sub>w</sub> − z<sub>w</sub>). If z<sub>w</sub> is not zero, expanding the product gives cross terms that cost extra work per output. If weights are symmetric, z<sub>w</sub> = 0 and the term collapses to Σ (q<sub>x</sub> − z<sub>x</sub>) q<sub>w</sub>, and the z<sub>x</sub> part can be folded into the bias ahead of time. Weights are also usually spread roughly evenly around zero, so symmetric costs them little.</p>
+<p>Activations are different. After a ReLU they are never negative. Take a range of [0, 6]:</p>
+<ul>
+<li>asymmetric: s = 6 / 255 ≈ 0.0235, all 256 codes used</li>
+<li>symmetric: s = 6 / 127 ≈ 0.0472, and the 128 negative codes are never used</li>
+</ul>
+<p>The symmetric version has twice the step size and therefore twice the rounding error for the same tensor. That is why the common int8 scheme uses symmetric weights and asymmetric activations.</p>
+<p>A related choice is <strong>per-tensor versus per-channel</strong> scales for weights. If one output channel of a convolution has weights in ±0.05 and another in ±2, a single scale wastes almost all the codes on the small channel. Giving each output channel its own scale costs one extra multiplier constant per channel and usually recovers most of the loss.</p>
+<h2 id="where-the-accuracy-goes">Where the accuracy goes</h2>
+<p>Quantization error has two sources, and they pull in opposite directions.</p>
+<ol>
+<li><strong>Rounding error</strong> grows with the step size s, which grows with the range you choose.</li>
+<li><strong>Clipping error</strong> appears when real values fall outside the range and get clamped to −128 or 127.</li>
+</ol>
+<p>If a tensor is mostly in ±1 but a rare outlier reaches 20, setting the range to ±20 makes the step twenty times larger for every ordinary value. Clipping the outlier instead may cost less overall. Choosing the range is therefore a trade-off, and it is the main thing calibration tools decide.</p>
+<p>The errors then accumulate through the network. Each layer adds its own rounding, and the following layer amplifies or damps it depending on its weights. In practice, int8 with per-channel weights is often close to the float model for convolutional networks, but "often" is not a promise for your model: you measure it on your test set.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>forgetting to subtract the input zero point, which biases every output by z<sub>x</sub> × Σ q<sub>w</sub></li>
+<li>feeding the device raw sensor features without quantizing them with the input tensor's own scale and zero point</li>
+<li>computing ranges from a few clean samples, so real inputs get clipped in the field</li>
+<li>rounding differently in the Python reference and the device code, which breaks bit-exact comparison</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then change the range to [−1, 30] and watch the error on 0.5 and 1.234 grow.</li>
+<li>Generate 10,000 samples from <code>np.random.laplace(0, 0.5, 10000)</code>, quantize them with the full min-max range and with a range clipped at the 99.9th percentile of |r|, and compare the mean squared error of the two.</li>
+<li>Quantize a ReLU output range of [0, 6] both symmetrically and asymmetrically and confirm that the symmetric step is about twice as large.</li>
+<li>Take a small trained PyTorch model, quantize one layer's weights per tensor and per channel, and compare the worst-case error across channels.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>quantization</li><li>int8</li><li>fixed point</li><li>tinyml</li><li>inference</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="fixed-point-activation-functions.html"><span>Previous in Edge AI</span>Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a><a class="next" href="mac-units-and-systolic-arrays.html"><span>Next in Edge AI</span>MAC units and systolic arrays: how ML accelerators reuse data</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-activation-functions.html">Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></h3>
+          <p>ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

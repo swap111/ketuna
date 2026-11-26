@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setting up a hardware regression in CI: seeds, triage and flaky tests · Ketuna blog</title>
+  <meta name="description" content="Structure a hardware regression as fast per-commit smoke runs and broad nightly random runs, record every seed, group failures by signature, and treat a flaky simulation as a bug in its own right.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Setting up a hardware regression in CI: seeds, triage and flaky tests · Ketuna blog">
+  <meta property="og:description" content="Structure a hardware regression as fast per-commit smoke runs and broad nightly random runs, record every seed, group failures by signature, and treat a flaky simulation as a bug in its own right.">
+  <link rel="canonical" href="https://ketuna.online/blog/hardware-regression-in-ci.html">
+  <meta property="og:url" content="https://ketuna.online/blog/hardware-regression-in-ci.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Setting up a hardware regression in CI: seeds, triage and flaky tests",
+  "description": "Structure a hardware regression as fast per-commit smoke runs and broad nightly random runs, record every seed, group failures by signature, and treat a flaky simulation as a bug in its own right.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "regression, continuous integration, seeds, triage, cocotb",
+  "articleSection": "Verification",
+  "wordCount": 824,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/hardware-regression-in-ci.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Setting up a hardware regression in CI: seeds, triage and flaky tests</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Structure a hardware regression as fast per-commit smoke runs and broad nightly random runs, record every seed, group failures by signature, and treat a flaky simulation as a bug in its own right.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-tiers-per-commit-and-nightly">Two tiers: per-commit and nightly</a></li><li><a href="#record-every-seed-and-everything-else">Record every seed, and everything else</a></li><li><a href="#triage-group-failures-by-signature">Triage: group failures by signature</a></li><li><a href="#flaky-tests-are-bugs">Flaky tests are bugs</a></li><li><a href="#keeping-the-regression-trusted">Keeping the regression trusted</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A testbench that only runs when someone remembers to run it protects nothing. A regression runs every test automatically, on every change, and reports the result where the whole team sees it. Hardware regressions have their own wrinkles compared with software: simulations are slow, many tests are random, and a failure is only useful if anyone can reproduce it next week. Getting the structure right early saves a project from the slow drift where the regression is "mostly green" and nobody trusts it.</p>
+<h2 id="two-tiers-per-commit-and-nightly">Two tiers: per-commit and nightly</h2>
+<p>One regression cannot be both fast and thorough. Split it.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="ci-title ci-desc" font-size="14">
+<title id="ci-title">Two-tier hardware regression</title>
+<desc id="ci-desc">Every commit triggers a smoke tier with lint and short directed tests with fixed seeds, which must pass before merging. Once a night, a broad tier runs many random seeds of every test; its failures go to triage, which sorts them into new bugs, known bugs and testbench problems.</desc>
+<rect x="20" y="30" width="100" height="44" rx="6" class="dg-box"/>
+<text x="70" y="57" text-anchor="middle" class="dg-text">commit</text>
+<rect x="160" y="30" width="150" height="44" rx="6" class="dg-core"/>
+<text x="235" y="50" text-anchor="middle" class="dg-text">smoke tier</text>
+<text x="235" y="67" text-anchor="middle" class="dg-muted">lint, fixed seeds</text>
+<rect x="350" y="30" width="110" height="44" rx="6" class="dg-box"/>
+<text x="405" y="57" text-anchor="middle" class="dg-text">merge</text>
+<line x1="120" y1="52" x2="154" y2="52" class="dg-line"/>
+<path d="M154,48 L160,52 L154,56 Z" class="dg-arrow"/>
+<line x1="310" y1="52" x2="344" y2="52" class="dg-line"/>
+<path d="M344,48 L350,52 L344,56 Z" class="dg-arrow"/>
+<text x="327" y="44" text-anchor="middle" class="dg-muted">pass</text>
+<rect x="20" y="130" width="100" height="44" rx="6" class="dg-box"/>
+<text x="70" y="157" text-anchor="middle" class="dg-text">nightly</text>
+<rect x="160" y="130" width="150" height="44" rx="6" class="dg-core"/>
+<text x="235" y="150" text-anchor="middle" class="dg-text">full tier</text>
+<text x="235" y="167" text-anchor="middle" class="dg-muted">many seeds</text>
+<rect x="350" y="130" width="110" height="44" rx="6" class="dg-amber" fill-opacity="0.3"/>
+<text x="405" y="157" text-anchor="middle" class="dg-text">triage</text>
+<line x1="120" y1="152" x2="154" y2="152" class="dg-line"/>
+<path d="M154,148 L160,152 L154,156 Z" class="dg-arrow"/>
+<line x1="310" y1="152" x2="344" y2="152" class="dg-line"/>
+<path d="M344,148 L350,152 L344,156 Z" class="dg-arrow"/>
+<text x="327" y="144" text-anchor="middle" class="dg-muted">fails</text>
+<path d="M405,174 V200 H235 V180" class="dg-dash" fill="none"/>
+<path d="M231,180 L235,174 L239,180 Z" class="dg-arrow"/>
+<text x="320" y="214" text-anchor="middle" class="dg-muted">new directed tests, fixed seeds</text>
+</svg>
+<figcaption>The smoke tier guards every merge; the nightly tier explores, and its findings flow back as new tests.</figcaption>
+</figure>
+
+<p><strong>The smoke tier</strong> runs on every push and must finish in minutes. It includes lint with warnings treated as errors, every directed test, and a few random tests with <em>fixed</em> seeds. Fixed seeds matter here: if the smoke tier used fresh seeds, a pull request could fail on a bug it did not introduce, and people would learn to rerun until green. A red smoke run should always mean "this change broke something".</p>
+<p><strong>The nightly tier</strong> runs every test with many fresh random seeds, collects coverage, and takes as long as the compute budget allows. Its job is to explore. Its failures are expected and valuable, and they go to triage rather than blocking anyone's work.</p>
+<h2 id="record-every-seed-and-everything-else">Record every seed, and everything else</h2>
+<p>A random failure is worthless if nobody can reproduce it. For every run, record enough to rerun it exactly: the test name, the seed, the commit hash, the simulator and its version, and any options. A one-line CSV per run is plenty.</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+# run_seeds.sh TEST N : run TEST with N fresh seeds, log one line per run
+set -u
+test=$1; n=$2
+commit=$(git rev-parse --short HEAD)
+mkdir -p logs
+for i in $(seq 1 &quot;$n&quot;); do
+  seed=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+  log=&quot;logs/${test}_${seed}.log&quot;
+  if make COCOTB_TEST_FILTER=&quot;$test&quot; COCOTB_RANDOM_SEED=&quot;$seed&quot; \
+       &gt; &quot;$log&quot; 2&gt;&amp;1 &amp;&amp; ! grep -q &quot;FAIL=[1-9]&quot; &quot;$log&quot;; then
+    status=PASS
+  else
+    status=FAIL
+  fi
+  echo &quot;$test,$seed,$commit,$status&quot; &gt;&gt; logs/results.csv
+done
+</code></pre>
+<p>The exact variable names depend on your cocotb version and Makefile; the point is that the seed goes in from outside and comes out in the log. A failure then becomes a one-line command for whoever picks it up.</p>
+<h2 id="triage-group-failures-by-signature">Triage: group failures by signature</h2>
+<p>A night of random runs might produce dozens of failures, almost always from far fewer distinct causes. Reading them one by one wastes the morning. Group them by <strong>signature</strong>: the first error message with the variable parts (times, values, seeds) stripped out.</p>
+<pre><code class="language-python">import re
+from collections import defaultdict
+
+def signature(log_text):
+    for line in log_text.splitlines():
+        if &quot;Error&quot; in line or &quot;AssertionError&quot; in line:
+            line = re.sub(r&quot;0x[0-9a-fA-F]+|\d+&quot;, &quot;N&quot;, line)
+            return line.strip()[:120]
+    return &quot;no error message (timeout or crash?)&quot;
+
+def triage(failing_logs):
+    groups = defaultdict(list)
+    for path in failing_logs:
+        with open(path) as f:
+            groups[signature(f.read())].append(path)
+    for sig, paths in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        print(f&quot;{len(paths):4d}  {sig}&quot;)
+        print(f&quot;      e.g. {paths[0]}&quot;)
+</code></pre>
+<p>Each group then gets one owner and one verdict: a new design bug, a known bug already filed, or a testbench problem. Pick the shortest failing run in each group to debug; it is usually the easiest to read. Once fixed, turn the failing seed into a directed test or a fixed-seed entry in the smoke tier, so the fix stays fixed.</p>
+<h2 id="flaky-tests-are-bugs">Flaky tests are bugs</h2>
+<p>In software, a flaky test often comes from network timing or thread scheduling outside the program's control. A digital simulation with a fixed seed, the same build and the same simulator should be <strong>completely deterministic</strong>. If the same seed passes on one run and fails on the next, something is wrong, and it is worth hunting down. Typical causes:</p>
+<ul>
+<li>the testbench reads its seed from the clock or another source that changes between runs</li>
+<li>tests share output files or directories and overwrite each other when run in parallel</li>
+<li>a test depends on state left by a previous test in the same simulation</li>
+<li>a race between testbench and design at a clock edge, resolved differently after an unrelated code change</li>
+<li>uninitialised memory in a C model linked into the simulation</li>
+</ul>
+<p>Never fix flakiness with automatic reruns. That hides the race until it becomes a real bug in a run nobody can reproduce.</p>
+<h2 id="keeping-the-regression-trusted">Keeping the regression trusted</h2>
+<ul>
+<li><strong>Green means green.</strong> If a known failure must stay in the regression, mark it as an expected failure with a bug reference, so new failures stand out and a surprise pass is noticed too.</li>
+<li><strong>Watch the run time.</strong> When the smoke tier creeps past a few minutes, people stop waiting for it. Move slow tests to nightly.</li>
+<li><strong>Publish results where people look</strong>, with the reproduction command beside each failure.</li>
+<li><strong>Track coverage over time from the nightly runs.</strong> A drop is often the first sign that a constraint changed and some stimulus stopped happening.</li>
+<li><strong>Pin your tool versions.</strong> A simulator or cocotb upgrade can change scheduling details or default options. Record the versions in the repository, upgrade them deliberately in their own change, and rerun the nightly tier before and after so any difference is traced to the upgrade rather than to the design.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put a small design and a cocotb testbench in a Git repository, and write a <code>make smoke</code> target that runs Verilator lint plus your directed tests with fixed seeds.</li>
+<li>Adapt <code>run_seeds.sh</code> to your setup and run 50 seeds of a random test; check that a seed from the CSV reproduces its result exactly.</li>
+<li>Plant two different bugs, collect the failing logs, and confirm the triage script groups them into two signatures.</li>
+<li>Hook <code>make smoke</code> into whatever CI service your team uses, so it runs on every push.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>regression</li><li>continuous integration</li><li>seeds</li><li>triage</li><li>cocotb</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="scoreboards-and-reference-models.html"><span>Previous in Verification</span>Scoreboards and reference models: checking outputs you did not predict by hand</a><a class="next" href="sva-first-properties.html"><span>Next in Verification</span>SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="directed-or-constrained-random.html">Directed tests or constrained random? Using each where it pays off</a></h3>
+          <p>Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

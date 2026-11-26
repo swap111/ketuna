@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virtual memory and the TLB: translating addresses without slowing down · Ketuna blog</title>
+  <meta name="description" content="A RISC-V Sv32 page walk worked step by step, why every access cannot afford it, and the TLB choices that hide it (reach, superpages, ASIDs, fences, the VIPT limit).">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Virtual memory and the TLB: translating addresses without slowing down · Ketuna blog">
+  <meta property="og:description" content="A RISC-V Sv32 page walk worked step by step, why every access cannot afford it, and the TLB choices that hide it (reach, superpages, ASIDs, fences, the VIPT limit).">
+  <link rel="canonical" href="https://ketuna.online/blog/virtual-memory-and-the-tlb.html">
+  <meta property="og:url" content="https://ketuna.online/blog/virtual-memory-and-the-tlb.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Virtual memory and the TLB: translating addresses without slowing down",
+  "description": "A RISC-V Sv32 page walk worked step by step, why every access cannot afford it, and the TLB choices that hide it (reach, superpages, ASIDs, fences, the VIPT limit).",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "virtual memory, tlb, page tables, risc-v, mmu",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1056,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/virtual-memory-and-the-tlb.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Virtual memory and the TLB: translating addresses without slowing down</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A RISC-V Sv32 page walk worked step by step, why every access cannot afford it, and the TLB choices that hide it (reach, superpages, ASIDs, fences, the VIPT limit).</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#sv32-in-one-picture">Sv32 in one picture</a></li><li><a href="#a-page-walk-worked-by-hand">A page walk worked by hand</a></li><li><a href="#the-tlb-and-what-limits-it">The TLB and what limits it</a></li><li><a href="#design-choices-that-keep-the-tlb-correct-and-fast">Design choices that keep the TLB correct and fast</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Virtual memory gives each process its own address space, with protection between them and the freedom for the operating system to place pages wherever it likes in physical memory. The price is that every load, store and instruction fetch must be translated from a virtual to a physical address. If translation meant reading page tables from memory every time, a single load would turn into three memory accesses. The translation lookaside buffer (TLB) is what makes the scheme affordable, and its design is a set of trade-offs worth understanding. This article uses the RISC-V Sv32 scheme for 32-bit systems as the concrete example.</p>
+<h2 id="sv32-in-one-picture">Sv32 in one picture</h2>
+<p>Sv32 uses 4 KiB pages. A 32-bit virtual address is split into a 12-bit <strong>page offset</strong>, which passes through translation unchanged, and a 20-bit <strong>virtual page number</strong> (VPN), which is split again into two 10-bit indices, VPN[1] and VPN[0]. The page table has two levels. Each page-table entry (PTE) is 4 bytes, so a 1024-entry table fills exactly one 4 KiB page. The <code>satp</code> CSR holds the mode, the physical page number of the root table, and an address-space identifier (ASID).</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="sv-title sv-desc" font-size="14">
+<title id="sv-title">Sv32 two-level page walk</title>
+<desc id="sv-desc">The virtual address is split into VPN1, VPN0 and a 12-bit offset. The satp register points to the level-1 table, which is indexed by VPN1 to find a pointer to a level-0 table. That table is indexed by VPN0 to find the leaf entry holding the physical page number. The physical address is that page number joined with the unchanged offset.</desc>
+<rect x="20" y="16" width="137" height="30" class="dg-box"/><text x="88" y="36" text-anchor="middle" class="dg-text">VPN[1]</text>
+<rect x="157" y="16" width="137" height="30" class="dg-box"/><text x="225" y="36" text-anchor="middle" class="dg-text">VPN[0]</text>
+<rect x="294" y="16" width="166" height="30" class="dg-amber" fill-opacity="0.35"/><text x="377" y="36" text-anchor="middle" class="dg-text">offset (12 bits)</text>
+<rect x="20" y="100" width="70" height="40" class="dg-core"/><text x="55" y="125" text-anchor="middle" class="dg-text">satp</text>
+<rect x="110" y="85" width="100" height="75" class="dg-track"/><text x="160" y="110" text-anchor="middle" class="dg-text">level-1</text><text x="160" y="128" text-anchor="middle" class="dg-text">table</text>
+<rect x="240" y="85" width="100" height="75" class="dg-track"/><text x="290" y="110" text-anchor="middle" class="dg-text">level-0</text><text x="290" y="128" text-anchor="middle" class="dg-text">table</text>
+<line x1="90" y1="120" x2="104" y2="120" class="dg-line"/><path d="M104,116 L110,120 L104,124 Z" class="dg-arrow"/>
+<line x1="210" y1="140" x2="234" y2="140" class="dg-line"/><path d="M234,136 L240,140 L234,144 Z" class="dg-arrow"/>
+<text x="225" y="176" text-anchor="middle" class="dg-muted">pointer</text>
+<line x1="88" y1="46" x2="88" y2="70" class="dg-line"/><line x1="88" y1="70" x2="160" y2="70" class="dg-line"/><line x1="160" y1="70" x2="160" y2="79" class="dg-line"/><path d="M156,79 L160,85 L164,79 Z" class="dg-arrow"/>
+<line x1="225" y1="46" x2="225" y2="62" class="dg-line"/><line x1="225" y1="62" x2="290" y2="62" class="dg-line"/><line x1="290" y1="62" x2="290" y2="79" class="dg-line"/><path d="M286,79 L290,85 L294,79 Z" class="dg-arrow"/>
+<rect x="110" y="200" width="230" height="30" class="dg-box"/><text x="225" y="220" text-anchor="middle" class="dg-text">physical page number</text>
+<rect x="340" y="200" width="120" height="30" class="dg-amber" fill-opacity="0.35"/><text x="400" y="220" text-anchor="middle" class="dg-text">offset</text>
+<line x1="290" y1="160" x2="290" y2="194" class="dg-line"/><path d="M286,194 L290,200 L294,194 Z" class="dg-arrow"/>
+<line x1="400" y1="46" x2="400" y2="194" class="dg-dash"/><path d="M396,194 L400,200 L404,194 Z" class="dg-arrow"/>
+<text x="410" y="120" class="dg-muted">unchanged</text>
+</svg>
+<figcaption>A TLB miss costs two dependent memory reads before the real access can even start.</figcaption>
+</figure>
+
+<h2 id="a-page-walk-worked-by-hand">A page walk worked by hand</h2>
+<p>Translate virtual address <code>0x1234_5678</code>. The values in the tables are made up for illustration.</p>
+<ol>
+<li><strong>Split.</strong> VPN[1] = bits 31 to 22 = <code>0x048</code>. VPN[0] = bits 21 to 12 = <code>0x345</code>. Offset = bits 11 to 0 = <code>0x678</code>.</li>
+<li><strong>Level 1.</strong> Suppose <code>satp</code> holds root PPN <code>0x80000</code>, so the root table is at physical <code>0x8000_0000</code>. The PTE address is root + VPN[1] × 4 = <code>0x8000_0120</code>. Read it. Say it is valid with R, W and X all zero: that means "pointer to the next level", with PPN <code>0x80001</code>.</li>
+<li><strong>Level 0.</strong> The next table is at <code>0x8000_1000</code>. The PTE address is <code>0x8000_1000</code> + <code>0x345</code> × 4 = <code>0x8000_1D14</code>. Read it. Say it is valid, with R and W set, and PPN <code>0x8ABCD</code>. It is a leaf.</li>
+<li><strong>Check permissions</strong> against the access type and privilege (the U bit, and the SUM and MXR controls in <code>sstatus</code>), and check the accessed (A) and dirty (D) bits. If anything fails, raise a precise page fault.</li>
+<li><strong>Form the address.</strong> PPN joined with the offset: <code>0x8ABC_D678</code>.</li>
+</ol>
+<p>If the level-1 entry had been a leaf, with R or X set, it would map a 4 MiB <strong>megapage</strong> directly, and the walk would stop after one read. A leaf at level 1 must have its low PPN bits zero; otherwise the entry is misaligned and the access faults.</p>
+<p>Two dependent memory reads, each of which may itself miss in the data cache, sit in front of every access. That is far too slow to do every time.</p>
+<h2 id="the-tlb-and-what-limits-it">The TLB and what limits it</h2>
+<p>A TLB is a small cache of recent translations: VPN in, PPN and permission bits out. On a hit, translation costs nothing extra; on a miss, the walker runs and refills an entry. Because it must answer quickly, a level-1 TLB is small and often fully associative.</p>
+<p>The figure that matters is <strong>reach</strong>: entries × page size. Sixty-four entries of 4 KiB pages cover 256 KiB. A program whose working set is spread over a few megabytes misses in the TLB constantly, even if its data fit in the cache. The same 64 entries holding 4 MiB megapages would reach 256 MiB. Superpages are therefore the main tool for large, contiguous mappings such as the kernel's own memory or big buffers, at the cost of coarser protection and more fragmentation.</p>
+<p>The effective translation cost is easy to estimate. With a 99% hit rate and a miss that takes two memory reads of 30 cycles each (illustrative numbers), the average is 0.01 × 60 = 0.6 cycles per access. A 1% miss rate looks small until you multiply it by every load and fetch.</p>
+<h2 id="design-choices-that-keep-the-tlb-correct-and-fast">Design choices that keep the TLB correct and fast</h2>
+<ul>
+<li><strong>ASIDs.</strong> Without them, every context switch must flush the TLB, because process A's VPN <code>0x10</code> is not process B's. Tagging entries with the ASID from <code>satp</code> lets translations from several processes coexist. Entries for global mappings (the G bit) match any ASID.</li>
+<li><strong><code>sfence.vma</code>.</strong> The TLB is not kept coherent with page-table memory by hardware. After the operating system changes a PTE, it must execute <code>sfence.vma</code>, optionally limited to one address or one ASID, before relying on the change. Forgetting it gives a stale mapping that works until it suddenly does not.</li>
+<li><strong>A and D bits.</strong> The privileged specification allows the hardware either to set them during a walk or to raise a page fault so software sets them. Either is legal; software must handle both.</li>
+<li><strong>Hardware or software walk.</strong> RISC-V application cores normally walk the table in hardware. The walker is a small state machine, but it needs a path into the memory system and careful interaction with the caches.</li>
+<li><strong>VIPT level-1 caches.</strong> To overlap the TLB lookup with the cache lookup, many designs index the cache with untranslated offset bits and compare physical tags. That works without aliasing only if the bits used for index and line offset fit inside the 12-bit page offset: cache size divided by ways must be at most 4 KiB. A 32 KiB cache must then be at least 8-way. This is a real constraint that links the page size to the L1 cache shape.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating the TLB as transparent.</strong> It is a cache that software must manage with <code>sfence.vma</code>.</li>
+<li><strong>Ignoring TLB reach when profiling.</strong> A slowdown that scales with working-set size, not data size, is often TLB misses.</li>
+<li><strong>Mixing up a pointer PTE and a leaf.</strong> R = W = X = 0 means "next level"; anything else is a leaf.</li>
+<li><strong>Growing a VIPT cache by adding sets.</strong> It breaks the no-alias condition; add ways instead or handle aliases.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python Sv32 walker that takes a dictionary of physical memory words, a <code>satp</code> value and a virtual address, and returns the physical address or the fault type. Check it against the worked example.</li>
+<li>Boot a small RISC-V Linux image in QEMU (<code>qemu-system-riscv32 -machine virt</code>) and use the QEMU monitor command <code>info mem</code> to list the current virtual-to-physical mappings.</li>
+<li>Model a 16-entry fully associative TLB in your Python walker, replay an address trace and measure the hit rate with and without megapages.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>virtual memory</li><li>tlb</li><li>page tables</li><li>risc-v</li><li>mmu</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="the-load-use-hazard.html"><span>Previous in Computer architecture &amp; RISC-V</span>The load-use hazard: why one bubble remains even with forwarding</a><a class="next" href="drone-flight-controller-soc-needs.html"><span>Next in Computer architecture &amp; RISC-V</span>What a drone flight-controller SoC needs: latency, sensor interfaces and safety</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="custom-instruction-or-peripheral.html">Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></h3>
+          <p>RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

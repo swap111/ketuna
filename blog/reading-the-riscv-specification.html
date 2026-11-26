@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to read the RISC-V specification without getting lost · Ketuna blog</title>
+  <meta name="description" content="A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How to read the RISC-V specification without getting lost · Ketuna blog">
+  <meta property="og:description" content="A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-the-riscv-specification.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-the-riscv-specification.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How to read the RISC-V specification without getting lost",
+  "description": "A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, specifications, isa, extensions, study skills",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1090,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-the-riscv-specification.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>How to read the RISC-V specification without getting lost</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-volumes-two-audiences">Two volumes, two audiences</a></li><li><a href="#a-reading-order-that-works">A reading order that works</a></li><li><a href="#decoding-extension-names">Decoding extension names</a></li><li><a href="#reading-an-encoding-table">Reading an encoding table</a></li><li><a href="#the-words-that-change-what-you-build">The words that change what you build</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The RISC-V specification is open, free to download and unusually readable for a standard. It is also long, split into volumes, and full of extensions with names like Zicsr and Sstc. Students who open it at page one and read straight through often give up somewhere around floating point. You do not need to read it that way. With a reading order, a way to decode extension names and a few key terms, you can find what you need in minutes and read the rest when a project calls for it.</p>
+<h2 id="two-volumes-two-audiences">Two volumes, two audiences</h2>
+<p>The ISA is published as two main documents, maintained in the open by RISC-V International (the official copies and their source are on the organisation's website and public repositories):</p>
+<ul>
+<li><strong>Volume I, the Unprivileged ISA.</strong> Everything an application programmer sees: the base integer instruction sets (RV32I, RV64I and the reduced RV32E), the standard extensions (M, A, F, D, C, bit manipulation, vectors and many more), the memory model, and the instruction listings.</li>
+<li><strong>Volume II, the Privileged Architecture.</strong> What operating systems, firmware and core designers need: privilege modes, the control and status registers (CSRs), traps and interrupts, physical memory protection, and virtual memory schemes such as Sv32 and Sv39.</li>
+</ul>
+<p>Further specifications cover topics outside the ISA itself: the debug specification, the platform-level interrupt controller, the Supervisor Binary Interface, the ELF psABI (calling convention) and others. Know they exist; open them when a task needs them.</p>
+<h2 id="a-reading-order-that-works">A reading order that works</h2>
+<ol>
+<li><strong>Volume I introduction.</strong> It explains the design goals, the base-plus-extensions model, and terms used throughout. Read it fully once.</li>
+<li><strong>The RV32I base chapter.</strong> The registers, the six formats, and every base instruction. This is the chapter you will return to most.</li>
+<li><strong>The instruction listings chapter</strong> near the end of Volume I, which gathers every encoding into tables. Keep it open as a reference.</li>
+<li><strong>The ISA naming conventions chapter</strong>, which tells you how to read strings like <code>RV32IMAC_Zicsr_Zifencei</code>.</li>
+<li><strong>The extension you need now</strong>, usually M and C for a microcontroller core, or Zicsr for CSR access.</li>
+<li><strong>Volume II, machine-level chapter</strong>, when you write trap handlers or design a core: <code>mstatus</code>, <code>mtvec</code>, <code>mepc</code>, <code>mcause</code>, <code>mie</code>, <code>mip</code>, and the machine timer.</li>
+</ol>
+<p>Save the memory model, floating point, vectors and supervisor mode for when a project requires them. They are long, and they make far more sense after you have built or programmed something simpler.</p>
+<h2 id="decoding-extension-names">Decoding extension names</h2>
+<p>An ISA string lists the base and then the extensions, in a canonical order:</p>
+<ul>
+<li><code>RV32</code> or <code>RV64</code> gives the register width. <code>I</code> is the base integer set; <code>E</code> is the reduced base with 16 registers for very small cores.</li>
+<li><strong>Single letters</strong> are the original standard extensions: <code>M</code> multiply/divide, <code>A</code> atomics, <code>F</code> and <code>D</code> single and double floating point, <code>C</code> compressed instructions. <code>G</code> is shorthand for <code>IMAFD</code> plus <code>Zicsr</code> and <code>Zifencei</code>.</li>
+<li><strong>Multi-letter names starting with Z</strong> are standard unprivileged extensions, grouped by a following letter that hints at the closest single-letter category: <code>Zicsr</code> (CSR instructions), <code>Zifencei</code> (instruction fence), <code>Zba</code>, <code>Zbb</code> and <code>Zbs</code> (bit manipulation), <code>Zmmul</code> (multiply only).</li>
+<li><strong>Names starting with S</strong> are privileged-architecture extensions, such as <code>Sstc</code> (supervisor timer compare).</li>
+<li><strong>Names starting with X</strong> are non-standard, vendor-specific extensions.</li>
+<li>Multi-letter names are separated by <strong>underscores</strong>.</li>
+</ul>
+<p>So <code>RV32IMAC_Zicsr_Zifencei</code> is a 32-bit core with the base integer set, multiply and divide, atomics, compressed instructions, CSR instructions and the instruction fence. The same string, in lower case, is what you pass to GCC's <code>-march</code> option, so understanding it also tells you how to build for the core.</p>
+<p>Extensions also have a <strong>status</strong>. Ratified extensions are stable and safe to design to. Others may be frozen or still drafts, and their encodings can change. Check the status on the official list before you implement one.</p>
+<h2 id="reading-an-encoding-table">Reading an encoding table</h2>
+<p>Encoding tables show each instruction as a row of bit fields, high bits on the left. Take the branch "less than, unsigned", <code>bltu</code>, from the listings:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bits</th>
+<th>31 to 25</th>
+<th>24 to 20</th>
+<th>19 to 15</th>
+<th>14 to 12</th>
+<th>11 to 7</th>
+<th>6 to 0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bltu</code></td>
+<td>imm[12, 10:5]</td>
+<td>rs2</td>
+<td>rs1</td>
+<td>110</td>
+<td>imm[4:1, 11]</td>
+<td>1100011</td>
+</tr>
+</tbody>
+</table></div>
+<p>Read it right to left. The opcode <code>1100011</code> says "branch". The <code>funct3</code> value <code>110</code> says "unsigned less than". The register fields are in their usual places. The immediate notation <code>imm[12, 10:5]</code> means "bit 12, then bits 10 to 5 of the offset", which is the B-type scrambling. Every other branch has the same row with a different <code>funct3</code>: <code>000</code> for <code>beq</code>, <code>001</code> for <code>bne</code>, <code>100</code> for <code>blt</code>, <code>101</code> for <code>bge</code>, <code>111</code> for <code>bgeu</code>. Once you see that pattern, the listings become a quick lookup rather than a wall of bits.</p>
+<h2 id="the-words-that-change-what-you-build">The words that change what you build</h2>
+<p>The specification uses a few terms precisely. Misreading them causes real bugs:</p>
+<ul>
+<li><strong>Reserved:</strong> not defined now, may be defined later. Hardware must usually treat reserved encodings as illegal; software must not use them.</li>
+<li><strong>Custom:</strong> set aside for non-standard extensions; standard extensions will not use it.</li>
+<li><strong>WARL</strong> (write any values, reads legal values): software may write anything to the field; hardware returns only values it supports. Software discovers support by writing and reading back.</li>
+<li><strong>WLRL</strong> (write legal values, reads legal values): software must write only legal values; what happens otherwise is not guaranteed.</li>
+<li><strong>WPRI</strong> (reserved writes preserve values, reads ignore values): software must preserve these bits when it writes the register.</li>
+<li><strong>Implementation-defined:</strong> the core chooses, and should document the choice.</li>
+<li><strong>Commentary:</strong> the manuals include non-normative explanation, set apart from the normative text, that explains <em>why</em> a rule exists. It is often the most educational part. Read it, but remember it is not a requirement.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading a draft as if it were ratified.</strong> Encodings can still change.</li>
+<li><strong>Ignoring the privileged volume.</strong> Trap and CSR behaviour lives there, not in Volume I.</li>
+<li><strong>Treating commentary as normative.</strong> It explains; the rules are in the main text.</li>
+<li><strong>Building to a string you did not decode.</strong> A mismatch between <code>-march</code> and the core shows up as illegal-instruction traps.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Download the current Volume I, find the instruction listings chapter, and decode <code>0x0062E663</code> by hand using only the tables. Then check your answer with <code>riscv64-unknown-elf-objdump</code> on a one-instruction object file.</li>
+<li>Take the ISA string of any open-source RISC-V core you are interested in and write one line per extension saying what it adds and which chapter defines it.</li>
+<li>Find one WARL field in Volume II, such as the mode bits of <code>mtvec</code>, and write a short bare-metal test for QEMU that writes and reads it back.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>specifications</li><li>isa</li><li>extensions</li><li>study skills</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="harvard-vs-von-neumann-today.html"><span>Previous in Computer architecture &amp; RISC-V</span>Harvard vs von Neumann in microcontrollers today</a><a class="next" href="riscv-interrupt-controllers.html"><span>Next in Computer architecture &amp; RISC-V</span>Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="m-and-c-extensions-cost.html">The M and C extensions: what multiply and compressed instructions cost in hardware</a></h3>
+          <p>Adding M means choosing a multiplier and divider; adding C means a decompressor and a fetch unit that handles 16-bit alignment. What each costs, what it buys, and how to measure the trade for your product.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-an-isa-promises.html">What an instruction set promises, and what it leaves to the hardware</a></h3>
+          <p>An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

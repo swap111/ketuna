@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Traceability from requirement to test: why it saves projects · Ketuna blog</title>
+  <meta name="description" content="Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Traceability from requirement to test: why it saves projects · Ketuna blog">
+  <meta property="og:description" content="Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.">
+  <link rel="canonical" href="https://ketuna.online/blog/traceability-from-requirement-to-test.html">
+  <meta property="og:url" content="https://ketuna.online/blog/traceability-from-requirement-to-test.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Traceability from requirement to test: why it saves projects",
+  "description": "Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "traceability, requirements, verification, change control",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 845,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/traceability-from-requirement-to-test.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Traceability from requirement to test: why it saves projects</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-trace-link-is">What a trace link is</a></li><li><a href="#the-two-gaps-traceability-exposes">The two gaps traceability exposes</a></li><li><a href="#impact-analysis-when-things-change">Impact analysis when things change</a></li><li><a href="#a-trace-matrix-in-plain-text">A trace matrix in plain text</a></li><li><a href="#keeping-it-alive">Keeping it alive</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Late in a project someone asks two questions that sound simple. "Have we tested everything we promised?" and "If we change this requirement, what else has to change?" Without traceability, answering either one means a week of reading documents and asking colleagues what they remember. With it, each answer is a query that takes a minute. Traceability is not paperwork for auditors; it is the index that lets a team see its own project.</p>
+<h2 id="what-a-trace-link-is">What a trace link is</h2>
+<p>A trace link is a recorded relationship between two items, each with a unique ID. The common chain in a hardware or chip project runs like this:</p>
+<ul>
+<li>a <strong>stakeholder need</strong> (what a user or customer wants)</li>
+<li>is refined into one or more <strong>system requirements</strong> (testable statements)</li>
+<li>which are allocated to <strong>subsystem requirements</strong> (hardware, firmware, RTL)</li>
+<li>which are realised by <strong>design elements</strong> (a schematic block, an RTL module, a firmware function)</li>
+<li>and verified by <strong>tests</strong> (a bench procedure, a testbench, an analysis report).</li>
+</ul>
+<p>Links run in both directions. Looking <em>down</em> from a requirement tells you how it is met and proven. Looking <em>up</em> from a test tells you why it exists.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="tr-title tr-desc" font-size="14">
+<title id="tr-title">A trace chain from need to tests</title>
+<desc id="tr-desc">A stakeholder need box links to a system requirement, which splits into a hardware requirement and a firmware requirement. Each links down to a test. A third requirement box, FW-9, is highlighted on the right with no test below it and is labelled untested.</desc>
+<rect x="150" y="10" width="180" height="36" rx="4" class="dg-box"/>
+<text x="240" y="33" text-anchor="middle" class="dg-text">N-3 need</text>
+<rect x="150" y="76" width="180" height="36" rx="4" class="dg-core"/>
+<text x="240" y="99" text-anchor="middle" class="dg-text">SR-12 system req</text>
+<line x1="240" y1="46" x2="240" y2="76" class="dg-line"/>
+<rect x="20" y="142" width="150" height="36" rx="4" class="dg-box"/>
+<text x="95" y="165" text-anchor="middle" class="dg-text">HW-7 req</text>
+<rect x="190" y="142" width="130" height="36" rx="4" class="dg-box"/>
+<text x="255" y="165" text-anchor="middle" class="dg-text">FW-4 req</text>
+<rect x="340" y="142" width="125" height="36" rx="4" class="dg-amber" fill-opacity="0.3"/>
+<text x="402" y="165" text-anchor="middle" class="dg-text">FW-9 req</text>
+<line x1="210" y1="112" x2="95" y2="142" class="dg-line"/>
+<line x1="250" y1="112" x2="255" y2="142" class="dg-line"/>
+<rect x="20" y="208" width="150" height="34" rx="4" class="dg-track"/>
+<text x="95" y="230" text-anchor="middle" class="dg-text">T-21 bench test</text>
+<rect x="190" y="208" width="130" height="34" rx="4" class="dg-track"/>
+<text x="255" y="230" text-anchor="middle" class="dg-text">T-22 log test</text>
+<line x1="95" y1="178" x2="95" y2="208" class="dg-line"/>
+<line x1="255" y1="178" x2="255" y2="208" class="dg-line"/>
+<text x="402" y="200" text-anchor="middle" class="dg-muted">no test below:</text>
+<text x="402" y="220" text-anchor="middle" class="dg-muted">untested</text>
+</svg>
+<figcaption>Every requirement should have a parent above and a test below; FW-9 has no test, which the trace data makes obvious.</figcaption>
+</figure>
+
+<h2 id="the-two-gaps-traceability-exposes">The two gaps traceability exposes</h2>
+<p>Once the links exist, two kinds of gap become visible without anyone having to remember them.</p>
+<p><strong>Untested requirements.</strong> A requirement with no test below it is a promise nobody is checking. On a board this might be a sleep-current limit that everyone assumed someone else would measure. In RTL it might be an error-handling feature with no testbench scenario. Finding it at review time costs an afternoon; finding it in the field costs a recall or a respin.</p>
+<p><strong>Orphans.</strong> A test or design element with nothing above it is either justified by a missing requirement (write it down) or is unnecessary work (delete it). Orphan features are a quiet source of schedule slip and of bugs, because nobody specified how they should behave.</p>
+<h2 id="impact-analysis-when-things-change">Impact analysis when things change</h2>
+<p>Requirements change. A customer raises the operating temperature range, or a regulator adds a limit. The useful question is not "what changed" but "what does this touch". Follow the links down from the changed requirement and you get the list: which subsystem requirements must be revisited, which schematic blocks and RTL modules implement them, and which tests must be rerun or rewritten. Without links, teams update the specification and forget the test, and the old test keeps passing against the old limit. That is how a product passes verification and still fails the new requirement.</p>
+<h2 id="a-trace-matrix-in-plain-text">A trace matrix in plain text</h2>
+<p>You do not need a special tool to start. A CSV file with one row per link, kept under version control next to the design, is enough for a small team. Here is a checker that reads requirements, tests and links and reports both gaps.</p>
+<pre><code class="language-python">import csv, io
+
+reqs = {&quot;SR-12&quot;, &quot;SR-14&quot;, &quot;SR-15&quot;, &quot;HW-7&quot;, &quot;FW-4&quot;, &quot;FW-9&quot;}
+tests = {&quot;T-21&quot;, &quot;T-22&quot;, &quot;T-25&quot;, &quot;T-30&quot;, &quot;T-41&quot;}
+parent = {&quot;HW-7&quot;: &quot;SR-12&quot;, &quot;FW-4&quot;: &quot;SR-12&quot;, &quot;FW-9&quot;: &quot;SR-15&quot;}
+
+links = io.StringIO(&quot;&quot;&quot;req,test
+HW-7,T-21
+FW-4,T-22
+SR-12,T-30
+SR-14,T-25
+&quot;&quot;&quot;)
+verified_by = {}
+for row in csv.DictReader(links):
+    verified_by.setdefault(row[&quot;req&quot;], set()).add(row[&quot;test&quot;])
+
+untested = sorted(r for r in reqs if r not in verified_by)
+used = set().union(*verified_by.values())
+orphans = sorted(tests - used)
+print(&quot;untested:&quot;, untested)
+print(&quot;orphan tests:&quot;, orphans)
+
+# impact of a change to SR-12: children, then every linked test
+changed = &quot;SR-12&quot;
+children = [c for c, p in parent.items() if p == changed]
+affected = set(verified_by.get(changed, set()))
+for c in children:
+    affected |= verified_by.get(c, set())
+print(&quot;change&quot;, changed, &quot;-&gt; reqs&quot;, children, &quot;tests&quot;, sorted(affected))
+</code></pre>
+<p>It prints <code>untested: ['FW-9', 'SR-15']</code>, <code>orphan tests: ['T-41']</code>, and for the change it lists <code>HW-7</code>, <code>FW-4</code> and tests <code>T-21</code>, <code>T-22</code>, <code>T-30</code>. Note that SR-15 counts as untested even though its child FW-9 exists; a parent is only covered when its own test, or every child's test, is present. Decide that rule as a team and write it into the checker.</p>
+<h2 id="keeping-it-alive">Keeping it alive</h2>
+<p>Traceability decays if it is a separate chore. A few habits keep it honest:</p>
+<ul>
+<li><strong>Create the link when you create the item.</strong> A new test file starts with the requirement IDs it covers, as a comment or a tag, so a script can harvest them.</li>
+<li><strong>Run the checker in continuous integration.</strong> A pull request that adds an orphan test or leaves a new requirement untested gets flagged automatically.</li>
+<li><strong>Report status by requirement, not by test count.</strong> "212 tests pass" says little. "41 of 44 requirements verified, 3 pending with owners" says what the project needs to know.</li>
+<li><strong>Change requirements through a log.</strong> Each change records the reason, the impact list from the trace data and who approved it.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Linking at the wrong level.</strong> Tying every test to one top-level requirement makes everything look covered. Link to the lowest requirement the test actually proves.</li>
+<li><strong>Counting a link as a pass.</strong> A link says a test exists. Status comes from the latest result of that test on the current design.</li>
+<li><strong>One giant spreadsheet that only one person edits.</strong> It becomes a bottleneck and goes stale. Keep links close to the items, in plain text, and generate the matrix.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take five requirements from a past lab or project, give each an ID, and write a CSV linking them to the tests you actually ran.</li>
+<li>Run the script above on your data with Python 3 and fix every untested requirement or orphan it reports, either by writing the missing item or by deleting the unnecessary one.</li>
+<li>Add a tag such as <code># covers: SR-12</code> to the top of your cocotb or C test files and extend the script to collect links by searching those files, so the matrix builds itself.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>traceability</li><li>requirements</li><li>verification</li><li>change control</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="thermal-design-basics.html"><span>Previous in Systems &amp; product engineering</span>Thermal design basics: junction temperature and heat paths</a><a class="next" href="verification-vs-validation.html"><span>Next in Systems &amp; product engineering</span>Verification and validation: building the right product vs building it right</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="requirements-that-can-be-tested.html">Writing requirements that can be tested: shall, measurable, one thing each</a></h3>
+          <p>How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="verification-vs-validation.html">Verification and validation: building the right product vs building it right</a></h3>
+          <p>Verification checks that the product meets its requirements; validation checks that it meets the user&#x27;s real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESD protection on chip pins: why every pad has diodes · Ketuna blog</title>
+  <meta name="description" content="A touch from a charged hand can put amperes into a pin and kilovolts across oxide that fails at a few volts. Learn what ESD does to a chip, and how pad diodes and rail clamps steer the current safely away.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="ESD protection on chip pins: why every pad has diodes · Ketuna blog">
+  <meta property="og:description" content="A touch from a charged hand can put amperes into a pin and kilovolts across oxide that fails at a few volts. Learn what ESD does to a chip, and how pad diodes and rail clamps steer the current safely away.">
+  <link rel="canonical" href="https://ketuna.online/blog/esd-protection-on-chip-pins.html">
+  <meta property="og:url" content="https://ketuna.online/blog/esd-protection-on-chip-pins.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ESD protection on chip pins: why every pad has diodes",
+  "description": "A touch from a charged hand can put amperes into a pin and kilovolts across oxide that fails at a few volts. Learn what ESD does to a chip, and how pad diodes and rail clamps steer the current safely away.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "esd, io pads, reliability, rail clamp, layout",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1016,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/esd-protection-on-chip-pins.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>ESD protection on chip pins: why every pad has diodes</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A touch from a charged hand can put amperes into a pin and kilovolts across oxide that fails at a few volts. Learn what ESD does to a chip, and how pad diodes and rail clamps steer the current safely away.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-discharge-looks-like">What a discharge looks like</a></li><li><a href="#the-standard-protection-network">The standard protection network</a></li><li><a href="#following-the-current">Following the current</a></li><li><a href="#the-design-window">The design window</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Walk across a floor, pick up a chip, and you may deliver a discharge of thousands of volts to one of its pins. You will not feel it, but the transistors inside are built around gate oxides a few nanometres thick that break down at a handful of volts. Without protection, a single careless touch during assembly would destroy most chips. That is why every pad on a chip, including the simplest digital input, sits inside a protection structure, and why the I/O ring is a design discipline of its own.</p>
+<h2 id="what-a-discharge-looks-like">What a discharge looks like</h2>
+<p>Electrostatic discharge (ESD) is described by test models that mimic how charge reaches a chip. The two most used are:</p>
+<ul>
+<li><strong>Human body model (HBM):</strong> a charged person touches a pin. The model is a 100 pF capacitor charged to the test voltage and discharged through a 1.5 kΩ resistor into the pin.</li>
+<li><strong>Charged device model (CDM):</strong> the chip itself becomes charged, for example by sliding along a tube in assembly, and then discharges through one pin when it touches a grounded surface. The pulse is much shorter and its peak current higher, because there is no 1.5 kΩ resistor to limit it.</li>
+</ul>
+<p>Run the HBM numbers for a 2 kV test. The peak current is 2,000 V / 1,500 Ω ≈ <strong>1.33 A</strong>, and it decays with a time constant of 1.5 kΩ × 100 pF = <strong>150 ns</strong>. The stored energy, ½CV<sup>2</sup>, is ½ × 100 pF × (2 kV)<sup>2</sup> = 200 µJ. The protection network must carry more than an ampere for a few hundred nanoseconds while keeping the voltage across every sensitive device below its breakdown.</p>
+<p>Two things fail if it does not. Thin <strong>gate oxides</strong> break down when too much voltage appears across them, leaving a permanent leakage path or a short. <strong>Junctions and metal</strong> melt when too much current is forced through too small a region. The first is a voltage problem, the second a current-density problem, and protection design has to address both.</p>
+<h2 id="the-standard-protection-network">The standard protection network</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="esd-title esd-desc" font-size="14">
+<title id="esd-title">Dual-diode pad protection with a rail clamp</title>
+<desc id="esd-desc">A pad connects to the internal circuit through a series resistor. One diode connects from the pad up to the VDD rail and another from VSS up to the pad. A power clamp connects between VDD and VSS. A highlighted path shows a positive discharge going from the pad up through the upper diode, along VDD, down through the clamp to VSS.</desc>
+<line x1="40" y1="30" x2="440" y2="30" class="dg-line"/>
+<text x="445" y="35" class="dg-text">VDD</text>
+<line x1="40" y1="230" x2="440" y2="230" class="dg-line"/>
+<text x="445" y="235" class="dg-text">VSS</text>
+<rect x="30" y="115" width="50" height="30" class="dg-core"/>
+<text x="38" y="135" class="dg-text">pad</text>
+<line x1="80" y1="130" x2="230" y2="130" class="dg-line"/>
+<line x1="150" y1="130" x2="150" y2="30" class="dg-line"/>
+<path d="M140,90 L160,90 L150,72 Z" class="dg-arrow"/>
+<line x1="140" y1="70" x2="160" y2="70" class="dg-line"/>
+<text x="165" y="85" class="dg-text">D1</text>
+<line x1="150" y1="130" x2="150" y2="230" class="dg-line"/>
+<path d="M140,190 L160,190 L150,172 Z" class="dg-arrow"/>
+<line x1="140" y1="170" x2="160" y2="170" class="dg-line"/>
+<text x="165" y="185" class="dg-text">D2</text>
+<rect x="230" y="120" width="40" height="20" class="dg-box"/>
+<text x="232" y="112" class="dg-muted">R</text>
+<line x1="270" y1="130" x2="300" y2="130" class="dg-line"/>
+<rect x="300" y="105" width="70" height="50" class="dg-box"/>
+<text x="307" y="135" class="dg-text">circuit</text>
+<rect x="395" y="100" width="40" height="60" class="dg-core"/>
+<text x="378" y="180" class="dg-text">clamp</text>
+<line x1="415" y1="30" x2="415" y2="100" class="dg-line"/>
+<line x1="415" y1="160" x2="415" y2="230" class="dg-line"/>
+<path d="M90,122 L150,122 L150,40 L405,40 L405,220" class="dg-amber-line" fill="none"/>
+<path d="M399,212 L405,224 L411,212 Z" class="dg-arrow"/>
+<text x="190" y="58" class="dg-muted">positive zap path</text>
+</svg>
+<figcaption>A positive discharge on the pad forward-biases D1 onto VDD, and the rail clamp carries it to VSS; the series resistor shields the internal gate.</figcaption>
+</figure>
+
+<p>The usual arrangement has three parts.</p>
+<ul>
+<li><strong>Two diodes at the pad.</strong> D1 runs from the pad up to VDD; D2 runs from VSS up to the pad. In normal operation the pad stays between the rails, so both are reverse-biased and invisible apart from their capacitance and leakage. If the pad is driven above VDD, D1 conducts; if below VSS, D2 conducts.</li>
+<li><strong>A rail clamp between VDD and VSS.</strong> A large NMOS transistor connected across the supply rails, normally off, turned on by a detector when a fast voltage rise appears on VDD. A common detector is an RC network: an ESD pulse rises in nanoseconds, while normal power-up takes microseconds or longer, so the RC time constant is chosen to distinguish the two and to keep the clamp on for the duration of the pulse.</li>
+<li><strong>A series resistor and secondary clamp</strong> in front of sensitive inputs, especially those that connect directly to a gate. The resistor limits current into the inner circuit, and small diodes after it clamp what remains, which matters for the fast CDM pulse.</li>
+</ul>
+<h2 id="following-the-current">Following the current</h2>
+<p>The value of the network is that there is a low-impedance path for every polarity and pin combination a test applies.</p>
+<ul>
+<li><strong>Positive zap on the pad, VSS grounded:</strong> current flows through D1 onto the VDD rail, then through the rail clamp down to VSS.</li>
+<li><strong>Negative zap on the pad, VSS grounded:</strong> D2 conducts directly from VSS to the pad.</li>
+<li><strong>Positive zap on the pad, VDD grounded:</strong> D1 conducts directly to VDD.</li>
+<li><strong>Pin to pin:</strong> the current enters one pad, flows through its D1 to VDD, through the clamp to VSS, and out through the other pad's D2.</li>
+</ul>
+<p>The voltage the internal circuit sees is the sum of the drops along the path: diode forward voltage, rail resistance and the clamp's on-voltage, all at more than an ampere. Bus resistance matters more than intuition suggests. If the VDD rail between a pad and the nearest clamp has 2 Ω of resistance, 1.33 A adds about 2.7 V to the voltage at the pad. That is why clamps are distributed around the I/O ring, rails are wide, and diodes sit right next to the pad.</p>
+<h2 id="the-design-window">The design window</h2>
+<p>Every protection element must respect a window.</p>
+<ul>
+<li><strong>Above the operating range:</strong> it must not conduct during normal operation, including supply ramps, overshoot on signals and any allowed overvoltage. A rail clamp that triggers on a fast power-up is a real failure mode.</li>
+<li><strong>Below the failure point:</strong> it must turn on and hold the voltage below the breakdown of the gate oxides and junctions it protects, with margin, while carrying the full pulse current.</li>
+</ul>
+<p>As processes shrink, oxides get thinner and the window narrows from above while operating voltages fall less, which makes protection harder. It also costs: pad diodes add capacitance and leakage to every pin, which hurts high-speed and very low-leakage inputs, so those pins need carefully optimised structures.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>Treating protection as a library cell to drop in, without checking the rail resistance between pads and clamps</li>
+<li>Forgetting pins that connect to separate supply domains; each domain needs its own clamps and a path to the others</li>
+<li>Connecting a pad directly to a gate with no series resistance or secondary clamp</li>
+<li>Overlooking latch-up: large ESD diodes inject carriers into the substrate, so they need guard rings</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong>, build the HBM source as a 100 pF capacitor charged to 2 kV discharging through 1.5 kΩ via a switch, and confirm the 1.33 A peak and 150 ns decay with a resistive load.</li>
+<li>Add the dual-diode network with sky130 diode models and an ideal clamp (a voltage-controlled switch with some on-resistance), and plot the pad voltage during the pulse. Add 2 Ω of rail resistance and compare.</li>
+<li>Open the I/O cells of an open PDK in <strong>KLayout</strong> and find the diodes and clamp transistors; note how wide their metal connections are.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>esd</li><li>io pads</li><li>reliability</li><li>rail clamp</li><li>layout</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="biopotential-front-end-for-wearables.html"><span>Previous in Analog &amp; mixed-signal</span>Designing a biopotential front end for a health wearable: gain, CMRR and input protection</a><a class="next" href="hand-calculation-before-simulation.html"><span>Next in Analog &amp; mixed-signal</span>Hand calculation before simulation: the analog designer&#x27;s habit</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="analog-layout-for-matching.html">Analog layout for matching: common centroid, interdigitation and dummies</a></h3>
+          <p>Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

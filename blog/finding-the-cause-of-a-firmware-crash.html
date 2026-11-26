@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finding the cause of a firmware crash from the trap state · Ketuna blog</title>
+  <meta name="description" content="When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Finding the cause of a firmware crash from the trap state · Ketuna blog">
+  <meta property="og:description" content="When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.">
+  <link rel="canonical" href="https://ketuna.online/blog/finding-the-cause-of-a-firmware-crash.html">
+  <meta property="og:url" content="https://ketuna.online/blog/finding-the-cause-of-a-firmware-crash.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Finding the cause of a firmware crash from the trap state",
+  "description": "When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "debugging, risc-v, traps, crash analysis, stack",
+  "articleSection": "Embedded systems",
+  "wordCount": 927,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/finding-the-cause-of-a-firmware-crash.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Finding the cause of a firmware crash from the trap state</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-three-registers-that-describe-a-trap">The three registers that describe a trap</a></li><li><a href="#capture-before-you-do-anything-else">Capture before you do anything else</a></li><li><a href="#the-crash">The crash</a></li><li><a href="#decoding-it">Decoding it</a></li><li><a href="#walking-further-up-the-stack">Walking further up the stack</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A crash on a desktop gives you a core dump and a stack trace. A crash on a microcontroller usually gives you a board that stops responding. The information you need is still there for an instant, in a few control registers and on the stack, and a trap handler written with care can capture it. This article shows what to save, how to decode it, and how to walk back up the call chain by hand, using a crash reproduced on QEMU's RISC-V <code>virt</code> machine so every number below is real output.</p>
+<h2 id="the-three-registers-that-describe-a-trap">The three registers that describe a trap</h2>
+<p>When a RISC-V core takes a trap in machine mode, it records:</p>
+<ul>
+<li><strong><code>mcause</code></strong>: why. If the top bit is set, it was an interrupt; otherwise the low bits are an exception code.</li>
+<li><strong><code>mepc</code></strong>: where. The address of the instruction that faulted (for interrupts, the instruction that would have run next).</li>
+<li><strong><code>mtval</code></strong>: extra detail. For access faults and misaligned accesses it holds the faulting address; for an illegal instruction it may hold the instruction bits or zero, depending on the implementation.</li>
+</ul>
+<p>The exception codes you will meet most in firmware:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>mcause</th>
+<th>Meaning</th>
+<th>Typical firmware cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Instruction access fault</td>
+<td>Jump through a bad function pointer</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Illegal instruction</td>
+<td>Corrupted return address, missing extension</td>
+</tr>
+<tr>
+<td>4 / 6</td>
+<td>Load / store misaligned</td>
+<td>Casting a byte buffer to a wider type</td>
+</tr>
+<tr>
+<td>5 / 7</td>
+<td>Load / store access fault</td>
+<td>NULL or wild pointer, stack overflow into a guard</td>
+</tr>
+</tbody>
+</table></div>
+<p>If <code>mcause</code> has the interrupt bit set, it is not a crash at all: an interrupt was enabled with no handler for it.</p>
+<h2 id="capture-before-you-do-anything-else">Capture before you do anything else</h2>
+<p>Two more values matter: the stack pointer <code>sp</code> and the return address <code>ra</code> at the moment of the trap. The first instructions of the handler must save them, before any C code runs and changes them. A handler for fatal traps can afford to clobber two temporary registers:</p>
+<pre><code class="language-text">    .globl trap_vector
+    .balign 4
+trap_vector:
+    la    t6, crash_rec          # t5, t6 are lost: acceptable here
+    sw    sp,  0(t6)
+    sw    ra,  4(t6)
+    csrr  t5, mcause
+    sw    t5,  8(t6)
+    csrr  t5, mepc
+    sw    t5, 12(t6)
+    csrr  t5, mtval
+    sw    t5, 16(t6)
+    la    sp, crash_stack_top    # separate stack: keep the evidence
+    call  crash_report
+1:  j     1b
+</code></pre>
+<p>The last two lines carry a lesson that is easy to learn the hard way. A first version of this handler reset <code>sp</code> to the top of the normal stack before calling the C reporter. The crashed code was only a few words below that point, so <code>crash_report</code>'s own stack frame overwrote the saved return address it was trying to print. A fatal-trap handler needs <strong>its own small stack</strong>, so the crashed stack stays untouched. In production, <code>crash_report</code> would also copy a few dozen words from the old <code>sp</code> into a RAM section that startup code does not zero, then reset, so the record can be sent home after reboot.</p>
+<h2 id="the-crash">The crash</h2>
+<p>This deliberately broken program reads a field through a pointer that was never set:</p>
+<pre><code class="language-c">struct sensor { uint32_t id; uint32_t value; };
+static struct sensor *active;          /* never set: NULL */
+
+__attribute__((noinline))
+uint32_t sensor_value(const struct sensor *s)
+{
+    return s-&gt;value;                   /* load from s + 4 */
+}
+
+__attribute__((noinline))
+uint32_t poll_sensors(void) { return sensor_value(active) + 1u; }
+
+int main(void) { uart_init(); uart_puts(&quot;start\n&quot;);
+                 return (int)poll_sensors(); }
+</code></pre>
+<p>Built with GCC at <code>-O2</code> for RV32 with compressed instructions, run on QEMU, the reporter printed:</p>
+<pre><code class="language-text">mcause=0x00000005 mepc=0x8000014a mtval=0x00000004
+ra=0x80000156 sp=0x80042210
+stack: 0x00000000 0x00000000 0x00000000 0x80000068 ...
+</code></pre>
+<h2 id="decoding-it">Decoding it</h2>
+<p><strong>What:</strong> <code>mcause</code> = 5 is a load access fault. <strong>Which address:</strong> <code>mtval</code> = 4. An address that small is almost always a NULL pointer plus a field offset; <code>value</code> is at offset 4 in the structure.</p>
+<p><strong>Where:</strong> turn <code>mepc</code> into a source line with the ELF file that was flashed:</p>
+<pre><code class="language-bash">$ riscv64-unknown-elf-addr2line -f -e app.elf 0x8000014a 0x80000156
+sensor_value
+main.c:8
+poll_sensors
+main.c:12
+</code></pre>
+<p>The fault is the <code>return s-&gt;value;</code> line. <code>ra</code> points into <code>poll_sensors</code>, just after its call to <code>sensor_value</code>, so that is the caller. <code>sensor_value</code> is a leaf function that never saved <code>ra</code>, which is why the register still holds its return address.</p>
+<h2 id="walking-further-up-the-stack">Walking further up the stack</h2>
+<p>To go beyond one level, you need to know where each function saved its caller's return address. GCC does not use frame pointers at <code>-O2</code> by default, but every function that calls another saves <code>ra</code> in its prologue, and the disassembly shows exactly where:</p>
+<pre><code class="language-text">8000014e &lt;poll_sensors&gt;:
+8000014e:  1141   addi  sp,sp,-16
+80000150:  4501   li    a0,0
+80000152:  c606   sw    ra,12(sp)
+80000154:  3fdd   jal   8000014a &lt;sensor_value&gt;
+80000156:  40b2   lw    ra,12(sp)
+</code></pre>
+<p><code>poll_sensors</code> reserved 16 bytes and stored <code>ra</code> at offset 12. The trap happened inside <code>sensor_value</code>, which allocated no stack, so the trapped <code>sp</code> (<code>0x80042210</code>) is <code>poll_sensors</code>'s frame. The word at <code>sp + 12</code> is the fourth word of the stack dump: <code>0x80000068</code>. <code>addr2line</code> says that is in <code>_start</code>, just after <code>call main</code>.</p>
+<p>Notice what is missing: <code>main</code>. The compiler turned <code>return poll_sensors()</code> into a tail call, a plain jump, so <code>main</code> left no frame. Optimised stack walks skip such functions, and you must allow for that when reading them. To continue past <code>poll_sensors</code>, add its frame size (16) to <code>sp</code> and repeat with the caller's prologue.</p>
+<p>Doing this by hand for a few levels is practical. For routine use, build with <code>-fno-omit-frame-pointer</code>, which keeps a chain of saved frame pointers that a few lines of code can follow, or keep the ELF file and let GDB unwind a saved memory dump using the debug information.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Decoding with the wrong ELF.</strong> Addresses only mean something against the exact build that crashed. Archive every released ELF file next to its binary.</li>
+<li><strong>Trusting a stack after an overflow.</strong> If <code>sp</code> is outside the stack region, the stack itself is the victim; check <code>sp</code> against the linker symbols first.</li>
+<li><strong>Taking <code>mtval</code> as always meaningful.</strong> It is defined per exception type, and some implementations write zero.</li>
+<li><strong>A handler that itself faults.</strong> Keep it to plain stores and a polled UART, on its own stack.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Reproduce this crash with the Ketuna track D platform files on QEMU, then change the field offset and confirm that <code>mtval</code> follows it.</li>
+<li>Call through a function pointer that was never set. On QEMU this gives <code>mcause</code> = 1 with <code>mepc</code> and <code>mtval</code> both 0, so the faulting address tells you nothing; explain why <code>ra</code> is now the only clue to the caller.</li>
+<li>Rebuild with <code>-fno-omit-frame-pointer</code>, read the new prologues, and write a loop in <code>crash_report</code> that follows the frame chain.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>debugging</li><li>risc-v</li><li>traps</li><li>crash analysis</li><li>stack</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="debugging-with-gdb-and-openocd.html"><span>Previous in Embedded systems</span>Debugging bare-metal firmware with GDB and OpenOCD</a><a class="next" href="smart-meter-firmware-architecture.html"><span>Next in Embedded systems</span>Firmware architecture for a smart energy meter: metering, events and logs</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-happens-before-main.html">What happens before main(): startup code on a microcontroller</a></h3>
+          <p>Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

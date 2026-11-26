@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python for hardware engineers: the parts you will use every day · Ketuna blog</title>
+  <meta name="description" content="Hardware engineers use Python to parse tool reports, generate test vectors, plot results and write small reference models. Here are the parts of the language that matter, with working examples.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Python for hardware engineers: the parts you will use every day · Ketuna blog">
+  <meta property="og:description" content="Hardware engineers use Python to parse tool reports, generate test vectors, plot results and write small reference models. Here are the parts of the language that matter, with working examples.">
+  <link rel="canonical" href="https://ketuna.online/blog/python-for-hardware-engineers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/python-for-hardware-engineers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Python for hardware engineers: the parts you will use every day",
+  "description": "Hardware engineers use Python to parse tool reports, generate test vectors, plot results and write small reference models. Here are the parts of the language that matter, with working examples.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "python, scripting, test vectors, reference models, automation",
+  "articleSection": "Careers & skills",
+  "wordCount": 822,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/python-for-hardware-engineers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Python for hardware engineers: the parts you will use every day</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Hardware engineers use Python to parse tool reports, generate test vectors, plot results and write small reference models. Here are the parts of the language that matter, with working examples.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#parsing-tool-reports">Parsing tool reports</a></li><li><a href="#generating-test-vectors">Generating test vectors</a></li><li><a href="#plotting-results">Plotting results</a></li><li><a href="#writing-small-reference-models">Writing small reference models</a></li><li><a href="#making-scripts-usable-by-the-team">Making scripts usable by the team</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Hardware engineers rarely write large Python applications, but most of them write Python every week. It is the glue around the tools: pulling numbers out of a timing report, generating thousands of test vectors, plotting a coverage trend, or modelling what a block should do so a testbench can check it. You do not need the whole language for this. A handful of features, used well, cover almost all of it: regular expressions, lists and dictionaries, file input and output, a plotting library, and simple classes. Everything below uses only the standard library plus <code>matplotlib</code>.</p>
+<h2 id="parsing-tool-reports">Parsing tool reports</h2>
+<p>Tool reports are text written for people, so the first job is usually to turn them into numbers. Regular expressions from the standard <code>re</code> module do most of the work. Suppose a timing report contains lines like these (format made up for illustration):</p>
+<pre><code class="language-text">Path 1: slack -0.042 ns  start a_q[3]  end sum_q[8]
+Path 2: slack  0.118 ns  start b_q[0]  end sum_q[1]
+</code></pre>
+<p>A short function extracts every path and its slack:</p>
+<pre><code class="language-python">import re
+
+PATH_RE = re.compile(
+    r&quot;Path\s+(\d+):\s+slack\s+(-?\d+\.\d+)\s+ns\s+&quot;
+    r&quot;start\s+(\S+)\s+end\s+(\S+)&quot;
+)
+
+def read_paths(filename):
+    paths = []
+    with open(filename) as f:
+        for line in f:
+            m = PATH_RE.search(line)
+            if m:
+                num, slack, start, end = m.groups()
+                paths.append((int(num), float(slack), start, end))
+    return paths
+
+paths = read_paths(&quot;timing.rpt&quot;)
+failing = [p for p in paths if p[1] &lt; 0]
+print(f&quot;{len(failing)} of {len(paths)} paths violate setup&quot;)
+for num, slack, start, end in sorted(failing, key=lambda p: p[1]):
+    print(f&quot;  {slack:+.3f} ns  {start} -&gt; {end}&quot;)
+</code></pre>
+<p>Three habits make parsers like this trustworthy. Compile the pattern once and keep it readable by splitting it across lines. Convert to numbers immediately so comparisons are numeric, not alphabetical. And count what you did not match: if the report format changes after a tool update, a parser that silently finds zero paths is worse than one that crashes.</p>
+<h2 id="generating-test-vectors">Generating test vectors</h2>
+<p>Testbenches often read stimulus and expected results from a file. Python makes it easy to produce both, including the corner cases a human would forget. For an 8-bit adder with a 9-bit sum:</p>
+<pre><code class="language-python">import random
+
+random.seed(1)  # same vectors every run, so failures reproduce
+
+corners = [(0, 0), (255, 255), (255, 1), (128, 128), (1, 254)]
+randoms = [(random.randrange(256), random.randrange(256))
+           for _ in range(1000)]
+
+with open(&quot;vectors.hex&quot;, &quot;w&quot;) as f:
+    for a, b in corners + randoms:
+        f.write(f&quot;{a:02x} {b:02x} {a + b:03x}\n&quot;)
+</code></pre>
+<p>A Verilog testbench can load this file with <code>$readmemh</code> into an array and compare the design's output with the third column. Fixing the seed is important: when a vector fails, you need the identical file again tomorrow to debug it. Putting the corner cases first means the most likely failures appear at the top of the log.</p>
+<h2 id="plotting-results">Plotting results</h2>
+<p>A plot often shows in seconds what a table hides: a slack distribution with a long negative tail, power rising faster than expected with frequency, a coverage curve that has flattened. The <code>matplotlib</code> library, with <code>numpy</code> for the numbers, is the usual open-source choice.</p>
+<pre><code class="language-python">import matplotlib.pyplot as plt
+
+slacks = [p[1] for p in read_paths(&quot;timing.rpt&quot;)]
+plt.hist(slacks, bins=40)
+plt.axvline(0.0, linestyle=&quot;--&quot;)
+plt.xlabel(&quot;setup slack (ns)&quot;)
+plt.ylabel(&quot;number of paths&quot;)
+plt.title(&quot;Setup slack distribution&quot;)
+plt.savefig(&quot;slack_hist.png&quot;, dpi=150)
+</code></pre>
+<p>Save plots to files rather than only showing them on screen, so they can go into a report or a review and be regenerated when the data changes. Label the axes with units every time; an unlabelled plot invites the wrong conclusion.</p>
+<h2 id="writing-small-reference-models">Writing small reference models</h2>
+<p>The most valuable Python a hardware engineer writes is often a reference model: a simple, obviously correct description of what a block should do. A testbench drives the same inputs into the model and the design and compares the outputs. Simplicity is the point, because the model must be easier to trust than the RTL.</p>
+<p>A model of a small synchronous FIFO, matching a spec that ignores writes when full and reads when empty:</p>
+<pre><code class="language-python">from collections import deque
+
+class FifoModel:
+    def __init__(self, depth):
+        self.depth = depth
+        self.q = deque()
+
+    def step(self, wr_en, wr_data, rd_en):
+        &quot;&quot;&quot;One clock cycle; returns data read, or None.&quot;&quot;&quot;
+        out = None
+        can_read = rd_en and len(self.q) &gt; 0
+        can_write = wr_en and len(self.q) &lt; self.depth
+        if can_read:
+            out = self.q.popleft()
+        if can_write:
+            self.q.append(wr_data)
+        return out
+</code></pre>
+<p>Notice that the model decides the full and empty conditions from the state at the start of the cycle, before the read. That is a design decision your spec must state, because it determines whether a simultaneous read and write on a full FIFO is accepted. Writing the model forces those questions into the open, often before the RTL exists. In a cocotb testbench, the same class can be called once per clock alongside the real design.</p>
+<h2 id="making-scripts-usable-by-the-team">Making scripts usable by the team</h2>
+<p>A script that only works on your machine, with a file name typed into the code, will be rewritten by the next person who needs it. A few small habits make it a shared tool instead.</p>
+<pre><code class="language-python">import argparse
+import sys
+
+def main():
+    ap = argparse.ArgumentParser(description=&quot;Summarise setup slack&quot;)
+    ap.add_argument(&quot;report&quot;, help=&quot;timing report file&quot;)
+    ap.add_argument(&quot;--limit&quot;, type=float, default=0.0,
+                    help=&quot;flag paths with slack below this (ns)&quot;)
+    args = ap.parse_args()
+    bad = [p for p in read_paths(args.report) if p[1] &lt; args.limit]
+    for p in bad:
+        print(p)
+    return 1 if bad else 0
+
+if __name__ == &quot;__main__&quot;:
+    sys.exit(main())
+</code></pre>
+<p>Command-line arguments with <code>argparse</code> give the script a <code>--help</code> message for free. The <code>if __name__ == "__main__"</code> guard lets another script or a test import <code>read_paths</code> without running everything. And returning a non-zero exit code on failure means a <code>make</code> target or CI job can stop the flow automatically, instead of relying on someone to read the output.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Comparing strings instead of numbers.</strong> <code>"10.5" &lt; "9.1"</code> is <code>True</code>; convert with <code>float()</code> first.</li>
+<li><strong>Unseeded random stimulus.</strong> A failure you cannot reproduce is a failure you cannot debug.</li>
+<li><strong>Parsers that fail silently.</strong> Check that the expected number of items was found.</li>
+<li><strong>Copying RTL logic into the model.</strong> If the model mirrors the RTL's structure, it repeats its bugs. Model from the spec.</li>
+<li><strong>Clever one-liners.</strong> Code your teammates cannot read in a review will not be trusted.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the vector generator above, build an 8-bit adder in Verilog, and have an <strong>Icarus Verilog</strong> testbench read <code>vectors.hex</code> with <code>$readmemh</code> and report any mismatch.</li>
+<li>Run <strong>OpenSTA</strong> on a small synthesised netlist, save the output of <code>report_checks</code> to a file, and adapt the regular expression to its real format.</li>
+<li>Plot a histogram of the slacks with <code>matplotlib</code>, then tighten the clock constraint and plot again to see the distribution shift.</li>
+<li>Connect <code>FifoModel</code> to a FIFO design in a <strong>cocotb</strong> test and plant a bug in the full flag to confirm the comparison catches it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>python</li><li>scripting</li><li>test vectors</li><li>reference models</li><li>automation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="presenting-your-project-in-a-short-talk.html"><span>Previous in Careers &amp; skills</span>Presenting your project in a short technical talk</a><a class="next" href="reading-a-technical-paper-in-three-passes.html"><span>Next in Careers &amp; skills</span>Reading a technical paper efficiently in three passes</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="linux-shell-skills-for-engineers.html">The Linux shell skills every chip and firmware engineer uses</a></h3>
+          <p>Chip and firmware tools run from the Linux shell. Learn the daily skills that matter, navigating, searching logs, pipes, small scripts and environment variables, with examples from real tool flows.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Collecting your own sensor dataset: labels, balance and the boring parts that matter · Ketuna blog</title>
+  <meta name="description" content="A small edge model is only as good as the data recorded with the real sensor. How to plan recordings, write a labelling guide, cover conditions, balance classes and document the dataset so it stays usable.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Collecting your own sensor dataset: labels, balance and the boring parts that matter · Ketuna blog">
+  <meta property="og:description" content="A small edge model is only as good as the data recorded with the real sensor. How to plan recordings, write a labelling guide, cover conditions, balance classes and document the dataset so it stays usable.">
+  <link rel="canonical" href="https://ketuna.online/blog/collecting-your-own-sensor-dataset.html">
+  <meta property="og:url" content="https://ketuna.online/blog/collecting-your-own-sensor-dataset.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Collecting your own sensor dataset: labels, balance and the boring parts that matter",
+  "description": "A small edge model is only as good as the data recorded with the real sensor. How to plan recordings, write a labelling guide, cover conditions, balance classes and document the dataset so it stays usable.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "datasets, data collection, labelling, sensors, machine learning",
+  "articleSection": "Edge AI",
+  "wordCount": 1011,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/collecting-your-own-sensor-dataset.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Collecting your own sensor dataset: labels, balance and the boring parts that matter</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A small edge model is only as good as the data recorded with the real sensor. How to plan recordings, write a labelling guide, cover conditions, balance classes and document the dataset so it stays usable.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-with-the-question-and-the-classes">Start with the question and the classes</a></li><li><a href="#plan-the-conditions-not-just-the-count">Plan the conditions, not just the count</a></li><li><a href="#labelling-consistently">Labelling consistently</a></li><li><a href="#balance-without-fooling-yourself">Balance, without fooling yourself</a></li><li><a href="#files-metadata-and-documentation">Files, metadata and documentation</a></li><li><a href="#people-and-permission">People and permission</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Public datasets are great for learning, but a product model has to work with your sensor, mounted your way, in your users' conditions. That almost always means recording your own data. It is the least glamorous part of an edge AI project and the one with the most influence on the result: a tidy, well-labelled dataset with a simple model regularly beats a clever model trained on messy data. The good news is that the skills involved are mostly planning and discipline, not mathematics.</p>
+<h2 id="start-with-the-question-and-the-classes">Start with the question and the classes</h2>
+<p>Write down, in one sentence, what the model must decide, and list the classes with a definition for each. For a pump monitor: <em>normal running</em>, <em>dry running</em>, <em>blocked inlet</em>, <em>off</em>. For a gesture band: <em>flick</em>, <em>twist</em>, <em>shake</em>, <em>none</em>.</p>
+<p>Two rules save a lot of trouble later:</p>
+<ul>
+<li><strong>Include the "nothing" class.</strong> Most of the time a sensor sees nothing of interest. Record plenty of ordinary background, or the model will force every input into one of the interesting classes.</li>
+<li><strong>Make classes decidable from the data.</strong> If a person watching the signal (or the video recorded alongside it) cannot tell two classes apart, the model will not either. Merge them or record more context.</li>
+</ul>
+<h2 id="plan-the-conditions-not-just-the-count">Plan the conditions, not just the count</h2>
+<p>How much data is "enough" depends on the task, so a raw target number is less useful than a <strong>conditions matrix</strong>: the list of things that change in the field and that the model must survive. For a wearable, that might be people, wrist (left or right), strap tightness, activity before the gesture and time of day. For a machine sensor: load, speed, temperature, mounting position and different units of the same machine model.</p>
+<p>Record every class across as many of those conditions as you can, and spread recordings over several sessions on different days. A dataset recorded in one afternoon captures that afternoon: the same temperature, the same mood, the same sensor placement. Models trained on it learn the afternoon.</p>
+<p>Write a short <strong>recording protocol</strong> for each session: equipment and firmware version, sensor settings (sample rate, range, filters), where and how the sensor is mounted, what the subject or operator does, in what order, and for how long. Following the same protocol every time is what makes sessions comparable.</p>
+<h2 id="labelling-consistently">Labelling consistently</h2>
+<p>Labels are where datasets quietly go wrong. Two people, or one person on two days, label the same borderline example differently, and the model learns the inconsistency.</p>
+<ul>
+<li><strong>Write a labelling guide</strong> with the class definitions, the exact rule for where an event starts and ends, and examples of tricky cases. When a new edge case comes up, add it to the guide.</li>
+<li><strong>Capture labels at recording time</strong> where you can: a button press, a prompt telling the subject what to do and when, or a synchronised video. Labelling hours of signal afterwards from memory is slow and error-prone.</li>
+<li><strong>Check agreement.</strong> Have two people label the same small sample independently and compare. Where they disagree, the guide is unclear; fix the guide, not just the label.</li>
+<li><strong>Keep an "unsure" option</strong> and leave those examples out of training and testing rather than guessing.</li>
+</ul>
+<h2 id="balance-without-fooling-yourself">Balance, without fooling yourself</h2>
+<p>Real data is usually unbalanced: a machine runs normally almost all the time, and faults are rare. A model trained on that data can score well by always predicting the common class.</p>
+<p>For <strong>training</strong>, you can rebalance: record extra examples of rare classes where it is safe to do so, oversample them, or weight their loss more heavily. For <strong>testing</strong>, keep the proportions you expect in the field, so the reported numbers mean something, and always report per-class results rather than overall accuracy alone.</p>
+<p>Also decide early how you will split the data, and record what you need to do it: the person, device and session for every file. Splitting by person or session, so the test set contains people and sessions the model never saw, is the honest way to estimate field performance.</p>
+<h2 id="files-metadata-and-documentation">Files, metadata and documentation</h2>
+<p>Store raw data, not just features: you will change your windowing and features many times. Use one file per recording and a single metadata table that describes every file:</p>
+<pre><code class="language-text">file,session,date,subject,device,position,fw,hz,labels
+s01_r001.csv,s01,2026-10-02,p03,dev2,wrist_l,1.4.0,100,s01_r001_lab.csv
+s01_r002.csv,s01,2026-10-02,p03,dev2,wrist_l,1.4.0,100,s01_r002_lab.csv
+s02_r001.csv,s02,2026-10-05,p07,dev1,wrist_r,1.4.0,100,s02_r001_lab.csv
+</code></pre>
+<p>A short script then tells you whether the dataset covers what you planned:</p>
+<pre><code class="language-python">import pandas as pd
+
+meta = pd.read_csv(&quot;metadata.csv&quot;)
+events = pd.concat(
+    pd.read_csv(f).assign(labels=f) for f in meta[&quot;labels&quot;])
+merged = events.merge(meta, on=&quot;labels&quot;)
+print(merged.pivot_table(index=&quot;label&quot;, columns=&quot;subject&quot;,
+                         values=&quot;start&quot;, aggfunc=&quot;count&quot;, fill_value=0))
+</code></pre>
+<p>Here each label file is assumed to have one row per labelled event with <code>label</code>, <code>start</code> and <code>end</code> columns. The table of counts per class per subject shows at a glance which class is thin and which person is missing a class.</p>
+<p>Finally, write a <strong>dataset README</strong>: why it was collected, the protocol, the class definitions and labelling guide, the conditions covered and, just as important, those not covered, known problems, and a version number. Freeze each version once a model has been trained on it, so results can be traced back to exact data.</p>
+<h2 id="people-and-permission">People and permission</h2>
+<p>If the data comes from people, such as motion, voice, images or body signals, it is personal data. Explain to participants what is recorded and why, get their consent, collect only what the task needs, store it securely, and replace names with codes like <code>p03</code>. Health-related data deserves extra care, and studies involving people may need ethics review; check the rules that apply to your organisation and country.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>recording everything in one session with one person and one device</li>
+<li>no "nothing" class</li>
+<li>labels made from memory hours later, without a written guide</li>
+<li>keeping only features and discarding raw data</li>
+<li>no record of which person or session a file came from, making an honest split impossible</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a conditions matrix for a sensing idea of your own, and mark which combinations you can realistically record.</li>
+<li>Draft a one-page labelling guide and ask a friend to label ten examples with it; compare with your own labels.</li>
+<li>Record a small dataset over at least three sessions with a phone's motion sensors or a development board, with a metadata table like the one above.</li>
+<li>Run the coverage script on your metadata and plan the next session to fill the thinnest cells.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>datasets</li><li>data collection</li><li>labelling</li><li>sensors</li><li>machine learning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="audio-features-for-edge-ai.html"><span>Previous in Edge AI</span>Audio features for edge AI: from samples to a spectrogram</a><a class="next" href="convolution-layer-arithmetic.html"><span>Next in Edge AI</span>Convolution layer arithmetic: output size, MACs and memory by hand</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="measuring-model-accuracy-honestly.html">Measuring model accuracy honestly: test sets, leakage and confusion matrices</a></h3>
+          <p>One accuracy number can hide a model that misses the class you care about. How to keep test data truly separate, spot leakage, and report per-class results from a confusion matrix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

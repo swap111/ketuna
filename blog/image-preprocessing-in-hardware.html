@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image preprocessing in hardware: downscaling, normalisation and windowing · Ketuna blog</title>
+  <meta name="description" content="A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Image preprocessing in hardware: downscaling, normalisation and windowing · Ketuna blog">
+  <meta property="og:description" content="A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.">
+  <link rel="canonical" href="https://ketuna.online/blog/image-preprocessing-in-hardware.html">
+  <meta property="og:url" content="https://ketuna.online/blog/image-preprocessing-in-hardware.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Image preprocessing in hardware: downscaling, normalisation and windowing",
+  "description": "A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "image processing, line buffer, verilog, streaming, edge ai",
+  "articleSection": "Edge AI",
+  "wordCount": 931,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/image-preprocessing-in-hardware.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Image preprocessing in hardware: downscaling, normalisation and windowing</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-streaming-constraint">The streaming constraint</a></li><li><a href="#sliding-windows-from-line-buffers">Sliding windows from line buffers</a></li><li><a href="#a-2-2-downscaler-verified">A 2 × 2 downscaler, verified</a></li><li><a href="#cropping-and-normalisation">Cropping and normalisation</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A camera sensor delivers far more pixels than a small vision network wants, in a format the network was not trained on. Doing the conversion in software means storing the frame first, and a 320 × 240 frame is 76,800 bytes in grayscale, often a large slice of a microcontroller's RAM, plus the processor time to touch every pixel. A hardware pipeline between the sensor interface and memory can crop, shrink and normalise the image as the pixels stream past, so only the small network input ever lands in RAM. The tool that makes this possible is the line buffer.</p>
+<h2 id="the-streaming-constraint">The streaming constraint</h2>
+<p>A typical sensor interface delivers pixels in raster order, left to right along a line, then line after line, at up to one pixel per clock, qualified by a valid signal and with gaps between lines. A streaming pipeline must accept each pixel as it arrives, keep only what later pixels will need, and emit results in raster order too.</p>
+<p>Operations that use one pixel at a time, such as a gain, an offset or a lookup table, are trivial: a register stage or two. Anything that combines pixels from different lines, such as averaging a 2 × 2 block or applying a 3 × 3 filter, has to remember earlier lines, because the pixel directly above the current one arrived a whole line ago. The memory that holds those lines is a <strong>line buffer</strong>: one row of storage per remembered line, usually a small on-chip SRAM.</p>
+<h2 id="sliding-windows-from-line-buffers">Sliding windows from line buffers</h2>
+<p>To produce a 3 × 3 window around every pixel, you keep two previous lines in line buffers and the current line arriving live. Each clock, the three vertically aligned pixels (two read from the buffers, one fresh) shift into a 3 × 3 array of registers. The newest pixel is written into the buffer, replacing the oldest, so the buffers always hold the last two lines.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="lb-title lb-desc" font-size="14">
+<title id="lb-title">Two line buffers feeding a three by three window</title>
+<desc id="lb-desc">An incoming pixel stream feeds a window of three by three registers. Two line buffers, each one image line long, delay the stream by one and two lines, so the window holds pixels from three consecutive lines at once.</desc>
+<text x="10" y="40" class="dg-text">pixel in</text>
+<path d="M75,35 H130" class="dg-line"/>
+<path d="M124,31 L130,35 L124,39 Z" class="dg-arrow"/>
+<rect x="130" y="20" width="150" height="30" class="dg-box"/>
+<text x="205" y="40" text-anchor="middle" class="dg-text">line buffer 1 (W)</text>
+<rect x="130" y="80" width="150" height="30" class="dg-box"/>
+<text x="205" y="100" text-anchor="middle" class="dg-text">line buffer 2 (W)</text>
+<path d="M205,50 V74" class="dg-line"/>
+<path d="M201,74 L205,80 L209,74 Z" class="dg-arrow"/>
+<path d="M100,35 V170 H324 M280,35 H310 V130 H324 M280,95 H300 V90 H324" class="dg-line"/>
+<path d="M318,86 L324,90 L318,94 Z M318,126 L324,130 L318,134 Z M318,166 L324,170 L318,174 Z" class="dg-arrow"/>
+<rect x="325" y="70" width="40" height="40" class="dg-core"/>
+<rect x="365" y="70" width="40" height="40" class="dg-core"/>
+<rect x="405" y="70" width="40" height="40" class="dg-core"/>
+<rect x="325" y="110" width="40" height="40" class="dg-core"/>
+<rect x="365" y="110" width="40" height="40" class="dg-amber" fill-opacity="0.45"/>
+<rect x="405" y="110" width="40" height="40" class="dg-core"/>
+<rect x="325" y="150" width="40" height="40" class="dg-core"/>
+<rect x="365" y="150" width="40" height="40" class="dg-core"/>
+<rect x="405" y="150" width="40" height="40" class="dg-core"/>
+<text x="385" y="215" text-anchor="middle" class="dg-text">3 × 3 window</text>
+<text x="205" y="140" text-anchor="middle" class="dg-muted">two lines ago, one line ago,</text>
+<text x="205" y="160" text-anchor="middle" class="dg-muted">and the live line meet here</text>
+</svg>
+<figcaption>Two line buffers delay the stream by one and two lines, so a 3 × 3 register window always sees three consecutive lines.</figcaption>
+</figure>
+
+<p>For a 320-pixel-wide image the two buffers hold 640 bytes, against 76,800 for the frame. The general rule: a K × K neighbourhood costs K − 1 line buffers plus K × K registers, independent of the image height.</p>
+<h2 id="a-2-2-downscaler-verified">A 2 × 2 downscaler, verified</h2>
+<p>Halving width and height by averaging each 2 × 2 block is the most common first step, because it also reduces noise. It needs less than one line of memory: on even rows, store the sum of each horizontal pair (W / 2 entries of 9 bits); on odd rows, add the new pair sum to the stored one and output the rounded mean.</p>
+<pre><code class="language-verilog">module down2x2 #(parameter W = 320) (
+  input  wire       clk,
+  input  wire       rst,
+  input  wire       in_valid,
+  input  wire [7:0] in_pix,     // raster order, W pixels per line
+  output reg        out_valid,
+  output reg  [7:0] out_pix
+);
+  localparam XW = $clog2(W);
+  reg [XW-1:0] x;               // column of the incoming pixel
+  reg          odd_row;
+  reg [7:0]    left;            // previous pixel on this row
+  reg [8:0]    line [0:W/2-1];  // pair sums saved from the even row
+  wire [8:0]   pair  = left + in_pix;
+  wire [9:0]   total = line[x &gt;&gt; 1] + pair;
+
+  always @(posedge clk) begin
+    out_valid &lt;= 1'b0;
+    if (rst) begin
+      x       &lt;= 0;
+      odd_row &lt;= 1'b0;
+    end else if (in_valid) begin
+      if (!x[0])
+        left &lt;= in_pix;                      // first of a pair
+      else if (!odd_row)
+        line[x &gt;&gt; 1] &lt;= pair;                // even row: save pair sum
+      else begin
+        out_pix   &lt;= (total + 10'd2) &gt;&gt; 2;   // odd row: 2x2 mean
+        out_valid &lt;= 1'b1;
+      end
+      if (x == W - 1) begin
+        x       &lt;= 0;
+        odd_row &lt;= ~odd_row;
+      end else
+        x &lt;= x + 1'b1;
+    end
+  end
+endmodule
+</code></pre>
+<p>The widths matter: a pair sum reaches 510 and needs 9 bits, the four-pixel total reaches 1,020 and needs 10. Adding 2 before shifting right by 2 rounds to nearest instead of truncating. The golden model is one numpy line, <code>(a.reshape(H//2, 2, W//2, 2).sum(axis=(1, 3)) + 2) &gt;&gt; 2</code>, and the testbench should compare every output pixel with it while driving <code>in_valid</code> with random gaps, which is how real sensors behave between lines. Repeating the block gives 4× and 8× reductions.</p>
+<p>For non-integer scale factors, a phase accumulator steps through the source coordinates and selects (nearest neighbour) or interpolates (bilinear, needing one line buffer and a few multipliers) the source pixels. The rule stays the same: whatever resampling the hardware does, the training pipeline must do identically.</p>
+<h2 id="cropping-and-normalisation">Cropping and normalisation</h2>
+<p><strong>Cropping</strong>, selecting a region of interest, is the cheapest stage of all: compare the column and row counters against start and end registers and drop pixels outside. Making the window registers writable by firmware lets software move the region, for example to track a gauge that is mounted slightly differently on each installation.</p>
+<p><strong>Normalisation</strong> converts 8-bit pixels into whatever the network's int8 input tensor expects, which is its scale s and zero point z. If the network was trained on p / 255 and its input was quantized with s = 1/255 and z = −128, the conversion is q = p − 128, which for 8-bit values is just inverting the top bit. Other trainings use (p − mean) / std; then q = round(p × a + c) for constants a and c, which hardware does as a fixed-point multiply, an add, a rounding shift and a clamp to [−128, 127]. Derive a and c from the model's quantization parameters with a script, never by hand, and check with the golden model that every one of the 256 possible input values maps to the same q in both.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li>training on images resized with a library's default filter while the hardware averages 2 × 2 blocks, so the network sees slightly different inputs in the field</li>
+<li>truncating instead of rounding, which darkens the image by half a level on average at each stage</li>
+<li>assuming the sensor never pauses mid-line, and losing pixels when <code>in_valid</code> drops</li>
+<li>sizing a line buffer for the cropped width while it receives the full sensor width</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate <code>down2x2</code> with Icarus Verilog using a small width such as <code>W = 8</code>, feed a random image from a hex file with <code>$readmemh</code>, and compare the outputs with the numpy model.</li>
+<li>Add random gaps in <code>in_valid</code> to the testbench and confirm the outputs do not change.</li>
+<li>Write a 3 × 3 box-filter module with two line buffers and verify it the same way, deciding how to treat the border pixels.</li>
+<li>Synthesise both with Yosys and check that the line buffers map to memory rather than thousands of flip-flops; look at the <code>stat</code> output.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>image processing</li><li>line buffer</li><li>verilog</li><li>streaming</li><li>edge ai</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-to-accelerate-codesign.html"><span>Previous in Edge AI</span>Hardware/software co-design: deciding what to accelerate</a><a class="next" href="fixed-point-activation-functions.html"><span>Next in Edge AI</span>Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="edge-or-cloud-inference.html">Edge or cloud inference? Latency, power, privacy and cost</a></h3>
+          <p>Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="keyword-spotting-pipeline.html">A keyword-spotting pipeline from microphone to decision</a></h3>
+          <p>How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mac-units-and-systolic-arrays.html">MAC units and systolic arrays: how ML accelerators reuse data</a></h3>
+          <p>A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

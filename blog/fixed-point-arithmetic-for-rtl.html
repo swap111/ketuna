@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation · Ketuna blog</title>
+  <meta name="description" content="Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation · Ketuna blog">
+  <meta property="og:description" content="Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.">
+  <link rel="canonical" href="https://ketuna.online/blog/fixed-point-arithmetic-for-rtl.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fixed-point-arithmetic-for-rtl.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation",
+  "description": "Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fixed point, q format, dsp, rounding, saturation",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 879,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fixed-point-arithmetic-for-rtl.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#q-formats">Q formats</a></li><li><a href="#converting-a-coefficient">Converting a coefficient</a></li><li><a href="#tracking-bit-growth">Tracking bit growth</a></li><li><a href="#shrinking-the-result-truncation-vs-rounding">Shrinking the result: truncation vs rounding</a></li><li><a href="#saturation-instead-of-wrap-around">Saturation instead of wrap-around</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A filter designed in Python uses floating-point coefficients like 0.3141. Hardware that filters a sensor signal thousands of times per second usually cannot afford a floating-point unit, so those numbers become integers with an implied binary point. Done carefully, fixed-point arithmetic gives results within a known, tiny error of the floating-point model. Done carelessly, it gives a filter that works on test vectors and wraps around to full-scale noise on a loud input.</p>
+<h2 id="q-formats">Q formats</h2>
+<p>A fixed-point number is a two's complement integer with an agreed position for the binary point. The <strong>Qm.n</strong> notation says how the bits are split: m integer bits (including the sign bit, in the convention used here) and n fraction bits. The value is the integer divided by 2<sup>n</sup>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Width</th>
+<th>Range</th>
+<th>Resolution (1 LSB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1.15</td>
+<td>16 bits</td>
+<td>−1 to just under +1</td>
+<td>2<sup>−15</sup> ≈ 3.05 × 10<sup>−5</sup></td>
+</tr>
+<tr>
+<td>Q4.12</td>
+<td>16 bits</td>
+<td>−8 to just under +8</td>
+<td>2<sup>−12</sup> ≈ 2.44 × 10<sup>−4</sup></td>
+</tr>
+<tr>
+<td>Q2.30</td>
+<td>32 bits</td>
+<td>−2 to just under +2</td>
+<td>2<sup>−30</sup></td>
+</tr>
+</tbody>
+</table></div>
+<p>With a fixed width you trade range against resolution: every bit moved to the integer side doubles the range and halves the precision. Note that some texts count the sign bit separately and call 16-bit Q1.15 "Q15"; check which convention a document uses before you trust its widths.</p>
+<h2 id="converting-a-coefficient">Converting a coefficient</h2>
+<p>To put 0.3141 into Q1.15, multiply by 2<sup>15</sup> = 32768 and round to the nearest integer:</p>
+<blockquote>
+<p>0.3141 × 32768 = 10292.4 → 10292 (hex <code>2834</code>)</p>
+</blockquote>
+<p>The stored value represents 10292 / 32768 = 0.3140869. The error is about −1.3 × 10<sup>−5</sup>, inside the bound of half an LSB, 2<sup>−16</sup> ≈ 1.5 × 10<sup>−5</sup>, as it must be for rounding. If you had truncated instead, the error could be up to a full LSB. For a filter with many taps, these coefficient errors shift the frequency response slightly, so check the quantized response against the specification, not only the floating-point one.</p>
+<h2 id="tracking-bit-growth">Tracking bit growth</h2>
+<p>Every arithmetic operation can need more bits than its inputs:</p>
+<ul>
+<li><strong>Multiply:</strong> a Qa.b times a Qc.d gives a Q(a+c).(b+d). Two Q1.15 numbers give a Q2.30 result of 32 bits. The extra integer bit exists for one case only: −1 × −1 = +1, which Q1.15 cannot represent.</li>
+<li><strong>Add:</strong> adding two numbers of the same format needs one extra integer bit to hold the carry. Adding 2<sup>k</sup> numbers needs k extra bits in the worst case.</li>
+</ul>
+<p>For a 16-tap filter with Q1.15 samples and coefficients, each product is Q2.30, and summing 16 of them needs 4 more integer bits: a <strong>Q6.30 accumulator of 36 bits</strong> can never overflow. That is a guarantee, not an estimate, and it means the accumulator needs no saturation logic.</p>
+<p>In RTL, size the accumulator from this calculation and write the sign extension explicitly:</p>
+<pre><code class="language-systemverilog">logic signed [15:0] x, c;        // Q1.15
+logic signed [31:0] prod;        // Q2.30
+logic signed [35:0] acc;         // Q6.30, 16 taps
+
+assign prod = x * c;             // both operands signed
+always_ff @(posedge clk)
+  if (clear)      acc &lt;= '0;
+  else if (en)    acc &lt;= acc + 36'(prod);  // sign-extends prod
+</code></pre>
+<h2 id="shrinking-the-result-truncation-vs-rounding">Shrinking the result: truncation vs rounding</h2>
+<p>At the end you usually want a Q1.15 output again, so you must drop 15 fraction bits and some integer bits. Dropping fraction bits is a choice between:</p>
+<ul>
+<li><strong>Truncation:</strong> an arithmetic shift right. It costs nothing, but it always rounds toward minus infinity, so the average error is about −0.5 LSB. In a filter, that bias appears as a small DC offset; in an accumulating loop, it can build up.</li>
+<li><strong>Round half up:</strong> add half an output LSB (2<sup>14</sup> here) before shifting. The error stays within ±0.5 LSB, and the bias almost disappears. It costs one adder.</li>
+<li><strong>Convergent (round half to even):</strong> like rounding, but exact halves go to the even neighbour, removing the last bit of bias. Worth it when the same value is requantized repeatedly.</li>
+</ul>
+<p>Here is a worked case, made up for illustration, with a short model you can run:</p>
+<pre><code class="language-python">def to_q15(x):
+    &quot;&quot;&quot;Real number to Q1.15 integer, rounded, saturated.&quot;&quot;&quot;
+    v = round(x * (1 &lt;&lt; 15))
+    return max(-32768, min(32767, v))
+
+def q30_to_q15(acc, mode=&quot;round&quot;):
+    &quot;&quot;&quot;Drop 15 fraction bits from a Q.30 value, then saturate.&quot;&quot;&quot;
+    if mode == &quot;round&quot;:
+        acc += 1 &lt;&lt; 14             # add half an output LSB
+    v = acc &gt;&gt; 15                  # arithmetic shift (floor)
+    return max(-32768, min(32767, v))
+
+c = to_q15(0.3141)
+x = to_q15(0.7)
+p = c * x                          # Q2.30 product
+print(c, x, p)                     # 10292 22938 236077896
+print(q30_to_q15(p, &quot;trunc&quot;), q30_to_q15(p, &quot;round&quot;))  # 7204 7205
+</code></pre>
+<p>The exact product in output LSBs is 7204.53. Truncation gives 7204; rounding gives 7205, the nearer value.</p>
+<h2 id="saturation-instead-of-wrap-around">Saturation instead of wrap-around</h2>
+<p>Dropping integer bits is where overflow happens. If the true result is 1.2 and the output is Q1.15, simply keeping the low 16 bits wraps it to a large negative number: a full-scale jump in the output. <strong>Saturation</strong> clamps instead: any value above the maximum becomes <code>0x7FFF</code>, any value below the minimum becomes <code>0x8000</code>.</p>
+<pre><code class="language-systemverilog">// acc_r: rounded Q6.30 value shifted to Q6.15 (21 bits)
+// top 6 bits must all equal the sign bit, or it overflowed
+always_comb begin
+  if (acc_r[20:15] == {6{acc_r[20]}}) y = acc_r[15:0];
+  else if (acc_r[20])                 y = 16'sh8000;  // most negative
+  else                                y = 16'sh7FFF;  // most positive
+end
+</code></pre>
+<p>A saturated sample sounds or looks like clipping; a wrapped one looks like a spike of the wrong sign. For signal processing, saturation is almost always the right choice at the output, while wide internal accumulators avoid the need for it inside.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Mixing signed and unsigned operands, which makes Verilog zero-extend a negative value</li>
+<li>Forgetting that rounding can itself overflow: adding half an LSB to the largest value pushes it over, so saturate <em>after</em> rounding</li>
+<li>Losing track of the binary point across modules; write the Q format in a comment next to every declaration</li>
+<li>Verifying against a floating-point model with a tolerance instead of a bit-exact fixed-point model</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Convert five coefficients of your own to Q1.15 by hand, then check them with the <code>to_q15</code> function above.</li>
+<li>Extend the Python model into a bit-exact 16-tap FIR using numpy integer arrays, and compare its output with a floating-point version on a sine wave. Measure the error in LSBs.</li>
+<li>Write the FIR in SystemVerilog, simulate it in <strong>Verilator</strong> or <strong>Icarus Verilog</strong> with the same input, and compare against the Python model sample by sample. Any difference is a bug in one of them.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fixed point</li><li>q format</li><li>dsp</li><li>rounding</li><li>saturation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="systemverilog-design-features-day-one.html"><span>Previous in Digital &amp; VLSI design</span>Five SystemVerilog design features worth using from day one</a><a class="next" href="sizing-a-fifo-for-bursts.html"><span>Next in Digital &amp; VLSI design</span>How deep should a FIFO be? Sizing it from burst length and rate mismatch</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-energy-accumulator.html">Building the energy accumulator of a smart meter in fixed-point RTL</a></h3>
+          <p>Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APB, AHB and AXI compared: picking a bus for each peripheral · Ketuna blog</title>
+  <meta name="description" content="APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="APB, AHB and AXI compared: picking a bus for each peripheral · Ketuna blog">
+  <meta property="og:description" content="APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.">
+  <link rel="canonical" href="https://ketuna.online/blog/apb-ahb-axi-compared.html">
+  <meta property="og:url" content="https://ketuna.online/blog/apb-ahb-axi-compared.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "APB, AHB and AXI compared: picking a bus for each peripheral",
+  "description": "APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus's bandwidth, match it to real peripherals, and write a small APB register block.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "on-chip buses, apb, ahb, axi, soc design",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 929,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/apb-ahb-axi-compared.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>APB, AHB and AXI compared: picking a bus for each peripheral</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#apb-one-register-access-at-a-time">APB: one register access at a time</a></li><li><a href="#ahb-overlap-the-address-and-data-phases">AHB: overlap the address and data phases</a></li><li><a href="#axi-five-independent-channels">AXI: five independent channels</a></li><li><a href="#matching-bandwidth-to-the-peripheral">Matching bandwidth to the peripheral</a></li><li><a href="#pitfalls-when-choosing">Pitfalls when choosing</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An SoC connects a processor to memories and peripherals through on-chip buses, and most designs use more than one kind. APB, AHB and AXI are three members of one widely used family of on-chip bus specifications, and each makes a different trade between simplicity and throughput. Choosing well means matching each block's bandwidth and latency needs to the cheapest bus that meets them, rather than putting everything on the most capable one. This article compares the three with numbers.</p>
+<h2 id="apb-one-register-access-at-a-time">APB: one register access at a time</h2>
+<p>APB is the simplest of the three. Every transfer has two phases. In the <strong>setup</strong> phase the manager drives the address, direction and write data and asserts <code>psel</code>. In the <strong>access</strong> phase it asserts <code>penable</code>, and the transfer completes on the first clock edge where the subordinate's <code>pready</code> is high. A subordinate that needs more time holds <code>pready</code> low to insert wait states, and can flag a failure with <code>pslverr</code>.</p>
+<p>There is no pipelining and no burst: one transfer takes at least two cycles, and the next cannot start until the current one ends. That sounds slow, and it is, but it is exactly right for control registers. A UART, a timer or a GPIO block is written a few times to configure it and then read occasionally. What matters is a small, easy-to-verify interface, and APB delivers that.</p>
+<p>A minimal APB register block, with two registers and no wait states, fits on a screen:</p>
+<pre><code class="language-verilog">module apb_regs (
+  input  wire        pclk, presetn,
+  input  wire        psel, penable, pwrite,
+  input  wire [3:0]  paddr,
+  input  wire [31:0] pwdata,
+  output reg  [31:0] prdata,
+  output wire        pready, pslverr
+);
+  reg [31:0] ctrl, baud;
+  assign pready  = 1'b1;          // always ready: no wait states
+  assign pslverr = 1'b0;
+  wire wr = psel &amp; penable &amp; pwrite;
+
+  always @(posedge pclk or negedge presetn)
+    if (!presetn) begin
+      ctrl &lt;= 32'd0;
+      baud &lt;= 32'd0;
+    end else if (wr) begin
+      case (paddr)
+        4'h0: ctrl &lt;= pwdata;
+        4'h4: baud &lt;= pwdata;
+        default: ;
+      endcase
+    end
+
+  always @(*)
+    case (paddr)
+      4'h0:    prdata = ctrl;
+      4'h4:    prdata = baud;
+      default: prdata = 32'd0;     // reserved reads as zero
+    endcase
+endmodule
+</code></pre>
+<h2 id="ahb-overlap-the-address-and-data-phases">AHB: overlap the address and data phases</h2>
+<p>AHB keeps a single shared channel but <strong>pipelines</strong> it. While the data of transfer n moves, the address of transfer n + 1 is already on the bus. In the best case a new transfer completes every cycle. It also supports bursts, where the manager signals that the next addresses follow on in sequence, which lets a memory controller prepare ahead. A subordinate stretches a transfer by holding <code>hready</code> low, which stalls the pipeline for everyone.</p>
+<p>That makes AHB a good fit for on-chip SRAM, flash with a prefetch buffer, and a simple DMA engine: blocks that move data steadily and benefit from one transfer per cycle, but do not need concurrent reads and writes.</p>
+<h2 id="axi-five-independent-channels">AXI: five independent channels</h2>
+<p>AXI splits a transaction into separate channels: read address, read data, write address, write data and write response. Each has its own <code>valid</code>/<code>ready</code> handshake, so a read and a write can proceed at the same time. A manager can issue several requests before the first completes (<strong>outstanding transactions</strong>), tag them with IDs, and in some cases receive responses out of order. Bursts move many beats of data for a single address.</p>
+<p>The result is the highest throughput and the best tolerance of long latency, for example DRAM, at the price of the most logic and the hardest verification. The reasons for that split are the subject of <a href="axi-five-channels.html">AXI's five channels</a>.</p>
+<h2 id="matching-bandwidth-to-the-peripheral">Matching bandwidth to the peripheral</h2>
+<p>Put rough numbers on the three buses at an illustrative 50 MHz with a 32-bit data path, ignoring wait states:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bus</th>
+<th>Best-case transfers</th>
+<th>Peak bandwidth at 50 MHz, 32 bits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>APB</td>
+<td>1 per 2 cycles</td>
+<td>25 M × 4 B = 100 MB/s</td>
+</tr>
+<tr>
+<td>AHB</td>
+<td>1 per cycle</td>
+<td>50 M × 4 B = 200 MB/s</td>
+</tr>
+<tr>
+<td>AXI</td>
+<td>1 read and 1 write per cycle</td>
+<td>up to 200 MB/s each way</td>
+</tr>
+</tbody>
+</table></div>
+<p>Now look at what typical blocks need (all derived from the interface settings, not measured):</p>
+<ul>
+<li><strong>UART at 115200 baud:</strong> 10 bits per byte on the wire (start, 8 data, stop), so 11,520 bytes per second. A tiny fraction of APB.</li>
+<li><strong>Stereo audio, 48 kHz, 32-bit slots:</strong> 48,000 × 2 × 4 = 384,000 bytes per second. Still easy on APB, though you would usually move it with DMA rather than an interrupt per sample.</li>
+<li><strong>A 640 × 480 camera at 30 frames per second, 2 bytes per pixel:</strong> 640 × 480 × 2 × 30 = 18.4 MB/s. That is about 18% of APB's theoretical peak, but real APB transfers often have wait states and the bus is shared with every other peripheral. Put the camera's data path on AHB or AXI and keep only its control registers on APB.</li>
+<li><strong>External DRAM:</strong> latency of many cycles and bursts of data. Without outstanding transactions, the bus would sit idle while each access waits, so this is AXI's natural place.</li>
+</ul>
+<p>The usual structure follows directly: the processor and DMA sit on an AXI or AHB interconnect with memories and high-bandwidth blocks, and a <strong>bridge</strong> leads to an APB segment that hosts the slow control registers. The bridge turns one fast transaction into a two-phase APB access, which is cheap because APB traffic is light.</p>
+<h2 id="pitfalls-when-choosing">Pitfalls when choosing</h2>
+<ul>
+<li><strong>Putting everything on AXI "for performance".</strong> Each AXI subordinate needs channel logic and protocol checks; for a register block that is pure cost.</li>
+<li><strong>Putting a streaming data path on APB.</strong> Bandwidth looks fine on paper until wait states and sharing are counted.</li>
+<li><strong>Ignoring latency.</strong> A peripheral that stalls with <code>hready</code> low stalls every AHB manager behind it.</li>
+<li><strong>Forgetting the bridge's ordering rules.</strong> Writes posted through a bridge may complete later than the processor thinks; read back or fence before depending on them.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate the <code>apb_regs</code> module in Icarus Verilog with a testbench task that performs a setup and access phase, and check reads and writes in GTKWave.</li>
+<li>Write the same testbench in cocotb with Python coroutines for APB read and write, and add a check that a reserved address reads zero.</li>
+<li>Add a <code>pready</code> wait state to one register and confirm your testbench waits for it rather than assuming two cycles.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>on-chip buses</li><li>apb</li><li>ahb</li><li>axi</li><li>soc design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="axi-five-channels.html"><span>Next in Computer architecture &amp; RISC-V</span>AXI&#x27;s five channels and why reads and writes are separate</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="axi-five-channels.html">AXI&#x27;s five channels and why reads and writes are separate</a></h3>
+          <p>Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-an-soc-memory-map.html">Designing an SoC memory map: regions, alignment and room to grow</a></h3>
+          <p>Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="dma-bus-masters-and-arbitration.html">DMA from the architecture side: bus masters, arbitration and coherence</a></h3>
+          <p>A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

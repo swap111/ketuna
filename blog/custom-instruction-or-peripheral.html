@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adding a custom instruction to a RISC-V core: when it beats a peripheral · Ketuna blog</title>
+  <meta name="description" content="RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Adding a custom instruction to a RISC-V core: when it beats a peripheral · Ketuna blog">
+  <meta property="og:description" content="RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.">
+  <link rel="canonical" href="https://ketuna.online/blog/custom-instruction-or-peripheral.html">
+  <meta property="og:url" content="https://ketuna.online/blog/custom-instruction-or-peripheral.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Adding a custom instruction to a RISC-V core: when it beats a peripheral",
+  "description": "RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, custom instructions, accelerators, hardware-software co-design, toolchain",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 986,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/custom-instruction-or-peripheral.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Adding a custom instruction to a RISC-V core: when it beats a peripheral</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#where-custom-instructions-live">Where custom instructions live</a></li><li><a href="#what-changes-in-the-core">What changes in the core</a></li><li><a href="#toolchain-and-software">Toolchain and software</a></li><li><a href="#the-peripheral-alternative">The peripheral alternative</a></li><li><a href="#choosing-between-them">Choosing between them</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Once profiling shows that a small kernel dominates a workload, there are two common ways to put it in hardware on a RISC-V SoC. You can add a custom instruction to the core, so the kernel becomes one more operation in the pipeline. Or you can build a memory-mapped peripheral that the core drives through registers, possibly with DMA. Both work. They differ in where the overhead lands, how much of the system you have to change, and how the decision ages when the software changes. The deciding factor is usually the granularity of the work.</p>
+<h2 id="where-custom-instructions-live">Where custom instructions live</h2>
+<p>The RISC-V base specification sets aside major opcodes for non-standard extensions. The two that are safest for 32-bit cores are <strong>custom-0</strong> (opcode <code>0001011</code>) and <strong>custom-1</strong> (opcode <code>0101011</code>); the standard extensions promise never to use them. Inside a custom opcode you can reuse the standard R, I or S formats, keeping <code>funct3</code> and <code>funct7</code> to select among several operations. Staying with standard formats keeps the register fields where the decoder already looks, so the register file is read exactly as for any other instruction.</p>
+<p>Take a concrete example: a four-lane signed 8-bit dot product. Each source register holds four packed int8 values, and the result is their 32-bit dot product. It is the inner step of many quantized neural network and filter kernels.</p>
+<pre><code class="language-verilog">// Functional unit for dot4 (custom-0, funct3 = 0, funct7 = 0).
+module dot4_unit (
+  input  wire [31:0] rs1, rs2,
+  output wire [31:0] result
+);
+  wire signed [15:0] p0 = $signed(rs1[ 7: 0]) * $signed(rs2[ 7: 0]);
+  wire signed [15:0] p1 = $signed(rs1[15: 8]) * $signed(rs2[15: 8]);
+  wire signed [15:0] p2 = $signed(rs1[23:16]) * $signed(rs2[23:16]);
+  wire signed [15:0] p3 = $signed(rs1[31:24]) * $signed(rs2[31:24]);
+  assign result = {{16{p0[15]}}, p0} + {{16{p1[15]}}, p1}
+                + {{16{p2[15]}}, p2} + {{16{p3[15]}}, p3};
+endmodule
+</code></pre>
+<h2 id="what-changes-in-the-core">What changes in the core</h2>
+<p>Adding the instruction touches more than the functional unit:</p>
+<ul>
+<li><strong>Decode.</strong> Recognise the custom opcode and <code>funct</code> fields, mark the instruction as writing <code>rd</code>, and route operands to the new unit. Everything else should still raise an illegal-instruction trap.</li>
+<li><strong>Execute.</strong> Add the unit beside the ALU and a new input to the result multiplexer. Four 8 × 8 multipliers and an adder tree may not fit in one cycle at your target clock; if not, the instruction becomes multi-cycle and needs a stall, or the unit is pipelined and needs forwarding from its later stage.</li>
+<li><strong>Hazards.</strong> A multi-cycle unit makes the hazard logic aware of a new producer with a longer latency.</li>
+<li><strong>Register file ports.</strong> The base RISC-V register file has two read ports and one write port. An instruction that wants three sources, such as dot-product-and-accumulate, needs a third read port or a different encoding (for example, <code>rd</code> doubling as an accumulator source). Extra ports are expensive and affect timing everywhere.</li>
+<li><strong>State.</strong> Any architectural state the instruction keeps, such as an internal accumulator, must be saved on context switches. Keeping custom instructions stateless avoids touching the operating system.</li>
+</ul>
+<h2 id="toolchain-and-software">Toolchain and software</h2>
+<p>You do not need to modify the compiler to use a custom instruction. The GNU assembler's <code>.insn</code> directive emits arbitrary encodings in a standard format, and an inline-assembly wrapper makes it callable from C:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+static inline int32_t dot4(uint32_t a, uint32_t b)
+{
+    int32_t r;
+    __asm__ (&quot;.insn r 0x0B, 0, 0, %0, %1, %2&quot;
+             : &quot;=r&quot;(r) : &quot;r&quot;(a), &quot;r&quot;(b));
+    return r;
+}
+</code></pre>
+<p>The compiler treats the call as an opaque instruction: it allocates registers correctly but will not vectorise or schedule around it cleverly. That is usually acceptable for a hot inner loop. You also need a reference model of the instruction for the instruction set simulator that verification compares against, plus a pure-C fallback for cores without the extension.</p>
+<h2 id="the-peripheral-alternative">The peripheral alternative</h2>
+<p>A memory-mapped accelerator needs no change to the core, the decoder or the toolchain. The core writes operands to registers or points a DMA engine at a buffer, starts the block, and collects results. It can run concurrently with the core, it works with any processor on the bus, and it can process large blocks with its own internal buffers.</p>
+<p>Its cost is per-invocation overhead. Every register access crosses the bus. Suppose, as an illustration, each uncached peripheral access takes 5 cycles. One dot product through registers needs two operand writes, a start write, a status poll and a result read: at least 5 accesses, or about 25 cycles, for work the custom instruction does in 1 or 2. Over a million dot products, that is roughly 25 million cycles of overhead against 1 to 2 million.</p>
+<p>Turn the granularity around and the answer flips. If the job is "compute the dot products of a 4 KiB weight buffer against a 4 KiB input buffer", the peripheral receives two addresses and a length, streams the data with DMA, and interrupts when done. The setup cost is paid once per buffer, the core is free meanwhile, and the accelerator can use far wider datapaths than the register file would ever allow.</p>
+<h2 id="choosing-between-them">Choosing between them</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Custom instruction</th>
+<th>Memory-mapped accelerator</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Work per call</td>
+<td>A few cycles, register-sized operands</td>
+<td>Large blocks, long-running jobs</td>
+</tr>
+<tr>
+<td>Overhead per call</td>
+<td>Near zero</td>
+<td>Bus accesses, interrupts or polling</td>
+</tr>
+<tr>
+<td>Core changes</td>
+<td>Decoder, datapath, hazards</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Toolchain</td>
+<td><code>.insn</code> or intrinsics, ISS model</td>
+<td>A driver</td>
+</tr>
+<tr>
+<td>Concurrency with core</td>
+<td>None: it is the core</td>
+<td>Runs in parallel</td>
+</tr>
+<tr>
+<td>Portability</td>
+<td>Only cores with the extension</td>
+<td>Any bus master</td>
+</tr>
+</tbody>
+</table></div>
+<p>A useful rule: if operands fit in two registers and the result in one, and the operation is called in a tight loop, a custom instruction is likely to win. If the operation consumes buffers, keeps internal state or takes many cycles, a peripheral is likely to win. Many designs end up with both: a few custom instructions for fine-grained operations and a DMA-fed block for bulk work.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Using opcode space that standard extensions may claim.</strong> Stay in custom-0 and custom-1 for 32-bit encodings.</li>
+<li><strong>Adding architectural state casually.</strong> Hidden accumulators complicate interrupts and context switches.</li>
+<li><strong>Forgetting the ISS.</strong> Lock-step verification fails on the first custom instruction unless the reference model knows it.</li>
+<li><strong>Ignoring the multi-cycle timing.</strong> A unit that misses timing pulls down the whole core's clock.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python reference for <code>dot4</code> and test the Verilog unit against random operands in Icarus Verilog or with cocotb.</li>
+<li>Add the instruction to a small open-source RV32I core, assemble a test with <code>.insn</code> using a RISC-V GCC toolchain, and check the result in simulation.</li>
+<li>Synthesise the core with Yosys before and after the change and compare cell counts and the longest path with OpenSTA.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>custom instructions</li><li>accelerators</li><li>hardware-software co-design</li><li>toolchain</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="axi-five-channels.html"><span>Previous in Computer architecture &amp; RISC-V</span>AXI&#x27;s five channels and why reads and writes are separate</a><a class="next" href="amdahls-law-for-soc-designers.html"><span>Next in Computer architecture &amp; RISC-V</span>Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="amdahls-law-for-soc-designers.html">Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a></h3>
+          <p>Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

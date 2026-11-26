@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decoupling capacitors: why, how many and where to place them · Ketuna blog</title>
+  <meta name="description" content="Chips draw current in short bursts that a distant regulator cannot supply. Local capacitors provide that charge, and a short calculation shows why their placement and loop area matter as much as their value.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Decoupling capacitors: why, how many and where to place them · Ketuna blog">
+  <meta property="og:description" content="Chips draw current in short bursts that a distant regulator cannot supply. Local capacitors provide that charge, and a short calculation shows why their placement and loop area matter as much as their value.">
+  <link rel="canonical" href="https://ketuna.online/blog/decoupling-capacitors-why-and-where.html">
+  <meta property="og:url" content="https://ketuna.online/blog/decoupling-capacitors-why-and-where.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Decoupling capacitors: why, how many and where to place them",
+  "description": "Chips draw current in short bursts that a distant regulator cannot supply. Local capacitors provide that charge, and a short calculation shows why their placement and loop area matter as much as their value.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "decoupling, pcb, power integrity, capacitors, layout",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 954,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/decoupling-capacitors-why-and-where.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Decoupling capacitors: why, how many and where to place them</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Chips draw current in short bursts that a distant regulator cannot supply. Local capacitors provide that charge, and a short calculation shows why their placement and loop area matter as much as their value.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-chips-need-local-charge">Why chips need local charge</a></li><li><a href="#sizing-a-worked-example">Sizing: a worked example</a></li><li><a href="#where-to-place-them">Where to place them</a></li><li><a href="#how-many-and-which-values">How many and which values</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every schematic you have seen has small capacitors sprinkled next to the chips, usually labelled 100 nF, often with no explanation. They are decoupling capacitors, and a board can misbehave in strange ways without them: a microcontroller that resets when a radio transmits, an ADC whose readings jump, a clock with jitter. Understanding why they are there, rather than copying them, tells you how many to use and where they must go.</p>
+<h2 id="why-chips-need-local-charge">Why chips need local charge</h2>
+<p>Digital logic does not draw a smooth current. Every clock edge switches thousands of transistors at once, and for a few nanoseconds the chip draws a burst of current far above its average. The regulator that supplies the rail is too far away and too slow to respond in that time. It sits at the end of a track, and every track has inductance.</p>
+<p>Inductance resists changes in current. The voltage it drops is</p>
+<blockquote>
+<p>V = L × di/dt</p>
+</blockquote>
+<p>so a fast change in current (large di/dt) through even a small inductance produces a voltage dip at the chip's supply pin. If the dip is large enough, logic thresholds shift, the ADC's reference moves or the brown-out detector trips.</p>
+<p>A decoupling capacitor is a small local reservoir of charge, placed so close to the supply pin that the current burst comes from it instead of from the distant regulator. Between bursts, the regulator quietly recharges it.</p>
+<h2 id="sizing-a-worked-example">Sizing: a worked example</h2>
+<p>The numbers below are made up for illustration. Suppose a chip draws an extra 50 mA for 5 ns on each clock edge, and you want its supply to dip by no more than 50 mV.</p>
+<p><strong>Charge.</strong> The capacitor must supply Q = I × t, and its voltage falls by ΔV = Q / C. Rearranging:</p>
+<blockquote>
+<p>C ≥ I × t / ΔV = 0.05 A × 5 ns / 0.05 V = 5 nF</p>
+</blockquote>
+<p>A 100 nF capacitor is twenty times that. Charge alone, it would dip by only 0.05 × 5 × 10<sup>−9</sup> / 100 × 10<sup>−9</sup> = 2.5 mV. So why does the board still misbehave sometimes? Because capacitance is not the limiting factor.</p>
+<p><strong>Inductance.</strong> The current must flow from the capacitor, along a track to the supply pin, through the chip, out of its ground pin and back to the capacitor. That loop has inductance, roughly proportional to its area. Suppose the loop has 2 nH and the current rises by 50 mA in 1 ns:</p>
+<blockquote>
+<p>V = 2 nH × 50 mA / 1 ns = 0.1 V</p>
+</blockquote>
+<p>That is a 100 mV dip, twice the budget, from a capacitor that has plenty of charge. The only way to reduce it is to reduce the inductance: a shorter, smaller loop. <strong>Placement matters more than value.</strong></p>
+<h2 id="where-to-place-them">Where to place them</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="dc-title dc-desc" font-size="14">
+<title id="dc-title">Short and long decoupling loops</title>
+<desc id="dc-desc">Two sketches side by side. On the left, a capacitor sits right beside a chip's power and ground pins, with a small loop area shaded. On the right, the same capacitor sits far from the chip, connected by long tracks, and the shaded loop area is much larger. The left is labelled good, low inductance; the right is labelled poor, high inductance.</desc>
+<rect x="20" y="40" width="80" height="110" rx="4" class="dg-core"/>
+<text x="60" y="100" text-anchor="middle" class="dg-text">chip</text>
+<rect x="100" y="60" width="12" height="10" class="dg-box"/>
+<rect x="100" y="120" width="12" height="10" class="dg-box"/>
+<text x="118" y="56" class="dg-muted">VDD</text>
+<text x="118" y="144" class="dg-muted">GND</text>
+<rect x="112" y="65" width="38" height="60" class="dg-amber" fill-opacity="0.3"/>
+<path d="M112,65 H150 V85 M150,105 V125 H112" fill="none" class="dg-line" stroke-width="2"/>
+<line x1="140" y1="85" x2="160" y2="85" class="dg-line" stroke-width="2"/>
+<line x1="140" y1="105" x2="160" y2="105" class="dg-line" stroke-width="2"/>
+<text x="168" y="100" class="dg-text">C</text>
+<text x="90" y="185" text-anchor="middle" class="dg-text">close: small loop</text>
+<rect x="250" y="40" width="80" height="110" rx="4" class="dg-core"/>
+<text x="290" y="100" text-anchor="middle" class="dg-text">chip</text>
+<rect x="330" y="60" width="12" height="10" class="dg-box"/>
+<rect x="330" y="120" width="12" height="10" class="dg-box"/>
+<rect x="342" y="65" width="110" height="60" class="dg-amber" fill-opacity="0.3"/>
+<path d="M342,65 H452 V85 M452,105 V125 H342" fill="none" class="dg-line" stroke-width="2"/>
+<line x1="442" y1="85" x2="462" y2="85" class="dg-line" stroke-width="2"/>
+<line x1="442" y1="105" x2="462" y2="105" class="dg-line" stroke-width="2"/>
+<text x="350" y="185" text-anchor="middle" class="dg-text">far: large loop</text>
+<text x="240" y="215" text-anchor="middle" class="dg-muted">shaded area ≈ loop inductance</text>
+</svg>
+<figcaption>The current burst flows around the shaded loop; the smaller the loop, the smaller the inductance and the voltage dip.</figcaption>
+</figure>
+
+<p>Practical rules that follow from the loop:</p>
+<ul>
+<li><strong>One small capacitor per supply pin</strong>, or per pair of adjacent power and ground pins, placed as close as the layout allows.</li>
+<li><strong>Short, wide connections.</strong> Connect each capacitor pad to the power and ground planes with a via right at the pad, ideally one via per pad. A thin track of several millimetres between the capacitor and the via can undo the benefit.</li>
+<li><strong>Put the capacitor between the plane connection and the pin</strong>, or right at the pin, so the current path is direct.</li>
+<li><strong>Use a solid ground plane</strong> on a layer next to the components. The return current then flows directly under the outgoing path, which keeps the loop small.</li>
+<li><strong>On the same side as the chip</strong> if possible; if not, directly underneath on the other side with short vias.</li>
+</ul>
+<h2 id="how-many-and-which-values">How many and which values</h2>
+<p>A capacitor is not ideal. It has its own inductance (from its package and connections) and resistance. Together with its capacitance, that makes it resonate at a frequency f = 1 / (2π√(LC)); above that frequency it behaves like an inductor. A 100 nF capacitor with 1 nH of total mounted inductance resonates near 16 MHz; a 1 µF one with the same inductance, near 5 MHz. Smaller packages have lower inductance, which is one reason small ceramic capacitors are preferred for decoupling.</p>
+<p>A sensible scheme for a typical microcontroller board is:</p>
+<ul>
+<li>a 100 nF ceramic capacitor at each supply pin, in a small package</li>
+<li>one or two capacitors of a few microfarads near the chip, for slower, larger demands</li>
+<li>bulk capacitance at the regulator output, sized from its datasheet for stability</li>
+<li>whatever the chip's datasheet asks for on analogue, PLL or core supplies; follow it exactly</li>
+</ul>
+<p>Ceramic capacitors lose a large part of their capacitance under DC bias, especially in small packages with high values. Check the manufacturer's bias curve for the part you choose, rather than trusting the number printed on the reel.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Placing all decoupling capacitors in one tidy row</strong> away from the chip, for a neat layout. Neatness does not supply current.</li>
+<li><strong>Long thin tracks to a distant via.</strong> They add inductance that no capacitor value can overcome.</li>
+<li><strong>Assuming more capacitors always helps.</strong> Without good placement, extra parts add cost but little benefit.</li>
+<li><strong>Ignoring datasheet requirements</strong> for specific pins, such as an internal regulator's output capacitor.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Repeat the two calculations above for a chip on a board you know, using its datasheet's supply current and your own guesses for the burst duration and loop inductance.</li>
+<li>In <strong>ngspice</strong>, model a current pulse load fed through 2 nH from a 100 nF capacitor and a distant regulator, and compare the dip with 0.5 nH.</li>
+<li>Open a <strong>KiCad</strong> layout and, for each chip, measure the track length from each decoupling capacitor to the nearest supply pin and plane via. Move any that are more than a few millimetres away.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>decoupling</li><li>pcb</li><li>power integrity</li><li>capacitors</li><li>layout</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="costing-a-bill-of-materials.html"><span>Previous in Systems &amp; product engineering</span>Costing a bill of materials: what changes from prototype to volume</a><a class="next" href="design-for-manufacture-on-pcbs.html"><span>Next in Systems &amp; product engineering</span>Design for manufacture: small PCB decisions that change yield</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="design-for-manufacture-on-pcbs.html">Design for manufacture: small PCB decisions that change yield</a></h3>
+          <p>Footprints, part spacing, thermal balance, panelisation, fiducials and test points are small layout choices that decide whether an assembly line builds your board cleanly or produces rework.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="emc-basics-for-board-designers.html">EMC basics for board designers: loops, return paths and edges</a></h3>
+          <p>Why edge rate, not clock frequency, sets how high a board&#x27;s emissions reach, why every signal&#x27;s return path must stay unbroken, and why filtering belongs at the connectors where cables become antennas.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-board-in-kicad.html">From schematic to Gerbers: designing a first board in KiCad</a></h3>
+          <p>The full path of a first circuit board in KiCad, using a small 3.3 V regulator board as the example, from symbols and footprints through layout and rule checks to the Gerber and drill files a fabricator needs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debugging as a career skill: hypotheses, experiments and notes · Ketuna blog</title>
+  <meta name="description" content="Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Debugging as a career skill: hypotheses, experiments and notes · Ketuna blog">
+  <meta property="og:description" content="Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.">
+  <link rel="canonical" href="https://ketuna.online/blog/debugging-as-a-career-skill.html">
+  <meta property="og:url" content="https://ketuna.online/blog/debugging-as-a-career-skill.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Debugging as a career skill: hypotheses, experiments and notes",
+  "description": "Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "debugging, scientific method, notes, problem solving",
+  "articleSection": "Careers & skills",
+  "wordCount": 903,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/debugging-as-a-career-skill.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Debugging as a career skill: hypotheses, experiments and notes</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Treat every bug as a small experiment: state a hypothesis, predict the result, change one thing, and record what happened in a debugging journal. The method works for RTL, firmware and boards alike.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#a-bug-is-a-gap-in-your-model">A bug is a gap in your model</a></li><li><a href="#the-experiment-loop">The experiment loop</a></li><li><a href="#change-one-thing-at-a-time">Change one thing at a time</a></li><li><a href="#keep-a-debugging-journal">Keep a debugging journal</a></li><li><a href="#close-the-loop">Close the loop</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Ask experienced engineers what separates a strong junior from a weak one and many will mention debugging before they mention any language or tool. Debugging is where most engineering time goes, in verification, firmware and board bring-up alike, and it is rarely taught as a skill in its own right. The good news is that it is learnable. It is mostly the scientific method applied to a misbehaving system, plus the discipline to write things down.</p>
+<h2 id="a-bug-is-a-gap-in-your-model">A bug is a gap in your model</h2>
+<p>When a system surprises you, the system is not being mysterious. It is doing exactly what it was built to do, and your mental model of it is wrong somewhere. Debugging is the process of finding where.</p>
+<p>That framing changes how you work. Instead of hunting for "the bug", you look for the first place where reality and your expectation disagree. A test reports a wrong value at cycle 900; the real question is the earliest cycle at which any signal differed from what you expected, because everything after that is a consequence. In firmware, the crash in a print function is usually a symptom; the cause is whatever corrupted the buffer earlier.</p>
+<p>It also explains why the same bug can take one engineer ten minutes and another a day. The fast engineer is not luckier. They narrow the gap systematically, while the slow one changes things at random and hopes.</p>
+<h2 id="the-experiment-loop">The experiment loop</h2>
+<p>Each step of a good debugging session is a small experiment with four parts.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="dbg-title dbg-desc" font-size="14">
+<title id="dbg-title">The debugging experiment loop</title>
+<desc id="dbg-desc">Four boxes in a cycle: observe, hypothesise, predict, and change one thing. Arrows run clockwise between them. A notebook box in the centre is connected to every step, showing that each step is written down.</desc>
+<rect x="30" y="20" width="150" height="50" rx="6" class="dg-box"/>
+<text x="105" y="50" text-anchor="middle" class="dg-text">1. Observe</text>
+<rect x="300" y="20" width="150" height="50" rx="6" class="dg-box"/>
+<text x="375" y="50" text-anchor="middle" class="dg-text">2. Hypothesise</text>
+<rect x="300" y="180" width="150" height="50" rx="6" class="dg-box"/>
+<text x="375" y="210" text-anchor="middle" class="dg-text">3. Predict</text>
+<rect x="30" y="180" width="150" height="50" rx="6" class="dg-box"/>
+<text x="105" y="210" text-anchor="middle" class="dg-text">4. Change one thing</text>
+<rect x="180" y="103" width="120" height="44" rx="6" class="dg-amber" fill-opacity="0.3"/>
+<text x="240" y="130" text-anchor="middle" class="dg-text">Journal</text>
+<line x1="180" y1="45" x2="292" y2="45" class="dg-line"/>
+<path d="M292,40 L300,45 L292,50 Z" class="dg-arrow"/>
+<line x1="375" y1="70" x2="375" y2="172" class="dg-line"/>
+<path d="M370,172 L375,180 L380,172 Z" class="dg-arrow"/>
+<line x1="300" y1="205" x2="188" y2="205" class="dg-line"/>
+<path d="M188,200 L180,205 L188,210 Z" class="dg-arrow"/>
+<line x1="105" y1="180" x2="105" y2="78" class="dg-line"/>
+<path d="M100,78 L105,70 L110,78 Z" class="dg-arrow"/>
+<line x1="180" y1="70" x2="210" y2="103" class="dg-dash"/>
+<line x1="300" y1="70" x2="270" y2="103" class="dg-dash"/>
+<line x1="300" y1="180" x2="270" y2="147" class="dg-dash"/>
+<line x1="180" y1="180" x2="210" y2="147" class="dg-dash"/>
+</svg>
+<figcaption>Each pass round the loop is one experiment, and every step leaves a line in the journal.</figcaption>
+</figure>
+
+<ol>
+<li><strong>Observe.</strong> Reproduce the failure exactly: same test, same seed, same commit, same tool version, same board. Record the precise symptom. A failure you cannot reproduce cannot be fixed with confidence.</li>
+<li><strong>Hypothesise.</strong> Propose one specific, testable cause: "the read pointer advances when the FIFO is empty", not "something is wrong with the FIFO".</li>
+<li><strong>Predict.</strong> Before running anything, write what you expect to see if the hypothesis is true. "If I force <code>empty</code> high and pulse <code>rd_en</code>, <code>rd_ptr</code> will increment."</li>
+<li><strong>Change one thing.</strong> Run the experiment, changing a single variable. Compare the result with the prediction.</li>
+</ol>
+<p>If the prediction holds, you have narrowed the gap. If it fails, you have learned something just as valuable: your model was wrong in a place you had not suspected. Either way, the next hypothesis is better informed. The step people skip is the prediction, and it is the one that turns poking into learning. Without it, any result looks like progress.</p>
+<h2 id="change-one-thing-at-a-time">Change one thing at a time</h2>
+<p>When you are frustrated, it is tempting to change three things at once: bump the stack size, add a delay and swap the cable. If the problem disappears, you do not know which change fixed it, whether the others introduced new problems, or whether the fault simply became intermittent. You have traded a known bug for an unknown one.</p>
+<p>Changing one variable per run feels slower and is almost always faster. It also makes <strong>bisection</strong> possible: when a design worked at one point and fails now, halve the distance between them repeatedly. With Git, <code>git bisect</code> does this over commits; with a long test, cut it in half until the shortest failing case remains; with a board, remove half the peripherals. Each halving takes one experiment, so even a large search space shrinks quickly.</p>
+<h2 id="keep-a-debugging-journal">Keep a debugging journal</h2>
+<p>Write each experiment down as you go: time, hypothesis, prediction, what you changed, what happened. A plain text file per bug is enough.</p>
+<pre><code class="language-text">BUG: uart_rx test loses bytes after ~450 bytes, 115200
+14:05 Repro: tb seed 77, first loss at byte 451. Repeats.
+14:20 H1: baud counter drifts. Predict: sample point moves
+      later each byte. Result: sample point stable. False.
+14:40 H2: FIFO overflow. Predict: overflow flag set just
+      before byte 451. Result: flag set. Consistent.
+14:55 Why? tb reader takes 1 byte per 90 us; bytes arrive
+      every 86.8 us. Backlog grows 1 byte per ~28 bytes,
+      so 16 entries fill after ~450. Reader too slow.
+15:10 Fix: tb reader takes 1 byte per 80 us. 20 seeds pass.
+      Added assertion: overflow never set in normal test.
+</code></pre>
+<p>The journal does several jobs at once. It stops you repeating experiments you have already done, which is surprisingly common after a long afternoon. It makes asking for help easy, because you can show exactly what you tried. It becomes the root-cause note for the bug report. And over months it is a record of real problems you solved, which is the raw material for a strong interview answer about a hard bug.</p>
+<p>Notice also that the example's culprit was the testbench, not the design. Checking the stimulus and the checker against the spec, before blaming the RTL or the firmware, is part of good method.</p>
+<h2 id="close-the-loop">Close the loop</h2>
+<p>A bug is not fixed when the symptom disappears. It is fixed when you can explain the cause, the fix addresses that cause, and a test exists that fails on the old code and passes on the new. Confirm the test really fails before the fix; a test that never fails proves nothing. AI assistants can be useful for suggesting hypotheses from a log, but each suggestion is just another hypothesis to put through the same loop.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a small RTL module, plant a bug in it (for example remove the <code>!empty</code> guard on a FIFO read pointer) and ask a friend to find it using the loop, writing a journal entry for every run in Icarus Verilog or Verilator.</li>
+<li>On your next real bug, write the prediction before every run. Count how many predictions failed and what each taught you.</li>
+<li>Practise bisection: in a Git repository with a known good tag, run <code>git bisect start</code>, mark <code>git bisect bad</code> and <code>git bisect good &lt;tag&gt;</code>, and let <code>git bisect run</code> drive your test script.</li>
+<li>After fixing, write a regression test and confirm with <code>git stash</code> that it fails on the unfixed code.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>debugging</li><li>scientific method</li><li>notes</li><li>problem solving</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="contributing-to-open-source-eda.html"><span>Previous in Careers &amp; skills</span>Contributing to open-source hardware and EDA projects</a><a class="next" href="habits-for-your-first-year-at-work.html"><span>Next in Careers &amp; skills</span>From student to engineer: habits that matter in your first year at work</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="embedded-interview-preparation.html">Preparing for embedded interviews: C, interrupts and debugging stories</a></h3>
+          <p>Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="experienced-verification-interviews.html">Preparing for experienced verification interviews: methodology questions and how to answer them</a></h3>
+          <p>Experienced verification interviews probe judgement, not syntax. Learn to explain your test plans, coverage decisions and debugging stories with concrete evidence from your own work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

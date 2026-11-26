@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What happens in an assembly and test facility: from wafer to packaged, tested part · Ketuna blog</title>
+  <meta name="description" content="The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What happens in an assembly and test facility: from wafer to packaged, tested part · Ketuna blog">
+  <meta property="og:description" content="The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.">
+  <link rel="canonical" href="https://ketuna.online/blog/inside-an-assembly-and-test-facility.html">
+  <meta property="og:url" content="https://ketuna.online/blog/inside-an-assembly-and-test-facility.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What happens in an assembly and test facility: from wafer to packaged, tested part",
+  "description": "The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "osat, packaging, wafer test, semiconductor manufacturing, test",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 928,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/inside-an-assembly-and-test-facility.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>What happens in an assembly and test facility: from wafer to packaged, tested part</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-flow-at-a-glance">The flow at a glance</a></li><li><a href="#wafer-probe-test-before-you-package">Wafer probe: test before you package</a></li><li><a href="#thinning-and-dicing-separating-the-dies">Thinning and dicing: separating the dies</a></li><li><a href="#die-attach-and-bonding-connecting-to-the-package">Die attach and bonding: connecting to the package</a></li><li><a href="#moulding-marking-and-finishing">Moulding, marking and finishing</a></li><li><a href="#final-test-and-burn-in">Final test and burn-in</a></li><li><a href="#common-mistakes-designers-make">Common mistakes designers make</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When a foundry finishes a wafer, it holds hundreds or thousands of chips, but none of them is usable yet. Each die is a fragile sliver of silicon with microscopic pads, no protection and no way to be soldered to a board. Some of them do not work. An assembly and test facility turns that wafer into packaged parts on a reel, and makes sure that only good parts leave. Designers rarely see this stage, yet it shapes pad layout, test logic, power budgets and cost. This article walks through the steps in order.</p>
+<h2 id="the-flow-at-a-glance">The flow at a glance</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="at-title at-desc" font-size="14">
+<title id="at-title">Assembly and test flow</title>
+<desc id="at-desc">Two rows of steps. Top row: wafer probe, backgrind and dice, die attach, wire bond. Bottom row continuing right to left: mould and mark, final test, burn-in for some products, pack and ship. Arrows connect the steps in order. Failing dies from wafer probe are marked and not assembled.</desc>
+<rect x="10" y="30" width="105" height="44" rx="6" class="dg-core"/>
+<rect x="128" y="30" width="105" height="44" rx="6" class="dg-box"/>
+<rect x="246" y="30" width="105" height="44" rx="6" class="dg-box"/>
+<rect x="364" y="30" width="105" height="44" rx="6" class="dg-box"/>
+<text x="62" y="57" text-anchor="middle" class="dg-text">Wafer probe</text>
+<text x="180" y="57" text-anchor="middle" class="dg-text">Thin, dice</text>
+<text x="298" y="57" text-anchor="middle" class="dg-text">Die attach</text>
+<text x="416" y="57" text-anchor="middle" class="dg-text">Bond</text>
+<rect x="364" y="130" width="105" height="44" rx="6" class="dg-box"/>
+<rect x="246" y="130" width="105" height="44" rx="6" class="dg-core"/>
+<rect x="128" y="130" width="105" height="44" rx="6" class="dg-core"/>
+<rect x="10" y="130" width="105" height="44" rx="6" class="dg-box"/>
+<text x="416" y="157" text-anchor="middle" class="dg-text">Mould, mark</text>
+<text x="298" y="157" text-anchor="middle" class="dg-text">Final test</text>
+<text x="180" y="157" text-anchor="middle" class="dg-text">Burn-in</text>
+<text x="62" y="157" text-anchor="middle" class="dg-text">Pack, ship</text>
+<path d="M115,52 H122 M233,52 H240 M351,52 H358" class="dg-line"/>
+<path d="M122,48 L128,52 L122,56 Z M240,48 L246,52 L240,56 Z M358,48 L364,52 L358,56 Z" class="dg-arrow"/>
+<path d="M416,74 V124" class="dg-line"/>
+<path d="M412,124 L416,130 L420,124 Z" class="dg-arrow"/>
+<path d="M364,152 H357 M246,152 H239 M128,152 H121" class="dg-line"/>
+<path d="M357,148 L351,152 L357,156 Z M239,148 L233,152 L239,156 Z M121,148 L115,152 L121,156 Z" class="dg-arrow"/>
+<text x="62" y="96" text-anchor="middle" class="dg-muted">bad dies mapped</text>
+<text x="180" y="196" text-anchor="middle" class="dg-muted">some products</text>
+</svg>
+<figcaption>Shaded steps are tests: one before assembly so bad dies are not packaged, and one or two after, so only good parts ship.</figcaption>
+</figure>
+
+<h2 id="wafer-probe-test-before-you-package">Wafer probe: test before you package</h2>
+<p>The first step is <strong>wafer probe</strong>, also called wafer sort. The wafer sits on a precision stage called a prober, and a <strong>probe card</strong>, a board with fine needles or micro-springs aligned to the die's pads, touches one die (or several at once) at a time. Automatic test equipment (ATE) then powers the die and runs a test program: shorts and opens on each pin, supply currents, digital tests using scan chains and built-in self-test, and basic analog measurements.</p>
+<p>The result is a <strong>wafer map</strong>, a record of which dies passed and which failed, often sorted into bins by failure type. Bad dies are simply not assembled. Since packaging costs money, catching bad dies here saves it. The map also feeds back to the foundry and the design team: a cluster of failures at the wafer edge suggests a process problem, while the same failing test on every die suggests a design or test bug.</p>
+<p>This is where design-for-test pays off. Scan chains, memory built-in self-test and a test access port let a few probe needles exercise a whole chip in seconds.</p>
+<h2 id="thinning-and-dicing-separating-the-dies">Thinning and dicing: separating the dies</h2>
+<p>Wafers are thicker than a package can hold, so the back is ground down, called <strong>backgrinding</strong>, to the thickness the package needs. Then the wafer is mounted on a tape in a frame and cut along the scribe lines between dies, usually with a thin diamond saw or a laser, called <strong>dicing</strong>. The tape holds the separated dies in place for the next step.</p>
+<p>Dicing stresses the silicon edges. Designers protect the die with a seal ring around its edge and must keep active circuits a safe distance from the scribe line.</p>
+<h2 id="die-attach-and-bonding-connecting-to-the-package">Die attach and bonding: connecting to the package</h2>
+<p>A pick-and-place machine lifts each good die, using the wafer map to skip bad ones, and places it on a package substrate or lead frame with an adhesive or solder, called <strong>die attach</strong>. The attach layer also carries heat away from the die, so its quality affects thermal performance.</p>
+<p>Then the die's pads are connected to the package:</p>
+<ul>
+<li><strong>Wire bonding</strong> uses very fine gold or copper wire, welded by heat, pressure and ultrasound, one wire per pad. It is mature, flexible and inexpensive, but each wire adds inductance, which matters for fast signals and noisy supplies.</li>
+<li><strong>Flip-chip</strong> puts solder or copper bumps on the die's pads, turns the die face down and solders it directly to the substrate. Connections are shorter and can cover the whole die area, at higher cost.</li>
+</ul>
+<p>Pad placement, pad pitch and the bond diagram are decided during chip design, which is why the design team and the assembly house must agree on them before tape-out.</p>
+<h2 id="moulding-marking-and-finishing">Moulding, marking and finishing</h2>
+<p>The die and wires are encapsulated in an epoxy moulding compound that protects them from moisture, light and mechanical damage. Each part is then <strong>marked</strong> with a part number and lot code for traceability. Depending on the package, leads are plated, trimmed and formed, or solder balls are attached, and individual packages are separated from the strip.</p>
+<h2 id="final-test-and-burn-in">Final test and burn-in</h2>
+<p>Packaging can break things: a wire can short, the die can crack and moulding stress can shift analog behaviour. So every packaged part goes through <strong>final test</strong>, on ATE with a handler that feeds parts into a test socket, often at more than one temperature. Final test checks function and the datasheet parameters that matter, and sorts parts into bins, for example by speed grade.</p>
+<p>Some products also go through <strong>burn-in</strong>: parts run at raised temperature and voltage for a period to make weak parts fail in the factory rather than in the customer's product. Early-life failures are more common than failures in the middle of a part's life, so burn-in removes the weakest parts. It costs time and equipment, so it is used where reliability demands it, such as automotive or infrastructure parts.</p>
+<p>Passing parts are dried if needed, packed in trays or on tape and reel in moisture-barrier bags, labelled with their lot and shipped.</p>
+<h2 id="common-mistakes-designers-make">Common mistakes designers make</h2>
+<ul>
+<li>Leaving test access as an afterthought, so probe and final test cannot reach internal logic</li>
+<li>Placing pads without checking the package's bonding rules</li>
+<li>Ignoring supply bond-wire inductance in noisy or fast designs</li>
+<li>Not having the test program and probe card ready when wafers arrive</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Add a scan chain to a small design by hand, a multiplexer in front of each flip-flop selected by a scan-enable input, and write a test in <strong>Icarus Verilog</strong> that shifts a pattern through it.</li>
+<li>Open a finished sky130 design in <strong>KLayout</strong> and find the seal ring, pad ring and scribe area.</li>
+<li>Draw a bond diagram for a small design: which pad goes to which package pin, keeping supply pins close to the pads they feed.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>osat</li><li>packaging</li><li>wafer test</li><li>semiconductor manufacturing</li><li>test</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-is-navic.html"><span>Previous in India&#x27;s electronics ecosystem</span>What NavIC is, and what it takes to build a receiver for it</a><a class="next" href="bldc-motors-in-fans-and-appliances.html"><span>Next in India&#x27;s electronics ecosystem</span>Why BLDC motors are spreading in fans and appliances, and the chip inside</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="fabless-foundry-osat-who-does-what.html">Fabless, foundry, OSAT: who does what in the semiconductor chain</a></h3>
+          <p>The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

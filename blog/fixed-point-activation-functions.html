@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables · Ketuna blog</title>
+  <meta name="description" content="ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables · Ketuna blog">
+  <meta property="og:description" content="ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.">
+  <link rel="canonical" href="https://ketuna.online/blog/fixed-point-activation-functions.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fixed-point-activation-functions.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables",
+  "description": "ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fixed point, activation functions, lookup tables, quantization, embedded c",
+  "articleSection": "Edge AI",
+  "wordCount": 990,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fixed-point-activation-functions.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#relu-is-free-and-exact">ReLU is free and exact</a></li><li><a href="#any-function-of-int8-is-a-256-entry-table">Any function of int8 is a 256-entry table</a></li><li><a href="#wider-inputs-need-interpolation">Wider inputs need interpolation</a></li><li><a href="#choosing-by-error-budget">Choosing by error budget</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most of the arithmetic in a neural network is multiply-accumulate, but between layers sit non-linear activation functions, and on an integer-only device each one has to be implemented without floating point. Some are trivial, some are not, and the difference comes down to one question: how many distinct input values can the function see? Answering that, then comparing your approximation error with the quantization step the output already has, tells you how much effort an activation deserves.</p>
+<h2 id="relu-is-free-and-exact">ReLU is free and exact</h2>
+<p>ReLU outputs max(0, x). In a quantized layer, the output is y = z<sub>y</sub> + round(M × acc), clamped to the int8 range. Real zero corresponds to the integer z<sub>y</sub>, so ReLU is simply a tighter clamp: [z<sub>y</sub>, 127] instead of [−128, 127]. ReLU6, which also caps at 6, becomes a clamp to [z<sub>y</sub>, q(6)], where q(6) is the integer that represents 6.</p>
+<p>There is no approximation and no extra operation: the clamp the requantization step needs anyway just uses different limits. This is a big reason small models favour ReLU-family activations. Fusing it into the layer also avoids writing an intermediate tensor to memory and reading it back.</p>
+<p>One trap: if the output range was calibrated <em>after</em> ReLU (so it covers only positive values), the output zero point is typically −128, and the fused clamp starts at −128 too. If you fuse but calibrate before ReLU, half the codes are wasted on negative values that the clamp then throws away.</p>
+<h2 id="any-function-of-int8-is-a-256-entry-table">Any function of int8 is a 256-entry table</h2>
+<p>Sigmoid, tanh, swish or anything else is expensive to compute exactly in fixed point, but if the input is int8, there are only 256 possible inputs. Precompute the output for every one and the function becomes a single table lookup, exact to within the output's own rounding.</p>
+<p>Generate the table offline from the quantization parameters. For an input with scale s<sub>in</sub> and zero point z<sub>in</sub>, and an output for sigmoid commonly quantized with scale 1/256 and zero point −128 (so 0 to 1 maps onto the full int8 range):</p>
+<pre><code class="language-python">import numpy as np
+
+def sigmoid_lut(s_in, z_in, s_out=1/256, z_out=-128):
+    q = np.arange(-128, 128)
+    x = s_in * (q - z_in)                       # every possible input
+    y = 1 / (1 + np.exp(-x))
+    t = np.round(y / s_out) + z_out
+    return np.clip(t, -128, 127).astype(np.int8)  # index with q + 128
+
+lut = sigmoid_lut(s_in=0.0625, z_in=0)          # input range [-8, 7.94]
+</code></pre>
+<p>On the device the activation is <code>y = lut[x + 128]</code>: one load, 256 bytes of flash. The error is whatever the output quantization allows: at most half an output step, 1/512 ≈ 0.002, except at the very top, where the largest code represents 255/256 rather than 1.0, so inputs whose sigmoid is above about 0.998 are off by up to 1/256 ≈ 0.004. That is the output format's limit, not the table's.</p>
+<p>The same trick covers tanh, swish, GELU or a custom function: the table costs the same 256 bytes whatever is inside it. It also makes bit-exact testing easy, since the reference model can use the very same table.</p>
+<h2 id="wider-inputs-need-interpolation">Wider inputs need interpolation</h2>
+<p>Some layers feed activations with 16-bit inputs, for example the internal gates of recurrent cells, or a design that keeps more precision before the non-linearity. A full table would need 65,536 entries, too many for flash on a small device. The usual answer is a short table plus <strong>linear interpolation</strong>, using the function's symmetry to halve the table.</p>
+<p>For sigmoid, σ(−x) = 1 − σ(x), so you only need x ≥ 0. Beyond x = 8 the function is within 0.0004 of 1, so a table over [0, 8] covers the useful range. Take the input in Q3.12 format (int16, 12 fractional bits, range [−8, 8)) and a 33-entry table of σ at steps of 0.25, stored in Q15:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+/* SIG_Q15[k] = round(32768 * sigmoid(0.25 * k)), k = 0..32,
+   generated offline. */
+extern const int16_t SIG_Q15[33];
+
+/* x in Q3.12 (range [-8, 8)); returns sigmoid(x) in Q15 */
+int32_t sigmoid_q15(int16_t x)
+{
+    int32_t ax = x &lt; 0 ? -(int32_t)x : x;
+    if (ax &gt; 32767) ax = 32767;              /* only x = -32768 */
+    int32_t i = ax &gt;&gt; 10;                    /* 0.25 per entry */
+    int32_t f = ax &amp; 1023;                   /* position inside */
+    int32_t y = SIG_Q15[i]
+              + (((SIG_Q15[i + 1] - SIG_Q15[i]) * f) &gt;&gt; 10);
+    return x &lt; 0 ? 32768 - y : y;            /* sigma(-x) = 1 - sigma(x) */
+}
+</code></pre>
+<p>In Q3.12, 0.25 is 1,024, so the top bits of |x| select the table entry and the low 10 bits are the fraction for interpolation. Checked against double-precision sigmoid over all 65,536 inputs, the maximum error of this function is about 0.0008. For tanh, use the identity tanh(x) = 2σ(2x) − 1 and share the same table.</p>
+<h2 id="choosing-by-error-budget">Choosing by error budget</h2>
+<p>How good does the approximation need to be? Compare it with the step of the format the result goes into. If the output is int8 with scale 1/256, one step is about 0.0039, and rounding already introduces up to half that. An approximation whose error is well below half a step barely changes any output code.</p>
+<p>For sigmoid over [−8, 8], computed in numpy:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Approximation</th>
+<th>Max error</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Hard sigmoid" clip(x/4 + 0.5, 0, 1)</td>
+<td>about 0.119</td>
+<td>one shift, one add, a clamp</td>
+</tr>
+<tr>
+<td>clip(0.2x + 0.5, 0, 1)</td>
+<td>about 0.076</td>
+<td>one multiply, one add, a clamp</td>
+</tr>
+<tr>
+<td>9-point table on [0, 8] + interpolation</td>
+<td>about 0.012</td>
+<td>small table, one multiply</td>
+</tr>
+<tr>
+<td>17-point table + interpolation</td>
+<td>about 0.003</td>
+<td>small table, one multiply</td>
+</tr>
+<tr>
+<td>33-point table + interpolation</td>
+<td>about 0.0007</td>
+<td>small table, one multiply</td>
+</tr>
+</tbody>
+</table></div>
+<p>The hard sigmoid's error is many output steps, so a model trained with true sigmoid and deployed with hard sigmoid will behave differently. It is perfectly usable when the model is <em>trained</em> with it, which is what some small architectures do. The 33-point table sits comfortably below half an int8 step and costs 66 bytes.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li>deploying a cheap approximation for a model trained with the exact function, without re-measuring accuracy</li>
+<li>building a table from one set of quantization parameters and reusing it after the model was re-quantized</li>
+<li>forgetting the saturated tails: a table that stops at x = 4 leaves an error of about 0.018 at the edge</li>
+<li>interpolating with a product that overflows: check the width of <code>(t[i+1] − t[i]) × f</code></li>
+<li>testing an approximation only at table points, where its error is zero by construction</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run <code>sigmoid_lut</code> for an input scale of your choice and plot the dequantized output against the exact sigmoid.</li>
+<li>Generate the 33-entry Q15 table with numpy, compile <code>sigmoid_q15</code> with GCC, loop over all int16 inputs, and measure the maximum error yourself.</li>
+<li>Replace the interpolation with a nearest-entry lookup and measure how much the error grows.</li>
+<li>Swap the sigmoid in a small trained model for the hard sigmoid in PyTorch and compare test accuracy before and after fine-tuning.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fixed point</li><li>activation functions</li><li>lookup tables</li><li>quantization</li><li>embedded c</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="image-preprocessing-in-hardware.html"><span>Previous in Edge AI</span>Image preprocessing in hardware: downscaling, normalisation and windowing</a><a class="next" href="int8-quantization-explained.html"><span>Next in Edge AI</span>Int8 quantization explained: scale, zero point and what you lose</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

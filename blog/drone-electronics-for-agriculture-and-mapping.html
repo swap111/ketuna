@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drone electronics for agriculture and mapping: what the controller must handle · Ketuna blog</title>
+  <meta name="description" content="What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Drone electronics for agriculture and mapping: what the controller must handle · Ketuna blog">
+  <meta property="og:description" content="What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.">
+  <link rel="canonical" href="https://ketuna.online/blog/drone-electronics-for-agriculture-and-mapping.html">
+  <meta property="og:url" content="https://ketuna.online/blog/drone-electronics-for-agriculture-and-mapping.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Drone electronics for agriculture and mapping: what the controller must handle",
+  "description": "What a drone's flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "drones, flight control, embedded, navigation, safety",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 938,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/drone-electronics-for-agriculture-and-mapping.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Drone electronics for agriculture and mapping: what the controller must handle</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#layers-of-control">Layers of control</a></li><li><a href="#sensing-and-navigation">Sensing and navigation</a></li><li><a href="#payload-control">Payload control</a></li><li><a href="#failsafes-and-why-rules-shape-the-design">Failsafes and why rules shape the design</a></li><li><a href="#electronics-that-survive-the-job">Electronics that survive the job</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Drones are being used to spray crops, survey fields and map land. To a passer-by they look like a frame, four or more propellers and a battery. The part that makes them work is the electronics, above all the flight controller: a small board that keeps the aircraft stable hundreds of times a second, knows where it is, flies a planned route, runs a sprayer or camera and decides what to do when something goes wrong. This article breaks down what that controller must handle and why the rules for drones shape its design.</p>
+<h2 id="layers-of-control">Layers of control</h2>
+<p>A multirotor has no natural stability. Without constant correction it tips over within a fraction of a second. So the controller runs several loops nested inside each other, each slower than the one inside it:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Loop</th>
+<th>What it controls</th>
+<th>Typical rate</th>
+<th>Inputs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rate loop</td>
+<td>How fast the drone rotates about each axis</td>
+<td>Fastest, hundreds of hertz or more</td>
+<td>Gyroscope</td>
+</tr>
+<tr>
+<td>Attitude loop</td>
+<td>Which way the drone is tilted</td>
+<td>Fast</td>
+<td>Fused gyroscope and accelerometer</td>
+</tr>
+<tr>
+<td>Velocity and position loops</td>
+<td>Where the drone is going</td>
+<td>Slower</td>
+<td>Satellite navigation, barometer, optical flow</td>
+</tr>
+<tr>
+<td>Mission logic</td>
+<td>Which waypoint is next, what the payload should do</td>
+<td>Slowest</td>
+<td>Route plan, operator commands</td>
+</tr>
+</tbody>
+</table></div>
+<p>The rate loop reads the gyroscope, compares the measured rotation rate with the requested rate and adjusts the four motor speeds, typically with a PID controller. Its timing must be regular: jitter in the loop period behaves like noise in the control signal and can cause oscillation. That is why flight controllers often run the inner loop from a hardware timer interrupt and keep everything else out of its way, and why this loop is a natural candidate for dedicated hardware in a custom chip.</p>
+<h2 id="sensing-and-navigation">Sensing and navigation</h2>
+<p>Attitude comes from <strong>sensor fusion</strong>. A gyroscope measures rotation rate precisely but drifts when integrated; an accelerometer gives the direction of gravity but is disturbed by vibration and manoeuvres. Combining them with a complementary or Kalman filter gives a stable estimate. A magnetometer adds heading, though it is easily disturbed by motor currents and nearby metal, so its placement on the frame matters.</p>
+<p>Position comes from a satellite navigation receiver, ideally multi-constellation, including NavIC over India, and a barometer for altitude. For mapping, the position of every photo matters as much as the flight path, so the controller records accurate time and position for each camera trigger. For low flight over crops, a downward rangefinder helps hold a constant height above the canopy rather than above the take-off point.</p>
+<p>Vibration is the enemy of all of this. Propellers and motors shake the frame, and the accelerometer sees it. Soft mounting of the controller, good propeller balance and filtering in firmware are as important as the sensor's datasheet figures.</p>
+<h2 id="payload-control">Payload control</h2>
+<p>The payload is the reason the drone flies:</p>
+<ul>
+<li><strong>Spraying:</strong> a pump and nozzles, controlled so the application rate stays even as speed changes. The controller links pump output to ground speed and switches spraying off at the field boundary and during turns. The tank empties as it flies, so the drone gets lighter and its control behaviour changes.</li>
+<li><strong>Mapping and survey:</strong> a camera triggered at set distance intervals so photos overlap enough for stitching, with each trigger time-stamped and position-tagged.</li>
+</ul>
+<p>Payload control must never interfere with flight control. Run it at lower priority, isolate its power so a stalling pump cannot brown out the flight controller, and make sure a payload fault leads to a safe state rather than a crash.</p>
+<h2 id="failsafes-and-why-rules-shape-the-design">Failsafes and why rules shape the design</h2>
+<p>A drone weighs enough, and spins its propellers fast enough, to injure people, and a spraying drone carries chemicals. Regulators therefore set rules for drones: registration of aircraft, certification of models, trained and authorised pilots, and where and how high drones may fly, with some airspace closed or requiring permission. In India these rules are set by the civil aviation authorities and have been revised over time, so <strong>check the current official rules</strong> for the category of drone and the operation you plan.</p>
+<p>Rules like these translate directly into controller features:</p>
+<ul>
+<li><strong>Geofencing:</strong> the controller holds a map of allowed areas and refuses to cross boundaries</li>
+<li><strong>Altitude and distance limits</strong> enforced in firmware</li>
+<li><strong>Identification and logging:</strong> records of flights that can be produced if asked</li>
+<li><strong>Failsafe behaviour</strong> defined for every foreseeable fault</li>
+</ul>
+<p>A simplified failsafe decision, written as a priority-ordered check, looks like this:</p>
+<pre><code class="language-c">typedef enum { FLY, RETURN_HOME, LAND_NOW } action_t;
+
+typedef struct {
+    int link_ok;          /* operator link alive */
+    int gnss_ok;          /* position fix good enough to navigate */
+    int batt_mv;          /* pack voltage under load */
+    int inside_fence;
+} status_t;
+
+#define BATT_RTH_MV   21600   /* illustrative thresholds */
+#define BATT_LAND_MV  20400
+
+action_t failsafe(const status_t *s)
+{
+    if (s-&gt;batt_mv &lt; BATT_LAND_MV) return LAND_NOW;
+    if (!s-&gt;gnss_ok)               return LAND_NOW;  /* cannot navigate */
+    if (!s-&gt;inside_fence)          return RETURN_HOME;
+    if (!s-&gt;link_ok)               return RETURN_HOME;
+    if (s-&gt;batt_mv &lt; BATT_RTH_MV)  return RETURN_HOME;
+    return FLY;
+}
+</code></pre>
+<p>The order matters: with too little battery or no position, trying to fly home is riskier than landing where you are. A real system also adds timers so a brief link drop does not trigger a return, and it logs every decision.</p>
+<h2 id="electronics-that-survive-the-job">Electronics that survive the job</h2>
+<p>Agricultural work is harsh. Chemical spray corrodes connectors and boards, dust gets everywhere, and the drone operates in strong sun. Conformal coating, sealed connectors, careful cable routing away from spray and heat-aware design all matter. Power electronics, the motor drivers and battery, carry large currents, so their wiring and grounding must keep noise away from the sensors and the receiver.</p>
+<p>Drones are hazardous. Test with propellers removed whenever possible, use a tether or a cage for early flight tests, and fly only where and how the rules allow.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the failsafe function above in a host program, compile it with <strong>GCC</strong>, and test every combination of inputs to check the priority order.</li>
+<li>Simulate a single-axis rate loop with a PID controller in Python with <strong>numpy</strong>, add timing jitter to the loop period and watch the response degrade.</li>
+<li>Read the attitude estimation code in an open-source flight-control project and identify where the gyroscope and accelerometer are fused.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>drones</li><li>flight control</li><li>embedded</li><li>navigation</li><li>safety</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="low-cost-health-devices-responsibly.html"><span>Previous in India&#x27;s electronics ecosystem</span>Designing low-cost health devices responsibly: accuracy, safety and approvals</a><a class="next" href="edge-ai-for-indian-languages.html"><span>Next in India&#x27;s electronics ecosystem</span>Edge AI for Indian languages: keyword spotting across languages and accents</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="low-cost-health-devices-responsibly.html">Designing low-cost health devices responsibly: accuracy, safety and approvals</a></h3>
+          <p>Why medical devices are regulated, how to validate a device&#x27;s accuracy honestly against a reference with a Bland-Altman analysis, and how to avoid claims that a low-cost device cannot support.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="skilling-paths-into-embedded.html">Skilling paths into embedded systems in India: from college lab to product team</a></h3>
+          <p>A project ladder that takes you from blinking an LED to firmware a product team would accept, with what each rung teaches and how to show it, from register-level drivers to an RTOS, tests and field updates.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

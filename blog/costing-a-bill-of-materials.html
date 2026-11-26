@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Costing a bill of materials: what changes from prototype to volume · Ketuna blog</title>
+  <meta name="description" content="Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Costing a bill of materials: what changes from prototype to volume · Ketuna blog">
+  <meta property="og:description" content="Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.">
+  <link rel="canonical" href="https://ketuna.online/blog/costing-a-bill-of-materials.html">
+  <meta property="og:url" content="https://ketuna.online/blog/costing-a-bill-of-materials.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Costing a bill of materials: what changes from prototype to volume",
+  "description": "Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bom, cost, manufacturing, product development",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 918,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/costing-a-bill-of-materials.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Costing a bill of materials: what changes from prototype to volume</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-bill-of-materials-is">What a bill of materials is</a></li><li><a href="#the-lines-people-forget">The lines people forget</a></li><li><a href="#a-worked-roll-up">A worked roll-up</a></li><li><a href="#using-the-numbers-well">Using the numbers well</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Students often cost a product by adding up the prices of its parts on a distributor's website. The answer is wrong twice over. It is too high for production, because nobody buys five thousand microcontrollers at the single-unit price, and too low overall, because parts are only one line of what a finished board costs. A realistic cost estimate is a roll-up that changes shape with quantity. Learning to build one early stops you from setting a price that loses money on every unit.</p>
+<h2 id="what-a-bill-of-materials-is">What a bill of materials is</h2>
+<p>A <strong>bill of materials (BOM)</strong> lists everything needed to build one unit: every part with its quantity, reference designators, manufacturer part number and an approved alternate where one exists. A good BOM also records each part's lifecycle status (active, not recommended for new designs, end of life), because a part that is cheap today but being discontinued is not cheap.</p>
+<p>The <strong>costed BOM</strong> adds prices, and here is the first lesson: a part does not have one price. Distributors and manufacturers quote <strong>price breaks</strong>, with the unit price falling as the order quantity rises. Passive components are often sold most cheaply on full reels, and some parts have a <strong>minimum order quantity</strong>. Your cost model must look up the price at the quantity you will actually buy.</p>
+<h2 id="the-lines-people-forget">The lines people forget</h2>
+<p>Beyond the parts themselves, a board's cost includes:</p>
+<ul>
+<li><strong>Attrition.</strong> Pick-and-place machines drop and reject a small fraction of tiny parts, so assemblers ask for a few per cent extra.</li>
+<li><strong>The bare circuit board.</strong> Priced per board plus one-time charges for tooling and setup that dominate small orders.</li>
+<li><strong>Stencil and assembly setup.</strong> A one-time charge for the solder-paste stencil, machine programming and feeders.</li>
+<li><strong>Assembly per board.</strong> Driven by the number of placements, the number of sides, and any hand-soldered through-hole parts.</li>
+<li><strong>Test per board.</strong> Fixture cost, test time and the operator. Zero on a prototype you test yourself; real in production.</li>
+<li><strong>Yield loss.</strong> Boards that fail test and cannot be economically repaired. Their cost is spread across the good ones.</li>
+<li><strong>Enclosure, cables, labels, packaging and manuals.</strong></li>
+<li><strong>Freight, insurance and import duties</strong> where parts come from abroad. Rates depend on the part category and change over time; check the current rules rather than assuming.</li>
+</ul>
+<h2 id="a-worked-roll-up">A worked roll-up</h2>
+<p>This script computes the cost per <em>good</em> board at two quantities. Every price is made up for illustration and given in rupees; the shape of the result is what matters.</p>
+<pre><code class="language-python"># price breaks: (minimum quantity, unit price in Rs)
+bom = [
+    (&quot;MCU&quot;,        1, [(1, 210), (100, 160), (1000, 120)]),
+    (&quot;Sensor&quot;,     1, [(1, 180), (100, 140), (1000, 110)]),
+    (&quot;Regulator&quot;,  1, [(1, 35), (100, 22), (1000, 15)]),
+    (&quot;Connector&quot;,  2, [(1, 25), (100, 14), (1000, 9)]),
+    (&quot;Passives&quot;,  30, [(1, 1.0), (100, 0.30), (1000, 0.10)]),
+]
+
+def unit_price(breaks, n):
+    return min(p for q, p in breaks if n &gt;= q)
+
+def cost(n_boards, pcb_each, pcb_setup, asm_setup, asm_each,
+         test_each, yield_frac, attrition=0.02):
+    parts = 0.0
+    for name, per, breaks in bom:
+        need = n_boards * per * (1 + attrition)
+        parts += need * unit_price(breaks, need)
+    total = (parts + pcb_setup + n_boards * pcb_each
+             + asm_setup + n_boards * (asm_each + test_each))
+    return total / (n_boards * yield_frac)
+
+proto = cost(10, pcb_each=150, pcb_setup=2000, asm_setup=3000,
+             asm_each=400, test_each=0, yield_frac=0.9)
+volume = cost(5000, pcb_each=30, pcb_setup=2000, asm_setup=5000,
+              asm_each=45, test_each=20, yield_frac=0.97)
+print(f&quot;prototype: Rs {proto:,.0f} per good board&quot;)
+print(f&quot;volume:    Rs {volume:,.0f} per good board&quot;)
+</code></pre>
+<p>It prints about Rs 1,715 per good board for a run of 10 and about Rs 379 for a run of 5,000. Look at where the difference comes from:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Parts per board</th>
+<th>One-time charges per board</th>
+<th>Cost per good board</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>about Rs 494</td>
+<td>Rs 500</td>
+<td>about Rs 1,715</td>
+</tr>
+<tr>
+<td>5,000</td>
+<td>about Rs 271</td>
+<td>Rs 1.40</td>
+<td>about Rs 379</td>
+</tr>
+</tbody>
+</table></div>
+<p>At 10 boards, the board and assembly setup charges (Rs 5,000 in total) add Rs 500 to every unit, more than the parts. Hand-assembly at Rs 400 per board adds as much again. At 5,000 boards the same setup charges almost vanish, parts drop to their volume prices, and components become about three quarters of the total. Yield also bites differently: losing one board in ten on a prototype run costs over a hundred rupees a unit, while 3 % loss in production adds about Rs 11.</p>
+<h2 id="using-the-numbers-well">Using the numbers well</h2>
+<p><strong>Never price a product from prototype costs, and never promise a price from a parts-only sum.</strong> Build the roll-up at the quantity you expect to sell in the first year, and again at a pessimistic quantity. If the product only makes sense at the optimistic volume, that is a business risk worth stating plainly.</p>
+<p><strong>Cost the alternates.</strong> For every part with a single source, find and qualify an alternate early. It protects production if the part goes on allocation, and the second quote is useful when negotiating. Changing a part after validation means re-testing, which costs far more than the time spent finding an alternate at schematic stage.</p>
+<p><strong>Design affects cost directly.</strong> Putting all surface-mount parts on one side avoids a second assembly pass. Replacing a few through-hole parts with surface-mount versions removes hand soldering. Merging two near-identical resistor values into one reduces feeder setups and the number of line items to buy. These are small schematic decisions with a production price tag.</p>
+<p><strong>Count non-recurring costs separately.</strong> Engineering time, test fixtures, certification and tooling for an enclosure are paid once. Spread them over a stated volume to get a per-unit figure, but keep them visible as their own line, because they behave differently when volume changes.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Using single-unit distributor prices for a production estimate.</strong> They overstate parts cost at volume and hide everything else.</li>
+<li><strong>Forgetting yield and attrition.</strong> Small percentages, but they apply to the whole cost.</li>
+<li><strong>Ignoring lifecycle status.</strong> A cheap part that is nearing end of life will force a redesign.</li>
+<li><strong>No margin for price movement.</strong> Part prices and exchange rates change; hold some contingency in the cost target.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Export the BOM from a <strong>KiCad</strong> project (the schematic editor can generate one) and add columns for quantity, three price breaks from public distributor listings, and lifecycle status.</li>
+<li>Run the script above with your own BOM and two quantities, and find the quantity at which one-time charges drop below 5 % of the cost per board.</li>
+<li>Pick the three most expensive lines and, for each, find an alternate part. Note what would have to be re-verified if you switched.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bom</li><li>cost</li><li>manufacturing</li><li>product development</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="budgets-as-a-design-tool.html"><span>Previous in Systems &amp; product engineering</span>Budgets as a design tool: allocating mass, cost and margin across subsystems</a><a class="next" href="decoupling-capacitors-why-and-where.html"><span>Next in Systems &amp; product engineering</span>Decoupling capacitors: why, how many and where to place them</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="board-to-fpga-to-chip.html">From board to FPGA to chip: when a product earns a custom chip</a></h3>
+          <p>How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="production-test-strategy.html">Production test strategy: what to test on every unit and what to sample</a></h3>
+          <p>How to decide which tests every board gets, which are sampled, and where calibration fits, using fault coverage, escape rates and the rising cost of finding a fault later in the chain.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Five SystemVerilog design features worth using from day one · Ketuna blog</title>
+  <meta name="description" content="logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Five SystemVerilog design features worth using from day one · Ketuna blog">
+  <meta property="og:description" content="logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.">
+  <link rel="canonical" href="https://ketuna.online/blog/systemverilog-design-features-day-one.html">
+  <meta property="og:url" content="https://ketuna.online/blog/systemverilog-design-features-day-one.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Five SystemVerilog design features worth using from day one",
+  "description": "logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "systemverilog, rtl coding, enums, structs, lint",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 925,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/systemverilog-design-features-day-one.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Five SystemVerilog design features worth using from day one</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#1-logic-instead-of-reg-and-wire">1. logic instead of reg and wire</a></li><li><a href="#2-always_ff-and-always_comb">2. always_ff and always_comb</a></li><li><a href="#3-enumerated-types-for-states">3. Enumerated types for states</a></li><li><a href="#4-structs-and-packages">4. Structs and packages</a></li><li><a href="#5-unique-case-and-priority-case">5. unique case and priority case</a></li><li><a href="#tool-support-and-common-mistakes">Tool support and common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Many students learn plain Verilog in college and then meet SystemVerilog only as "the verification language". That is a missed opportunity. SystemVerilog also added a small set of design features that are synthesizable in open-source and commercial tools alike, and each one exists to catch a specific kind of mistake. You do not need classes or randomisation to benefit. These five are worth using in your very first module.</p>
+<h2 id="1-logic-instead-of-reg-and-wire">1. logic instead of reg and wire</h2>
+<p>In Verilog you must decide whether a signal is a <code>wire</code> (driven by <code>assign</code> or a port) or a <code>reg</code> (assigned in an <code>always</code> block). The name <code>reg</code> misleads beginners into thinking it means a register, which it does not: a <code>reg</code> assigned in a combinational block is just a wire.</p>
+<p>SystemVerilog's <code>logic</code> type works in both places:</p>
+<pre><code class="language-systemverilog">logic [7:0] count;      // assigned in always_ff
+logic       carry;      // assigned with assign
+</code></pre>
+<p><strong>What it catches:</strong> a <code>logic</code> variable may have only one driver when it is assigned procedurally or by a continuous assignment, so tools report an error if two <code>assign</code> statements, or an <code>assign</code> and an <code>always</code> block, drive the same <code>logic</code> signal. In Verilog, two <code>assign</code>s on one <code>wire</code> are legal and give you contention, an X in simulation and a short circuit in hardware. Use <code>wire</code> only when you genuinely want multiple drivers, such as a tri-state bus.</p>
+<h2 id="2-always_ff-and-always_comb">2. always_ff and always_comb</h2>
+<p>Verilog's <code>always</code> block does not say what it is meant to be. SystemVerilog adds specific versions:</p>
+<pre><code class="language-systemverilog">always_ff @(posedge clk or negedge rst_n)
+  if (!rst_n) count &lt;= '0;
+  else        count &lt;= count + 1'b1;
+
+always_comb begin
+  next = state;              // default first
+  if (go) next = RUN;
+end
+</code></pre>
+<p><strong>What they catch:</strong></p>
+<ul>
+<li><code>always_comb</code> builds its own sensitivity list, so you cannot forget a signal and get a simulation that disagrees with the hardware.</li>
+<li>Tools warn if an <code>always_comb</code> block implies a latch, for example from a missing <code>else</code>.</li>
+<li><code>always_ff</code> must have exactly one event control, and tools can warn when its contents do not look like a flip-flop.</li>
+<li>A variable assigned in an <code>always_comb</code> or <code>always_ff</code> block may not be assigned anywhere else.</li>
+</ul>
+<p>There is also <code>always_latch</code> for the rare case when a latch is intended, which makes that intent visible in code review.</p>
+<h2 id="3-enumerated-types-for-states">3. Enumerated types for states</h2>
+<p>A state machine written with <code>localparam</code> codes and a 2-bit <code>reg</code> lets you assign any 2-bit value to the state, including a typo. An enum gives the states names and a type:</p>
+<pre><code class="language-systemverilog">typedef enum logic [1:0] {IDLE, LOAD, RUN, DONE} state_t;
+state_t state, next;
+</code></pre>
+<p><strong>What it catches:</strong></p>
+<ul>
+<li>Assigning a plain number, or a value of a different enum type, to <code>state</code> is illegal without an explicit cast, and tools report it as an error or at least a warning, depending on the tool.</li>
+<li>Waveform viewers and <code>$display</code> with <code>%s</code> and <code>state.name()</code> show <code>RUN</code> instead of <code>2'b10</code>, which makes debugging much faster.</li>
+<li>Synthesis and lint tools recognise the variable as a state register, which helps FSM extraction and coverage.</li>
+</ul>
+<h2 id="4-structs-and-packages">4. Structs and packages</h2>
+<p>A pipeline often carries several related fields together: data, a valid bit, a channel number, a last flag. Writing them as separate signals means every stage repeats four declarations and four assignments, and forgetting one is easy. A <strong>packed struct</strong> groups them:</p>
+<pre><code class="language-systemverilog">package sensor_pkg;
+  typedef struct packed {
+    logic [15:0] sample;
+    logic [2:0]  channel;
+    logic        last;
+  } beat_t;
+endpackage
+
+module stage
+  import sensor_pkg::*;
+(
+  input  logic  clk,
+  input  beat_t in_beat,
+  output beat_t out_beat
+);
+  always_ff @(posedge clk) out_beat &lt;= in_beat;  // all fields at once
+endmodule
+</code></pre>
+<p>A <strong>package</strong> holds types, parameters and functions that several modules share, so every module agrees on the layout of <code>beat_t</code>.</p>
+<p><strong>What they catch:</strong> a field added to the struct reaches every stage automatically; there is no stage where you forgot to pipeline the new signal. Port connections between modules using <code>beat_t</code> cannot be wired to the wrong field. A packed struct is still just a bit vector underneath, so it synthesises to exactly the same flops as separate signals.</p>
+<h2 id="5-unique-case-and-priority-case">5. unique case and priority case</h2>
+<p>A plain <code>case</code> statement says nothing about whether its items overlap, or whether one of them always matches. SystemVerilog adds two qualifiers:</p>
+<pre><code class="language-systemverilog">always_comb begin
+  y = '0;
+  unique case (sel)
+    2'b00: y = a;
+    2'b01: y = b;
+    2'b10: y = c;
+    2'b11: y = d;
+  endcase
+end
+</code></pre>
+<ul>
+<li><code>unique case</code> tells the tools that exactly one item matches for every value that can occur. Simulators report a violation at run time if no item matches, or if more than one does. Synthesis can then build a parallel mux instead of a priority chain.</li>
+<li><code>priority case</code> says the items are checked in order and at least one will match.</li>
+</ul>
+<p><strong>What they catch:</strong> a selector value you did not think of, such as X from an uninitialised register, or a later edit that makes two items overlap. Be careful, though: <code>unique</code> also gives synthesis permission to optimise as if the unexpected values never happen, so the simulation warning is not something to ignore. Read every violation message, and fix the cause rather than removing the keyword.</p>
+<h2 id="tool-support-and-common-mistakes">Tool support and common mistakes</h2>
+<p>All five features are supported by the open-source tools used in this program, such as Verilator and Yosys, though support for some newer SystemVerilog constructs varies by tool and version. If a construct is rejected, check the tool's documentation before rewriting your design around it. A short "hello world" file that uses each feature, run through every tool in your flow, saves surprises later.</p>
+<p>Mistakes to avoid when you start:</p>
+<ul>
+<li>Using <code>logic</code> for a bus that really does have several tri-state drivers</li>
+<li>Adding <code>unique</code> to silence a lint warning without checking that the case really is complete</li>
+<li>Declaring the same struct separately in two modules instead of in one package, so they drift apart</li>
+<li>Forgetting that an enum's underlying width must hold all its values</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small FSM with an enum, <code>always_ff</code>, <code>always_comb</code> and <code>unique case</code>, and lint it with <code>verilator --lint-only -Wall</code>.</li>
+<li>Deliberately add a second <code>assign</code> to a <code>logic</code> signal, and a missing <code>else</code> in the <code>always_comb</code> block. Note the exact message each tool gives.</li>
+<li>Synthesise the FSM with <strong>Yosys</strong> using <code>read_verilog -sv</code> and confirm that the struct-based <code>stage</code> module maps to the same number of flops as the total struct width.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>systemverilog</li><li>rtl coding</li><li>enums</li><li>structs</li><li>lint</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="draw-the-circuit-before-the-code.html"><span>Previous in Digital &amp; VLSI design</span>Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a><a class="next" href="fixed-point-arithmetic-for-rtl.html"><span>Next in Digital &amp; VLSI design</span>Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="lint-warnings-that-point-at-bugs.html">Lint warnings that point at real RTL bugs</a></h3>
+          <p>Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="where-accidental-latches-come-from.html">Where accidental latches come from, and how to read the synthesis warning</a></h3>
+          <p>A combinational block that does not assign every output on every path makes synthesis infer a latch. Learn to spot the cause, read the warning, and prevent it with defaults and always_comb.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

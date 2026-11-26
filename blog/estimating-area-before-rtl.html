@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estimating chip area before you write RTL · Ketuna blog</title>
+  <meta name="description" content="Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Estimating chip area before you write RTL · Ketuna blog">
+  <meta property="og:description" content="Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.">
+  <link rel="canonical" href="https://ketuna.online/blog/estimating-area-before-rtl.html">
+  <meta property="og:url" content="https://ketuna.online/blog/estimating-area-before-rtl.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Estimating chip area before you write RTL",
+  "description": "Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "area estimation, gate equivalents, architecture, utilisation, synthesis",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 897,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/estimating-area-before-rtl.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Estimating chip area before you write RTL</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Count flip-flops, adders, multiplexers and memories, convert to gate equivalents, apply a utilisation, and you have an area estimate before any RTL exists. Then check it against your first synthesis run.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-method-in-four-steps">The method in four steps</a></li><li><a href="#weights-you-need">Weights you need</a></li><li><a href="#a-worked-example-a-small-fir-filter">A worked example: a small FIR filter</a></li><li><a href="#memories-are-counted-differently">Memories are counted differently</a></li><li><a href="#checking-against-the-first-synthesis">Checking against the first synthesis</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The cheapest moment to discover that a design is too big is before anyone writes it. An area estimate made from a block diagram takes an hour, and it answers questions that otherwise wait weeks for a synthesis run: will this fit in the die or tile we have, is the memory the dominant cost, should this datapath be serial or parallel. The estimate will be wrong by some margin, and that is fine. The point is to be roughly right early, and then to calibrate.</p>
+<h2 id="the-method-in-four-steps">The method in four steps</h2>
+<ol>
+<li><strong>List the storage.</strong> Count every flip-flop the architecture implies: registers, pipeline stages, state machines, FIFOs built from flops. List memories separately.</li>
+<li><strong>List the arithmetic and selection.</strong> Adders, multipliers, comparators, wide multiplexers. These dominate logic area in datapaths.</li>
+<li><strong>Convert to gate equivalents (GE).</strong> One GE is the area of a two-input NAND gate in your library. Express each component as a number of GE, using weights you calibrate for your library.</li>
+<li><strong>Convert to area and apply utilisation.</strong> Multiply by the area of one GE, add memory macro areas, then divide the standard-cell part by the planned utilisation to get core area.</li>
+</ol>
+<p>GE counting makes estimates portable between processes: the GE count of a design stays roughly constant, while the area per GE changes with the library.</p>
+<h2 id="weights-you-need">Weights you need</h2>
+<p>The weights below are assumptions for illustration. Measure your own by synthesising a single flip-flop, a small adder and a multiplexer in your library and dividing their area by the NAND2 area.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Assumed weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D flip-flop with reset</td>
+<td>5 GE</td>
+</tr>
+<tr>
+<td>Full adder (one bit of a ripple adder)</td>
+<td>7 GE</td>
+</tr>
+<tr>
+<td>Two-input AND</td>
+<td>1.33 GE</td>
+</tr>
+<tr>
+<td>Two-input multiplexer</td>
+<td>2.5 GE</td>
+</tr>
+</tbody>
+</table></div>
+<p>Useful structural counts:</p>
+<ul>
+<li>An <em>n</em>-bit ripple adder needs about <em>n</em> full adders.</li>
+<li>An <em>n</em> × <em>n</em> array multiplier needs <em>n</em><sup>2</sup> AND gates for partial products and about <em>n</em>(<em>n</em> − 1) full adders to sum them.</li>
+<li>An <em>m</em>-to-1 multiplexer of width <em>w</em> needs about (<em>m</em> − 1) × <em>w</em> two-input multiplexers.</li>
+</ul>
+<h2 id="a-worked-example-a-small-fir-filter">A worked example: a small FIR filter</h2>
+<p>Estimate a 16-tap FIR filter with 12-bit samples and coefficients, computed serially with one multiply-accumulate per clock, coefficients loaded over SPI. The architecture implies:</p>
+<ul>
+<li>16 × 12 = 192 coefficient flops and 192 sample flops,</li>
+<li>a 28-bit accumulator,</li>
+<li>about 54 flops of control and SPI logic,</li>
+<li>one 12 × 12 multiplier and a 28-bit accumulator adder,</li>
+<li>two 16-to-1, 12-bit multiplexers to pick the current coefficient and sample.</li>
+</ul>
+<p>A short script keeps the arithmetic honest and lets you change assumptions quickly:</p>
+<pre><code class="language-python"># Pre-RTL area estimate for a 16-tap, 12-bit serial FIR filter.
+# Gate-equivalent (GE) weights are assumptions; calibrate them.
+GE = {&quot;dff&quot;: 5.0, &quot;fa&quot;: 7.0, &quot;and2&quot;: 1.33, &quot;mux2&quot;: 2.5}
+UM2_PER_GE = 3.75      # area of one NAND2-equivalent, um^2 (assumed)
+UTIL = 0.50            # planned core utilisation
+
+taps, w, acc = 16, 12, 28
+parts = {
+    &quot;coefficient regs&quot;: (&quot;dff&quot;, taps * w),
+    &quot;sample shift reg&quot;: (&quot;dff&quot;, taps * w),
+    &quot;accumulator regs&quot;: (&quot;dff&quot;, acc),
+    &quot;control + SPI&quot;:    (&quot;dff&quot;, 54),
+    &quot;multiplier FAs&quot;:   (&quot;fa&quot;, w * (w - 1)),
+    &quot;multiplier ANDs&quot;:  (&quot;and2&quot;, w * w),
+    &quot;accumulator FAs&quot;:  (&quot;fa&quot;, acc),
+    &quot;tap select muxes&quot;: (&quot;mux2&quot;, 2 * (taps - 1) * w),
+}
+total = 0.0
+for name, (cell, n) in parts.items():
+    ge = n * GE[cell]
+    total += ge
+    print(f&quot;{name:18s} {n:5d} x {cell:5s} {ge:8.0f} GE&quot;)
+total += 200           # misc control logic, a guess
+cells = total * UM2_PER_GE
+print(f&quot;total {total:.0f} GE -&gt; {cells:.0f} um^2 of cells&quot;)
+print(f&quot;core at {UTIL:.0%}: {cells / UTIL:.0f} um^2, &quot;
+      f&quot;side {(cells / UTIL) ** 0.5:.0f} um if square&quot;)
+</code></pre>
+<p>It reports about 4,742 GE, roughly 17,800 µm² of cells and a core of about 35,600 µm² at 50% utilisation, about 189 µm on a side if square.</p>
+<p>Read the breakdown, not just the total. The 466 flip-flops contribute 2,330 GE, almost half the design. The coefficient and sample registers alone are 1,920 GE. That immediately suggests the main architectural lever: if coefficients rarely change, a small memory macro or a register file built from latches might be cheaper than flip-flops, and the tap-select multiplexers (900 GE) would disappear into the memory's own decoder.</p>
+<h2 id="memories-are-counted-differently">Memories are counted differently</h2>
+<p>Do not count memories in flip-flops unless you really intend to build them that way. A memory macro's area comes from its generator or datasheet and depends on words, width and ports, plus overhead for decoders and sense amplifiers. Small memories have a large overhead per bit; for a few dozen words, flip-flops or latches can be competitive. Add each macro's area, plus a halo for routing and power connections, to the core area separately from the utilisation calculation.</p>
+<h2 id="checking-against-the-first-synthesis">Checking against the first synthesis</h2>
+<p>As soon as an RTL draft exists, synthesise it and compare category by category:</p>
+<ul>
+<li><strong>Flip-flop count</strong> should match almost exactly. If it does not, either the estimate missed something or the RTL infers registers you did not intend (or synthesis removed some you did).</li>
+<li><strong>Logic area</strong> is where estimates drift. Synthesis may use faster, larger adder structures under a tight clock, or share logic you counted twice.</li>
+<li><strong>Total cell area</strong> within a modest margin of the estimate is a good result. A large miss means a wrong assumption, and finding it improves every future estimate.</li>
+</ul>
+<p>Then update your GE weights. After two or three designs, your estimates for that library will be noticeably closer.</p>
+<p>Remember that cell area grows after synthesis: placement adds buffers, clock tree synthesis adds clock buffers, hold fixing adds delay cells, and the flow adds tap and filler cells. That growth is one reason to plan a utilisation well below 100%.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Forgetting control logic and interfaces.</strong> They look small on a diagram and add up.</li>
+<li><strong>Counting memories as flops,</strong> or forgetting their halo and power connections.</li>
+<li><strong>Using one weight for every flop.</strong> Flops with enable, set or scan are larger.</li>
+<li><strong>Never calibrating.</strong> An uncalibrated estimate stays a guess.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then change it to a parallel FIR (16 multipliers, an adder tree) and compare the totals.</li>
+<li>Synthesise a single flop, an 8-bit adder and an 8-bit 2-to-1 multiplexer with <strong>Yosys</strong> against a sky130 library, and compute your own GE weights from <code>stat -liberty</code>.</li>
+<li>Write the serial FIR in Verilog, synthesise it, and compare flip-flop count and total area with your estimate.</li>
+<li>Harden it with <strong>LibreLane</strong> at the utilisation you planned and compare the final core area with the prediction.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>area estimation</li><li>gate equivalents</li><li>architecture</li><li>utilisation</li><li>synthesis</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="designing-for-a-shared-shuttle-tile.html"><span>Previous in Physical design &amp; tape-out</span>Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL</a><a class="next" href="floorplanning-a-drone-controller-chip.html"><span>Next in Physical design &amp; tape-out</span>Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="floorplanning-decisions.html">Floorplanning decisions that make or break a block</a></h3>
+          <p>Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

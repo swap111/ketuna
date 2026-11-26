@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hand calculation before simulation: the analog designer&#x27;s habit · Ketuna blog</title>
+  <meta name="description" content="A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Hand calculation before simulation: the analog designer&#x27;s habit · Ketuna blog">
+  <meta property="og:description" content="A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.">
+  <link rel="canonical" href="https://ketuna.online/blog/hand-calculation-before-simulation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/hand-calculation-before-simulation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Hand calculation before simulation: the analog designer's habit",
+  "description": "A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "hand analysis, simulation, analog design, design habits, spice",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 997,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/hand-calculation-before-simulation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Hand calculation before simulation: the analog designer&#x27;s habit</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-a-rough-number-is-enough">Why a rough number is enough</a></li><li><a href="#the-method-in-four-steps">The method in four steps</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#reading-the-simulation-against-the-prediction">Reading the simulation against the prediction</a></li><li><a href="#making-the-habit-stick">Making the habit stick</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>SPICE never refuses to answer. Give it a transistor in the wrong region, a capacitor in picofarads where you meant femtofarads, or a source connected to the wrong node, and it will still print a gain, a bandwidth and a pretty plot. The only defence is to know roughly what the answer should be before you press run. Experienced analog designers estimate every circuit on paper first, not because their hand numbers are accurate, but because a prediction turns a simulation from something you believe into something you check.</p>
+<h2 id="why-a-rough-number-is-enough">Why a rough number is enough</h2>
+<p>Hand analysis uses simplified models, such as the square-law MOSFET, that are wrong in detail for modern short-channel devices. They are often off by tens of per cent. That sounds useless until you look at what usually goes wrong in a first simulation:</p>
+<ul>
+<li>a transistor in triode instead of saturation, which cuts gain by a factor of ten or more</li>
+<li>a unit error, which is off by a factor of a thousand or a million</li>
+<li>a missing or misconnected component, which gives a result of a completely different character</li>
+</ul>
+<p>All of these produce errors far larger than the inaccuracy of hand analysis. A prediction within a factor of two is enough to catch every one of them. The habit is not "calculate precisely"; it is "know the expected order of magnitude and the expected operating point".</p>
+<h2 id="the-method-in-four-steps">The method in four steps</h2>
+<p>For any small analog circuit:</p>
+<ol>
+<li><strong>DC operating point first.</strong> Find every node voltage and branch current. Check every transistor's region. Nothing else is meaningful until this is right.</li>
+<li><strong>Small-signal parameters.</strong> From the bias, compute g<sub>m</sub> and, where it matters, r<sub>o</sub> for each device.</li>
+<li><strong>Gain.</strong> Write the gain as a transconductance times a resistance, the standard form for most single stages.</li>
+<li><strong>Bandwidth.</strong> Find the node with the highest resistance and its capacitance; the dominant pole is roughly 1 / (2πRC) at that node.</li>
+</ol>
+<p>Write the results down, with units, before opening the simulator.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>A common-source amplifier: an NMOS with its source grounded, a 10 kΩ resistor from drain to a 1.8 V supply, and a 1 pF load at the drain. We want 50 µA of bias current. The process values are made up for illustration: μ<sub>n</sub>C<sub>ox</sub> = 200 µA/V<sup>2</sup>, V<sub>TH</sub> = 0.45 V, and the transistor has W/L = 10.</p>
+<p><strong>Operating point.</strong> In saturation, I<sub>D</sub> = ½ μ<sub>n</sub>C<sub>ox</sub>(W/L)V<sub>OV</sub><sup>2</sup>, so V<sub>OV</sub> = √(2 × 50 µA / (200 µA/V<sup>2</sup> × 10)) ≈ 0.224 V and V<sub>GS</sub> ≈ 0.674 V. The resistor drops 50 µA × 10 kΩ = 0.5 V, so the drain sits at 1.30 V. Since 1.30 V is well above V<sub>OV</sub>, the transistor is saturated. Good.</p>
+<p><strong>Small-signal.</strong> g<sub>m</sub> = 2I<sub>D</sub>/V<sub>OV</sub> = 2 × 50 µA / 0.224 V ≈ 447 µS.</p>
+<p><strong>Gain.</strong> Ignoring r<sub>o</sub>, |A<sub>v</sub>| = g<sub>m</sub>R<sub>D</sub> ≈ 447 µS × 10 kΩ ≈ <strong>4.5</strong>.</p>
+<p><strong>Bandwidth.</strong> The drain is the high-resistance node: 10 kΩ with 1 pF gives a pole at 1 / (2π × 10 kΩ × 1 pF) ≈ <strong>15.9 MHz</strong>.</p>
+<p>The same calculation as a short script, worth keeping next to every test bench you write:</p>
+<pre><code class="language-python">from math import pi, sqrt
+
+# Process and design values (made up for illustration)
+k_n, vth = 200e-6, 0.45      # uCox in A/V^2, threshold in V
+w_over_l = 10
+vdd, r_d, c_l = 1.8, 10e3, 1e-12
+i_d = 50e-6                  # target bias current
+
+v_ov = sqrt(2 * i_d / (k_n * w_over_l))     # from I = 0.5 k W/L Vov^2
+v_gs = vth + v_ov
+v_out = vdd - i_d * r_d
+g_m = 2 * i_d / v_ov
+gain = g_m * r_d                            # ignores r_o
+f_3db = 1 / (2 * pi * r_d * c_l)
+
+print(f&quot;VGS = {v_gs:.3f} V   (VOV = {v_ov:.3f} V)&quot;)
+print(f&quot;VOUT = {v_out:.2f} V, saturated: {v_out &gt;= v_ov}&quot;)
+print(f&quot;gm = {g_m*1e6:.0f} uS, gain = {gain:.2f}, f3dB = {f_3db/1e6:.1f} MHz&quot;)
+</code></pre>
+<h2 id="reading-the-simulation-against-the-prediction">Reading the simulation against the prediction</h2>
+<p>Now simulate, and compare. Here is how to interpret a few possible outcomes.</p>
+<ul>
+<li><strong>Gain about 4, bandwidth about 14 MHz.</strong> Close enough. The small shortfall in gain is expected: the transistor's output resistance r<sub>o</sub> sits in parallel with R<sub>D</sub>. With λ = 0.1 V<sup>−1</sup>, r<sub>o</sub> ≈ 200 kΩ, and 10 kΩ ∥ 200 kΩ ≈ 9.5 kΩ gives a gain of about 4.3. The bandwidth is a little lower because the transistor's own drain capacitance adds to the 1 pF. Your model is now calibrated, and you understand why.</li>
+<li><strong>Gain about 0.3.</strong> Something is badly wrong. Check the operating point: the drain voltage is probably near ground, meaning the transistor is in triode. Either the gate bias is too high for this sizing in the real model, or the resistor is far larger than intended.</li>
+<li><strong>Bandwidth of 16 kHz.</strong> A factor of a thousand: look for a capacitor entered as <code>1n</code> where <code>1p</code> was meant.</li>
+<li><strong>Bias current of 5 mA.</strong> The source in the netlist is probably connected to a different node from the one you think, or a W was entered in metres where the PDK expected micrometres, making a gigantic transistor.</li>
+</ul>
+<p>In each case, the hand number told you not just <em>that</em> something was wrong but roughly <em>where</em> to look.</p>
+<h2 id="making-the-habit-stick">Making the habit stick</h2>
+<ul>
+<li><strong>Write predictions in the test bench.</strong> Put the expected values as comments next to the measurement statements. When results change after an edit, you notice.</li>
+<li><strong>Run the operating point before anything else.</strong> In ngspice, an <code>op</code> analysis prints node voltages, and transistor parameters can be inspected; check regions before looking at AC or transient results.</li>
+<li><strong>Update your model from the simulator.</strong> Extract the actual g<sub>m</sub>, r<sub>o</sub> and threshold at your bias point and use them in the next hand calculation. Many designers build small tables of g<sub>m</sub>/I<sub>D</sub> and intrinsic gain against bias from simulation, which makes hand estimates much closer for real devices.</li>
+<li><strong>Use AI tools the same way.</strong> If an assistant proposes a sizing or explains a result, compare it with your own estimate first. Disagreement is a reason to look deeper, not to pick whichever answer you like.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script, then build the same circuit in <strong>ngspice</strong> with a sky130 NMOS of comparable size. Adjust V<sub>GS</sub> until the drain current is 50 µA and compare the required V<sub>GS</sub> with the hand value.</li>
+<li>Run <code>op</code>, then <code>ac dec 20 1k 1G</code>, and compare gain and −3 dB frequency with your predictions. Explain each difference in one sentence.</li>
+<li>Deliberately break the circuit three ways (wrong capacitor unit, gate bias too high, load resistor moved from the drain to the source) and see whether your hand numbers let you diagnose each one from the results alone.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>hand analysis</li><li>simulation</li><li>analog design</li><li>design habits</li><li>spice</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="esd-protection-on-chip-pins.html"><span>Previous in Analog &amp; mixed-signal</span>ESD protection on chip pins: why every pad has diodes</a><a class="next" href="how-a-cmos-wafer-is-made.html"><span>Next in Analog &amp; mixed-signal</span>How a CMOS wafer is made: the fabrication steps every designer should picture</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bandgap-reference-intuition.html">How a bandgap reference makes a voltage that ignores temperature</a></h3>
+          <p>A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-circuit-in-xschem-and-ngspice.html">Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</a></h3>
+          <p>Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

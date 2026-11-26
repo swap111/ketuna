@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preparing for digital design interviews: the topics that recur and how to practise · Ketuna blog</title>
+  <meta name="description" content="Digital design interviews keep returning to timing, FSMs, clock domain crossing, FIFOs and Verilog. Here is what each topic tests and how to practise by drawing, explaining and coding aloud.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Preparing for digital design interviews: the topics that recur and how to practise · Ketuna blog">
+  <meta property="og:description" content="Digital design interviews keep returning to timing, FSMs, clock domain crossing, FIFOs and Verilog. Here is what each topic tests and how to practise by drawing, explaining and coding aloud.">
+  <link rel="canonical" href="https://ketuna.online/blog/digital-design-interview-preparation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/digital-design-interview-preparation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Preparing for digital design interviews: the topics that recur and how to practise",
+  "description": "Digital design interviews keep returning to timing, FSMs, clock domain crossing, FIFOs and Verilog. Here is what each topic tests and how to practise by drawing, explaining and coding aloud.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "interviews, digital design, verilog, timing, cdc",
+  "articleSection": "Careers & skills",
+  "wordCount": 1043,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/digital-design-interview-preparation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Preparing for digital design interviews: the topics that recur and how to practise</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Digital design interviews keep returning to timing, FSMs, clock domain crossing, FIFOs and Verilog. Here is what each topic tests and how to practise by drawing, explaining and coding aloud.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-five-topics-and-what-each-one-tests">The five topics and what each one tests</a></li><li><a href="#a-model-reasoning-path-for-one-question">A model reasoning path for one question</a></li><li><a href="#practise-by-drawing-explaining-and-coding-aloud">Practise by drawing, explaining and coding aloud</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Digital design interviews look varied from the outside, but the questions cluster around a small set of ideas: timing, state machines, clock domain crossing, FIFOs and the Verilog that describes them. Interviewers return to these because they reveal whether you understand hardware as hardware, with clocks, delays and parallel behaviour, rather than as a program that happens to be written in Verilog. Preparing well means knowing these topics deeply and practising the way you will be tested: at a whiteboard, out loud, with someone asking "why?".</p>
+<h2 id="the-five-topics-and-what-each-one-tests">The five topics and what each one tests</h2>
+<p>Each recurring topic probes a different part of your understanding. Knowing what the interviewer is really checking helps you aim your answer.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Typical question</th>
+<th>What it really tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Timing</td>
+<td>Find the maximum clock frequency of this path</td>
+<td>Can you reason about delay, setup and hold with numbers</td>
+</tr>
+<tr>
+<td>FSMs</td>
+<td>Design a detector for the pattern 1011</td>
+<td>Can you turn a behaviour into states and transitions</td>
+</tr>
+<tr>
+<td>CDC</td>
+<td>Pass a counter value to another clock domain</td>
+<td>Do you know why naive crossings fail</td>
+</tr>
+<tr>
+<td>FIFOs</td>
+<td>Design a synchronous FIFO; how is "full" derived</td>
+<td>Pointer arithmetic, corner cases, simultaneous read and write</td>
+</tr>
+<tr>
+<td>Verilog</td>
+<td>Blocking vs non-blocking; how a latch is inferred</td>
+<td>Do you know what hardware your code describes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Timing questions almost always end in a number, so practise the setup equation (clock period at least clock-to-Q plus logic delay plus setup time, adjusted for skew) until you can work one in under a minute. Be ready to explain why a hold violation cannot be fixed by slowing the clock: the clock period does not appear in the hold check.</p>
+<p>FSM questions reward a clean method more than speed. Decide Moore or Mealy, draw the states as circles, label every transition, and check what happens on overlapping inputs. For a 1011 detector, the interesting case is the input 1011011, where the last 1 of one match starts the next.</p>
+<p>CDC questions test whether you know that a two-flop synchronizer is for single-bit signals only. A multi-bit bus synchronized bit by bit can be captured with some bits old and some new. The fixes are a handshake, an asynchronous FIFO, or Gray coding for counters, where only one bit changes per step, so a sample is either the old value or the new one.</p>
+<h2 id="a-model-reasoning-path-for-one-question">A model reasoning path for one question</h2>
+<p>Here is how a strong candidate might work through a common question: "In a synchronous FIFO with 8 entries, how do you generate <code>full</code> and <code>empty</code>?"</p>
+<ol>
+<li><strong>Restate and clarify.</strong> "Eight entries, one clock, one read port and one write port. Should a write when full be ignored? I will assume yes."</li>
+<li><strong>Name the difficulty.</strong> "If read and write pointers are both 3 bits, equal pointers could mean empty or full. I need one more bit of information."</li>
+<li><strong>Offer the standard fix.</strong> "Use 4-bit pointers. The low 3 bits address memory. Empty is when all 4 bits match. Full is when the low 3 bits match and the top bit differs, meaning the write pointer has wrapped once more than the read pointer."</li>
+<li><strong>Check a corner case aloud.</strong> "Simultaneous read and write when full: the read frees a slot, but my write enable is gated by <code>full</code>, so the write is dropped this cycle. If the spec wants it accepted, I would gate on <code>full &amp;&amp; !rd_en</code> instead."</li>
+<li><strong>Write it.</strong></li>
+</ol>
+<pre><code class="language-verilog">// AW = 3 for 8 entries; pointers are AW+1 bits wide
+wire empty = (wr_ptr == rd_ptr);
+wire full  = (wr_ptr[AW-1:0] == rd_ptr[AW-1:0]) &amp;&amp;
+             (wr_ptr[AW]     != rd_ptr[AW]);
+</code></pre>
+<p>Notice what the interviewer hears: a clarified spec, a named problem, a standard solution, a corner case found without prompting, and only then the code. Even if you made a small slip in the code, steps 1 to 4 show the thinking they are hiring for.</p>
+<h2 id="practise-by-drawing-explaining-and-coding-aloud">Practise by drawing, explaining and coding aloud</h2>
+<p>Reading answers is not preparation. In an interview you must produce the answer while someone watches, and that is a separate skill. Practise it in three modes.</p>
+<ul>
+<li><strong>Draw.</strong> For every topic, draw the circuit or waveform from memory on paper: a two-flop synchronizer, a rising-edge detector (one flop and an AND gate with the delayed copy inverted), an FSM diagram, a FIFO with its pointers. If you cannot draw it, you do not yet know it.</li>
+<li><strong>Explain.</strong> Say each answer out loud, alone or to a friend, as if to an interviewer. You will notice gaps the moment you try to say "and then…" and cannot continue. A phone recording played back is uncomfortable and very effective.</li>
+<li><strong>Code.</strong> Write small modules by hand, without an editor's help, then simulate them. A counter, an edge detector, a sequence detector, a FIFO. Typing them in afterwards and running a simulation catches the mistakes your eyes skipped.</li>
+</ul>
+<p>A good weekly rhythm is two or three questions a day, each done in all three modes, with one mock interview at the end of the week where a peer picks the questions. Ask them to interrupt with "why?" and "what if the input glitches?", because real interviewers will.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Starting to code immediately.</strong> Without clarifying the spec, you may solve a different problem. Spend the first minute asking questions.</li>
+<li><strong>Memorising answers without mechanisms.</strong> "Use Gray code" is not an answer until you can say why one changing bit makes the sample safe.</li>
+<li><strong>Going silent.</strong> Interviewers cannot give credit for thinking they cannot hear. Narrate, even when unsure.</li>
+<li><strong>Bluffing.</strong> Saying "I don't know that, but here is how I would find out" is far better than a confident wrong answer that the follow-up exposes.</li>
+<li><strong>Ignoring reset and corner cases.</strong> What happens at reset, on back-to-back inputs, and on simultaneous events is where most designs break and most follow-ups go.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the 1011 overlapping sequence detector as a Moore FSM by hand, then simulate it with <strong>Icarus Verilog</strong> (<code>iverilog -o det det.v det_tb.v</code>, then <code>vvp det</code>) on the stream 1011011 and check it fires twice.</li>
+<li>Build the 8-entry FIFO above, add a testbench that fills it, overfills it and drains it, and confirm <code>full</code> and <code>empty</code> assert exactly when expected.</li>
+<li>Run <strong>Verilator</strong> in lint mode (<code>verilator --lint-only -Wall fifo.v</code>) on your FIFO and fix every warning, then explain each fix out loud as if to an interviewer.</li>
+<li>Pick three timing questions, work them on paper, and have a peer quiz you with follow-ups for fifteen minutes.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>interviews</li><li>digital design</li><li>verilog</li><li>timing</li><li>cdc</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="keeping-an-ai-log.html"><span>Previous in Careers &amp; skills</span>Keeping an AI log: recording what you asked, what you kept and why</a><a class="next" href="embedded-interview-preparation.html"><span>Next in Careers &amp; skills</span>Preparing for embedded interviews: C, interrupts and debugging stories</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="embedded-interview-preparation.html">Preparing for embedded interviews: C, interrupts and debugging stories</a></h3>
+          <p>Embedded interviews test pointers, bit manipulation, interrupt design and how you debug. Here is how to prepare each area, with worked questions and a structure for telling a bug story clearly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="experienced-verification-interviews.html">Preparing for experienced verification interviews: methodology questions and how to answer them</a></h3>
+          <p>Experienced verification interviews probe judgement, not syntax. Learn to explain your test plans, coverage decisions and debugging stories with concrete evidence from your own work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

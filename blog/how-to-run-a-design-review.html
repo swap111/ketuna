@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to run a design review, and how to take part in one · Ketuna blog</title>
+  <meta name="description" content="Prepare the review package, run a short checklist-driven meeting, record every finding with a severity and an owner, and give and take feedback on the design rather than on the person.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How to run a design review, and how to take part in one · Ketuna blog">
+  <meta property="og:description" content="Prepare the review package, run a short checklist-driven meeting, record every finding with a severity and an owner, and give and take feedback on the design rather than on the person.">
+  <link rel="canonical" href="https://ketuna.online/blog/how-to-run-a-design-review.html">
+  <meta property="og:url" content="https://ketuna.online/blog/how-to-run-a-design-review.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How to run a design review, and how to take part in one",
+  "description": "Prepare the review package, run a short checklist-driven meeting, record every finding with a severity and an owner, and give and take feedback on the design rather than on the person.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "design review, feedback, teamwork, checklists",
+  "articleSection": "Careers & skills",
+  "wordCount": 958,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/how-to-run-a-design-review.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>How to run a design review, and how to take part in one</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Prepare the review package, run a short checklist-driven meeting, record every finding with a severity and an owner, and give and take feedback on the design rather than on the person.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-roles-in-the-room">The roles in the room</a></li><li><a href="#before-the-meeting-the-package">Before the meeting: the package</a></li><li><a href="#during-the-meeting-a-fixed-agenda">During the meeting: a fixed agenda</a></li><li><a href="#recording-findings">Recording findings</a></li><li><a href="#reviewing-without-making-it-personal">Reviewing without making it personal</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A design review is the cheapest bug-finding tool a hardware team has. A missing reset branch found by a colleague in a meeting costs a few minutes to fix; the same bug found in silicon can cost a new mask set. Yet many reviews are either a slide show nobody questions or an argument that runs over time and fixes nothing. The difference is mostly structure: what gets sent beforehand, how the time is used and what gets written down.</p>
+<h2 id="the-roles-in-the-room">The roles in the room</h2>
+<p>A review works best with three clear roles:</p>
+<ul>
+<li><strong>Presenter (author).</strong> Owns the design, prepares the package, walks through it briefly and answers questions.</li>
+<li><strong>Reviewers.</strong> Two to four people who read the material beforehand and come with questions. At least one should know the neighbouring block or interface.</li>
+<li><strong>Scribe.</strong> One person, not the presenter, who records each finding, its severity and its owner. The presenter cannot answer questions and take notes at the same time.</li>
+</ul>
+<p>A moderator keeps time and stops debates. In a small team the scribe often does this too.</p>
+<h2 id="before-the-meeting-the-package">Before the meeting: the package</h2>
+<p>Most of the review happens before anyone meets. Send the package at least a day ahead so reviewers can read it properly. A useful package for an RTL block contains:</p>
+<ul>
+<li>the current spec, with a version number and date</li>
+<li>a block diagram and one waveform of normal operation</li>
+<li>the verification status: test plan, regression result, coverage, lint and CDC reports</li>
+<li>a short list of open questions where you want help</li>
+</ul>
+<p>The last item matters more than it looks. Reviewers who know where you are unsure will look there first. A presenter who hides doubts gets a shallower review.</p>
+<p>Reviewers, in turn, read the package and write their questions down before the meeting. A reviewer who sees the material for the first time in the room can only react to the slides.</p>
+<h2 id="during-the-meeting-a-fixed-agenda">During the meeting: a fixed agenda</h2>
+<p>Keep it short and time-boxed. For a single block, about 20 minutes is often enough, split roughly as in the diagram below.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="dr-title dr-desc" font-size="14">
+<title id="dr-title">A 20-minute design review timeline</title>
+<desc id="dr-desc">A horizontal bar divided into three parts: 8 minutes of walkthrough by the presenter, 10 minutes of reviewer questions, and 2 minutes to read back actions and decide. Below the bar, the scribe records findings throughout.</desc>
+<rect x="20" y="40" width="176" height="44" class="dg-box"/>
+<rect x="196" y="40" width="220" height="44" class="dg-core"/>
+<rect x="416" y="40" width="44" height="44" class="dg-amber" fill-opacity="0.4"/>
+<text x="108" y="67" text-anchor="middle" class="dg-text">Walkthrough 8 min</text>
+<text x="306" y="67" text-anchor="middle" class="dg-text">Questions 10 min</text>
+<text x="438" y="67" text-anchor="middle" class="dg-text">2</text>
+<text x="20" y="28" class="dg-muted">0</text>
+<text x="190" y="28" class="dg-muted">8</text>
+<text x="404" y="28" class="dg-muted">18</text>
+<text x="446" y="28" class="dg-muted">20</text>
+<line x1="20" y1="112" x2="460" y2="112" class="dg-dash"/>
+<path d="M454,108 L460,112 L454,116 Z" class="dg-arrow"/>
+<text x="240" y="135" text-anchor="middle" class="dg-text">Scribe records finding, severity, owner</text>
+<text x="438" y="160" text-anchor="middle" class="dg-muted">actions</text>
+<text x="438" y="102" text-anchor="middle" class="dg-muted">read-back</text>
+</svg>
+<figcaption>Most of the meeting is questions; the walkthrough is short because reviewers have already read the package.</figcaption>
+</figure>
+
+<ol>
+<li><strong>Walkthrough (about 8 minutes).</strong> The presenter covers the purpose, the interfaces, the one tricky part and the evidence. Not every line of RTL.</li>
+<li><strong>Questions (about 10 minutes).</strong> Reviewers work through a checklist, area by area: spec completeness, interfaces, RTL style, clock-domain crossings and reset, verification. A shared checklist stops the review from depending on who happens to remember what.</li>
+<li><strong>Actions (about 2 minutes).</strong> The scribe reads back the findings, and the group agrees on a decision: approved, approved with actions, or re-review.</li>
+</ol>
+<p>The moderator's main job is to stop solution debates. When two people start designing a fix in the meeting, the moderator says "let's record that as an action for the two of you" and moves on. Fixes are better worked out afterwards, with data and without an audience.</p>
+<h2 id="recording-findings">Recording findings</h2>
+<p>Every finding goes in a table with a severity and an owner:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>Severity</th>
+<th>Owner</th>
+<th>Due</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>err</code> in <code>WAIT_ACK</code> has no transition; FSM can hang</td>
+<td>Blocker</td>
+<td>Author</td>
+<td>Before merge</td>
+</tr>
+<tr>
+<td>2</td>
+<td>No test drives a write while the FIFO is full</td>
+<td>Major</td>
+<td>Author</td>
+<td>Before signoff</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>tmp2</code> holds the retry count; rename for readability</td>
+<td>Minor</td>
+<td>Author</td>
+<td>Next commit</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Is the 16-entry depth enough at the worst-case burst?</td>
+<td>Question</td>
+<td>Reviewer B</td>
+<td>Friday</td>
+</tr>
+</tbody>
+</table></div>
+<p>A <strong>blocker</strong> must be fixed before the next step (merge, tape-out, board order). A <strong>major</strong> must be fixed before signoff. A <strong>minor</strong> improves the design but does not stop it. A <strong>question</strong> needs an answer, which may turn into any of the others. Without severities, a renaming suggestion and a deadlock look equally urgent.</p>
+<p>The review is not finished until the actions are closed. The author updates the table with how each was resolved, and blockers are checked by a reviewer, not just marked done.</p>
+<h2 id="reviewing-without-making-it-personal">Reviewing without making it personal</h2>
+<p>People stop bringing designs to review if reviews feel like attacks, so the form of feedback matters as much as its content. A reliable form is <strong>observation, impact, question</strong>:</p>
+<blockquote>
+<p>"In <code>WAIT_ACK</code>, if <code>err</code> arrives instead of <code>ack</code> there is no transition (observation), so the FSM can wait forever (impact). Should <code>err</code> return to <code>IDLE</code>?" (question)</p>
+</blockquote>
+<p>This is about the design, gives the reason and leaves room for the author to know something you do not. Compare it with "this FSM is wrong", which is a verdict with no information.</p>
+<p>As a presenter, the matching skill is to <strong>thank, clarify and record</strong>. You do not have to agree in the room, and you should not argue. Ask a clarifying question if needed, make sure the scribe has it, and come back with data. Defending every point teaches reviewers to stop raising them.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>No pre-reading.</strong> The meeting becomes a first read, and only obvious issues surface.</li>
+<li><strong>Too many people.</strong> Beyond about five, most attendees watch rather than review.</li>
+<li><strong>No checklist.</strong> Each review covers whatever the loudest reviewer cares about.</li>
+<li><strong>Actions with no owner.</strong> "Someone should check the reset" means nobody will.</li>
+<li><strong>Reviewing only the RTL.</strong> The test plan and coverage deserve as much scrutiny as the design.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a small block you wrote, such as a FIFO or UART transmitter. Prepare a package: spec, block diagram, one waveform from Icarus Verilog viewed in GTKWave, lint output from <code>verilator --lint-only</code> and your test results.</li>
+<li>Ask two classmates to review it in 20 minutes, with a third as scribe, using the five checklist areas above.</li>
+<li>Record every finding with a severity and an owner, fix the blockers, and ask a reviewer to confirm each fix.</li>
+<li>Swap roles next week. Write at least three findings in observation, impact, question form.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>design review</li><li>feedback</li><li>teamwork</li><li>checklists</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="giving-and-receiving-code-review.html"><span>Previous in Careers &amp; skills</span>Giving and receiving code review without bruised egos</a><a class="next" href="keeping-an-ai-log.html"><span>Next in Careers &amp; skills</span>Keeping an AI log: recording what you asked, what you kept and why</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="giving-and-receiving-code-review.html">Giving and receiving code review without bruised egos</a></h3>
+          <p>Code review goes well when changes are small, comments are specific, reviewers ask questions instead of issuing verdicts, and authors respond to every point. Practical habits for both sides of a pull request.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="blameless-postmortems.html">Writing a blameless postmortem after a failed lab or project</a></h3>
+          <p>How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

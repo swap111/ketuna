@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data hazards and forwarding paths, traced cycle by cycle · Ketuna blog</title>
+  <meta name="description" content="Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Data hazards and forwarding paths, traced cycle by cycle · Ketuna blog">
+  <meta property="og:description" content="Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.">
+  <link rel="canonical" href="https://ketuna.online/blog/data-hazards-and-forwarding.html">
+  <meta property="og:url" content="https://ketuna.online/blog/data-hazards-and-forwarding.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Data hazards and forwarding paths, traced cycle by cycle",
+  "description": "Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pipelining, hazards, forwarding, risc-v, rtl",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 873,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/data-hazards-and-forwarding.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Data hazards and forwarding paths, traced cycle by cycle</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-read-after-write-hazard">The read-after-write hazard</a></li><li><a href="#which-path-covers-which-distance">Which path covers which distance</a></li><li><a href="#the-forwarding-unit-with-the-right-priority">The forwarding unit, with the right priority</a></li><li><a href="#what-forwarding-saves">What forwarding saves</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>In a five-stage pipeline, an instruction reads its source registers in the decode stage but its producer may not write the result back for another two or three cycles. Without help, the consumer reads a stale value and the program computes the wrong answer. Forwarding, also called bypassing, is the set of wires and multiplexers that delivers a result to the instruction that needs it before the register file has it. The clearest way to understand it is to draw the pipeline cycle by cycle and look at where each value is at each moment.</p>
+<h2 id="the-read-after-write-hazard">The read-after-write hazard</h2>
+<p>The only data hazard in a simple in-order pipeline is <strong>read after write (RAW)</strong>: a younger instruction reads a register that an older instruction writes. Consider:</p>
+<pre><code class="language-text">add x1, x2, x3     # producer: writes x1
+sub x4, x1, x5     # needs x1 one instruction later
+and x6, x1, x7     # needs x1 two instructions later
+or  x8, x1, x9     # needs x1 three instructions later
+</code></pre>
+<p>The classic stages are IF, ID (register read), EX (ALU), MEM and WB (register write). Lay the four instructions out on a timing table:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Instruction</th>
+<th>C1</th>
+<th>C2</th>
+<th>C3</th>
+<th>C4</th>
+<th>C5</th>
+<th>C6</th>
+<th>C7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add x1, x2, x3</code></td>
+<td>IF</td>
+<td>ID</td>
+<td>EX</td>
+<td>MEM</td>
+<td>WB</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>sub x4, x1, x5</code></td>
+<td></td>
+<td>IF</td>
+<td>ID</td>
+<td><strong>EX</strong></td>
+<td>MEM</td>
+<td>WB</td>
+<td></td>
+</tr>
+<tr>
+<td><code>and x6, x1, x7</code></td>
+<td></td>
+<td></td>
+<td>IF</td>
+<td>ID</td>
+<td><strong>EX</strong></td>
+<td>MEM</td>
+<td>WB</td>
+</tr>
+<tr>
+<td><code>or x8, x1, x9</code></td>
+<td></td>
+<td></td>
+<td></td>
+<td>IF</td>
+<td><strong>ID</strong></td>
+<td>EX</td>
+<td>MEM</td>
+</tr>
+</tbody>
+</table></div>
+<p>The add computes x1 at the end of C3, but writes it into the register file only in C5. Now look at the bold cells, the moments when each consumer actually needs x1.</p>
+<h2 id="which-path-covers-which-distance">Which path covers which distance</h2>
+<ul>
+<li><strong>Distance 1 (<code>sub</code>).</strong> In C4 the subtract is in EX and needs x1 at its ALU input. The add has just moved into MEM, so its result sits in the <strong>EX/MEM pipeline register</strong>. A wire from EX/MEM back to the ALU input multiplexer delivers it.</li>
+<li><strong>Distance 2 (<code>and</code>).</strong> In C5 the AND is in EX. The add is now in WB, and its result sits in the <strong>MEM/WB register</strong>. A second wire from MEM/WB to the ALU multiplexer covers this case.</li>
+<li><strong>Distance 3 (<code>or</code>).</strong> In C5 the OR is in ID, reading the register file in the same cycle that the add writes it. If the register file writes in the first half of the cycle and reads in the second, or bypasses internally when the read and write addresses match, the OR sees the new value. No pipeline forwarding is needed, but the register file must be built this way.</li>
+<li><strong>Distance 4 and more.</strong> The value is already in the register file. Nothing to do.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="fw-title fw-desc" font-size="14">
+<title id="fw-title">Forwarding multiplexer in front of an ALU input</title>
+<desc id="fw-desc">A three-input multiplexer feeds the ALU's first operand. Input 00 comes from the register value held in ID/EX. Input 10 comes from the ALU result in EX/MEM. Input 01 comes from the result in MEM/WB. A forwarding unit compares register numbers and drives the select.</desc>
+<rect x="10" y="30" width="130" height="34" class="dg-box"/><text x="75" y="52" text-anchor="middle" class="dg-text">ID/EX rs1 value</text>
+<rect x="10" y="88" width="130" height="34" class="dg-box"/><text x="75" y="110" text-anchor="middle" class="dg-text">EX/MEM result</text>
+<rect x="10" y="146" width="130" height="34" class="dg-box"/><text x="75" y="168" text-anchor="middle" class="dg-text">MEM/WB result</text>
+<line x1="140" y1="47" x2="214" y2="70" class="dg-line"/>
+<line x1="140" y1="105" x2="214" y2="105" class="dg-line"/>
+<line x1="140" y1="163" x2="214" y2="140" class="dg-line"/>
+<text x="196" y="60" class="dg-muted">00</text><text x="190" y="100" class="dg-muted">10</text><text x="196" y="160" class="dg-muted">01</text>
+<path d="M214,50 L244,64 L244,146 L214,160 Z" class="dg-amber" fill-opacity="0.5"/>
+<line x1="244" y1="105" x2="300" y2="105" class="dg-line"/><path d="M300,101 L306,105 L300,109 Z" class="dg-arrow"/>
+<path d="M306,70 L350,90 L350,120 L306,140 Z" class="dg-core"/><text x="330" y="110" text-anchor="middle" class="dg-text">ALU</text>
+<rect x="300" y="170" width="170" height="40" class="dg-box"/><text x="385" y="187" text-anchor="middle" class="dg-text">forwarding unit</text><text x="385" y="203" text-anchor="middle" class="dg-muted">compares rd vs rs1</text>
+<line x1="300" y1="190" x2="229" y2="190" class="dg-line"/><line x1="229" y1="190" x2="229" y2="159" class="dg-line"/><path d="M225,161 L229,155 L233,161 Z" class="dg-arrow"/>
+<text x="250" y="210" class="dg-muted">select</text>
+</svg>
+<figcaption>Each ALU operand has a multiplexer like this; the forwarding unit chooses the youngest valid producer.</figcaption>
+</figure>
+
+<h2 id="the-forwarding-unit-with-the-right-priority">The forwarding unit, with the right priority</h2>
+<p>The forwarding unit compares the source register numbers of the instruction in EX with the destination numbers of the two older instructions ahead of it. Three conditions must hold for a forward: the older instruction writes a register, its <code>rd</code> is not x0, and its <code>rd</code> equals the source.</p>
+<pre><code class="language-verilog">// Operand A; operand B is identical with idex_rs2.
+// 2'b00 = ID/EX value, 2'b10 = EX/MEM, 2'b01 = MEM/WB
+always @(*) begin
+  fwd_a = 2'b00;
+  if (exmem_regwrite &amp;&amp; exmem_rd != 5'd0 &amp;&amp;
+      exmem_rd == idex_rs1)
+    fwd_a = 2'b10;            // youngest producer wins
+  else if (memwb_regwrite &amp;&amp; memwb_rd != 5'd0 &amp;&amp;
+           memwb_rd == idex_rs1)
+    fwd_a = 2'b01;
+end
+</code></pre>
+<p>The order of the <code>if</code> and <code>else if</code> matters. Consider this sequence:</p>
+<pre><code class="language-text">add  x1, x2, x3
+addi x1, x1, 1
+sub  x4, x1, x5
+</code></pre>
+<p>When <code>sub</code> reaches EX, <code>addi</code> is in MEM and <code>add</code> is in WB. Both have <code>rd</code> = x1, so both comparisons match. The correct value is the one from <code>addi</code>, the more recent write, which is in EX/MEM. Checking MEM/WB first would forward the add's older value and silently produce a result off by one. This is a classic bug, and it passes any test that never writes the same register twice in a row.</p>
+<p>The x0 check matters too. An instruction such as <code>addi x0, x5, 7</code> is a legal way to discard a result, but its ALU output is 7, not zero. Without the check, the next instruction that reads x0 would receive 7.</p>
+<h2 id="what-forwarding-saves">What forwarding saves</h2>
+<p>Without forwarding, the only safe option is to stall the consumer in ID until the producer has written back. With a write-then-read register file, a distance-1 dependency costs two bubble cycles and a distance-2 dependency costs one. Back-to-back dependent arithmetic is very common in real code (think of address calculations and loop counters), so these stalls would add up quickly. With the two bypass paths, every ALU-to-ALU dependency runs at full speed. The one case forwarding cannot fully cover is a load followed immediately by a use of its result, because the loaded data appears only at the end of MEM. That case keeps one stall and is explained in <a href="the-load-use-hazard.html">the load-use hazard</a>.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Wrong priority.</strong> MEM/WB checked before EX/MEM forwards stale data when both match.</li>
+<li><strong>No x0 check.</strong> A discarded result leaks into later reads of x0.</li>
+<li><strong>Forgetting the store data path.</strong> A store's <code>rs2</code> value also needs forwarding, not only the ALU operands.</li>
+<li><strong>A register file without write-through.</strong> Distance-3 dependencies read the old value in ID.</li>
+<li><strong>Testing only independent instructions.</strong> Directed tests must cover distances 1, 2 and 3, and the double-write case.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the three-instruction double-write sequence above into a test program and predict every register value by hand.</li>
+<li>Run it on a pipelined RV32I core in Icarus Verilog or Verilator, swap the priority of the two comparisons on purpose, and watch the result go wrong in GTKWave.</li>
+<li>Compare the core with an instruction set simulator such as Spike, retiring instruction by instruction, so that any wrong forward is caught at the exact instruction where it happens.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pipelining</li><li>hazards</li><li>forwarding</li><li>risc-v</li><li>rtl</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="dma-bus-masters-and-arbitration.html"><span>Previous in Computer architecture &amp; RISC-V</span>DMA from the architecture side: bus masters, arbitration and coherence</a><a class="next" href="designing-an-soc-memory-map.html"><span>Next in Computer architecture &amp; RISC-V</span>Designing an SoC memory map: regions, alignment and room to grow</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="single-cycle-to-five-stage-pipeline.html">From single-cycle to a five-stage pipeline: what changes and why</a></h3>
+          <p>Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-load-use-hazard.html">The load-use hazard: why one bubble remains even with forwarding</a></h3>
+          <p>A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

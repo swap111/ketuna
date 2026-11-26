@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Energy per inference: why memory access dominates · Ketuna blog</title>
+  <meta name="description" content="Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Energy per inference: why memory access dominates · Ketuna blog">
+  <meta property="og:description" content="Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.">
+  <link rel="canonical" href="https://ketuna.online/blog/energy-per-inference.html">
+  <meta property="og:url" content="https://ketuna.online/blog/energy-per-inference.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Energy per inference: why memory access dominates",
+  "description": "Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "energy, memory, low power, ml accelerators, data reuse",
+  "articleSection": "Edge AI",
+  "wordCount": 1076,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/energy-per-inference.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Energy per inference: why memory access dominates</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-moving-data-costs-more-than-computing">Why moving data costs more than computing</a></li><li><a href="#a-simple-energy-model">A simple energy model</a></li><li><a href="#design-moves-that-keep-data-close">Design moves that keep data close</a></li><li><a href="#measuring-not-just-modelling">Measuring, not just modelling</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A battery-powered sensor that runs a neural network has a budget in joules, not in operations per second. The intuitive way to reduce energy is to reduce arithmetic: fewer multiplies, cheaper multipliers. That helps, but on most edge hardware it is not where the energy goes. Moving the operands to the multiplier, from flash, from SRAM, and above all from off-chip memory, usually costs more than the multiply itself. Seeing why, and putting rough numbers on it for your own design, changes which optimisations you reach for first.</p>
+<h2 id="why-moving-data-costs-more-than-computing">Why moving data costs more than computing</h2>
+<p>Energy in CMOS logic goes mostly into charging and discharging capacitance: E ≈ C × V<sup>2</sup> per transition. An 8-bit multiplier is a compact block of gates with short internal wires, so each multiply switches a modest total capacitance.</p>
+<p>Reading a byte from memory involves much more: decoding an address, driving a long word line across the array, sensing bit lines, then carrying the data over a bus to where it is needed. All of those wires are long, and long wires mean large capacitance. A bigger memory has longer lines and costs more per access. Off-chip memory is worse again: the data crosses package pins and board traces, each a large capacitance, often at a higher voltage. The published circuit literature consistently finds that an off-chip access costs orders of magnitude more than an 8-bit arithmetic operation, with on-chip SRAM in between, its cost growing with the array size.</p>
+<p>So the hierarchy is: registers next to the arithmetic are cheap, small local buffers cost more, large on-chip SRAM more again, off-chip memory the most. Exact ratios depend on the process, the memory sizes and the design, so take real values from your own technology's data or measurements.</p>
+<h2 id="a-simple-energy-model">A simple energy model</h2>
+<p>You can estimate energy per inference by counting events and weighting each by its cost:</p>
+<blockquote>
+<p>E ≈ N<sub>MAC</sub> × e<sub>MAC</sub> + Σ<sub>levels</sub> N<sub>access</sub> × e<sub>access</sub></p>
+</blockquote>
+<p>To show the shape of the result, use relative costs that are <strong>made up for illustration</strong> but follow the ordering above: one 8-bit MAC = 1 unit, one register read = 1, one on-chip SRAM read = 10, one off-chip read = 200.</p>
+<p><strong>A batch-1 dense layer, 256 × 256.</strong> It needs 65,536 MACs and reads each of its 65,536 int8 weights exactly once; there is no reuse to exploit.</p>
+<ul>
+<li>Weights from off-chip memory: 65,536 × 1 + 65,536 × 200 = 13,172,736 units. Memory is 99.5 % of the energy.</li>
+<li>Weights from on-chip SRAM: 65,536 + 655,360 = 720,896 units. Memory is still about 91 %.</li>
+</ul>
+<p>Making the multiplier twice as efficient would save under 5 % in the better case. Moving the weights from off-chip to on-chip memory saves about 18×. For a dense layer at batch 1, <em>where the weights live</em> is the energy design.</p>
+<p><strong>A convolution layer</strong> with 3 × 3 kernels, 8 input and 16 output channels and a 24 × 5 output: 138,240 MACs, but only 1,152 weights and 960 input bytes. Each weight is used 120 times.</p>
+<ul>
+<li>Naively fetching both operands from SRAM for every MAC: 138,240 + 2 × 138,240 × 10 = 2,903,040 units, memory about 95 %.</li>
+<li>Fetching each weight and input from SRAM once into local registers, then reading operands from registers: 138,240 + 2,112 × 10 + 2 × 138,240 × 1 = 435,840 units.</li>
+</ul>
+<p>The arithmetic did not change at all, yet energy fell by a factor of about 6.7, because data was reused close to the multiplier. Output writes are left out of both cases for simplicity; they would add the same small amount to each.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="epi-title epi-desc" font-size="14">
+<title id="epi-title">Share of energy spent on memory versus arithmetic</title>
+<desc id="epi-desc">Four horizontal bars. Dense layer with weights off chip: memory 99.5 percent. Dense layer with weights in SRAM: memory 91 percent. Convolution with operands fetched from SRAM every time: memory 95 percent. Convolution with operands reused from registers: memory 68 percent, arithmetic 32 percent.</desc>
+<text x="10" y="44" class="dg-text">dense, off-chip</text>
+<rect x="160" y="30" width="298" height="22" class="dg-amber" fill-opacity="0.45"/>
+<rect x="458" y="30" width="2" height="22" class="dg-core"/>
+<text x="10" y="89" class="dg-text">dense, SRAM</text>
+<rect x="160" y="75" width="273" height="22" class="dg-amber" fill-opacity="0.45"/>
+<rect x="433" y="75" width="27" height="22" class="dg-core"/>
+<text x="10" y="134" class="dg-text">conv, no reuse</text>
+<rect x="160" y="120" width="286" height="22" class="dg-amber" fill-opacity="0.45"/>
+<rect x="446" y="120" width="14" height="22" class="dg-core"/>
+<text x="10" y="179" class="dg-text">conv, reuse</text>
+<rect x="160" y="165" width="205" height="22" class="dg-amber" fill-opacity="0.45"/>
+<rect x="365" y="165" width="95" height="22" class="dg-core"/>
+<rect x="160" y="200" width="14" height="12" class="dg-amber" fill-opacity="0.45"/>
+<text x="180" y="211" class="dg-muted">memory</text>
+<rect x="260" y="200" width="14" height="12" class="dg-core"/>
+<text x="280" y="211" class="dg-muted">arithmetic</text>
+</svg>
+<figcaption>With illustrative costs, memory dominates every case; reuse is what brings arithmetic back to a visible share.</figcaption>
+</figure>
+
+<h2 id="design-moves-that-keep-data-close">Design moves that keep data close</h2>
+<p>The model points to a short list of moves, roughly in order of payoff:</p>
+<ol>
+<li><strong>Keep weights on chip.</strong> Choose a model small enough that its weights fit in on-chip flash or SRAM. Shrinking the model to fit, by architecture choice, quantization or pruning, often saves more energy than any arithmetic trick.</li>
+<li><strong>Use fewer bits.</strong> An int8 weight moves a quarter of the bits of a float32 one. Since movement dominates, quantization saves energy mainly through memory, not through the multiplier.</li>
+<li><strong>Reuse each fetched value many times.</strong> Convolutions offer reuse naturally; accelerators exploit it with register files and systolic arrays that pass operands between neighbours. Software can do a little of the same with loop orders that keep a weight in a register while it sweeps across inputs.</li>
+<li><strong>Fuse layers.</strong> Applying bias, requantization and ReLU at the output of the MAC array means each activation is written once in int8, instead of being written, read back and written again.</li>
+<li><strong>Do less often.</strong> A cascade that runs the network only when a cheap trigger fires cuts energy per hour, which is what the battery cares about, far more than energy per inference.</li>
+</ol>
+<h2 id="measuring-not-just-modelling">Measuring, not just modelling</h2>
+<p>The model is for reasoning and comparison; the battery only believes measurements. Energy per inference is average power during the inference times its duration: E = V × I<sub>avg</sub> × t. With the inference running in a loop, measure the supply current with a current-sense resistor and an oscilloscope, or a dedicated power-measurement board, and toggle a GPIO pin at the start and end of each inference so you can see exactly which part of the trace belongs to it. Measure the idle and sleep current too: on a device that infers once a second, the sleep floor may matter as much as the inference.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>optimising the multiplier while weights stream from off-chip memory</li>
+<li>comparing accelerators by operations per second instead of energy per inference on a real model</li>
+<li>quoting energy per inference while ignoring sleep current and wake-up cost</li>
+<li>trusting illustrative ratios like the ones above instead of measuring your own hardware</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put the energy model in a Python function and run it over every layer of a small network, using your own estimates for each memory level.</li>
+<li>For one layer, rewrite a C loop so that each weight stays in a local variable while it sweeps across inputs, and compare cycles and, if you can, current.</li>
+<li>On a development board, toggle a GPIO around an inference and measure the current pulse with a shunt resistor and an oscilloscope; compute microjoules per inference.</li>
+<li>Compute what fraction of a day's energy goes to inference versus sleep for a device that wakes once per second.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>energy</li><li>memory</li><li>low power</li><li>ml accelerators</li><li>data reuse</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="edge-or-cloud-inference.html"><span>Previous in Edge AI</span>Edge or cloud inference? Latency, power, privacy and cost</a><a class="next" href="gesture-recognition-from-an-imu.html"><span>Next in Edge AI</span>Gesture recognition from an IMU: data, features and a small model</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="what-a-tiny-vision-sensor-can-classify.html">What a low-cost vision sensor can classify on-chip</a></h3>
+          <p>Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

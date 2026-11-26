@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proving a FIFO never overflows with SymbiYosys · Ketuna blog</title>
+  <meta name="description" content="Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Proving a FIFO never overflows with SymbiYosys · Ketuna blog">
+  <meta property="og:description" content="Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.">
+  <link rel="canonical" href="https://ketuna.online/blog/prove-a-fifo-never-overflows.html">
+  <meta property="og:url" content="https://ketuna.online/blog/prove-a-fifo-never-overflows.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Proving a FIFO never overflows with SymbiYosys",
+  "description": "Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "formal verification, symbiyosys, fifo, assertions, yosys",
+  "articleSection": "Verification",
+  "wordCount": 906,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/prove-a-fifo-never-overflows.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Proving a FIFO never overflows with SymbiYosys</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-design">The design</a></li><li><a href="#assumptions-assertions-and-covers">Assumptions, assertions and covers</a></li><li><a href="#running-the-proof">Running the proof</a></li><li><a href="#breaking-it-an-undersized-counter">Breaking it: an undersized counter</a></li><li><a href="#reading-the-counterexample">Reading the counterexample</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A random simulation of a FIFO might run a million cycles and still never hit the one sequence that breaks the full flag. A formal tool does not sample; it considers every possible input on every cycle and either proves your properties hold or hands you the shortest sequence that breaks one. For a block as small as a FIFO, the open-source flow of Yosys and SymbiYosys does this in seconds. This walk-through writes the properties, runs the proof, and then reads a real counterexample from a classic sizing bug.</p>
+<h2 id="the-design">The design</h2>
+<p>A four-entry FIFO with a separate occupancy counter. Four entries is plenty for a proof: the control logic is the same at depth 4 as at depth 1,024, and a small depth keeps the state space tiny.</p>
+<pre><code class="language-verilog">module fifo4 #(parameter W = 8) (
+  input  wire         clk, rst,
+  input  wire         wr_en, rd_en,
+  input  wire [W-1:0] din,
+  output wire [W-1:0] dout,
+  output wire         full, empty
+);
+  reg [W-1:0] mem [0:3];
+  reg [1:0]   wp, rp;
+  reg [2:0]   count;              // must hold 0..4
+
+  wire do_wr = wr_en &amp;&amp; !full;
+  wire do_rd = rd_en &amp;&amp; !empty;
+  assign full  = (count == 3'd4);
+  assign empty = (count == 3'd0);
+  assign dout  = mem[rp];
+
+  always @(posedge clk) begin
+    if (rst) begin
+      wp &lt;= 0; rp &lt;= 0; count &lt;= 0;
+    end else begin
+      if (do_wr) begin mem[wp] &lt;= din; wp &lt;= wp + 1'b1; end
+      if (do_rd) rp &lt;= rp + 1'b1;
+      count &lt;= count + do_wr - do_rd;
+    end
+  end
+</code></pre>
+<p>The properties go at the bottom of the same module, inside <code>ifdef FORMAL</code> so that simulation and synthesis never see them.</p>
+<h2 id="assumptions-assertions-and-covers">Assumptions, assertions and covers</h2>
+<p>Three kinds of statement do three different jobs.</p>
+<ul>
+<li>An <strong>assumption</strong> restricts what the tool may try. Here the only one we need is "the design starts in reset". Without it, the solver begins from arbitrary register contents and reports failures no real chip could reach.</li>
+<li>An <strong>assertion</strong> is the claim to prove.</li>
+<li>A <strong>cover</strong> asks the tool to show that a situation <em>can</em> happen. If a cover is unreachable, the proof may be passing for the wrong reason.</li>
+</ul>
+<p>For "never overflows", we keep a shadow count of accepted operations that is independent of the design's own counter, and tie the flags to it.</p>
+<pre><code class="language-verilog">`ifdef FORMAL
+  reg f_init = 1'b1;
+  always @(posedge clk) f_init &lt;= 1'b0;
+  always @(*) if (f_init) assume (rst);
+
+  reg [3:0] f_count;
+  always @(posedge clk)
+    if (rst) f_count &lt;= 0;
+    else     f_count &lt;= f_count + do_wr - do_rd;
+
+  always @(*) if (!f_init) begin
+    assert (f_count &lt;= 4);
+    assert (full  == (f_count == 4));
+    assert (empty == (f_count == 0));
+    assert (count == f_count);        // helper invariant
+  end
+
+  always @(*) if (!f_init) begin
+    cover (full);
+    cover (full &amp;&amp; wr_en &amp;&amp; rd_en);
+  end
+`endif
+endmodule
+</code></pre>
+<p>The second cover asks for a write and read together while full, the case where the write is refused and the read proceeds. If a wrong assumption ever made that unreachable, the cover would report it.</p>
+<h2 id="running-the-proof">Running the proof</h2>
+<p>The job file tells SymbiYosys what to read, which mode to run and which engine to use.</p>
+<pre><code class="language-text">[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+prove: depth 8
+cover: mode cover
+cover: depth 12
+
+[engines]
+smtbmc
+
+[script]
+read -formal fifo4.v
+prep -top fifo4
+
+[files]
+fifo4.v
+</code></pre>
+<p>Run <code>sby -f fifo4.sby</code>. The <code>prove</code> task runs a bounded check from reset and an induction step; if both succeed, the properties hold on every reachable state, for any length of run. The <code>cover</code> task produces one short trace per cover statement, which you can open to see the situations really occur.</p>
+<p>The helper invariant <code>count == f_count</code> is there for the induction step. Induction starts from <em>any</em> state where the assertions held for a few cycles, including states the design could never reach. Tying the design's counter to the shadow counter rules those out.</p>
+<h2 id="breaking-it-an-undersized-counter">Breaking it: an undersized counter</h2>
+<p>Now introduce a bug that happens in real code. Someone sizes the counter with the address width, as <code>reg [1:0] count;</code>, reasoning that four entries need two bits. Two bits hold 0 to 3. The value 4 does not exist, so <code>count == 3'd4</code> is never true and <code>full</code> never asserts.</p>
+<p>Run the proof again and the base case fails. SymbiYosys prints which assertion failed and writes a trace into the task directory (look in <code>fifo4_prove/engine_0/</code> for the <code>.vcd</code> file). Open it in GTKWave. A trace like this is what you will find:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>rst</th>
+<th>wr_en</th>
+<th>count</th>
+<th>f_count</th>
+<th>full</th>
+<th>empty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0</td>
+<td>1</td>
+<td>3</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>5</td>
+<td>0</td>
+<td>x</td>
+<td>0</td>
+<td>4</td>
+<td>0</td>
+<td>1</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="reading-the-counterexample">Reading the counterexample</h2>
+<p>Read a trace from the failure backwards, one question at a time.</p>
+<ol>
+<li><strong>Which assertion failed, and at which step?</strong> At step 5, <code>full == (f_count == 4)</code> is false: four entries are stored, but <code>full</code> is 0. The <code>empty</code> assertion fails at the same step.</li>
+<li><strong>What did the inputs do?</strong> Reset, then four writes in a row. No reads. The solver found the shortest path: you cannot reach four entries in fewer writes.</li>
+<li><strong>Where do the design's state and the shadow model first disagree?</strong> At step 5, <code>count</code> drops from 3 to 0 while <code>f_count</code> goes to 4. That is the wrap of a two-bit register.</li>
+<li><strong>Is the scenario legal?</strong> Four writes to an empty four-entry FIFO is exactly what it is for, so this is a real bug, not a missing assumption.</li>
+</ol>
+<p>The failure also tells you how bad the bug is. With <code>count</code> back at 0, <code>empty</code> asserts while the FIFO is full, so the consumer stops reading and a fifth write overwrites the oldest entry. A random simulation would hit this only if it happened to write four times without a read, and then only if a checker noticed.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>No reset assumption.</strong> The solver starts from garbage and reports failures from impossible states.</li>
+<li><strong>Asserting during the reset cycle.</strong> Guard assertions so they check only after reset has taken effect.</li>
+<li><strong>Skipping covers.</strong> A proof that passes because an assumption forbids all writes is worthless. Covers expose it.</li>
+<li><strong>Full-size parameters.</strong> Prove at depth 4; the same RTL at a larger depth has the same control logic.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install Yosys and SymbiYosys with a solver such as Yices, save the design and properties as <code>fifo4.v</code> with the job file, and run <code>sby -f fifo4.sby</code>.</li>
+<li>Open the cover traces in GTKWave and confirm the "write and read while full" case does what you expect.</li>
+<li>Apply the two-bit counter bug, rerun, and fill in the table above from your own trace.</li>
+<li>Restore the design, delete the helper invariant, and see whether induction still passes at depth 8; explain the result.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>formal verification</li><li>symbiyosys</li><li>fifo</li><li>assertions</li><li>yosys</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="portable-stimulus-in-plain-terms.html"><span>Previous in Verification</span>Portable Stimulus in plain terms: one test intent, many platforms</a><a class="next" href="reading-a-spec-like-a-bug-hunter.html"><span>Next in Verification</span>Reading a spec like a bug hunter: looking for what it does not say</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bounded-proof-vs-k-induction.html">Bounded proof or full proof? Model-checking depth and k-induction explained</a></h3>
+          <p>Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="equivalence-checking-explained.html">Equivalence checking: proving synthesis did not change your design</a></h3>
+          <p>How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="over-constrained-formal-proofs.html">How over-constrained assumptions make formal proofs lie</a></h3>
+          <p>An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

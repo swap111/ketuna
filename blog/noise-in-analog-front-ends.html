@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thermal and flicker noise in analog front ends · Ketuna blog</title>
+  <meta name="description" content="Resistors and transistors add random noise that sets the smallest signal a front end can see. Learn where thermal and flicker noise come from, how to refer noise to the input, and how to size a stage for low noise.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Thermal and flicker noise in analog front ends · Ketuna blog">
+  <meta property="og:description" content="Resistors and transistors add random noise that sets the smallest signal a front end can see. Learn where thermal and flicker noise come from, how to refer noise to the input, and how to size a stage for low noise.">
+  <link rel="canonical" href="https://ketuna.online/blog/noise-in-analog-front-ends.html">
+  <meta property="og:url" content="https://ketuna.online/blog/noise-in-analog-front-ends.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Thermal and flicker noise in analog front ends",
+  "description": "Resistors and transistors add random noise that sets the smallest signal a front end can see. Learn where thermal and flicker noise come from, how to refer noise to the input, and how to size a stage for low noise.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "noise, flicker noise, thermal noise, low noise design, front end",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 984,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/noise-in-analog-front-ends.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Thermal and flicker noise in analog front ends</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Resistors and transistors add random noise that sets the smallest signal a front end can see. Learn where thermal and flicker noise come from, how to refer noise to the input, and how to size a stage for low noise.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#thermal-noise-resistance-at-a-temperature">Thermal noise: resistance at a temperature</a></li><li><a href="#flicker-noise-the-low-frequency-rise">Flicker noise: the low-frequency rise</a></li><li><a href="#input-referred-noise-and-the-first-stage">Input-referred noise and the first stage</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#sizing-for-low-noise">Sizing for low noise</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every sensor interface eventually hits a floor: a level below which the signal is buried in random fluctuations generated by the circuit itself. Gain cannot help, because the amplifier amplifies its own noise along with the signal. Knowing where that noise comes from, and which part dominates in your band, decides how you size the input stage, how much current you spend, and whether you need tricks such as chopping. The two mechanisms that matter most in CMOS front ends are thermal noise and flicker noise.</p>
+<h2 id="thermal-noise-resistance-at-a-temperature">Thermal noise: resistance at a temperature</h2>
+<p>Any resistance at a temperature above absolute zero has charge carriers jostling randomly, producing a fluctuating voltage across its terminals. Its power spectral density is flat (white) across all frequencies of practical interest:</p>
+<blockquote>
+<p>v<sub>n</sub><sup>2</sup> = 4kTR  (V<sup>2</sup>/Hz)</p>
+</blockquote>
+<p>At 300 K, a 10 kΩ resistor produces about 12.9 nV/√Hz. Noise densities are quoted per square root of hertz because noise <em>power</em> adds with bandwidth: the RMS voltage over a band B is the density times √B.</p>
+<p>A MOSFET channel is a resistance too. In saturation its thermal noise is modelled as a current source between drain and source with density 4kTγg<sub>m</sub>, where γ is about 2/3 for long-channel devices and can be larger in short-channel ones. Dividing by g<sub>m</sub><sup>2</sup> refers it to the gate as an equivalent input voltage:</p>
+<blockquote>
+<p>v<sub>n,in</sub><sup>2</sup> = 4kTγ / g<sub>m</sub></p>
+</blockquote>
+<p>The design lesson is direct: <strong>thermal noise falls as g<sub>m</sub> rises</strong>. A transistor with g<sub>m</sub> = 1 mS and γ = 2/3 contributes about 3.3 nV/√Hz. Doubling g<sub>m</sub> reduces the noise power by half, and the density by √2. Raising g<sub>m</sub> costs current, so low thermal noise is bought with power. Biasing at high g<sub>m</sub>/I<sub>D</sub>, towards weak inversion, gets the most g<sub>m</sub> per microampere.</p>
+<h2 id="flicker-noise-the-low-frequency-rise">Flicker noise: the low-frequency rise</h2>
+<p>Below some frequency, MOSFET noise rises as 1/f. The common explanation is that carriers are trapped and released by defects at the silicon–oxide interface, randomly modulating the channel's charge. A simple model refers it to the gate as:</p>
+<blockquote>
+<p>v<sub>n,1/f</sub><sup>2</sup> = K / (C<sub>ox</sub> W L f)</p>
+</blockquote>
+<p>where K is a process-dependent constant. Two features matter. The noise grows without limit as frequency falls, and it shrinks with <strong>gate area</strong> W·L, not with current. Flicker noise also varies between processes and between NMOS and PMOS devices; in many processes PMOS devices show less of it, which is one reason for PMOS input pairs in low-frequency amplifiers. Check your PDK's models rather than assuming.</p>
+<p>The frequency where the 1/f line meets the thermal floor is the <strong>flicker corner</strong> f<sub>c</sub>. Below it flicker noise dominates. For small devices it can be tens of kilohertz or more.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 240" role="img" aria-labelledby="nz-title nz-desc" font-size="14">
+<title id="nz-title">Input noise density against frequency</title>
+<desc id="nz-desc">Log-log plot of noise density against frequency. At low frequency a falling 1/f line dominates; it meets a flat thermal floor at the flicker corner frequency. A shaded region at low frequency marks a sensor band that lies entirely below the corner.</desc>
+<rect x="70" y="30" width="110" height="170" class="dg-amber" fill-opacity="0.15"/>
+<text x="80" y="48" class="dg-muted">sensor band</text>
+<line x1="60" y1="200" x2="460" y2="200" class="dg-line"/>
+<line x1="60" y1="200" x2="60" y2="20" class="dg-line"/>
+<path d="M70,40 L290,150" class="dg-line" stroke-width="2"/>
+<path d="M290,150 L450,150" class="dg-line" stroke-width="2"/>
+<path d="M290,150 L400,205" class="dg-dash"/>
+<line x1="290" y1="60" x2="290" y2="200" class="dg-dash"/>
+<text x="270" y="220" class="dg-text">fc</text>
+<text x="160" y="85" class="dg-text">1/f noise</text>
+<text x="330" y="140" class="dg-text">thermal floor</text>
+<text x="390" y="232" class="dg-muted">log f</text>
+<text x="8" y="30" class="dg-text">vn</text>
+</svg>
+<figcaption>Below the flicker corner, 1/f noise dominates; a low-frequency sensor band can sit entirely in that region.</figcaption>
+</figure>
+
+<h2 id="input-referred-noise-and-the-first-stage">Input-referred noise and the first stage</h2>
+<p>To compare noise with signal, refer everything to the input: take each source, find how it appears at the output, and divide by the gain from input to output. Sources in the first stage are divided by nothing; sources in the second stage are divided by the first stage's gain, and so on. That is why the <strong>first stage sets the noise</strong> of a well-designed chain. Give it enough gain, typically ten or more, and later stages barely matter.</p>
+<p>Do not forget the source. A sensor with 10 kΩ of output resistance contributes 12.9 nV/√Hz before your circuit does anything. There is little point designing an amplifier much quieter than its source; the goal is to make your contribution small <em>relative</em> to it.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Consider a front end for a low-frequency sensor with a band of 0.5 Hz to 100 Hz and a 10 kΩ source resistance. The input transistor has g<sub>m</sub> = 1 mS, γ = 2/3 and a flicker corner of 10 kHz. These values are illustrative.</p>
+<p>The flicker density at frequency f is the thermal density scaled by √(f<sub>c</sub>/f), and integrating 1/f over the band gives a logarithm. The script adds up the three contributions:</p>
+<pre><code class="language-python">from math import log, sqrt
+
+K_B, T = 1.380649e-23, 300.0
+
+def input_noise(gm, gamma, f_corner, f_lo, f_hi, r_source=0.0):
+    &quot;&quot;&quot;RMS input-referred noise (V) of one transistor plus source resistor.&quot;&quot;&quot;
+    s_th = 4 * K_B * T * gamma / gm             # thermal density, V^2/Hz
+    thermal = s_th * (f_hi - f_lo)              # flat part
+    flicker = s_th * f_corner * log(f_hi / f_lo)  # 1/f part, integrated
+    source = 4 * K_B * T * r_source * (f_hi - f_lo)
+    return sqrt(s_th), sqrt(thermal), sqrt(flicker), sqrt(source)
+
+dens, th, fl, src = input_noise(gm=1e-3, gamma=2/3, f_corner=10e3,
+                                f_lo=0.5, f_hi=100, r_source=10e3)
+print(f&quot;thermal density {dens*1e9:.2f} nV/rtHz&quot;)
+print(f&quot;0.5-100 Hz: thermal {th*1e9:.0f} nV, flicker {fl*1e9:.0f} nV, &quot;
+      f&quot;10 kohm source {src*1e9:.0f} nV (rms)&quot;)
+print(f&quot;total {sqrt(th**2 + fl**2 + src**2)*1e9:.0f} nV rms&quot;)
+</code></pre>
+<p>The result: thermal noise of the transistor contributes about 33 nV RMS, the source resistor about 128 nV, and flicker noise about <strong>765 nV</strong>. The total, about 776 nV RMS, is almost all flicker. Spending more current to raise g<sub>m</sub> would barely help here, because it attacks the wrong term.</p>
+<h2 id="sizing-for-low-noise">Sizing for low noise</h2>
+<p>Match the remedy to the dominant mechanism.</p>
+<ul>
+<li><strong>Thermal-limited (wide band, above the corner):</strong> raise g<sub>m</sub> of the input devices, bias at high g<sub>m</sub>/I<sub>D</sub>, keep load and cascode devices from adding noise by giving them low g<sub>m</sub> relative to the input pair.</li>
+<li><strong>Flicker-limited (low frequency):</strong> increase input gate area. In the example, ten times the area cuts the flicker noise power by ten, lowering the corner to 1 kHz and the flicker contribution to about 242 nV. The cost is capacitance, which lowers bandwidth and increases the noise penalty of any capacitive feedback network.</li>
+<li><strong>Chopping:</strong> modulate the input signal to a frequency well above the flicker corner, amplify it there, and demodulate after the amplifier. The amplifier's own low-frequency noise and offset are moved up and filtered out. Chopping trades flicker noise for switching artefacts and ripple that need care.</li>
+<li><strong>Do not over-filter late.</strong> Noise outside the signal band still matters if the ADC aliases it in; band-limit before sampling.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script and find the gate area increase that makes flicker equal to the source resistor's contribution.</li>
+<li>In <strong>ngspice</strong> with sky130 models, bias a common-source stage and run <code>noise v(out) VIN dec 20 0.1 1meg</code>, then plot the input-referred noise spectrum and read the flicker corner.</li>
+<li>Repeat with the input device four times larger in W·L at the same current, and compare the low-frequency noise and the corner.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>noise</li><li>flicker noise</li><li>thermal noise</li><li>low noise design</li><li>front end</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="smart-meter-metering-front-end.html"><span>Previous in Analog &amp; mixed-signal</span>The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling</a><a class="next" href="first-circuit-in-xschem-and-ngspice.html"><span>Next in Analog &amp; mixed-signal</span>Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="analog-and-digital-on-one-die.html">Putting analog and digital on one die: substrate noise, supplies and isolation</a></h3>
+          <p>Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

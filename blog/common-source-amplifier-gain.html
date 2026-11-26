@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The common-source amplifier: gain, headroom and the gm-ro trade-off · Ketuna blog</title>
+  <meta name="description" content="The common-source stage is the workhorse gain stage of CMOS analog design. Work out its small-signal gain, its output swing limits, and why longer transistors buy gain at the cost of speed.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The common-source amplifier: gain, headroom and the gm-ro trade-off · Ketuna blog">
+  <meta property="og:description" content="The common-source stage is the workhorse gain stage of CMOS analog design. Work out its small-signal gain, its output swing limits, and why longer transistors buy gain at the cost of speed.">
+  <link rel="canonical" href="https://ketuna.online/blog/common-source-amplifier-gain.html">
+  <meta property="og:url" content="https://ketuna.online/blog/common-source-amplifier-gain.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The common-source amplifier: gain, headroom and the gm-ro trade-off",
+  "description": "The common-source stage is the workhorse gain stage of CMOS analog design. Work out its small-signal gain, its output swing limits, and why longer transistors buy gain at the cost of speed.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "common source, amplifier, small signal, transconductance, gain",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1029,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/common-source-amplifier-gain.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>The common-source amplifier: gain, headroom and the gm-ro trade-off</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The common-source stage is the workhorse gain stage of CMOS analog design. Work out its small-signal gain, its output swing limits, and why longer transistors buy gain at the cost of speed.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#gain-as-transconductance-times-resistance">Gain as transconductance times resistance</a></li><li><a href="#the-surprising-result-gain-does-not-depend-on-current">The surprising result: gain does not depend on current</a></li><li><a href="#worked-example">Worked example</a></li><li><a href="#why-longer-transistors-are-slower">Why longer transistors are slower</a></li><li><a href="#headroom-how-far-the-output-can-swing">Headroom: how far the output can swing</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>If you remember one amplifier from analog design, make it the common-source stage. It is a single transistor with the input on the gate, the source at a fixed potential and the output on the drain, and it provides the voltage gain in nearly every op-amp, comparator preamplifier and sensor interface. Three questions decide whether a given common-source stage works: how much gain it gives, how far its output can swing, and how fast it is. They are linked, and the link runs through two small-signal parameters, g<sub>m</sub> and r<sub>o</sub>.</p>
+<h2 id="gain-as-transconductance-times-resistance">Gain as transconductance times resistance</h2>
+<p>Bias an NMOS in saturation and wiggle its gate by a small v<sub>in</sub>. The drain current changes by g<sub>m</sub>v<sub>in</sub>, where the <strong>transconductance</strong> g<sub>m</sub> is the slope of I<sub>D</sub> against V<sub>GS</sub> at the bias point. In the square-law model:</p>
+<blockquote>
+<p>g<sub>m</sub> = 2I<sub>D</sub> / V<sub>OV</sub></p>
+</blockquote>
+<p>That current change flows into whatever resistance sits at the drain node, R<sub>out</sub>, and produces an output voltage. Because a rising gate voltage pulls more current down and the drain voltage falls, the gain is inverting:</p>
+<blockquote>
+<p>A<sub>v</sub> = −g<sub>m</sub> R<sub>out</sub></p>
+</blockquote>
+<p>Every gain question about this stage is a question about g<sub>m</sub> or R<sub>out</sub>. With a resistor load R<sub>D</sub>, R<sub>out</sub> = R<sub>D</sub> ∥ r<sub>o</sub>. A resistor large enough for high gain would drop too much DC voltage, so on chip the load is usually a PMOS current source (an <strong>active load</strong>). Then R<sub>out</sub> = r<sub>o1</sub> ∥ r<sub>o2</sub>, the parallel output resistances of the NMOS and the PMOS load.</p>
+<h2 id="the-surprising-result-gain-does-not-depend-on-current">The surprising result: gain does not depend on current</h2>
+<p>Substitute r<sub>o</sub> ≈ 1 / (λI<sub>D</sub>) for both devices:</p>
+<blockquote>
+<p>|A<sub>v</sub>| = (2I<sub>D</sub> / V<sub>OV</sub>) × 1 / ((λ<sub>n</sub> + λ<sub>p</sub>) I<sub>D</sub>) = 2 / (V<sub>OV</sub> (λ<sub>n</sub> + λ<sub>p</sub>))</p>
+</blockquote>
+<p>The current cancels. Doubling the bias current doubles g<sub>m</sub> but halves r<sub>o</sub>, and the gain stays put. In the square-law picture, the gain of an actively loaded stage is set by only two things you choose: the <strong>overdrive voltage</strong> and the <strong>channel length</strong> (through λ). Smaller V<sub>OV</sub> means more g<sub>m</sub> per microampere; longer L means smaller λ and larger r<sub>o</sub>.</p>
+<p>This is why analog designers talk about the <strong>intrinsic gain</strong> g<sub>m</sub>r<sub>o</sub> of a device. It is the most gain one transistor can give you, and it is a property of how you bias and size it, not of how much power you spend. Short-channel devices deviate from the square law, so in practice designers read g<sub>m</sub>/I<sub>D</sub> and g<sub>m</sub>r<sub>o</sub> from simulated lookup curves, but the conclusion holds in shape.</p>
+<h2 id="worked-example">Worked example</h2>
+<p>An NMOS with a PMOS current-source load, numbers made up for illustration: I<sub>D</sub> = 50 µA, V<sub>OV</sub> = 0.2 V for both devices, λ<sub>n</sub> = λ<sub>p</sub> = 0.1 V<sup>−1</sup>, and a 1 pF load capacitance.</p>
+<ul>
+<li>g<sub>m</sub> = 2 × 50 µA / 0.2 V = <strong>500 µS</strong></li>
+<li>r<sub>o1</sub> = r<sub>o2</sub> = 1 / (0.1 × 50 µA) = 200 kΩ, so R<sub>out</sub> = <strong>100 kΩ</strong></li>
+<li>|A<sub>v</sub>| = 500 µS × 100 kΩ = <strong>50</strong>, about 34 dB</li>
+<li>Output pole: 1 / (2π × 100 kΩ × 1 pF) ≈ <strong>1.59 MHz</strong></li>
+<li>Gain-bandwidth product: g<sub>m</sub> / (2πC<sub>L</sub>) ≈ <strong>79.6 MHz</strong></li>
+</ul>
+<p>Now double L on both devices. If λ roughly halves to 0.05 V<sup>−1</sup>, R<sub>out</sub> doubles to 200 kΩ and the gain doubles to 100 (40 dB). The output pole halves to about 0.8 MHz. The gain-bandwidth product, set by g<sub>m</sub> and C<sub>L</sub>, is unchanged on paper.</p>
+<pre><code class="language-python">from math import pi, log10
+
+def cs_stage(i_d, v_ov, lam_n, lam_p, c_load):
+    gm = 2 * i_d / v_ov                 # square-law transconductance
+    r_out = 1 / ((lam_n + lam_p) * i_d) # r_o1 || r_o2
+    av = gm * r_out                     # magnitude of the gain
+    f_p = 1 / (2 * pi * r_out * c_load) # output pole
+    return av, f_p, av * f_p            # gain, bandwidth, GBW
+
+for label, lam in ((&quot;L&quot;, 0.1), (&quot;2L&quot;, 0.05)):
+    av, f_p, gbw = cs_stage(50e-6, 0.2, lam, lam, 1e-12)
+    print(f&quot;{label:&gt;2}: gain {av:5.1f} ({20*log10(av):4.1f} dB), &quot;
+          f&quot;pole {f_p/1e6:5.2f} MHz, GBW {gbw/1e6:5.1f} MHz&quot;)
+</code></pre>
+<h2 id="why-longer-transistors-are-slower">Why longer transistors are slower</h2>
+<p>The example says GBW does not change, so where is the speed penalty? It is in the transistor's own capacitance. To keep the same current at the same overdrive after doubling L, you must also double W, because current goes as W/L. Gate area WL is now four times larger, and so is the gate capacitance. That capacitance loads whatever stage drives this one, and the drain junction capacitance adds to C<sub>L</sub> at this stage's output.</p>
+<p>The device-level measure is the <strong>transit frequency</strong> f<sub>T</sub> ≈ g<sub>m</sub> / (2πC<sub>gs</sub>). With g<sub>m</sub> fixed and C<sub>gs</sub> four times larger, f<sub>T</sub> falls to roughly a quarter. A long-channel transistor is a high-gain, slow device; a short one is a low-gain, fast one. Picking L is choosing your point on that curve, and op-amps often use long devices in the gain stage and shorter ones where speed matters.</p>
+<h2 id="headroom-how-far-the-output-can-swing">Headroom: how far the output can swing</h2>
+<p>Gain is only small-signal. For large signals the output must stay inside the range where both transistors remain saturated. The NMOS needs V<sub>DS</sub> ≥ V<sub>OV,n</sub>, so the output cannot go below about V<sub>OV,n</sub>. The PMOS needs V<sub>SD</sub> ≥ V<sub>OV,p</sub>, so the output cannot go above about V<sub>DD</sub> − V<sub>OV,p</sub>.</p>
+<p>On a 1.8 V supply with 0.2 V overdrives, the usable swing is roughly 0.2 V to 1.6 V, a range of <strong>1.4 V</strong>. Raising V<sub>OV</sub> to improve matching or speed eats into swing from both ends, and so does stacking cascode devices to boost gain. That three-way pull between gain, swing and speed is what "the g<sub>m</sub>-r<sub>o</sub> trade-off" means in practice.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>Reading AC gain from a simulation without first checking that both devices are saturated in the <code>op</code> results</li>
+<li>Expecting gain to rise with bias current in an actively loaded stage</li>
+<li>Forgetting that the high-impedance output node makes the DC output voltage extremely sensitive to small current mismatches; real circuits fix it with feedback</li>
+<li>Choosing minimum length everywhere and then wondering where the gain went</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong> with sky130 models, build an NMOS common-source stage with a PMOS current-source load and a 1 pF capacitor. Tune the input DC voltage until the output sits near mid-supply.</li>
+<li>Run <code>op</code> and print g<sub>m</sub> and g<sub>ds</sub> for each device with ngspice's <code>show</code> command (sky130 transistors sit inside subcircuits, so use the full internal device name that <code>show</code> lists), and compute the expected gain by hand.</li>
+<li>Run <code>ac dec 20 1 1G</code>, read the low-frequency gain and the −3 dB frequency, and compare with your estimate. Then double L and W on both devices and repeat.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>common source</li><li>amplifier</li><li>small signal</li><li>transconductance</li><li>gain</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="mosfet-in-three-regions.html"><span>Previous in Analog &amp; mixed-signal</span>The MOSFET in three regions: an intuition-first guide</a><a class="next" href="the-differential-pair.html"><span>Next in Analog &amp; mixed-signal</span>The differential pair: why analog designers love it</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

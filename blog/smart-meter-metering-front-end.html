@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling · Ketuna blog</title>
+  <meta name="description" content="An energy meter multiplies voltage by current thousands of times a second. Learn how shunts, current transformers and dividers sense them, why a few microseconds of skew ruins accuracy, and how meters are calibrated.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling · Ketuna blog">
+  <meta property="og:description" content="An energy meter multiplies voltage by current thousands of times a second. Learn how shunts, current transformers and dividers sense them, why a few microseconds of skew ruins accuracy, and how meters are calibrated.">
+  <link rel="canonical" href="https://ketuna.online/blog/smart-meter-metering-front-end.html">
+  <meta property="og:url" content="https://ketuna.online/blog/smart-meter-metering-front-end.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling",
+  "description": "An energy meter multiplies voltage by current thousands of times a second. Learn how shunts, current transformers and dividers sense them, why a few microseconds of skew ruins accuracy, and how meters are calibrated.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "energy metering, current sensing, simultaneous sampling, calibration, adc",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 974,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/smart-meter-metering-front-end.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An energy meter multiplies voltage by current thousands of times a second. Learn how shunts, current transformers and dividers sense them, why a few microseconds of skew ruins accuracy, and how meters are calibrated.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#sensing-voltage-a-resistive-divider">Sensing voltage: a resistive divider</a></li><li><a href="#sensing-current-shunt-or-current-transformer">Sensing current: shunt or current transformer</a></li><li><a href="#why-both-channels-must-be-sampled-together">Why both channels must be sampled together</a></li><li><a href="#calibration">Calibration</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An electronic energy meter does one calculation: multiply instantaneous voltage by instantaneous current, average the product to get active power, and accumulate it over time to get energy. The arithmetic is trivial. Doing it accurately over a current range of several hundred to one, at any power factor, for years, without drifting, is a careful piece of analog design. This article covers the sensing, the timing requirement that dominates the converter choice, and calibration. A safety note first: the front end connects to mains voltage, and building or probing one must be done only with proper isolation equipment and under qualified supervision.</p>
+<h2 id="sensing-voltage-a-resistive-divider">Sensing voltage: a resistive divider</h2>
+<p>India's mains supply is nominally 230 V RMS at 50 Hz, which peaks at about 325 V. A metering ADC typically accepts a differential input of well under a volt, so a resistor divider scales the voltage down. With an illustrative chain of 1 MΩ above a 1.5 kΩ resistor, the 325 V peak becomes 325 × 1.5 kΩ / 1,001.5 kΩ ≈ 0.49 V.</p>
+<p>The large resistor is usually several resistors in series. That spreads the voltage across parts rated for it, keeps creepage distances on the board sensible and limits the damage if one fails. The divider ratio drifts with temperature and age, so the resistors are chosen for low temperature coefficient, and the ratio is calibrated rather than trusted.</p>
+<h2 id="sensing-current-shunt-or-current-transformer">Sensing current: shunt or current transformer</h2>
+<p>Two sensors dominate.</p>
+<p>A <strong>shunt</strong> is a small, stable resistance in series with the load. Its voltage is proportional to current with no phase shift and no saturation, and it is cheap. Its difficulties are tiny signals and the lack of isolation. With an illustrative 200 µΩ shunt, a 60 A load gives 12 mV, but a 0.1 A load gives only 20 µV. The meter must measure both ends accurately, so the ADC needs a large dynamic range, often helped by a programmable-gain amplifier. Because the shunt sits in the mains conductor, the metering electronics share its potential and must be powered and isolated accordingly. Shunts also dissipate I<sup>2</sup>R heat: at 60 A, 200 µΩ dissipates 0.72 W, which shifts its resistance unless the alloy is chosen for a low temperature coefficient.</p>
+<p>A <strong>current transformer (CT)</strong> puts a secondary winding around the conductor. The secondary current is the primary current divided by the turns ratio, and a burden resistor converts it to a voltage. The CT provides galvanic isolation, which is valuable in poly-phase meters where several phases must be measured by one chip. Its weaknesses are a frequency-dependent phase shift between primary and secondary current, magnetic saturation by DC components in the load current, and susceptibility to external magnetic fields, which is why tamper resistance also influences the sensor choice.</p>
+<h2 id="why-both-channels-must-be-sampled-together">Why both channels must be sampled together</h2>
+<p>Active power is the average of v × i. If voltage and current are sampled at slightly different instants, the meter effectively multiplies the voltage by a current that has been shifted in phase. At unity power factor this hardly matters, because the error depends on the cosine of a tiny angle. At a lagging power factor it matters a great deal, because the error depends on how steeply the cosine changes there.</p>
+<p>The size of the problem is easy to see in a simulation. One degree at 50 Hz is 20 ms / 360 ≈ 55.6 µs, so sampling skew converts directly into a phase error:</p>
+<pre><code class="language-python">import numpy as np
+
+FS, F_LINE = 4000, 50.0                  # samples per second, mains Hz
+t = np.arange(int(FS)) / FS              # one second = 50 whole cycles
+V_RMS, I_RMS, PHI = 230.0, 10.0, np.deg2rad(60)   # PF = cos(60) = 0.5
+
+def active_power(skew_s):
+    &quot;&quot;&quot;Mean of v*i when the current channel is sampled skew_s late.&quot;&quot;&quot;
+    v = np.sqrt(2) * V_RMS * np.sin(2 * np.pi * F_LINE * t)
+    i = np.sqrt(2) * I_RMS * np.sin(2 * np.pi * F_LINE * (t + skew_s) - PHI)
+    return np.mean(v * i)
+
+p_true = active_power(0.0)
+for skew_us in (5.6, 55.6):
+    p = active_power(skew_us * 1e-6)
+    print(f&quot;skew {skew_us:5.1f} us: P = {p:7.1f} W &quot;
+          f&quot;(true {p_true:.1f} W, error {100*(p/p_true - 1):+.2f} %)&quot;)
+</code></pre>
+<p>With 230 V, 10 A and a power factor of 0.5, the true active power is 1,150 W. A skew of 5.6 µs (0.1°) gives an error of about <strong>+0.30 %</strong>. A skew of 55.6 µs (1°) gives about <strong>+3.0 %</strong>. Energy meters are sold against accuracy classes measured in fractions of a per cent to a couple of per cent, so a single multiplexed ADC alternating between channels would consume or exceed the whole error budget on timing alone.</p>
+<p>This is why metering front ends use <strong>simultaneous sampling</strong>, typically one sigma-delta ADC per channel, all clocked from the same source and decimated by identical filters. Sigma-delta converters also suit the job for other reasons: the signal band is low, high resolution handles the wide current range, and oversampling makes the anti-alias filter a simple RC network.</p>
+<p>Timing is only one source of phase error. A CT adds its own phase shift, and the anti-alias filters on the two channels must match. Any remaining phase difference, from whatever source, has the same effect as skew and is removed by calibration.</p>
+<h2 id="calibration">Calibration</h2>
+<p>No front end is accurate enough as built. Meters are calibrated in production against a reference, typically in three steps:</p>
+<ol>
+<li><strong>Gain.</strong> Apply a known voltage and a known current at unity power factor and adjust the gain coefficients so the measured power matches.</li>
+<li><strong>Phase.</strong> Repeat at a power factor of 0.5 lagging and adjust a fine phase-correction coefficient, usually a fractional-sample delay applied digitally to one channel, until the error is gone.</li>
+<li><strong>Offset.</strong> At very low current, small offsets and crosstalk from the voltage channel into the current channel dominate. Measure with no load and subtract.</li>
+</ol>
+<p>The coefficients are stored in non-volatile memory, and the meter's accuracy over temperature then depends on how stable the sensors, references and dividers are. Good meters also check reactive power, RMS values and frequency, and detect tampering such as reversed connections or strong magnets.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script with <strong>numpy</strong>, then sweep the power factor from 1.0 to 0.5 at a fixed skew and plot the error.</li>
+<li>Add a fractional-sample delay to the voltage channel (interpolate with <code>np.interp</code>) and find the value that cancels a given skew; that is digital phase calibration.</li>
+<li>In <strong>ngspice</strong>, model a CT as a transformer with magnetising inductance and a burden resistor, and measure the phase shift between primary and secondary current at 50 Hz for two burden values.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>energy metering</li><li>current sensing</li><li>simultaneous sampling</li><li>calibration</li><li>adc</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="the-instrumentation-amplifier.html"><span>Previous in Analog &amp; mixed-signal</span>The instrumentation amplifier: measuring tiny differences on large common-mode signals</a><a class="next" href="noise-in-analog-front-ends.html"><span>Next in Analog &amp; mixed-signal</span>Thermal and flicker noise in analog front ends</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="jitter-and-phase-noise.html">Jitter and phase noise: what they are and why ADCs and radios care</a></h3>
+          <p>Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

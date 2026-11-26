@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FMEA step by step: severity, occurrence, detection and what to do next · Ketuna blog</title>
+  <meta name="description" content="A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="FMEA step by step: severity, occurrence, detection and what to do next · Ketuna blog">
+  <meta property="og:description" content="A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.">
+  <link rel="canonical" href="https://ketuna.online/blog/fmea-step-by-step.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fmea-step-by-step.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FMEA step by step: severity, occurrence, detection and what to do next",
+  "description": "A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fmea, reliability, risk, design review, safety",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1073,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fmea-step-by-step.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>FMEA step by step: severity, occurrence, detection and what to do next</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-running-example">The running example</a></li><li><a href="#listing-and-rating-failure-modes">Listing and rating failure modes</a></li><li><a href="#ranking-and-acting-on-the-results">Ranking and acting on the results</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Products rarely fail in the way their designers tested them. A probe gets coated in scale, a relay welds shut after a hard start, firmware freezes when a bus locks up. Failure mode and effects analysis (FMEA) is a structured way to imagine those failures while the design can still change, rank them, and turn the worst into concrete actions. The spreadsheet is the easy part; the value is in the questions it forces a team to ask.</p>
+<h2 id="the-running-example">The running example</h2>
+<p>We will analyse a controller for a domestic water pump. It reads a level probe in the overhead tank, switches the pump motor through a relay, watches motor current to detect dry running, and shows status on a small display. It is a mains-powered product, so any real work on it needs qualified supervision and the applicable electrical safety standards; here we only use it to practise the method.</p>
+<h2 id="listing-and-rating-failure-modes">Listing and rating failure modes</h2>
+<h3 id="step-1-list-items-functions-and-failure-modes">Step 1: list items, functions and failure modes</h3>
+<p>Go through the system block by block. For each item, write its function, then every way it could fail to perform that function. Useful prompts are: no output, wrong output, stuck output, intermittent output, output at the wrong time, and output that cannot be stopped. For each failure mode, write:</p>
+<ul>
+<li><strong>Effect:</strong> what the <em>user</em> experiences, not what the circuit does. "Tank overflows and the motor overheats" rather than "relay output high".</li>
+<li><strong>Cause:</strong> the mechanism that produces the failure mode. One mode may have several causes; give each its own row.</li>
+<li><strong>Current controls:</strong> what in today's design prevents the cause or detects the failure before the user suffers it.</li>
+</ul>
+<p>Work as a group, with someone from hardware, firmware, test and, ideally, someone who has seen field returns. One person filling in an FMEA alone mostly records what that person already believed.</p>
+<h3 id="step-2-rate-severity-occurrence-and-detection">Step 2: rate severity, occurrence and detection</h3>
+<p>Each row gets three ratings on a 1 to 10 scale. Agree the scales before rating, with anchors written down, because a 6 means nothing otherwise. A compressed example of anchors, made up for illustration:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rating</th>
+<th>Severity (effect)</th>
+<th>Occurrence (cause)</th>
+<th>Detection (controls)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9–10</td>
+<td>Safety hazard or legal non-compliance</td>
+<td>Expected often</td>
+<td>No control; will not be caught</td>
+</tr>
+<tr>
+<td>6–8</td>
+<td>Product unusable or damaged</td>
+<td>Occasional</td>
+<td>Caught only by chance</td>
+</tr>
+<tr>
+<td>3–5</td>
+<td>Function degraded, user notices</td>
+<td>Rare</td>
+<td>Caught by a test with partial coverage</td>
+</tr>
+<tr>
+<td>1–2</td>
+<td>Barely noticeable</td>
+<td>Remote</td>
+<td>Certain to be caught before shipping</td>
+</tr>
+</tbody>
+</table></div>
+<p>Note the direction of detection: a high number means <em>poor</em> detection. The rating describes how likely current controls are to miss the problem.</p>
+<p>Here are four rows for the pump controller, with illustrative ratings:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Failure mode and cause</th>
+<th>Effect</th>
+<th>S / O / D</th>
+<th>RPN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Level probe reads full when empty; scale on probe</td>
+<td>Pump never starts, tank runs dry</td>
+<td>6 / 5 / 8</td>
+<td>240</td>
+</tr>
+<tr>
+<td>Dry run not detected; current threshold set too low</td>
+<td>Pump runs dry and overheats</td>
+<td>8 / 4 / 6</td>
+<td>192</td>
+</tr>
+<tr>
+<td>Relay contacts weld closed; inrush above rating</td>
+<td>Pump cannot be stopped; overflow, motor burnout, fire risk</td>
+<td>9 / 2 / 9</td>
+<td>162</td>
+</tr>
+<tr>
+<td>Firmware hangs; I2C bus lock-up during display update</td>
+<td>Controls freeze in last state</td>
+<td>7 / 3 / 3</td>
+<td>63</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="ranking-and-acting-on-the-results">Ranking and acting on the results</h2>
+<h3 id="step-3-rank-and-do-not-rank-by-rpn-alone">Step 3: rank, and do not rank by RPN alone</h3>
+<p>The risk priority number (RPN) is severity × occurrence × detection. It is a convenient sort key, but it has a known weakness: multiplying ordinal ratings lets a frequent nuisance outrank a rare catastrophe. In the table above the welded relay ranks third by RPN, yet it is the only row with a fire risk. The common rule is to act on <strong>any row with severity 9 or 10 regardless of RPN</strong>, then work down the rest. Some FMEA methods replace RPN with an action-priority lookup that weights severity first for exactly this reason.</p>
+<pre><code class="language-python">rows = [
+    (&quot;probe fouled&quot;,     6, 5, 8),
+    (&quot;dry run missed&quot;,   8, 4, 6),
+    (&quot;relay welded&quot;,     9, 2, 9),
+    (&quot;firmware hang&quot;,    7, 3, 3),
+]
+
+def priority(r):
+    name, s, o, d = r
+    return (s &gt;= 9, s * o * d)   # severity gate first, then RPN
+
+for name, s, o, d in sorted(rows, key=priority, reverse=True):
+    flag = &quot;  &lt;- severity gate&quot; if s &gt;= 9 else &quot;&quot;
+    print(f&quot;{name:16s} S={s} O={o} D={d} RPN={s*o*d}{flag}&quot;)
+</code></pre>
+<p>The script puts the relay first, then the probe, the dry-run detection and the firmware hang.</p>
+<h3 id="step-4-turn-risks-into-actions">Step 4: turn risks into actions</h3>
+<p>An FMEA row is unfinished until it has an action with an owner and a date. Actions reduce one of the three ratings, and the cheapest reduction is usually different for each:</p>
+<ul>
+<li><strong>Reduce severity</strong> by changing the design so the failure does less harm. For the welded relay: add an independent thermal cut-out on the motor so a stuck relay cannot burn it out. Severity drops because the worst effect is now a stopped pump, not a fire.</li>
+<li><strong>Reduce occurrence</strong> by removing the cause. Choose a relay rated for the motor's inrush current with derating, or add inrush limiting.</li>
+<li><strong>Improve detection</strong> by adding a monitor or a test. For the fouled probe: firmware checks that the tank level changes within a set time after the pump starts, and raises a fault if it does not. For the dry-run threshold: a production test at low and high supply voltage, not just nominal.</li>
+</ul>
+<p>Detection improvements are tempting because they are often firmware-only, but they do not make the failure less harmful. Where severity is high, prefer a design change.</p>
+<h3 id="step-5-re-score-and-keep-it-alive">Step 5: re-score and keep it alive</h3>
+<p>After each action is implemented and verified, re-rate the row. Suppose the probe plausibility check is in place and tested: detection might fall from 8 to 3, and the RPN from 240 to 90. Record both scores, so a reviewer can see what the action bought. Revisit the FMEA at each design milestone and whenever a field return reveals a failure mode nobody listed; that new row is the most valuable one in the sheet.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Filling the sheet after the design is frozen.</strong> Findings that cannot change anything are paperwork. Run it at architecture and again at detailed design.</li>
+<li><strong>"Detection: testing" with no named test.</strong> Write which test, and what fraction of the failure it would catch.</li>
+<li><strong>Effects written in circuit terms.</strong> Severity is about the user; describe what they experience.</li>
+<li><strong>Rating without anchors.</strong> Two people's 5s will differ, and the ranking becomes noise.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a product you know, such as a phone charger or an electric kettle, and write six FMEA rows in LibreOffice Calc, including at least one with severity 9 or above.</li>
+<li>Run the script above on your rows and compare the RPN order with the severity-gated order. Discuss with a teammate whether the difference makes sense.</li>
+<li>For your top two rows, write one design action and one test action each, then re-score them as if the actions were done, and note which rating each action actually moved.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fmea</li><li>reliability</li><li>risk</li><li>design review</li><li>safety</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="estimating-hardware-work.html"><span>Previous in Systems &amp; product engineering</span>Estimating hardware work: ranges, assumptions and the cone of uncertainty</a><a class="next" href="board-to-fpga-to-chip.html"><span>Next in Systems &amp; product engineering</span>From board to FPGA to chip: when a product earns a custom chip</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="drone-controller-safety-analysis.html">Safety analysis for a drone controller: failure modes and fail-safe behaviour</a></h3>
+          <p>What a multirotor flight controller should do when it loses the control link, its position fix, a sensor or its supply, how to rank simultaneous failures, and why a reset in flight is a hazard in its own right.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-for-indian-environments.html">Designing for dust, heat and moisture: environmental requirements for Indian conditions</a></h3>
+          <p>How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pcb-design-review-checklist.html">A PCB design review checklist for first boards</a></h3>
+          <p>A practical checklist for reviewing a first circuit board before you order it, covering power, decoupling, clocks, reset and boot, debug access, connectors and assembly, with the reason behind each check.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

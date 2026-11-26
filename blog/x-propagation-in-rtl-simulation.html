@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>X in RTL simulation: how unknowns hide bugs and how to flush them out · Ketuna blog</title>
+  <meta name="description" content="Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="X in RTL simulation: how unknowns hide bugs and how to flush them out · Ketuna blog">
+  <meta property="og:description" content="Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.">
+  <link rel="canonical" href="https://ketuna.online/blog/x-propagation-in-rtl-simulation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/x-propagation-in-rtl-simulation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "X in RTL simulation: how unknowns hide bugs and how to flush them out",
+  "description": "Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "x-propagation, rtl simulation, reset, verilator, assertions",
+  "articleSection": "Verification",
+  "wordCount": 912,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/x-propagation-in-rtl-simulation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>X in RTL simulation: how unknowns hide bugs and how to flush them out</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#where-x-comes-from">Where X comes from</a></li><li><a href="#how-if-and-case-swallow-x">How if and case swallow X</a></li><li><a href="#the-conditional-operator-is-more-honest">The conditional operator is more honest</a></li><li><a href="#making-uninitialised-state-visible">Making uninitialised state visible</a></li><li><a href="#which-x-to-fix">Which X to fix</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>In a four-state simulator, X means "this bit could be 0 or 1 and the simulator does not know which". It is the simulator's honest way of reporting an uninitialised flop, an undriven wire or a conflict between two drivers. The trouble is that Verilog's procedural semantics often throw that honesty away. An X walks into an <code>if</code> statement and comes out as a definite decision, and the simulation carries on looking perfectly healthy. Real hardware makes a definite decision too, but you do not get to choose which one.</p>
+<h2 id="where-x-comes-from">Where X comes from</h2>
+<p>Before chasing X behaviour, know the usual sources:</p>
+<ul>
+<li>flip-flops without reset, before their first load</li>
+<li>memories read before being written</li>
+<li>signals declared but never driven, often after a refactor renames a port</li>
+<li>multiple drivers fighting on one net</li>
+<li>explicit X assignments used as don't-cares, such as <code>default: y = 'x;</code></li>
+<li>out-of-range array indices or part-selects</li>
+</ul>
+<p>Each of these is a potential silicon bug, because silicon replaces X with an unpredictable real value.</p>
+<h2 id="how-if-and-case-swallow-x">How if and case swallow X</h2>
+<p>Here is a small control block with a missing reset on its mode register.</p>
+<pre><code class="language-verilog">reg [1:0] mode;               // no reset
+reg [7:0] out;
+
+always @(posedge clk)
+  if (load_mode) mode &lt;= mode_in;
+
+always @(*) begin
+  if (mode == 2'd1) out = a;
+  else              out = b;
+end
+</code></pre>
+<p>Before <code>load_mode</code> arrives, <code>mode</code> is X, so <code>mode == 2'd1</code> evaluates to X. The Verilog <code>if</code> treats any condition that is not 1 as false and takes the <code>else</code> branch. <code>out</code> gets <code>b</code>, a clean value. The simulation shows no X anywhere downstream, and if the test happens to expect <code>b</code> at that time, it passes. On silicon, <code>mode</code> powers up as any of four values and <code>out</code> might be <code>a</code>.</p>
+<p><code>case</code> behaves similarly. With an X selector, no item matches exactly, so the <code>default</code> branch runs:</p>
+<pre><code class="language-verilog">always @(*)
+  case (mode)
+    2'd0: out = a;
+    2'd1: out = b;
+    2'd2: out = c;
+    default: out = d;       // X selector lands here
+  endcase
+</code></pre>
+<p>Again, a definite value hides an indefinite cause. This behaviour is called <strong>X-optimism</strong>: the simulator is more confident about the result than the hardware would be.</p>
+<h2 id="the-conditional-operator-is-more-honest">The conditional operator is more honest</h2>
+<p>The <code>?:</code> operator handles an X condition differently. If the condition is X, the result is formed bit by bit: bits where both operands agree keep their value, and bits where they differ become X.</p>
+<pre><code class="language-verilog">assign out = (mode == 2'd1) ? a : b;   // X condition -&gt; X where a != b
+</code></pre>
+<p>With <code>a = 8'h0F</code> and <code>b = 8'h0C</code>, the result is <code>8'b0000_11xx</code>: the top six bits agree and survive, and the bottom two differ and become X. Now the uncertainty is visible downstream. This is one reason some teams prefer continuous assignments with <code>?:</code> for muxes in control paths. It is not a complete solution, because <code>case</code> and <code>if</code> remain natural for many structures, but it shows the principle: X should spread in simulation the way uncertainty would spread in hardware.</p>
+<h2 id="making-uninitialised-state-visible">Making uninitialised state visible</h2>
+<p>Several techniques, used together, flush hidden X out of an RTL simulation.</p>
+<p><strong>Assert that important signals are known.</strong> An assertion with <code>$isunknown</code> fails as soon as an X reaches a control signal, even if later logic would have hidden it:</p>
+<pre><code class="language-systemverilog">a_mode_known: assert property (@(posedge clk) disable iff (!rst_n)
+                               !$isunknown(mode));
+</code></pre>
+<p>Put such checks on every control register, every FSM state, every valid and ready, and on data buses qualified by their valid.</p>
+<p><strong>Check the testbench's view too.</strong> In cocotb, <code>int(dut.mode.value)</code> raises an exception if any bit is X or Z. Converting control outputs to integers in a monitor turns hidden X into an immediate failure.</p>
+<p><strong>Randomise initial values in two-state simulators.</strong> Verilator is a two-state simulator: it has no X at all, and by default it initialises unknown state to a fixed value, which can hide the same bugs in a different way. It can instead initialise to random values. Build with <code>--x-assign unique</code> and <code>--x-initial unique</code>, then pass <code>+verilator+rand+reset+2</code> at run time, with <code>+verilator+seed+</code> and a number to vary the values. A design that only works when unreset state happens to be zero fails on some seeds. Run several seeds in regression and record them so a failure can be reproduced.</p>
+<p><strong>Do not mask X in the RTL.</strong> Avoid writing <code>if (mode === 2'd1)</code> or <code>case</code> statements with defaults whose only purpose is to make X go away in simulation. They make the waveform clean and the silicon unpredictable.</p>
+<p><strong>Use explicit X assignments carefully.</strong> <code>default: y = 'x;</code> is a legitimate synthesis hint that a value does not matter. Make sure it truly does not matter: add an assertion that the default branch is never reached in normal operation, so the hint never becomes a silent bug.</p>
+<h2 id="which-x-to-fix">Which X to fix</h2>
+<p>Not every X needs a reset. Datapath registers that are always written before they are read, such as a pipeline data register qualified by a valid bit, can start unknown without harm, and adding resets to them costs area and routing. The rule is about control: any state that influences a decision, a handshake or an output enable must start known. Qualified data is allowed to be X while its valid is low.</p>
+<p>A short review question settles most cases: if this flop powered up as the wrong value, could the design do something visible before the flop is first written? If yes, reset it.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the <code>mode</code> block above, simulate it with Icarus Verilog, and dump <code>mode</code> and <code>out</code> to a VCD; confirm <code>mode</code> is X while <code>out</code> is clean.</li>
+<li>Rewrite the mux with <code>?:</code> and choose <code>a</code> and <code>b</code> that differ in only a few bits; check which bits of <code>out</code> become X.</li>
+<li>Build the same design with Verilator using <code>--x-assign unique --x-initial unique</code>, run it with <code>+verilator+rand+reset+2</code> and several seeds, and see the output change between runs.</li>
+<li>Add the <code>$isunknown</code> assertion and a reset on <code>mode</code>, and confirm both simulators now behave identically from time zero.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>x-propagation</li><li>rtl simulation</li><li>reset</li><li>verilator</li><li>assertions</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="writing-a-verification-plan.html"><span>Previous in Verification</span>Writing a verification plan that someone can actually check against</a><a class="next" href="first-cocotb-testbench.html"><span>Next in Verification</span>Your first cocotb testbench: clock, reset, drive and check a counter</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="when-gate-level-simulation-pays.html">When gate-level simulation is still worth running</a></h3>
+          <p>Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="full-code-coverage-is-not-done.html">Why 100% code coverage does not mean the design is verified</a></h3>
+          <p>Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

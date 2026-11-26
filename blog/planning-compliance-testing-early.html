@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning compliance testing early: EMC, safety and environmental tests · Ketuna blog</title>
+  <meta name="description" content="Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Planning compliance testing early: EMC, safety and environmental tests · Ketuna blog">
+  <meta property="og:description" content="Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.">
+  <link rel="canonical" href="https://ketuna.online/blog/planning-compliance-testing-early.html">
+  <meta property="og:url" content="https://ketuna.online/blog/planning-compliance-testing-early.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Planning compliance testing early: EMC, safety and environmental tests",
+  "description": "Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "emc, compliance, product safety, testing, hardware design",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1012,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/planning-compliance-testing-early.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Planning compliance testing early: EMC, safety and environmental tests</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-families-of-tests">The families of tests</a></li><li><a href="#why-products-fail">Why products fail</a></li><li><a href="#pre-compliance-on-the-bench">Pre-compliance on the bench</a></li><li><a href="#designing-to-pass-the-first-time">Designing to pass the first time</a></li><li><a href="#planning-the-schedule">Planning the schedule</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A product that fails a formal compliance test in a lab is a product that goes back to the drawing board, often for a new board spin, while the launch date slips and the test fee is paid again. Most failures are not surprises in hindsight: a fast clock routed over a split ground plane, a switching regulator with a long loop, a connector with no protection, an enclosure that traps heat. They could have been caught, or designed out, months earlier. This article explains the families of tests products typically face, how to check for problems on your own bench and how to design to pass first time.</p>
+<h2 id="the-families-of-tests">The families of tests</h2>
+<p>Requirements depend on the product category, where it is sold and the standards that apply, so always check the current rules for your product. Broadly, electronic products face three families of tests:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Question it answers</th>
+<th>Typical tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EMC: emissions</td>
+<td>Does the product disturb other equipment?</td>
+<td>Radiated emissions, conducted emissions on power and signal cables</td>
+</tr>
+<tr>
+<td>EMC: immunity</td>
+<td>Does the product keep working when disturbed?</td>
+<td>Electrostatic discharge, radiated fields, fast transients, surges, conducted disturbances, voltage dips</td>
+</tr>
+<tr>
+<td>Safety</td>
+<td>Can it cause shock, fire or injury?</td>
+<td>Insulation, creepage and clearance, temperature rise, abnormal and fault conditions, enclosure strength</td>
+</tr>
+<tr>
+<td>Environmental</td>
+<td>Does it survive its conditions of use?</td>
+<td>Temperature, humidity, vibration and shock, dust and water ingress</td>
+</tr>
+</tbody>
+</table></div>
+<p>International standards define most of these. The IEC electromagnetic compatibility series (IEC 61000) defines many immunity test methods; product-family standards set the limits and criteria that apply to particular kinds of equipment. The ingress protection rating that describes dust and water resistance is defined in IEC 60529. In India, the corresponding Indian Standards and any notified requirements apply. Read the product standard first: it tells you which tests apply and what counts as a pass.</p>
+<h2 id="why-products-fail">Why products fail</h2>
+<p>The mechanisms are physical and predictable:</p>
+<ul>
+<li><strong>Radiated emissions</strong> come mostly from fast edges driving currents around large loops, or from cables acting as antennas when common-mode noise leaks onto them.</li>
+<li><strong>Conducted emissions</strong> come from switching power supplies pushing noise back onto the mains or DC input.</li>
+<li><strong>ESD failures</strong> happen when a discharge to a connector or seam finds a path through sensitive circuits instead of straight to ground.</li>
+<li><strong>Surge and fast transient failures</strong> happen at power and long-cable ports with no protection, or protection with a long return path.</li>
+<li><strong>Temperature-rise failures</strong> in safety testing come from parts running hotter in the sealed enclosure than on the open bench.</li>
+</ul>
+<p>Notice that the cables and the enclosure appear again and again. A bare board on the bench is not the product; test the product as it will ship, with its real cables, supply and enclosure.</p>
+<h2 id="pre-compliance-on-the-bench">Pre-compliance on the bench</h2>
+<p>Formal tests need an accredited lab, but you can find most problems early with modest equipment:</p>
+<ol>
+<li><strong>Near-field probes and a spectrum analyser.</strong> Sweep a small magnetic loop over the board and cables. Hot spots at clock harmonics or regulator switching frequencies show where emissions come from. Compare before and after each fix; relative changes are what matter here.</li>
+<li><strong>Cable current clamp.</strong> Common-mode current on a cable is a strong predictor of radiated emissions. Measure it on every cable leaving the product.</li>
+<li><strong>Line impedance stabilisation network (LISN).</strong> It presents a defined impedance to the product's power input so you can measure conducted noise against limits in a repeatable way.</li>
+<li><strong>ESD gun, if you can borrow one.</strong> Zap connectors, buttons and seams at increasing levels, and watch for resets, lock-ups or corrupted data.</li>
+<li><strong>Thermal check.</strong> Put a thermocouple or thermal camera on the hottest parts, inside the closed enclosure, at the highest ambient temperature you expect, at full load.</li>
+</ol>
+<p>Treat these as screening, not proof. A pre-compliance result with comfortable margin is encouraging; a marginal one means more design work before booking the lab.</p>
+<h2 id="designing-to-pass-the-first-time">Designing to pass the first time</h2>
+<p>Most EMC and safety performance is set by decisions made in the schematic and layout:</p>
+<ul>
+<li><strong>Solid ground plane</strong> under high-speed signals, with no splits under their return paths</li>
+<li><strong>Small current loops</strong> for switching regulators: input capacitor, switch and diode or synchronous switch placed tightly together</li>
+<li><strong>Slow edges where speed is not needed,</strong> using series resistors or slew-rate settings on fast outputs</li>
+<li><strong>Filtering and protection at every connector,</strong> because cables are where noise leaves and disturbances enter</li>
+<li><strong>A clear ESD path</strong> from exposed metal and connector shells to chassis or ground, away from sensitive circuits</li>
+<li><strong>Creepage and clearance</strong> designed in from the start on mains products, with the right insulation across the isolation barrier</li>
+<li><strong>Thermal design</strong> with margin for the enclosure and the hottest climate of use</li>
+<li><strong>Enclosure seams, vents and gaskets</strong> considered together with the electronics</li>
+</ul>
+<p>Then hold a <strong>design review</strong> dedicated to compliance before the layout is released, with someone who did not design the board. A second pair of eyes catches the regulator loop you stopped seeing.</p>
+<h2 id="planning-the-schedule">Planning the schedule</h2>
+<p>Put compliance in the plan from the first week: identify the standards, budget pre-compliance time after each board spin, book the formal lab early and leave time for one round of fixes. Keep production-representative samples aside for testing; test results on a prototype that differs from the shipping product prove little.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Testing a bare board instead of the product with its cables and enclosure</li>
+<li>Booking the formal lab before any pre-compliance work</li>
+<li>Adding filters and ferrites at the end instead of designing for low noise</li>
+<li>Forgetting immunity, then discovering the product resets during ESD tests</li>
+<li>Changing a component after testing without checking whether results still hold</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Make a near-field probe from a small loop of coaxial cable and use it with a software-defined radio or spectrum analyser to find the noisiest spot on one of your boards.</li>
+<li>Review a switching regulator layout of yours in <strong>KiCad</strong> and draw the high-current loop; see if you can make it smaller.</li>
+<li>Simulate a regulator's switching node with and without a snubber in <strong>ngspice</strong> and compare the ringing.</li>
+<li>Write a one-page compliance plan for a product: standards, tests, pre-compliance steps and samples.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>emc</li><li>compliance</li><li>product safety</li><li>testing</li><li>hardware design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="open-shuttles-for-students.html"><span>Previous in India&#x27;s electronics ecosystem</span>Open shuttles and shared tape-outs: how students can get a design onto real silicon</a><a class="next" href="electronics-for-unreliable-grids.html"><span>Next in India&#x27;s electronics ecosystem</span>Power cuts, surges and voltage swings: designing electronics for real-world grids</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Advanced</span></div>
+          <h3><a href="reading-a-procurement-specification.html">Reading a public procurement specification as an engineer</a></h3>
+          <p>How to read a public tender&#x27;s technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-bis-certification-means.html">What BIS registration and certification mean for an electronics product</a></h3>
+          <p>What India&#x27;s national standards body does, how product registration and certification work in outline, what an engineer must prepare for them, and why you must check the current product lists yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="electronics-for-unreliable-grids.html">Power cuts, surges and voltage swings: designing electronics for real-world grids</a></h3>
+          <p>How to design electronics that survive power cuts, surges and wide voltage swings, using brown-out detection with hysteresis, layered surge protection, wide-input supplies and a hold-up budget for saving state.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running a field pilot for sensing hardware: from a handful of prototypes to real users · Ketuna blog</title>
+  <meta name="description" content="How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Running a field pilot for sensing hardware: from a handful of prototypes to real users · Ketuna blog">
+  <meta property="og:description" content="How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.">
+  <link rel="canonical" href="https://ketuna.online/blog/running-a-field-pilot.html">
+  <meta property="og:url" content="https://ketuna.online/blog/running-a-field-pilot.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Running a field pilot for sensing hardware: from a handful of prototypes to real users",
+  "description": "How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "field pilot, iot, sensors, product development, deployment",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 912,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/running-a-field-pilot.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Running a field pilot for sensing hardware: from a handful of prototypes to real users</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#decide-what-the-pilot-must-prove">Decide what the pilot must prove</a></li><li><a href="#choose-sites-deliberately">Choose sites deliberately</a></li><li><a href="#get-access-through-local-partners">Get access through local partners</a></li><li><a href="#build-for-remote-visibility-and-updates">Build for remote visibility and updates</a></li><li><a href="#plan-maintenance-visits-and-learn-from-them">Plan maintenance visits and learn from them</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A sensor node that has worked on your bench for a month has proved one thing: it works on your bench. The field adds heat, dust, insects, monsoon humidity, unreliable power, patchy connectivity and people who unplug things to charge their phones. A <strong>field pilot</strong> is a small, planned deployment that exposes your design to those conditions before you build hundreds. Run well, it turns unknowns into a list of specific fixes. Run badly, it produces a few weeks of silence and no idea why.</p>
+<h2 id="decide-what-the-pilot-must-prove">Decide what the pilot must prove</h2>
+<p>Write down, before anything is deployed, the questions the pilot exists to answer. Each should have a measurable pass condition. For example:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Evidence that answers it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Does the device survive the site conditions?</td>
+<td>Days of continuous operation, resets logged, enclosure inspected</td>
+</tr>
+<tr>
+<td>Is the data good enough?</td>
+<td>Comparison against a reference instrument at some sites</td>
+</tr>
+<tr>
+<td>Does connectivity work where users are?</td>
+<td>Fraction of expected readings received, per site</td>
+</tr>
+<tr>
+<td>Does the battery or solar budget hold?</td>
+<td>Measured supply voltage over time, including cloudy days</td>
+</tr>
+<tr>
+<td>Will users actually use it?</td>
+<td>Usage records and structured conversations with users</td>
+</tr>
+</tbody>
+</table></div>
+<p>Keep the list short. A pilot that tries to answer everything usually answers nothing clearly. Also decide what would make you stop or redesign, so a bad result leads to a decision instead of an argument.</p>
+<h2 id="choose-sites-deliberately">Choose sites deliberately</h2>
+<p>The temptation is to deploy wherever it is convenient, such as a relative's farm or the campus rooftop. Convenient sites tend to be the easy ones. Pick sites that span the conditions you expect to meet: at least one with weak mobile signal, one with harsh heat or dust, one where power is unreliable and one where you can reach the device quickly.</p>
+<p>Place a reference instrument alongside a few of your devices where data quality matters. Without a reference you can tell that readings changed, but not whether they are right.</p>
+<h2 id="get-access-through-local-partners">Get access through local partners</h2>
+<p>You will rarely be able to visit every site yourself. A local partner, such as a farmer producer organisation, a school, a cooperative, a local technician or a field NGO, can host devices, check on them and tell you what is really happening. Treat them as part of the team:</p>
+<ul>
+<li>explain plainly what the device does, what data it collects and who will see it</li>
+<li>agree in writing who owns the device and the data, and what happens at the end of the pilot</li>
+<li>give them a one-page guide with pictures: what normal looks like, what to do if a light blinks red, whom to call</li>
+<li>respect their time; a pilot that creates work for the host without benefit will not last</li>
+</ul>
+<p>Collect only the data you need, tell people what you collect, and get consent where people are involved. That is both the right thing to do and the way to keep a partner's trust.</p>
+<h2 id="build-for-remote-visibility-and-updates">Build for remote visibility and updates</h2>
+<p>Every visit costs time and money, so design devices to tell you their own health. Each node should send a small <strong>heartbeat</strong> at a regular interval, even when it has no new data, carrying firmware version, uptime, reset cause, supply voltage, signal strength and an error counter. Store readings locally when the link is down and send them later with timestamps.</p>
+<p>With heartbeats, you can spot problems from your desk. A short script that flags silent or rebooting nodes is often the most useful tool in a pilot. The example below works on a made-up log of heartbeats, one line per node per message:</p>
+<pre><code class="language-python">from collections import defaultdict
+
+log = &quot;&quot;&quot;n01,1000,boot=0 v=3.9
+n02,1000,boot=0 v=3.7
+n01,1600,boot=0 v=3.9
+n02,1600,boot=1 v=3.4
+n03,1000,boot=0 v=4.0
+n01,2200,boot=0 v=3.8
+n02,2200,boot=2 v=3.2&quot;&quot;&quot;
+
+now, period = 2400, 600                 # seconds, illustrative
+last, boots = {}, defaultdict(int)
+for line in log.splitlines():
+    node, t, rest = line.split(&quot;,&quot;)
+    fields = dict(kv.split(&quot;=&quot;) for kv in rest.split())
+    last[node] = int(t)
+    boots[node] = int(fields[&quot;boot&quot;])
+
+for node in sorted(last):
+    late = now - last[node] &gt; 2 * period
+    flag = &quot;SILENT&quot; if late else (&quot;REBOOTING&quot; if boots[node] else &quot;ok&quot;)
+    print(node, flag)
+</code></pre>
+<p>It prints <code>n01 ok</code>, <code>n02 REBOOTING</code> and <code>n03 SILENT</code>. Here <code>n02</code> is resetting while its voltage falls, which points to a power problem, and <code>n03</code> has gone quiet, which needs a call to the local partner.</p>
+<p><strong>Over-the-air updates</strong> need care. An update that fails halfway in a remote field can turn a device into a brick. Use a bootloader that keeps the previous image, verifies the new one and falls back if it does not start properly. Roll updates out to one or two devices first.</p>
+<h2 id="plan-maintenance-visits-and-learn-from-them">Plan maintenance visits and learn from them</h2>
+<p>Schedule visits rather than waiting for failures, and treat each as a data-collection trip. Photograph every device before touching it. Note dust, water marks, insect nests, corrosion, loose cables and how the device was mounted. Check the reference instrument and clean sensors where needed, recording what you did, because cleaning changes the readings.</p>
+<p>Keep a simple log per device: site, date, what was observed, what was changed. Patterns across sites, such as connectors corroding, mounts loosening or the same reset cause, are the real output of a pilot.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Deploying before deciding what the pilot must prove</li>
+<li>Picking only easy, convenient sites</li>
+<li>No heartbeat, so a silent device could be dead, offline or stolen</li>
+<li>Updating all devices at once and bricking the pilot</li>
+<li>Changing firmware and hardware during the pilot without recording when</li>
+<li>Treating local partners as caretakers rather than collaborators</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a one-page pilot plan for a sensor you have built, with three questions and a pass condition for each.</li>
+<li>Add a heartbeat message to your firmware with version, uptime, reset cause and supply voltage, and extend the script above to read it.</li>
+<li>Use the open-source <strong>MCUboot</strong> bootloader with <strong>Zephyr</strong> to test an update that fails halfway, and confirm the device rolls back.</li>
+<li>Leave one device outdoors for two weeks, then inspect and photograph it as if it were a pilot visit.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>field pilot</li><li>iot</li><li>sensors</li><li>product development</li><li>deployment</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-and-citing-standards.html"><span>Previous in India&#x27;s electronics ecosystem</span>Reading and citing standards: IS, IEC and IEEE documents for engineers</a><a class="next" href="satellite-navigation-for-timing.html"><span>Next in India&#x27;s electronics ecosystem</span>Satellite navigation for timing: how receivers discipline clocks for grids and networks</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="electronics-for-farms.html">Electronics for farms: sensing, connectivity and power in rural deployments</a></h3>
+          <p>The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="how-a-chip-goes-from-idea-to-market.html">How a chip goes from idea to market, step by step, from an Indian team&#x27;s point of view</a></h3>
+          <p>The stages a chip passes through, from specification and design to fabrication, test, qualification and the product approvals that follow, and the decision each stage exists to make.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="how-smart-energy-meters-work.html">How smart energy meters work and why utilities deploy them</a></h3>
+          <p>How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Using a watchdog properly: what to kick, where, and when not to · Ketuna blog</title>
+  <meta name="description" content="A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Using a watchdog properly: what to kick, where, and when not to · Ketuna blog">
+  <meta property="og:description" content="A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.">
+  <link rel="canonical" href="https://ketuna.online/blog/using-a-watchdog-properly.html">
+  <meta property="og:url" content="https://ketuna.online/blog/using-a-watchdog-properly.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Using a watchdog properly: what to kick, where, and when not to",
+  "description": "A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "watchdog, reliability, firmware design, reset, rtos",
+  "articleSection": "Embedded systems",
+  "wordCount": 1050,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/using-a-watchdog-properly.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Using a watchdog properly: what to kick, where, and when not to</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-hardware-actually-does">What the hardware actually does</a></li><li><a href="#check-in-from-every-task-refresh-from-one-place">Check in from every task, refresh from one place</a></li><li><a href="#sizing-the-timeout">Sizing the timeout</a></li><li><a href="#windowed-watchdogs-catch-the-other-failure">Windowed watchdogs catch the other failure</a></li><li><a href="#after-the-reset-record-the-cause">After the reset: record the cause</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every microcontroller has a watchdog timer, and most firmware turns it on. Far fewer projects use it well. A watchdog that is refreshed from a timer interrupt will happily keep a device alive while its main loop is stuck forever, and a device that resets without recording why gives you nothing to fix. The value of a watchdog lies entirely in two decisions: what has to be true before you refresh it, and what you do after it fires.</p>
+<h2 id="what-the-hardware-actually-does">What the hardware actually does</h2>
+<p>A watchdog is a down-counter, usually clocked from its own low-speed oscillator so it keeps running even if the main clock fails. Firmware must <em>refresh</em> (or "kick", or "feed") it before it reaches zero, typically by writing a special key value to a register. If the count reaches zero, the watchdog resets the chip. Once started, many watchdogs cannot be stopped by software at all, so a bug cannot switch them off.</p>
+<p>The watchdog cannot know whether your firmware is healthy. It only knows that someone wrote the key in time. Every bit of intelligence must come from where and when you write it.</p>
+<h3 id="the-classic-mistake-kicking-from-an-interrupt">The classic mistake: kicking from an interrupt</h3>
+<pre><code class="language-c">void systick_isr(void)          /* do not do this */
+{
+    wdt_refresh();
+}
+</code></pre>
+<p>The timer interrupt keeps firing even when the main loop is stuck in an endless loop waiting for a flag that never comes, or when a task has deadlocked on a mutex. The watchdog is refreshed every millisecond and never fires. You have paid the cost of a watchdog and turned off its only function.</p>
+<p>The rule: <strong>refresh the watchdog only from a place that runs when the useful work is running</strong>, and only after checking that it really is.</p>
+<h2 id="check-in-from-every-task-refresh-from-one-place">Check in from every task, refresh from one place</h2>
+<p>In a system with several tasks or several jobs in a superloop, give each one a bit. Each job sets its bit when it completes a normal cycle. A single supervisor refreshes the watchdog only when every expected bit is set, then clears them all.</p>
+<pre><code class="language-c">#include &lt;stdatomic.h&gt;
+#include &lt;stdint.h&gt;
+
+enum {
+    ALIVE_SENSOR = 1u &lt;&lt; 0,
+    ALIVE_COMMS  = 1u &lt;&lt; 1,
+    ALIVE_CTRL   = 1u &lt;&lt; 2,
+    ALIVE_ALL    = ALIVE_SENSOR | ALIVE_COMMS | ALIVE_CTRL,
+};
+
+static atomic_uint alive;
+
+void task_checkin(unsigned bit)          /* called by each task */
+{
+    atomic_fetch_or(&amp;alive, bit);
+}
+
+void supervisor_poll(void)               /* runs periodically */
+{
+    unsigned seen = atomic_load(&amp;alive);
+    if ((seen &amp; ALIVE_ALL) == ALIVE_ALL) {
+        atomic_fetch_and(&amp;alive, ~(unsigned)ALIVE_ALL);
+        wdt_refresh();
+    }
+    /* if a bit is missing, do nothing: the watchdog will fire */
+}
+</code></pre>
+<p>The atomic OR matters: each task may run at a different priority, and a plain <code>alive |= bit</code> is a read-modify-write that can lose another task's bit. On a single-core part without atomic instructions, a two-instruction critical section does the same job.</p>
+<p>Choose where each task checks in carefully. A comms task that checks in at the top of its loop proves only that the loop started; checking in after it has processed a message, or after its blocking wait returns with a timeout, proves it is still making progress. A task that legitimately waits a long time for an event should wait with a timeout shorter than the watchdog period and check in on each timeout.</p>
+<h2 id="sizing-the-timeout">Sizing the timeout</h2>
+<p>The timeout must be longer than the longest legitimate gap between refreshes and short enough that the system recovers before harm is done.</p>
+<ul>
+<li><strong>Find the longest legitimate gap.</strong> Erasing a flash sector, writing a log page, a radio join, a long calculation: measure each in the worst case. If erasing a sector blocks the CPU for longer than the watchdog period, every firmware update will reset the device.</li>
+<li><strong>Add margin for the watchdog's own clock.</strong> Low-speed RC oscillators vary noticeably with temperature and between chips; the datasheet gives the range. Size the timeout using the fastest the oscillator can run, because that gives the shortest real timeout.</li>
+<li><strong>Ask what failure costs.</strong> A motor controller that must stop within a short time after a hang needs a short timeout; a data logger can tolerate seconds.</li>
+</ul>
+<h2 id="windowed-watchdogs-catch-the-other-failure">Windowed watchdogs catch the other failure</h2>
+<p>A plain watchdog catches code that stops. It does not catch code that runs too fast: a loop that skips its real work because of a corrupted state variable may hit the refresh more often, not less. A <strong>windowed watchdog</strong> also resets the chip if it is refreshed <em>too early</em>, before a window opens. Configure the window around the expected period of your supervisor, for example "not before 60 % of the timeout", and an out-of-control fast loop is caught as surely as a stuck one. Your supervisor then has to refresh on a steady schedule, which is good discipline anyway.</p>
+<h2 id="after-the-reset-record-the-cause">After the reset: record the cause</h2>
+<p>A watchdog reset without a record is a lost bug report. Two pieces of information make it useful.</p>
+<ol>
+<li><strong>The reset cause.</strong> Most microcontrollers have a reset-cause register with flags for power-on, external pin, brown-out, software and watchdog resets. Read it first thing in startup, save it, then clear the flags so the next reset is reported correctly.</li>
+<li><strong>What was happening.</strong> Keep a small structure in a RAM section that startup code does not zero (a <code>.noinit</code> section in the linker script). Tasks write their current state or the missing check-in bits there. After a watchdog reset, the structure survives and tells you which task stopped. Protect it with a magic number and a checksum, since after a power-on it holds random data.</li>
+</ol>
+<p>Count consecutive watchdog resets in the same section. If the device resets several times in a row within a short time, boot into a safe mode with fewer features instead of looping forever, and report the fault the next time communication works.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li>Leaving the watchdog running while halted in a debugger. Most parts can freeze the watchdog in debug mode; set that bit, or every breakpoint resets the board.</li>
+<li>Refreshing inside a long loop "to keep it quiet". That hides exactly the hang you want to catch.</li>
+<li>Starting the watchdog after a long initialisation. Initialisation can hang too; start it early with a generous timeout, then tighten it.</li>
+<li>Treating watchdog resets as normal. Each one is a bug to understand, not background noise.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In a QEMU-based project such as the Ketuna track D labs, simulate a watchdog in software with the timer interrupt: count down, and at zero jump back to the reset entry <code>_start</code> (a stand-in for a real reset). Implement the check-in supervisor and confirm that blocking one task triggers the reset.</li>
+<li>Add a <code>.noinit</code> section to the linker script, store the missing check-in bits there before the simulated reset, and print them after restart.</li>
+<li>On a real board, measure the worst-case flash sector erase time with a GPIO and a logic analyser, and write down the minimum watchdog timeout that survives it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>watchdog</li><li>reliability</li><li>firmware design</li><li>reset</li><li>rtos</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="unit-testing-firmware-on-the-host.html"><span>Previous in Embedded systems</span>Unit testing firmware on your laptop: separating logic from hardware</a><a class="next" href="what-happens-before-main.html"><span>Next in Embedded systems</span>What happens before main(): startup code on a microcontroller</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="superloop-or-rtos.html">Superloop or RTOS? Deciding with timing requirements, not fashion</a></h3>
+          <p>A superloop with interrupts is enough more often than people think. Work out the worst-case loop time against each deadline, and you will see exactly which requirement, if any, calls for a preemptive scheduler.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

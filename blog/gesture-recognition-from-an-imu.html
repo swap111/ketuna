@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gesture recognition from an IMU: data, features and a small model · Ketuna blog</title>
+  <meta name="description" content="From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Gesture recognition from an IMU: data, features and a small model · Ketuna blog">
+  <meta property="og:description" content="From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.">
+  <link rel="canonical" href="https://ketuna.online/blog/gesture-recognition-from-an-imu.html">
+  <meta property="og:url" content="https://ketuna.online/blog/gesture-recognition-from-an-imu.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Gesture recognition from an IMU: data, features and a small model",
+  "description": "From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "gesture recognition, imu, tinyml, features, microcontroller",
+  "articleSection": "Edge AI",
+  "wordCount": 1070,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/gesture-recognition-from-an-imu.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Gesture recognition from an IMU: data, features and a small model</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#define-the-gestures-and-the-none-class">Define the gestures and the "none" class</a></li><li><a href="#record-and-label">Record and label</a></li><li><a href="#windows-and-features">Windows and features</a></li><li><a href="#a-small-model">A small model</a></li><li><a href="#running-it-on-the-device">Running it on the device</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A six-axis inertial measurement unit (IMU), an accelerometer plus a gyroscope, costs little and draws little power, and it is enough to recognise a handful of deliberate hand gestures: a flick, a twist, a circle, a shake. That makes it a good first end-to-end edge AI project, because every stage is small enough to understand completely: you record your own data, design features you can reason about, train a model of a few hundred weights and run it on a microcontroller in real time. The steps below follow that path and point out where such projects usually go wrong.</p>
+<h2 id="define-the-gestures-and-the-none-class">Define the gestures and the "none" class</h2>
+<p>Start on paper. Pick three to five gestures that are physically distinct: different axes, different directions, different rhythms. "Flick up" and "flick down" differ only in sign and are easy; "draw a 2" and "draw a Z" are much harder.</p>
+<p>Then add the most important class: <strong>none</strong>. In real use, the device spends almost all its time seeing motion that is not a gesture: walking, typing, picking up a cup. A model trained only on the gestures has no way to say "nothing happened", so it will label every movement as one of them. Recording plenty of ordinary activity as <em>none</em> is what makes the system usable.</p>
+<p>Write a short protocol for each gesture: start position, how fast, how large, which hand, how the device is held. Variation is good, but it should be the variation users will produce, not confusion about what the gesture is.</p>
+<h2 id="record-and-label">Record and label</h2>
+<p>Sample the IMU at a fixed rate; 100 Hz is ample for hand motion. Record each gesture many times, by several people, across sessions on different days, with the device worn or held the way the product will be. Labelling is easiest if the recording tool marks gestures as they happen, for example with a button press or a prompt that tells the subject when to perform the gesture.</p>
+<p>Keep the raw data and the labels in simple files (CSV is fine) with the sensor settings, the person and the session recorded alongside. You will want to re-cut windows and recompute features many times, and you cannot do that from features alone.</p>
+<h2 id="windows-and-features">Windows and features</h2>
+<p>A gesture takes roughly a second, so the model looks at a <strong>window</strong> of motion, for example 1.5 s (150 samples at 100 Hz). To catch gestures whenever they happen, windows slide forward with a <strong>hop</strong> of, say, 0.25 s, so consecutive windows overlap.</p>
+<p>You can feed the raw window, 150 × 6 numbers, to a small 1-D convolutional network. For a first version, compact hand-designed <strong>features</strong> are simpler and often enough. For each of the six axes, compute the mean (which captures orientation relative to gravity), the standard deviation (how much it moved), the minimum and maximum (direction and size of the peak), and the mean absolute difference between samples (how jerky the motion was). That gives 6 × 5 = 30 numbers per window.</p>
+<pre><code class="language-python">import numpy as np
+
+FS, WIN, HOP = 100, 150, 25          # 100 Hz, 1.5 s windows, 0.25 s hop
+
+def windows(rec):
+    &quot;&quot;&quot;rec: (n_samples, 6) array of ax, ay, az, gx, gy, gz.&quot;&quot;&quot;
+    for start in range(0, len(rec) - WIN + 1, HOP):
+        yield rec[start:start + WIN]
+
+def features(w):
+    d = np.diff(w, axis=0)
+    return np.concatenate([w.mean(0), w.std(0), w.min(0), w.max(0),
+                           np.abs(d).mean(0)])           # 30 values
+</code></pre>
+<p>Before training, <strong>split by person or session</strong>, not by window. Overlapping windows from one recording on both sides of the split would leak test data into training and inflate your score. Then compute feature normalisation (mean and standard deviation per feature) on the training set only and apply it everywhere.</p>
+<h2 id="a-small-model">A small model</h2>
+<p>With 30 inputs and, for example, 4 gestures plus <em>none</em>, a dense network of 30 → 16 → 5 with ReLU is a sensible starting point. It has 30 × 16 + 16 × 5 = 560 weights and 21 biases, about 644 bytes in int8 with int32 biases, and 560 MACs per inference. On any microcontroller that is a few microseconds to tens of microseconds; the feature computation will cost more than the network.</p>
+<p>Train it in PyTorch or Keras on the training split, check per-class results on the validation split, and look at the confusion matrix: which gestures get confused with each other, and how often <em>none</em> is mistaken for a gesture. False triggers usually matter more to users than occasional misses, so tune for that. Then quantize to int8 and check that the quantized model's results on the test split are close to the float model's.</p>
+<p>Before committing to the network, it is worth building a rule-based version too, such as "flick up if peak vertical acceleration exceeds a threshold and gyro roll stays small". If the rules perform almost as well, they are easier to explain, tune and test. The model earns its place when gestures differ in ways that are hard to write as rules.</p>
+<h2 id="running-it-on-the-device">Running it on the device</h2>
+<p>On the microcontroller the pipeline streams:</p>
+<ol>
+<li>A timer or the IMU's data-ready interrupt reads six values at 100 Hz into a circular buffer of the last 150 samples.</li>
+<li>Every 25 samples (0.25 s), the main loop computes the 30 features over the buffer, normalises them with the stored training statistics, and quantizes them with the model's input scale and zero point.</li>
+<li>The network runs and produces five scores.</li>
+<li>A decision rule requires the same gesture to win in two consecutive windows, above a threshold, and then ignores further detections for about a second so one gesture does not fire repeatedly.</li>
+</ol>
+<p>The features can be computed incrementally (running sums for the mean and variance) to save cycles, but compute them in the simplest way first and check them against the Python output on the same recorded data, value by value. Feature mismatches between training and device are the most common cause of a model that works on the laptop and fails on the board.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>no <em>none</em> class, so ordinary movement triggers gestures</li>
+<li>recording one person in one session and testing on the same person</li>
+<li>splitting windows randomly, which leaks overlapping data into the test set</li>
+<li>device features that differ subtly from training features, for example in units or axis order</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Log six-axis IMU data at 100 Hz from a phone app or a development board to CSV, with a button or keypress marking each gesture.</li>
+<li>Use the windowing and feature code above, train the 30 → 16 → 5 network, and report per-class recall with a person-wise split.</li>
+<li>Write the rule-based alternative for one gesture and compare it with the model on the same test data.</li>
+<li>Port the feature code and an int8 dense layer to C, run them on recorded data on your PC, and confirm the outputs match Python before flashing a board.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>gesture recognition</li><li>imu</li><li>tinyml</li><li>features</li><li>microcontroller</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="energy-per-inference.html"><span>Previous in Edge AI</span>Energy per inference: why memory access dominates</a><a class="next" href="what-to-accelerate-codesign.html"><span>Next in Edge AI</span>Hardware/software co-design: deciding what to accelerate</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="keyword-spotting-pipeline.html">A keyword-spotting pipeline from microphone to decision</a></h3>
+          <p>How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="pruning-and-weight-compression.html">Pruning and weight compression for tiny models</a></h3>
+          <p>Zeroing small weights only saves memory and time if the storage format and the hardware can exploit it. Unstructured versus structured pruning, index overhead, weight clustering, and checking what accuracy you gave up.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-power verification basics: what UPF adds to simulation · Ketuna blog</title>
+  <meta name="description" content="Power intent adds domains that switch off, isolation at their boundaries and retention of state. Learn how power-aware simulation corrupts powered-down logic, and the sequencing bugs that only this reveals.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Low-power verification basics: what UPF adds to simulation · Ketuna blog">
+  <meta property="og:description" content="Power intent adds domains that switch off, isolation at their boundaries and retention of state. Learn how power-aware simulation corrupts powered-down logic, and the sequencing bugs that only this reveals.">
+  <link rel="canonical" href="https://ketuna.online/blog/upf-low-power-verification-basics.html">
+  <meta property="og:url" content="https://ketuna.online/blog/upf-low-power-verification-basics.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Low-power verification basics: what UPF adds to simulation",
+  "description": "Power intent adds domains that switch off, isolation at their boundaries and retention of state. Learn how power-aware simulation corrupts powered-down logic, and the sequencing bugs that only this reveals.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "low power, upf, power domains, isolation, retention",
+  "articleSection": "Verification",
+  "wordCount": 849,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/upf-low-power-verification-basics.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Low-power verification basics: what UPF adds to simulation</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Power intent adds domains that switch off, isolation at their boundaries and retention of state. Learn how power-aware simulation corrupts powered-down logic, and the sequencing bugs that only this reveals.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-power-intent-describes">What the power intent describes</a></li><li><a href="#what-power-aware-simulation-does-differently">What power-aware simulation does differently</a></li><li><a href="#the-bugs-it-reveals">The bugs it reveals</a></li><li><a href="#checking-the-sequence-with-assertions">Checking the sequence with assertions</a></li><li><a href="#learning-it-with-open-tools">Learning it with open tools</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Plain RTL simulation assumes every flip-flop is powered all the time. Chips designed for battery life break that assumption on purpose: whole blocks are switched off when idle and brought back when needed. The RTL itself usually says nothing about this. The power architecture lives in a separate file written in the Unified Power Format (UPF, IEEE 1801), and unless the simulator reads that file, the testbench verifies a chip that never powers anything down. Some of the most expensive bugs live exactly in the gap.</p>
+<h2 id="what-the-power-intent-describes">What the power intent describes</h2>
+<p>A UPF file overlays the RTL with a few concepts:</p>
+<ul>
+<li><strong>Power domains</strong>: groups of instances sharing a supply. An always-on domain holds the power controller; switchable domains can be turned off.</li>
+<li><strong>Power switches</strong>: the controlled connection between a supply and a switchable domain.</li>
+<li><strong>Isolation</strong>: cells at the outputs of a switchable domain that clamp signals to a safe value while the domain is off, powered from the always-on supply.</li>
+<li><strong>Retention</strong>: flip-flops with a shadow storage element on the always-on supply, so selected state survives power-down.</li>
+<li><strong>Level shifters</strong>: translation between domains at different voltages.</li>
+<li><strong>Power states</strong>: the legal combinations of supply states.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="upf-title upf-desc" font-size="14">
+<title id="upf-title">A switchable power domain with isolation and retention</title>
+<desc id="upf-desc">An always-on domain contains the power controller, which drives a power switch, isolation enable, and save and restore signals. The switchable core domain contains ordinary flops and retention flops. Its outputs pass through isolation cells at the boundary before entering the always-on domain.</desc>
+<rect x="10" y="10" width="460" height="200" rx="8" class="dg-track"/>
+<text x="22" y="32" class="dg-text">always-on domain</text>
+<rect x="30" y="50" width="130" height="60" rx="6" class="dg-core"/>
+<text x="95" y="77" text-anchor="middle" class="dg-text">power</text>
+<text x="95" y="95" text-anchor="middle" class="dg-text">controller</text>
+<rect x="220" y="44" width="200" height="150" rx="8" class="dg-box"/>
+<text x="320" y="66" text-anchor="middle" class="dg-text">core domain</text>
+<rect x="236" y="80" width="80" height="34" rx="4" class="dg-core"/>
+<text x="276" y="102" text-anchor="middle" class="dg-text">flops</text>
+<rect x="236" y="130" width="80" height="34" rx="4" class="dg-amber" fill-opacity="0.35"/>
+<text x="276" y="152" text-anchor="middle" class="dg-text">retention</text>
+<rect x="420" y="95" width="30" height="50" rx="4" class="dg-amber" fill-opacity="0.5"/>
+<text x="435" y="170" text-anchor="middle" class="dg-muted">iso</text>
+<line x1="316" y1="120" x2="414" y2="120" class="dg-line"/>
+<path d="M414,116 L420,120 L414,124 Z" class="dg-arrow"/>
+<path d="M160,60 H200 V20 H435 V89" class="dg-dash" fill="none"/>
+<path d="M431,89 L435,95 L439,89 Z" class="dg-arrow"/>
+<text x="300" y="36" text-anchor="middle" class="dg-muted">iso_en</text>
+<line x1="160" y1="85" x2="214" y2="85" class="dg-dash"/>
+<path d="M214,81 L220,85 L214,89 Z" class="dg-arrow"/>
+<text x="188" y="78" text-anchor="middle" class="dg-muted">pwr</text>
+<path d="M160,100 H190 V147 H230" class="dg-dash" fill="none"/>
+<path d="M230,143 L236,147 L230,151 Z" class="dg-arrow"/>
+<text x="120" y="160" text-anchor="middle" class="dg-muted">save, restore</text>
+</svg>
+<figcaption>The controller in the always-on domain switches the core's supply, isolates its outputs and saves or restores retained state.</figcaption>
+</figure>
+
+<h2 id="what-power-aware-simulation-does-differently">What power-aware simulation does differently</h2>
+<p>A simulator that reads the UPF changes the behaviour of the RTL in three ways.</p>
+<p><strong>Powered-down logic is corrupted.</strong> When a domain's supply turns off, every flop and output inside it goes to X. When the supply returns, ordinary flops stay X until reset or written. This is how the simulation models the physical truth that an unpowered flop holds nothing.</p>
+<p><strong>Isolation clamps the boundary.</strong> While isolation is enabled, outputs of the off domain are forced to their clamp value, typically 0 or 1, so the always-on logic sees a defined signal instead of X.</p>
+<p><strong>Retention saves and restores.</strong> On a save signal, retention flops copy their value to the shadow element. On restore, they copy it back. Between the two, the main flop may be X while the shadow holds the value.</p>
+<p>None of this appears in a plain RTL simulation. There, a block "switched off" by the controller simply keeps its state and keeps driving its outputs, so every power-down test passes regardless of how the sequence is written.</p>
+<h2 id="the-bugs-it-reveals">The bugs it reveals</h2>
+<p>Power-aware simulation exists to find a specific family of errors, almost all about <strong>order</strong> and <strong>completeness</strong>.</p>
+<ul>
+<li><strong>Isolation enabled too late.</strong> If the switch opens before isolation is enabled, X escapes into the always-on domain for a few cycles. That might corrupt an interrupt controller or a bus.</li>
+<li><strong>Isolation released too early.</strong> On wake-up, releasing isolation before the domain has been restored or reset lets X or stale values out.</li>
+<li><strong>Save after power-off.</strong> If the save pulse arrives after the supply drops, the shadow captures X. The design wakes up with garbage in its "retained" state.</li>
+<li><strong>Reset clobbers restored state.</strong> A wake-up sequence that restores and then asserts reset wipes the retained values. The sequence has to be restore-then-release, with reset handled carefully.</li>
+<li><strong>Missing isolation.</strong> An output that crosses into the always-on domain with no isolation rule. Static checks on the RTL plus UPF find these structurally; simulation shows their effect.</li>
+<li><strong>Software touching an off domain.</strong> A bus access to a register in a powered-down block. The power-aware simulation returns X or hangs, exposing a missing check in the bus fabric or firmware.</li>
+<li><strong>Unretained state that matters.</strong> A configuration register that was not marked for retention comes back as X after wake-up, and the block misbehaves until software reconfigures it.</li>
+</ul>
+<h2 id="checking-the-sequence-with-assertions">Checking the sequence with assertions</h2>
+<p>The controller's sequence is a protocol, and assertions describe it well. These checks work in any SVA-capable simulator, power-aware or not, because they look only at the controller's outputs.</p>
+<pre><code class="language-systemverilog">module pwr_seq_props (input logic clk, rst_n,
+                      pwr_on, iso_en, ret_save, ret_restore);
+  default clocking cb @(posedge clk); endclocking
+  default disable iff (!rst_n);
+
+  a_iso_before_off:  assert property ($fell(pwr_on) |-&gt; iso_en);
+  a_save_powered:    assert property (ret_save |-&gt; pwr_on);
+  a_restore_powered: assert property (ret_restore |-&gt; pwr_on);
+
+  // Isolation may be released only after a restore since power-up
+  logic restored, pwr_q;
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      restored &lt;= 1'b1;
+      pwr_q    &lt;= 1'b1;            // domain starts powered after reset
+    end else begin
+      pwr_q &lt;= pwr_on;
+      if (pwr_on &amp;&amp; !pwr_q)  restored &lt;= 1'b0;   // power just returned
+      else if (ret_restore)  restored &lt;= 1'b1;
+    end
+
+  a_iso_release: assert property ($fell(iso_en) |-&gt; restored);
+endmodule
+</code></pre>
+<p>The tracking flop <code>restored</code> is cleared each time power comes back and set by a restore pulse. Releasing isolation while it is clear means the domain is about to drive unrestored values out.</p>
+<h2 id="learning-it-with-open-tools">Learning it with open tools</h2>
+<p>UPF-aware simulation and static power checking are features of commercial tools. You can still learn the concepts with open-source simulators by modelling the effects behaviourally: wrap the switchable block so that its outputs pass through a clamp controlled by <code>iso_en</code>, and add a simulation-only process that forces its registers to X (or random values in a two-state simulator) whenever <code>pwr_on</code> is low. It is not a substitute for the real flow, but it exposes the same sequencing errors, and the assertions above carry over unchanged.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small power controller FSM with <code>pwr_on</code>, <code>iso_en</code>, <code>ret_save</code> and <code>ret_restore</code>, and a switchable counter block with one retained register.</li>
+<li>Model power-down behaviourally in Icarus Verilog: force the block's ordinary registers to X while <code>pwr_on</code> is low, and clamp its outputs while <code>iso_en</code> is high.</li>
+<li>Bind the property module above and run a sleep and wake cycle; then swap the order of isolation and power-off and confirm <code>a_iso_before_off</code> fires.</li>
+<li>Move reset after restore in the wake-up sequence and observe the retained register being clobbered.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>low power</li><li>upf</li><li>power domains</li><li>isolation</li><li>retention</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="layering-a-testbench.html"><span>Previous in Verification</span>Layering a testbench: stimulus, driver, monitor and checker</a><a class="next" href="portable-stimulus-in-plain-terms.html"><span>Next in Verification</span>Portable Stimulus in plain terms: one test intent, many platforms</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

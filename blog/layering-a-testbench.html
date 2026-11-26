@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layering a testbench: stimulus, driver, monitor and checker · Ketuna blog</title>
+  <meta name="description" content="Split a testbench into what to send, how to send it, what was observed and whether it was right. A plain cocotb example shows why this layering pays off even without a methodology library.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Layering a testbench: stimulus, driver, monitor and checker · Ketuna blog">
+  <meta property="og:description" content="Split a testbench into what to send, how to send it, what was observed and whether it was right. A plain cocotb example shows why this layering pays off even without a methodology library.">
+  <link rel="canonical" href="https://ketuna.online/blog/layering-a-testbench.html">
+  <meta property="og:url" content="https://ketuna.online/blog/layering-a-testbench.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Layering a testbench: stimulus, driver, monitor and checker",
+  "description": "Split a testbench into what to send, how to send it, what was observed and whether it was right. A plain cocotb example shows why this layering pays off even without a methodology library.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "testbench architecture, cocotb, driver, monitor, checker",
+  "articleSection": "Verification",
+  "wordCount": 846,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/layering-a-testbench.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Layering a testbench: stimulus, driver, monitor and checker</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Split a testbench into what to send, how to send it, what was observed and whether it was right. A plain cocotb example shows why this layering pays off even without a methodology library.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#four-jobs-four-layers">Four jobs, four layers</a></li><li><a href="#a-layered-cocotb-testbench">A layered cocotb testbench</a></li><li><a href="#what-the-layering-buys-you">What the layering buys you</a></li><li><a href="#growing-the-layers-as-the-design-grows">Growing the layers as the design grows</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most first testbenches are one long function. It sets an input, waits a clock, checks an output, sets the next input, and so on for two hundred lines. It works until the second test, when you copy the function and change a few lines, and the third, when the interface timing changes and you have to edit every copy. Professional testbenches avoid this with a simple idea that does not need any library: separate the jobs, and give each job its own piece of code.</p>
+<h2 id="four-jobs-four-layers">Four jobs, four layers</h2>
+<p>Every testbench does four different things, whether or not they are separated:</p>
+<ul>
+<li><strong>Stimulus</strong>: deciding <em>what</em> to send. "Send these five values", or "send 1,000 random values with occasional pauses".</li>
+<li><strong>Driving</strong>: deciding <em>how</em> to send it. Which pins to set, in which cycle, and how to wait for the design to accept it.</li>
+<li><strong>Monitoring</strong>: watching the design's pins and turning activity back into values or transactions, without caring who caused it.</li>
+<li><strong>Checking</strong>: deciding whether what was observed is correct, usually by comparing it with a model.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="lay-title lay-desc" font-size="14">
+<title id="lay-title">Layered testbench structure</title>
+<desc id="lay-desc">A stimulus layer produces values and passes them to a driver, which sets the design's input pins. An input monitor and an output monitor watch the pins and turn them back into values. The checker receives values from both monitors and compares them using a model.</desc>
+<rect x="20" y="20" width="100" height="40" rx="6" class="dg-box"/>
+<text x="70" y="45" text-anchor="middle" class="dg-text">stimulus</text>
+<rect x="20" y="90" width="100" height="40" rx="6" class="dg-box"/>
+<text x="70" y="115" text-anchor="middle" class="dg-text">driver</text>
+<line x1="70" y1="60" x2="70" y2="84" class="dg-line"/>
+<path d="M66,84 L70,90 L74,84 Z" class="dg-arrow"/>
+<rect x="190" y="80" width="100" height="60" rx="6" class="dg-core"/>
+<text x="240" y="115" text-anchor="middle" class="dg-text">DUT</text>
+<line x1="120" y1="110" x2="184" y2="110" class="dg-line"/>
+<path d="M184,106 L190,110 L184,114 Z" class="dg-arrow"/>
+<rect x="190" y="160" width="100" height="32" rx="6" class="dg-box"/>
+<text x="240" y="181" text-anchor="middle" class="dg-text">in monitor</text>
+<line x1="160" y1="110" x2="160" y2="176" class="dg-dash"/>
+<line x1="160" y1="176" x2="184" y2="176" class="dg-dash"/>
+<path d="M184,172 L190,176 L184,180 Z" class="dg-arrow"/>
+<rect x="340" y="90" width="120" height="40" rx="6" class="dg-box"/>
+<text x="400" y="115" text-anchor="middle" class="dg-text">out monitor</text>
+<line x1="290" y1="110" x2="334" y2="110" class="dg-line"/>
+<path d="M334,106 L340,110 L334,114 Z" class="dg-arrow"/>
+<rect x="340" y="20" width="120" height="40" rx="6" class="dg-amber" fill-opacity="0.35"/>
+<text x="400" y="45" text-anchor="middle" class="dg-text">checker</text>
+<line x1="400" y1="90" x2="400" y2="66" class="dg-line"/>
+<path d="M396,66 L400,60 L404,66 Z" class="dg-arrow"/>
+<path d="M290,176 H320 V40 H334" class="dg-line" fill="none"/>
+<path d="M334,36 L340,40 L334,44 Z" class="dg-arrow"/>
+</svg>
+<figcaption>Stimulus and driver push values in; monitors pull values out; only the checker decides pass or fail.</figcaption>
+</figure>
+
+<p>The key rule is that information flows one way through each path. The checker never asks the stimulus what it meant to send; it relies on the input monitor, which reports what actually reached the pins. That keeps the checker honest even if the driver has a bug.</p>
+<h2 id="a-layered-cocotb-testbench">A layered cocotb testbench</h2>
+<p>Take a block with a simple valid/ready input stream and a valid output stream: each accepted input byte comes out doubled, modulo 256, some cycles later. Here are the layers as small classes.</p>
+<pre><code class="language-python">import cocotb, random
+from cocotb.triggers import RisingEdge, ReadOnly
+
+class Driver:
+    &quot;&quot;&quot;How to send: valid/ready handshake on the input.&quot;&quot;&quot;
+    def __init__(self, dut):
+        self.dut = dut
+        dut.in_valid.value = 0
+
+    async def send(self, value):
+        d = self.dut
+        d.in_data.value = value
+        d.in_valid.value = 1
+        while True:
+            await ReadOnly()                  # settled values
+            accepted = d.in_ready.value == 1
+            await RisingEdge(d.clk)           # transfer happens here
+            if accepted:
+                break
+        d.in_valid.value = 0
+
+class Monitor:
+    &quot;&quot;&quot;What happened: report every cycle where valid (and ready) is high.&quot;&quot;&quot;
+    def __init__(self, clk, valid, data, ready=None, callback=None):
+        self.clk, self.valid, self.data = clk, valid, data
+        self.ready, self.callback = ready, callback
+
+    async def run(self):
+        while True:
+            await RisingEdge(self.clk)
+            await ReadOnly()
+            ok = self.valid.value == 1 and (
+                self.ready is None or self.ready.value == 1)
+            if ok:
+                self.callback(int(self.data.value))
+
+class Checker:
+    &quot;&quot;&quot;Was it right: compare outputs with the model, in order.&quot;&quot;&quot;
+    def __init__(self):
+        self.expected, self.errors, self.matched = [], [], 0
+
+    def on_input(self, value):
+        self.expected.append((value * 2) % 256)     # the model
+
+    def on_output(self, value):
+        exp = self.expected.pop(0) if self.expected else None
+        if value == exp:
+            self.matched += 1
+        else:
+            self.errors.append(f&quot;got {value}, expected {exp}&quot;)
+</code></pre>
+<p>A test now only deals with stimulus. It builds the layers, starts the monitors, sends values, and asks the checker at the end.</p>
+<pre><code class="language-python">async def run_test(dut, values):
+    chk = Checker()
+    drv = Driver(dut)
+    cocotb.start_soon(Monitor(dut.clk, dut.in_valid, dut.in_data,
+                              dut.in_ready, chk.on_input).run())
+    cocotb.start_soon(Monitor(dut.clk, dut.out_valid, dut.out_data,
+                              callback=chk.on_output).run())
+    for v in values:
+        await drv.send(v)
+    for _ in range(20):                 # let the pipeline drain
+        await RisingEdge(dut.clk)
+    assert not chk.errors, chk.errors[:5]
+    assert not chk.expected, &quot;outputs missing&quot;
+    assert chk.matched == len(values)
+</code></pre>
+<p>A directed test calls <code>run_test(dut, [0, 1, 127, 128, 255])</code>. A random test calls it with <code>[random.getrandbits(8) for _ in range(1000)]</code>. Neither test knows anything about handshakes or pipeline latency. (Clock and reset setup are left out to keep the example short.)</p>
+<h2 id="what-the-layering-buys-you">What the layering buys you</h2>
+<p><strong>Protocol changes touch one class.</strong> If the input interface gains a <code>last</code> signal or a wait state, only <code>Driver</code> and the input <code>Monitor</code> change. Every test keeps working.</p>
+<p><strong>New tests are a few lines.</strong> A test is just a list of values, or a function that generates them. Writing the twentieth test costs the same as the second.</p>
+<p><strong>One checker serves every test.</strong> Directed, random and corner-case tests are all checked by the same model, so no test can quietly skip checking.</p>
+<p><strong>Monitors are reusable.</strong> The same <code>Monitor</code> class watches both the input and output streams. At a higher level, where your block's input is driven by another block instead of your driver, the monitors and checker still work unchanged.</p>
+<p><strong>Failures are easier to locate.</strong> If the checker reports a mismatch, you know the design or the model is wrong. If the driver hangs, you know the handshake is at fault. Separate pieces fail in recognisable ways.</p>
+<h2 id="growing-the-layers-as-the-design-grows">Growing the layers as the design grows</h2>
+<p>The same structure stretches a long way before you need anything more formal.</p>
+<ul>
+<li><strong>Transactions instead of integers.</strong> When the interface carries more than one field, such as an address, data and a write flag, pass a small Python dataclass between layers instead of a bare number. Drivers, monitors and the checker then agree on one definition of "a transfer".</li>
+<li><strong>More listeners on a monitor.</strong> Let a monitor call a list of callbacks rather than one. A coverage collector becomes just another listener, counting which values and gaps occurred, with no change to the checker.</li>
+<li><strong>Stimulus as generators.</strong> A Python generator function that yields values, with a seeded random source, can produce directed lists, random streams or corner-biased mixes. The test picks one and hands it to the driver.</li>
+</ul>
+<p>When these pieces start repeating across blocks, a methodology library such as pyuvm gives them standard names and connection rules. The layers stay the same; only the plumbing becomes shared.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Checking inside the driver.</strong> The driver knows what it sent, so it is tempting to check there. It hides driver bugs and makes the check disappear when the driver is replaced.</li>
+<li><strong>Feeding the model from the stimulus.</strong> If the checker learns inputs from the test instead of the input monitor, an input that never reached the design still produces an expected output, and the error message points the wrong way.</li>
+<li><strong>No end-of-test check.</strong> Without checking that nothing is left in <code>expected</code>, a design that swallows inputs passes.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the doubling block in Verilog with a two-stage pipeline and a <code>ready</code> that drops every third cycle.</li>
+<li>Put the classes above in a cocotb test file, add clock and reset, and run directed and random tests on Icarus Verilog.</li>
+<li>Change the design's input protocol to add a wait state and update only the <code>Driver</code>; confirm both tests still pass.</li>
+<li>Break the design so it drops one byte when <code>ready</code> is low, and check which assertion catches it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>testbench architecture</li><li>cocotb</li><li>driver</li><li>monitor</li><li>checker</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="mutation-testing-your-testbench.html"><span>Previous in Verification</span>Is your testbench any good? Checking it by injecting bugs on purpose</a><a class="next" href="upf-low-power-verification-basics.html"><span>Next in Verification</span>Low-power verification basics: what UPF adds to simulation</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="directed-or-constrained-random.html">Directed tests or constrained random? Using each where it pays off</a></h3>
+          <p>Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

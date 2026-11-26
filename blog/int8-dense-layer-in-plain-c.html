@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing int8 inference for one dense layer in plain C · Ketuna blog</title>
+  <meta name="description" content="A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing int8 inference for one dense layer in plain C · Ketuna blog">
+  <meta property="og:description" content="A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.">
+  <link rel="canonical" href="https://ketuna.online/blog/int8-dense-layer-in-plain-c.html">
+  <meta property="og:url" content="https://ketuna.online/blog/int8-dense-layer-in-plain-c.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing int8 inference for one dense layer in plain C",
+  "description": "A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "int8, embedded c, quantization, requantization, testing",
+  "articleSection": "Edge AI",
+  "wordCount": 902,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/int8-dense-layer-in-plain-c.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Writing int8 inference for one dense layer in plain C</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-arithmetic-you-have-to-reproduce">The arithmetic you have to reproduce</a></li><li><a href="#turning-m-into-a-multiplier-and-a-shift">Turning M into a multiplier and a shift</a></li><li><a href="#the-c-code">The C code</a></li><li><a href="#proving-it-bit-exact">Proving it bit-exact</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Inference libraries hide the integer arithmetic of a quantized layer behind one function call. That is convenient until the device output differs from the Python model by one count on some inputs, or you need the same layer on a core the library does not support, or you are designing an accelerator and need to know exactly what it must compute. Writing one dense layer yourself, about thirty lines of C, removes the mystery. The other half of the job, and the more important half, is proving those thirty lines match a reference bit for bit.</p>
+<h2 id="the-arithmetic-you-have-to-reproduce">The arithmetic you have to reproduce</h2>
+<p>The usual int8 scheme stores weights symmetrically (zero point 0), activations asymmetrically (zero point z<sub>x</sub> for the input, z<sub>y</sub> for the output) and biases as int32 in the scale s<sub>x</sub> × s<sub>w</sub>. For each output neuron o, the layer computes:</p>
+<ol>
+<li><strong>Accumulate:</strong> acc = b[o] + Σ<sub>i</sub> (x[i] − z<sub>x</sub>) × w[o][i], in int32.</li>
+<li><strong>Requantize:</strong> y = round(M × acc) + z<sub>y</sub>, where M = s<sub>x</sub> s<sub>w</sub> / s<sub>y</sub> is a real number, usually much less than 1.</li>
+<li><strong>Clamp</strong> y to the int8 range, or to [z<sub>y</sub>, 127] if a ReLU is fused into the layer.</li>
+</ol>
+<p>Step 2 contains a real number, and the whole point is to avoid floating point on the device. The trick is to write M as a 31-bit integer and a shift.</p>
+<h2 id="turning-m-into-a-multiplier-and-a-shift">Turning M into a multiplier and a shift</h2>
+<p>Any positive M can be written as m × 2<sup>−n</sup> with m in [0.5, 1). Store m as a fixed-point integer M0 = round(m × 2<sup>31</sup>), which fits in an int32. Then</p>
+<blockquote>
+<p>round(M × acc) = (acc × M0 + 2<sup>shift−1</sup>) &gt;&gt; shift, with shift = 31 + n</p>
+</blockquote>
+<p>The product of a 32-bit accumulator and a 31-bit multiplier needs 64 bits, so it is computed in <code>int64_t</code>. Adding 2<sup>shift−1</sup> before shifting rounds to nearest, with halves going up.</p>
+<p>For example, take M = 0.0015. Python's <code>math.frexp</code> gives 0.0015 = 0.768 × 2<sup>−9</sup>, so M0 = round(0.768 × 2<sup>31</sup>) = 1,649,267,442 and shift = 31 + 9 = 40. These two integers are computed once, offline, and stored with the layer's weights.</p>
+<pre><code class="language-python">import math
+
+def quant_mult(M):
+    m, e = math.frexp(M)          # M = m * 2**e, 0.5 &lt;= m &lt; 1
+    m0 = round(m * (1 &lt;&lt; 31))
+    if m0 == (1 &lt;&lt; 31):           # rounding pushed m up to 1.0
+        m0 //= 2
+        e += 1
+    return m0, 31 - e             # (multiplier, total right shift)
+
+print(quant_mult(0.0015))         # (1649267442, 40)
+</code></pre>
+<h2 id="the-c-code">The C code</h2>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+static int8_t requant(int32_t acc, int32_t m0, int shift,
+                      int32_t zy, int32_t lo, int32_t hi)
+{
+    int64_t p = (int64_t)acc * m0;
+    p += (int64_t)1 &lt;&lt; (shift - 1);          /* round half up */
+    int32_t v = (int32_t)(p &gt;&gt; shift) + zy;  /* arithmetic shift */
+    if (v &lt; lo) v = lo;
+    if (v &gt; hi) v = hi;
+    return (int8_t)v;
+}
+
+void dense_int8(const int8_t *x, int32_t zx,
+                const int8_t *w, const int32_t *b,
+                int n_in, int n_out,
+                int32_t m0, int shift, int32_t zy,
+                int32_t lo, int32_t hi, int8_t *y)
+{
+    for (int o = 0; o &lt; n_out; o++) {
+        const int8_t *row = &amp;w[o * n_in];
+        int32_t acc = b[o];
+        for (int i = 0; i &lt; n_in; i++)
+            acc += ((int32_t)x[i] - zx) * (int32_t)row[i];
+        y[o] = requant(acc, m0, shift, zy, lo, hi);
+    }
+}
+</code></pre>
+<p>A few decisions in this code are worth spelling out.</p>
+<ul>
+<li><strong>Widen before multiplying.</strong> Each operand is cast to <code>int32_t</code> before the multiply. In C the int8 values would be promoted to <code>int</code> anyway, but the explicit casts make the intent clear and keep the code correct on a target where <code>int</code> is 16 bits.</li>
+<li><strong>The accumulator is 32 bits.</strong> One product of (x − z<sub>x</sub>), which can reach ±255, and a weight of magnitude up to 128 is at most 32,640 in size. Even a few thousand inputs stay far inside the int32 range, while a 16-bit accumulator would overflow after a couple of products.</li>
+<li><strong>Right-shifting a negative number.</strong> Before C23, right-shifting a negative signed integer is implementation-defined. Common compilers for common cores perform an arithmetic shift, which is what the rounding formula assumes, but check your compiler's documentation, and let the test below catch it if not.</li>
+<li><strong>The zero point can be folded away.</strong> Σ (x − z<sub>x</sub>) w = Σ x w − z<sub>x</sub> Σ w. The second term depends only on constants, so you can precompute b'[o] = b[o] − z<sub>x</sub> Σ<sub>i</sub> w[o][i] offline and drop the subtraction from the inner loop. That saves one operation per MAC and is what optimised kernels do. Write the plain version first, then fold, and keep the test.</li>
+</ul>
+<h2 id="proving-it-bit-exact">Proving it bit-exact</h2>
+<p>"Close to the float model" is the wrong test for integer code. The right test is that the C output equals an integer reference <strong>exactly</strong> for every element. Off-by-one differences are not noise: they mean the rounding, the shift or a zero point differs, and those differences accumulate through a network.</p>
+<p>Write the reference in numpy with the same integer steps, generate random inputs, and emit a header the C test includes:</p>
+<pre><code class="language-python">import numpy as np
+
+def requant_ref(acc, m0, shift, zy, lo, hi):
+    v = (acc.astype(np.int64) * m0 + (1 &lt;&lt; (shift - 1))) &gt;&gt; shift
+    return np.clip(v + zy, lo, hi).astype(np.int8)
+
+rng = np.random.default_rng(1)
+x = rng.integers(-128, 128, 32, dtype=np.int8)
+w = rng.integers(-127, 128, (8, 32), dtype=np.int8)
+b = rng.integers(-2000, 2000, 8, dtype=np.int32)
+zx, zy = -5, 3
+m0, shift = quant_mult(0.0015)
+acc = b + ((x.astype(np.int32) - zx) * w.astype(np.int32)).sum(axis=1)
+y = requant_ref(acc, m0, shift, zy, -128, 127)
+# write x, w, b, y and the constants to vectors.h as C arrays
+</code></pre>
+<p>numpy's <code>&gt;&gt;</code> on int64 is an arithmetic shift, matching the C. The C test then calls <code>dense_int8</code> on the arrays from <code>vectors.h</code> and compares every output with the expected array, printing any mismatch and returning a non-zero exit code. With the random seed above, all eight outputs match; changing the rounding term to zero, for example, makes several fail. Random data is a start, not an end: add vectors at the corners too, such as all inputs at −128 with all weights at −127, and values of <code>acc</code> that land exactly on a rounding half.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>rounding with <code>(acc * M0) &gt;&gt; shift</code> alone, which truncates towards minus infinity and biases outputs down</li>
+<li>computing the product in 32 bits, which overflows silently</li>
+<li>clamping to [−128, 127] when the model expects a fused ReLU clamp at z<sub>y</sub></li>
+<li>testing against the float model and accepting "close", which hides rounding mismatches</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put the C functions and a small <code>main</code> that compares against <code>vectors.h</code> in one file, generate the header with the Python above, and build it with <code>gcc -std=c99 -Wall -O2</code>.</li>
+<li>Cross-compile the same file with a RISC-V GCC toolchain and run it under QEMU user mode (<code>qemu-riscv32</code>) to confirm the result does not depend on the host.</li>
+<li>Fold the zero point into the bias, regenerate the expected values, and confirm the test still passes.</li>
+<li>Count cycles for the inner loop on the target and compare with the number of MACs.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>int8</li><li>embedded c</li><li>quantization</li><li>requantization</li><li>testing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="will-the-model-fit-flash-and-ram.html"><span>Previous in Edge AI</span>Will the model fit? Estimating flash and RAM for TinyML</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-activation-functions.html">Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></h3>
+          <p>ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="post-training-vs-quantization-aware.html">Post-training quantization vs quantization-aware training</a></h3>
+          <p>Post-training quantization calibrates a finished model; quantization-aware training simulates int8 while the model learns. How each works, how to diagnose the gap, and when the cheaper one is enough.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

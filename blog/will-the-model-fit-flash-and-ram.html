@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Will the model fit? Estimating flash and RAM for TinyML · Ketuna blog</title>
+  <meta name="description" content="Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Will the model fit? Estimating flash and RAM for TinyML · Ketuna blog">
+  <meta property="og:description" content="Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.">
+  <link rel="canonical" href="https://ketuna.online/blog/will-the-model-fit-flash-and-ram.html">
+  <meta property="og:url" content="https://ketuna.online/blog/will-the-model-fit-flash-and-ram.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Will the model fit? Estimating flash and RAM for TinyML",
+  "description": "Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "tinyml, memory, flash, ram, tensor arena",
+  "articleSection": "Edge AI",
+  "wordCount": 1026,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/will-the-model-fit-flash-and-ram.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Will the model fit? Estimating flash and RAM for TinyML</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-memories-two-kinds-of-data">Two memories, two kinds of data</a></li><li><a href="#a-worked-example-network">A worked example network</a></li><li><a href="#activations-and-the-tensor-arena">Activations and the tensor arena</a></li><li><a href="#the-rest-of-the-ram-budget">The rest of the RAM budget</a></li><li><a href="#turning-the-estimate-into-a-decision">Turning the estimate into a decision</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The most common way a TinyML project stalls is not low accuracy. It is a link error saying the image overflows flash, or a model that converts fine and then fails at start-up because its memory arena is too small. Both can be predicted from the network description with a spreadsheet's worth of arithmetic. Doing that estimate before you choose a microcontroller, or before you add one more layer, saves a lot of rework.</p>
+<h2 id="two-memories-two-kinds-of-data">Two memories, two kinds of data</h2>
+<p>A quantized model has two kinds of data with very different needs.</p>
+<ul>
+<li><strong>Weights and biases</strong> are constants. They are written once when you build the firmware and only read afterwards, so they can live in <strong>flash</strong>. On many microcontrollers the processor reads flash directly, so they never need copying to RAM.</li>
+<li><strong>Activations</strong>, the intermediate tensors that each layer produces, are created and overwritten during every inference. They need <strong>RAM</strong>.</li>
+</ul>
+<p>On top of the model, flash also holds the inference runtime, the kernels for each operator, your application and its libraries. RAM also holds the sensor buffers, feature arrays, the stack and any runtime bookkeeping. The model is only part of each budget.</p>
+<h2 id="a-worked-example-network">A worked example network</h2>
+<p>Take a small keyword-spotting style network. The input is a 49 × 10 grid of audio features (49 time frames, 10 coefficients each), quantized to int8. The layers are illustrative but typical in shape:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Output shape</th>
+<th>Weights (int8)</th>
+<th>Biases (int32)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conv 3 × 3, 8 filters, same padding</td>
+<td>49 × 10 × 8</td>
+<td>72</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Max pool 2 × 2</td>
+<td>24 × 5 × 8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Conv 3 × 3, 16 filters, same padding</td>
+<td>24 × 5 × 16</td>
+<td>1,152</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Flatten</td>
+<td>1,920</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Dense 64</td>
+<td>64</td>
+<td>122,880</td>
+<td>64</td>
+</tr>
+<tr>
+<td>Dense 4</td>
+<td>4</td>
+<td>256</td>
+<td>4</td>
+</tr>
+</tbody>
+</table></div>
+<p>The convolution weights are kernel height × width × input channels × output channels: 3 × 3 × 1 × 8 = 72 and 3 × 3 × 8 × 16 = 1,152. The first dense layer has 1,920 inputs and 64 outputs, so 1,920 × 64 = 122,880 weights.</p>
+<p><strong>Flash for the model:</strong> 124,360 weight bytes plus 92 biases × 4 bytes = 368, so 124,728 bytes, about 125 kB. Per-channel scales and the model's structure add a little more.</p>
+<p>Look at where that came from: almost 99 % of the weights are in one dense layer. That is a typical surprise. Adding a 2 × 2 pool after the second convolution shrinks its output to 12 × 2 × 16 = 384 values, the dense layer to 384 × 64 = 24,576 weights, and the whole model to about 26 kB of weights. A small architectural change often saves more than any compression trick.</p>
+<h2 id="activations-and-the-tensor-arena">Activations and the tensor arena</h2>
+<p>Activations do not all need RAM at the same time. A tensor is alive from the layer that writes it until the last layer that reads it. While a layer runs, its input and output must both exist; everything earlier can be overwritten. Using int8 activations, the live bytes per layer are:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Running</th>
+<th>Live tensors</th>
+<th>Bytes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conv 1</td>
+<td>input 490 + output 3,920</td>
+<td>4,410</td>
+</tr>
+<tr>
+<td>Max pool</td>
+<td>3,920 + 960</td>
+<td>4,880</td>
+</tr>
+<tr>
+<td>Conv 2</td>
+<td>960 + 1,920</td>
+<td>2,880</td>
+</tr>
+<tr>
+<td>Dense 64</td>
+<td>1,920 + 64</td>
+<td>1,984</td>
+</tr>
+<tr>
+<td>Dense 4</td>
+<td>64 + 4</td>
+<td>68</td>
+</tr>
+</tbody>
+</table></div>
+<p>Flatten is a reshape: the same bytes reinterpreted, so it needs no new memory.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="fit-title fit-desc" font-size="14">
+<title id="fit-title">Live activation bytes while each layer runs</title>
+<desc id="fit-desc">A bar chart with five bars for conv 1, pool, conv 2, dense 64 and dense 4, showing 4410, 4880, 2880, 1984 and 68 live bytes. The pool bar is highlighted as the peak.</desc>
+<line x1="40" y1="180" x2="460" y2="180" class="dg-line"/>
+<rect x="60" y="53" width="60" height="127" class="dg-box"/>
+<rect x="140" y="40" width="60" height="140" class="dg-amber" fill-opacity="0.5"/>
+<rect x="220" y="97" width="60" height="83" class="dg-box"/>
+<rect x="300" y="123" width="60" height="57" class="dg-box"/>
+<rect x="380" y="177" width="60" height="3" class="dg-box"/>
+<text x="90" y="46" text-anchor="middle" class="dg-text">4410</text>
+<text x="170" y="33" text-anchor="middle" class="dg-text">4880</text>
+<text x="250" y="90" text-anchor="middle" class="dg-text">2880</text>
+<text x="330" y="116" text-anchor="middle" class="dg-text">1984</text>
+<text x="410" y="170" text-anchor="middle" class="dg-text">68</text>
+<text x="90" y="200" text-anchor="middle" class="dg-muted">conv 1</text>
+<text x="170" y="200" text-anchor="middle" class="dg-muted">pool</text>
+<text x="250" y="200" text-anchor="middle" class="dg-muted">conv 2</text>
+<text x="330" y="200" text-anchor="middle" class="dg-muted">dense 64</text>
+<text x="410" y="200" text-anchor="middle" class="dg-muted">dense 4</text>
+<text x="250" y="222" text-anchor="middle" class="dg-text">live activation bytes per layer</text>
+</svg>
+<figcaption>The arena must hold the worst moment, not the sum: here the pool layer, with 4,880 live bytes.</figcaption>
+</figure>
+
+<p>A runtime such as TensorFlow Lite Micro gives the model one static block of RAM, the <strong>tensor arena</strong>, and a memory planner assigns each activation an offset inside it so that tensors whose lifetimes do not overlap share the same bytes. The lower bound for the arena is therefore the peak, 4,880 bytes, not the 7,358 bytes of all activations added up. The real arena is somewhat larger: kernels may need scratch buffers, the planner may not find a perfect packing, and the runtime keeps per-tensor bookkeeping in the arena too. Treat the peak as a starting estimate, then measure.</p>
+<h2 id="the-rest-of-the-ram-budget">The rest of the RAM budget</h2>
+<p>The model is often not the biggest RAM user. For this audio example:</p>
+<ul>
+<li><strong>Audio buffer.</strong> One second of 16-bit audio at 16 kHz is 16,000 × 2 = 32,000 bytes. That is more than six times the activation peak. Computing features incrementally, one frame at a time, avoids keeping the whole second of raw audio.</li>
+<li><strong>Feature array.</strong> The 49 × 10 int8 input is 490 bytes, and it can sit in the arena as the input tensor.</li>
+<li><strong>DMA buffers, stack and the rest of the application.</strong> These are fixed costs you measure from your build, not from the model.</li>
+</ul>
+<p>A small script keeps the arithmetic honest as the network changes:</p>
+<pre><code class="language-python">acts = [490, 3920, 960, 1920, 64, 4]   # bytes, int8; flatten aliases
+peak = max(a + b for a, b in zip(acts, acts[1:]))
+weights = 72 + 1152 + 122880 + 256
+biases = (8 + 16 + 64 + 4) * 4
+print(&quot;arena lower bound:&quot;, peak, &quot;B&quot;)         # 4880
+print(&quot;model flash:&quot;, weights + biases, &quot;B&quot;)   # 124728
+</code></pre>
+<p>For a real model, write the shapes once in a list and generate both tables from it.</p>
+<h2 id="turning-the-estimate-into-a-decision">Turning the estimate into a decision</h2>
+<p>Add up each budget with margin, and compare with the part you are considering.</p>
+<ol>
+<li><strong>Flash</strong> = model bytes + runtime and kernel code + application. Get the code size from your own build with the <code>size</code> tool or the linker map file, because it depends heavily on which operators you include and on compiler options.</li>
+<li><strong>RAM</strong> = arena + sensor and feature buffers + stack + application data.</li>
+<li><strong>Margin.</strong> Leave room for the next model version. Models grow; flash and RAM on a chosen part do not.</li>
+</ol>
+<p>Common mistakes:</p>
+<ul>
+<li>summing all activations instead of finding the peak, and buying a larger part than needed</li>
+<li>forgetting the raw sensor buffer, which can dwarf the model</li>
+<li>assuming weights must be copied to RAM when the processor can read them from flash</li>
+<li>guessing the arena size instead of reading the runtime's reported usage after allocation</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build the example network in PyTorch or Keras and print each layer's output shape and parameter count; check them against the tables above.</li>
+<li>Write the shape list for your own model and generate the flash and peak-activation numbers with a script.</li>
+<li>Convert the model to an int8 <code>.tflite</code> file, run it in TensorFlow Lite Micro on the host, and compare <code>arena_used_bytes()</code> after <code>AllocateTensors()</code> with your lower bound.</li>
+<li>Move the flatten later (add a pool) and see how much flash you save for how much accuracy.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>tinyml</li><li>memory</li><li>flash</li><li>ram</li><li>tensor arena</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-a-tiny-vision-sensor-can-classify.html"><span>Previous in Edge AI</span>What a low-cost vision sensor can classify on-chip</a><a class="next" href="int8-dense-layer-in-plain-c.html"><span>Next in Edge AI</span>Writing int8 inference for one dense layer in plain C</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tflm-interpreter-arena-operators.html">Running a model with TensorFlow Lite Micro: the interpreter, arena and operators</a></h3>
+          <p>What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="what-a-tiny-vision-sensor-can-classify.html">What a low-cost vision sensor can classify on-chip</a></h3>
+          <p>Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

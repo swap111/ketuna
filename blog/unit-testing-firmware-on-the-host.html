@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unit testing firmware on your laptop: separating logic from hardware · Ketuna blog</title>
+  <meta name="description" content="Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Unit testing firmware on your laptop: separating logic from hardware · Ketuna blog">
+  <meta property="og:description" content="Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.">
+  <link rel="canonical" href="https://ketuna.online/blog/unit-testing-firmware-on-the-host.html">
+  <meta property="og:url" content="https://ketuna.online/blog/unit-testing-firmware-on-the-host.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Unit testing firmware on your laptop: separating logic from hardware",
+  "description": "Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "unit testing, firmware testing, embedded c, test doubles, gcc",
+  "articleSection": "Embedded systems",
+  "wordCount": 870,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/unit-testing-firmware-on-the-host.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Unit testing firmware on your laptop: separating logic from hardware</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-kinds-of-code-in-every-driver">Two kinds of code in every driver</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#the-tests">The tests</a></li><li><a href="#fakes-stubs-and-mocks">Fakes, stubs and mocks</a></li><li><a href="#why-the-host-build-finds-extra-bugs">Why the host build finds extra bugs</a></li><li><a href="#what-host-tests-cannot-tell-you">What host tests cannot tell you</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Testing firmware on the board is slow: build, flash, reset, poke at buttons, read a serial log. So it gets done rarely, and mostly for the happy path. Yet when you look at the bugs that reach the field, most are not in the register writes. They are in plain logic: a parser that mishandles an empty line, an off-by-one in a buffer, a percentage that overflows at full scale. That logic does not need the board at all. Separate it from the hardware, and your laptop can run hundreds of tests in the time it takes to flash once.</p>
+<h2 id="two-kinds-of-code-in-every-driver">Two kinds of code in every driver</h2>
+<p>Look at almost any firmware function and you find two things mixed together:</p>
+<ul>
+<li><strong>Decisions and arithmetic:</strong> parsing, clamping, scaling, state machines, checksums, timeouts. These are pure C. Given the same inputs they produce the same outputs.</li>
+<li><strong>Hardware access:</strong> reading and writing registers, waiting for flags. This is the part that needs the chip.</li>
+</ul>
+<p>The design rule is to keep the second kind as thin as possible: functions that only move values between registers and the logic, making no decisions of their own. Then the logic can be compiled and tested anywhere, and the thin layer is simple enough to check by review and a short test on the board.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Here is an LED brightness function for a PWM peripheral, split in two. The register addresses are made up for illustration:</p>
+<pre><code class="language-c">/* reg.h */
+#include &lt;stdint.h&gt;
+#define PWM_BASE    0x40001000u
+#define PWM_ARR     (PWM_BASE + 0x00u)
+#define PWM_CCR     (PWM_BASE + 0x04u)
+#define PWM_CTRL    (PWM_BASE + 0x08u)
+#define PWM_CTRL_EN (1u &lt;&lt; 0)
+
+#ifdef HOST_TEST
+extern uint32_t fake_pwm[4];
+#define REG32(a) (fake_pwm[((a) - PWM_BASE) / 4u])
+#else
+#define REG32(a) (*(volatile uint32_t *)(uintptr_t)(a))
+#endif
+</code></pre>
+<pre><code class="language-c">/* led.c */
+#include &quot;reg.h&quot;
+
+/* Logic: percent (0..100) to a compare value for a period. */
+uint32_t duty_to_ccr(uint32_t percent, uint32_t period)
+{
+    if (percent &gt; 100u)
+        percent = 100u;
+    return (uint32_t)(((uint64_t)percent * period + 50u) / 100u);
+}
+
+/* Thin hardware layer: no decisions, just register traffic. */
+void led_set_brightness(uint32_t percent)
+{
+    uint32_t period = REG32(PWM_ARR) + 1u;
+    REG32(PWM_CCR) = duty_to_ccr(percent, period);
+    REG32(PWM_CTRL) |= PWM_CTRL_EN;
+}
+</code></pre>
+<p>On the target, <code>REG32</code> is the usual volatile pointer to a fixed address. When the file is compiled with <code>-DHOST_TEST</code>, <code>REG32</code> becomes an element of an ordinary array. The production source is identical in both builds; only one macro changes. That array is a <strong>fake</strong>: a stand-in for the hardware that the test can preload and inspect.</p>
+<h2 id="the-tests">The tests</h2>
+<p>You do not need a framework to start. A ten-line check macro is enough, and open-source frameworks such as Unity add reporting and fixtures when the suite grows.</p>
+<pre><code class="language-c">/* test_led.c */
+#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &quot;reg.h&quot;
+
+uint32_t duty_to_ccr(uint32_t percent, uint32_t period);
+void led_set_brightness(uint32_t percent);
+
+uint32_t fake_pwm[4];
+static int failures;
+
+#define CHECK_EQ(got, want) do {                                  \
+    unsigned long g_ = (got), w_ = (want);                        \
+    if (g_ != w_) {                                               \
+        printf(&quot;%s:%d: %s = %lu, want %lu\n&quot;,                    \
+               __FILE__, __LINE__, #got, g_, w_);                 \
+        failures++;                                               \
+    } } while (0)
+
+static void test_duty_edges(void)
+{
+    CHECK_EQ(duty_to_ccr(0, 2400), 0);
+    CHECK_EQ(duty_to_ccr(100, 2400), 2400);
+    CHECK_EQ(duty_to_ccr(150, 2400), 2400);           /* clamped  */
+    CHECK_EQ(duty_to_ccr(33, 1000), 330);
+    CHECK_EQ(duty_to_ccr(50, 0xFFFFFFFFu), 2147483648u); /* no wrap */
+}
+
+static void test_led_writes_registers(void)
+{
+    fake_pwm[0] = 999;           /* ARR: 1000 counts per period */
+    fake_pwm[2] = 0x10;          /* an unrelated CTRL bit is set */
+    led_set_brightness(25);
+    CHECK_EQ(fake_pwm[1], 250);  /* CCR */
+    CHECK_EQ(fake_pwm[2], 0x11); /* EN set, other bit kept */
+}
+
+int main(void)
+{
+    test_duty_edges();
+    test_led_writes_registers();
+    printf(&quot;%s\n&quot;, failures ? &quot;FAIL&quot; : &quot;PASS&quot;);
+    return failures != 0;
+}
+</code></pre>
+<p>Build and run it with the host compiler:</p>
+<pre><code class="language-bash">gcc -DHOST_TEST -Wall -Wextra -g -fsanitize=address,undefined \
+    led.c test_led.c -o test_led &amp;&amp; ./test_led
+</code></pre>
+<p>Each test targets a case that is tedious on hardware: full scale, out of range, a period so large that <code>percent * period</code> would overflow 32 bits (the reason for the 64-bit multiply), and a check that the read-modify-write on <code>CTRL</code> preserves bits it does not own. A version of <code>duty_to_ccr</code> that multiplies in 32 bits passes every other case and fails that one.</p>
+<h2 id="fakes-stubs-and-mocks">Fakes, stubs and mocks</h2>
+<p>The array behind <code>REG32</code> is one kind of test double, and it helps to know the others, because each answers a different question:</p>
+<ul>
+<li>A <strong>stub</strong> returns fixed answers and records nothing. Use it when the code under test only needs <em>something</em> back, such as a status register that always reads "ready".</li>
+<li>A <strong>fake</strong> behaves like a simplified version of the real thing, like the register array above, or a flash driver backed by a byte buffer. Use it when the test checks the end state.</li>
+<li>A <strong>mock</strong> records every call or access in order and lets the test check the sequence: "wrote the divisor, then enabled the FIFO, then set the line control register". Use it when the order of register accesses is itself the requirement, as it often is in a peripheral's initialisation sequence.</li>
+</ul>
+<p>Start with fakes; they keep tests short and readable. Reach for a mock when a datasheet says "write A before B" and you want a test that fails if someone reorders the code.</p>
+<h2 id="why-the-host-build-finds-extra-bugs">Why the host build finds extra bugs</h2>
+<p>Running on a laptop is not just faster. It gives you tools the microcontroller lacks:</p>
+<ul>
+<li><strong>Sanitizers.</strong> <code>-fsanitize=address</code> reports out-of-bounds reads and writes and use of freed memory; <code>-fsanitize=undefined</code> reports signed overflow, bad shifts and misaligned access. On the target, the same bugs silently corrupt memory.</li>
+<li><strong>Coverage.</strong> Compile with <code>--coverage</code> and run <code>gcov</code> to see which branches your tests never reached.</li>
+<li><strong>Debuggers and printing</strong> without any effect on real-time behaviour.</li>
+</ul>
+<h2 id="what-host-tests-cannot-tell-you">What host tests cannot tell you</h2>
+<p>Be honest about the limits:</p>
+<ul>
+<li><strong>Type sizes and alignment</strong> can differ. On a 64-bit laptop, <code>long</code> is 64 bits; on a 32-bit microcontroller it is 32. Use <code>stdint.h</code> types everywhere so the logic means the same thing on both.</li>
+<li><strong>Timing, interrupts and real peripherals</strong> are not exercised. A fake register does not raise flags by itself, enforce write-1-to-clear behaviour, or delay. Those need emulator tests and some testing on hardware.</li>
+<li><strong>Compiler differences.</strong> Build the same sources with the cross-compiler too, with warnings on, so nothing compiles only on the host.</li>
+</ul>
+<p>The practical split is a large number of host unit tests for logic, a smaller number of emulator tests for integration, and a few hardware tests for timing and electrical behaviour.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile the example above, then break <code>duty_to_ccr</code> by removing the 64-bit cast and watch the overflow test fail.</li>
+<li>Take one function from your own firmware that mixes logic and register access, split it as shown, and write tests for its edge cases.</li>
+<li>Lab D8 in the Ketuna track D labs runs host tests with register mocks against a seeded set of driver bugs, and uses mutation testing to check that the tests notice deliberate changes to the code. Run it and see which seeded bug your first tests miss.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>unit testing</li><li>firmware testing</li><li>embedded c</li><li>test doubles</li><li>gcc</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="uart-spi-or-i2c-for-a-sensor.html"><span>Previous in Embedded systems</span>UART, SPI or I2C: choosing a serial bus for a sensor</a><a class="next" href="using-a-watchdog-properly.html"><span>Next in Embedded systems</span>Using a watchdog properly: what to kick, where, and when not to</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="firmware-ci-with-qemu-and-renode.html">Running firmware without a board: QEMU and Renode in CI</a></h3>
+          <p>Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-filters-without-an-fpu.html">Fixed-point filters on a microcontroller without an FPU</a></h3>
+          <p>A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL · Ketuna blog</title>
+  <meta name="description" content="A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL · Ketuna blog">
+  <meta property="og:description" content="A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.">
+  <link rel="canonical" href="https://ketuna.online/blog/designing-for-a-shared-shuttle-tile.html">
+  <meta property="og:url" content="https://ketuna.online/blog/designing-for-a-shared-shuttle-tile.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL",
+  "description": "A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "tape-out, shuttle, area budget, rtl design, sky130",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 949,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/designing-for-a-shared-shuttle-tile.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-tile-gives-you-and-what-it-does-not">What a tile gives you and what it does not</a></li><li><a href="#the-area-budget-worked-by-hand">The area budget, worked by hand</a></li><li><a href="#how-the-limits-shape-the-rtl">How the limits shape the RTL</a></li><li><a href="#what-this-tape-out-teaches">What this tape-out teaches</a></li><li><a href="#what-it-does-not-teach">What it does not teach</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Shared shuttles have made it possible for students to put their own logic on real silicon. In the most compact form, many small designs share one chip: each project gets a fixed rectangle of area, a handful of input and output pins reached through a shared multiplexer, and a clock that comes in from outside. These limits are not obstacles to work around at the end. They are the specification, and the designs that succeed are the ones whose RTL was shaped by them from the first line.</p>
+<h2 id="what-a-tile-gives-you-and-what-it-does-not">What a tile gives you and what it does not</h2>
+<p>The exact numbers differ between programmes and change over time, so read your shuttle's current documentation. The shape of the constraints is usually the same:</p>
+<ul>
+<li><strong>A fixed area.</strong> Your logic must fit inside a small rectangle that has already been sized and placed on the chip. You cannot ask for more.</li>
+<li><strong>Few pins.</strong> A small set of dedicated inputs, outputs and perhaps bidirectional pins, shared with every other project through a multiplexer that selects one design at a time.</li>
+<li><strong>An external clock and reset.</strong> The clock enters through the chip's I/O and the multiplexer, so its maximum usable frequency is limited by that path, not by your logic.</li>
+<li><strong>A fixed power and test arrangement.</strong> Power, the pad ring, the seal ring and chip-level test structures are handled by the organisers.</li>
+</ul>
+<h2 id="the-area-budget-worked-by-hand">The area budget, worked by hand</h2>
+<p>Do the area budget before you write RTL. All numbers below are made up for illustration; use the real tile size and your cell library's areas.</p>
+<p>Suppose the tile's usable core is 160 µm × 100 µm, so 16,000 µm². The flow needs room for routing, taps, buffers and clock tree, so plan for about 50% utilisation: 8,000 µm² of standard cells.</p>
+<p>Now estimate the parts:</p>
+<ul>
+<li>Assume a flip-flop with reset takes about 25 µm² and an average logic gate about 6 µm² in your library.</li>
+<li>A 32-word × 8-bit register file built from flip-flops needs 256 flops: 256 × 25 = 6,400 µm². Its read multiplexers (an 8-bit 32-to-1 mux needs on the order of 31 two-input mux equivalents per bit, so about 248 in total) add roughly 248 × 6 ≈ 1,500 µm².</li>
+</ul>
+<p>That one register file already needs about 7,900 µm², essentially the whole budget, before any control logic. The estimate tells you, before synthesis, that the architecture must change: fewer words, a narrower datapath, or storage that lives off-chip.</p>
+<h2 id="how-the-limits-shape-the-rtl">How the limits shape the RTL</h2>
+<p><strong>Area pushes you towards serial and narrow.</strong> A bit-serial adder or a 4-bit datapath that loops several times uses a fraction of the area of a wide parallel one, and on a tile the clock cycles are cheap compared with the area. Counters, state machines and small datapaths fit comfortably; large memories and wide multipliers usually do not.</p>
+<p><strong>Few pins push you towards serial interfaces.</strong> If your design needs to load 64 bits of configuration but has only 8 input pins, you either multiplex them over several cycles or use a serial protocol such as SPI or a UART. A serial interface costs a little logic and saves many pins. Plan exactly which pin does what, in a table, before writing RTL.</p>
+<p><strong>The clock path limits speed.</strong> Because the clock and data travel through shared I/O and a multiplexer, the design should work correctly at a modest frequency. Do not design something that only makes sense at a high clock. Treat input pins as asynchronous unless the documentation says otherwise, and synchronise them with two flip-flops before use.</p>
+<p><strong>Reset and test are your problem.</strong> Make sure the design starts in a known state from the provided reset, and add a way to observe internal state on outputs (a debug mode that drives a status register onto the output pins is cheap and very valuable at bring-up).</p>
+<pre><code class="language-verilog">// Two-flop synchronizer for an asynchronous input pin
+reg [1:0] btn_sync;
+always @(posedge clk or negedge rst_n)
+  if (!rst_n) btn_sync &lt;= 2'b00;
+  else        btn_sync &lt;= {btn_sync[0], btn_in};
+wire btn = btn_sync[1];
+</code></pre>
+<h2 id="what-this-tape-out-teaches">What this tape-out teaches</h2>
+<p>A tile tape-out is a real tape-out in miniature. You go through:</p>
+<ul>
+<li>writing RTL to a hard area and pin budget,</li>
+<li>verification good enough that you trust silicon to match simulation,</li>
+<li>the full RTL-to-GDS flow with sign-off timing, DRC and LVS,</li>
+<li>the organisers' precheck, which rejects anything that breaks the rules,</li>
+<li>documentation clear enough for someone else to test your design,</li>
+<li>bring-up of a chip that comes back months later and behaves exactly as built.</li>
+</ul>
+<p>That last point is valuable. Silicon does not accept explanations; if a pin was swapped or a reset was missing, you find out.</p>
+<h2 id="what-it-does-not-teach">What it does not teach</h2>
+<p>Be honest about the limits too. Because the organisers provide the chip-level infrastructure, a tile does not exercise:</p>
+<ul>
+<li>pad ring design, I/O cell choice and electrostatic discharge protection,</li>
+<li>chip-level power planning, IR drop across a full die and packaging decisions,</li>
+<li>high-speed I/O, clock generation (for example a PLL) or analog blocks,</li>
+<li>timing closure at aggressive frequencies,</li>
+<li>area or power trade-offs at the scale of a full product chip.</li>
+</ul>
+<p>These are learned on full-chip projects. A tile is the right first step precisely because it removes them and lets you focus on getting your own logic right end to end.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a design idea and write the pin table and area budget by hand, as above, using real cell areas from the sky130 Liberty files.</li>
+<li>Write the RTL and synthesise it with <strong>Yosys</strong> (<code>stat -liberty</code>) to compare your estimate with the real cell area.</li>
+<li>Harden it with <strong>LibreLane</strong> in a die the size of your target tile (fixed sizing rather than relative) and check whether placement and routing succeed at your planned utilisation.</li>
+<li>Simulate the gate-level netlist with <strong>Icarus Verilog</strong> at the slow clock you expect, driving the inputs as the shared multiplexer would.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>tape-out</li><li>shuttle</li><li>area budget</li><li>rtl design</li><li>sky130</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="power-grid-rings-and-straps.html"><span>Previous in Physical design &amp; tape-out</span>Designing a power grid: rings, straps and why IR drop starts at the floorplan</a><a class="next" href="estimating-area-before-rtl.html"><span>Next in Physical design &amp; tape-out</span>Estimating chip area before you write RTL</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="first-day-of-chip-bring-up.html">The first day with your chip back from the fab: a bring-up plan</a></h3>
+          <p>Bring-up goes in a fixed order so that one fault cannot hide another or destroy the part. Learn a staged plan: current-limited power-up, clocks and reset, JTAG and scan, then functions, with everything recorded.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="librelane-first-run.html">Hardening your first block with LibreLane: a guided first run</a></h3>
+          <p>Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tape-out-checklist.html">The tape-out checklist: what to confirm before you send GDS</a></h3>
+          <p>Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

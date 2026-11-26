@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From single-cycle to a five-stage pipeline: what changes and why · Ketuna blog</title>
+  <meta name="description" content="Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="From single-cycle to a five-stage pipeline: what changes and why · Ketuna blog">
+  <meta property="og:description" content="Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.">
+  <link rel="canonical" href="https://ketuna.online/blog/single-cycle-to-five-stage-pipeline.html">
+  <meta property="og:url" content="https://ketuna.online/blog/single-cycle-to-five-stage-pipeline.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "From single-cycle to a five-stage pipeline: what changes and why",
+  "description": "Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pipelining, risc-v, cpu design, hazards, clock frequency",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 895,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/single-cycle-to-five-stage-pipeline.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>From single-cycle to a five-stage pipeline: what changes and why</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#where-the-cuts-go">Where the cuts go</a></li><li><a href="#what-the-pipeline-registers-must-carry">What the pipeline registers must carry</a></li><li><a href="#the-speed-up-worked-out-honestly">The speed-up, worked out honestly</a></li><li><a href="#the-hazards-you-just-created">The hazards you just created</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A single-cycle core is easy to understand and slow, because its clock period must fit the longest instruction from fetch to write-back. The classic fix is to cut the datapath into five stages and let five instructions be in flight at once. The idea is simple; the consequences are not. The cuts add registers, every control signal has to travel with its instruction, and new hazards appear that the single-cycle design never had. This article walks through what changes, and puts numbers on the gain.</p>
+<h2 id="where-the-cuts-go">Where the cuts go</h2>
+<p>The classic RISC pipeline splits the work at its natural boundaries:</p>
+<ul>
+<li><strong>IF:</strong> fetch the instruction at PC, compute PC + 4.</li>
+<li><strong>ID:</strong> decode, read the register file, build the immediate.</li>
+<li><strong>EX:</strong> ALU operation, address calculation, branch comparison.</li>
+<li><strong>MEM:</strong> data memory read or write.</li>
+<li><strong>WB:</strong> write the result into the register file.</li>
+</ul>
+<p>A <strong>pipeline register</strong> sits between each pair of stages, clocked by the same clock as everything else. At each edge, every stage hands its work to the next and picks up new work from the one before. In steady state, one instruction enters and one leaves every cycle.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="p5-title p5-desc" font-size="14">
+<title id="p5-title">Five pipeline stages separated by pipeline registers</title>
+<desc id="p5-desc">Five boxes labelled IF, ID, EX, MEM and WB in a row, separated by four tall narrow bars labelled IF/ID, ID/EX, EX/MEM and MEM/WB. Two dashed arrows run backwards: one from WB to ID for the register write, and one from EX to IF for a branch redirect.</desc>
+<rect x="10" y="60" width="60" height="50" class="dg-box"/><text x="40" y="90" text-anchor="middle" class="dg-text">IF</text>
+<rect x="78" y="50" width="12" height="70" class="dg-amber" fill-opacity="0.6"/>
+<rect x="98" y="60" width="60" height="50" class="dg-box"/><text x="128" y="90" text-anchor="middle" class="dg-text">ID</text>
+<rect x="166" y="50" width="12" height="70" class="dg-amber" fill-opacity="0.6"/>
+<rect x="186" y="60" width="60" height="50" class="dg-box"/><text x="216" y="90" text-anchor="middle" class="dg-text">EX</text>
+<rect x="254" y="50" width="12" height="70" class="dg-amber" fill-opacity="0.6"/>
+<rect x="274" y="60" width="70" height="50" class="dg-box"/><text x="309" y="90" text-anchor="middle" class="dg-text">MEM</text>
+<rect x="352" y="50" width="12" height="70" class="dg-amber" fill-opacity="0.6"/>
+<rect x="372" y="60" width="60" height="50" class="dg-box"/><text x="402" y="90" text-anchor="middle" class="dg-text">WB</text>
+<text x="84" y="138" text-anchor="middle" class="dg-muted">IF/ID</text>
+<text x="172" y="138" text-anchor="middle" class="dg-muted">ID/EX</text>
+<text x="260" y="138" text-anchor="middle" class="dg-muted">EX/MEM</text>
+<text x="358" y="138" text-anchor="middle" class="dg-muted">MEM/WB</text>
+<path d="M402,60 V30 H128 V54" class="dg-dash" fill="none"/><path d="M124,52 L128,58 L132,52 Z" class="dg-arrow"/>
+<text x="265" y="24" text-anchor="middle" class="dg-text">register write (rd, result)</text>
+<path d="M216,110 V160 H40 V116" class="dg-dash" fill="none"/><path d="M36,118 L40,112 L44,118 Z" class="dg-arrow"/>
+<text x="128" y="155" text-anchor="middle" class="dg-text">branch target</text>
+</svg>
+<figcaption>Data flows left to right through the pipeline registers; the two backward paths are where hazards come from.</figcaption>
+</figure>
+
+<h2 id="what-the-pipeline-registers-must-carry">What the pipeline registers must carry</h2>
+<p>In the single-cycle core, the decoded control signals drive the whole datapath in the same cycle. In a pipeline the instruction that was decoded is three stages further on by the time it writes memory, and the decoder is already working on a different instruction. So <strong>everything an instruction needs later must ride along with it</strong> in the pipeline registers.</p>
+<p>For the ID/EX register that means the two operand values, the immediate, the destination register number <code>rd</code>, the source numbers <code>rs1</code> and <code>rs2</code> (needed later for forwarding), the PC (for branches and <code>auipc</code>), and every control bit for EX, MEM and WB. Each later register drops what has been used and keeps the rest.</p>
+<pre><code class="language-verilog">always @(posedge clk) begin
+  if (rst || flush_ex) begin
+    idex_regwrite &lt;= 1'b0;      // a bubble: no side effects
+    idex_memwrite &lt;= 1'b0;
+    idex_memread  &lt;= 1'b0;
+  end else if (!stall) begin
+    idex_rs1v     &lt;= rf_rs1v;
+    idex_rs2v     &lt;= rf_rs2v;
+    idex_imm      &lt;= imm;
+    idex_rd       &lt;= ifid_ins[11:7];
+    idex_rs1      &lt;= ifid_ins[19:15];
+    idex_rs2      &lt;= ifid_ins[24:20];
+    idex_pc       &lt;= ifid_pc;
+    idex_regwrite &lt;= dec_regwrite;   // control rides along
+    idex_memwrite &lt;= dec_memwrite;
+    idex_memread  &lt;= dec_memread;
+  end
+end
+</code></pre>
+<p>Two details in this snippet are new compared with a single-cycle core. A <strong>flush</strong> clears the side-effect bits so a squashed instruction becomes a harmless bubble. A <strong>stall</strong> holds the register. Neither exists in a single-cycle design, because there was never more than one instruction to manage.</p>
+<h2 id="the-speed-up-worked-out-honestly">The speed-up, worked out honestly</h2>
+<p>Use these stage delays, made up for illustration: IF 200 ps, ID 100 ps, EX 200 ps, MEM 200 ps, WB 100 ps, and 20 ps of overhead per pipeline register (clock-to-Q plus setup).</p>
+<p><strong>Single-cycle:</strong> the period must fit a load through every stage: 200 + 100 + 200 + 200 + 100 = 800 ps, one instruction per cycle.</p>
+<p><strong>Pipelined:</strong> the period is set by the slowest stage plus overhead: 200 + 20 = 220 ps. That is 1 / 220 ps, about 4.5 GHz in this imaginary technology, against 1.25 GHz before.</p>
+<p>The ideal speed-up is 800 / 220, about 3.6, not 5. Two things ate the rest: the stages are unbalanced (ID and WB use only half the cycle), and each register adds overhead. If hazards then add stalls so that the average is 1.25 cycles per instruction, the time per instruction is 1.25 × 220 = 275 ps, and the speed-up is 800 / 275, about 2.9.</p>
+<p>Notice also that the <strong>latency</strong> of a single instruction gets worse: it now takes five cycles of 220 ps, 1100 ps, against 800 ps before. A pipeline improves throughput, not the time any one instruction takes.</p>
+<h2 id="the-hazards-you-just-created">The hazards you just created</h2>
+<p>Overlapping instructions break assumptions the single-cycle core relied on:</p>
+<ul>
+<li><strong>Data hazards.</strong> <code>add x3, x1, x2</code> followed by <code>sub x5, x3, x4</code>: the subtract reads x3 in ID while the add is still in EX. Forwarding paths fix most of these, as described in <a href="data-hazards-and-forwarding.html">data hazards and forwarding</a>; a load followed by a use still needs one stall, covered in <a href="the-load-use-hazard.html">the load-use hazard</a>.</li>
+<li><strong>Control hazards.</strong> The branch outcome is known in EX, but IF has already fetched two more instructions. If the branch is taken they must be flushed, costing two cycles unless the core predicts well.</li>
+<li><strong>Structural hazards.</strong> If IF and MEM shared one memory port, a load and a fetch would collide in the same cycle. Separate instruction and data memories, or caches, remove this.</li>
+</ul>
+<p>Each fix is more logic and, more importantly, more cases to verify. A pipelined core can pass every single-instruction test and still fail on a particular sequence of three instructions.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Using a control signal from the decoder in a later stage.</strong> The decoder now belongs to a younger instruction; take the bit from the pipeline register.</li>
+<li><strong>Stalling some stages but not others.</strong> If the PC advances while IF/ID is held, an instruction is skipped.</li>
+<li><strong>Forgetting to clear side-effect bits on a flush.</strong> A flushed store that still writes memory is a real bug.</li>
+<li><strong>Expecting five times the speed.</strong> Balance and overhead set the period; hazards set the CPI.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a small single-cycle RV32I core, insert the four pipeline registers without any hazard logic, and run a program where every instruction is independent (insert <code>nop</code>s between dependent ones). It should pass.</li>
+<li>Remove the <code>nop</code>s, run again in Icarus Verilog or Verilator, and find the first wrong register value in GTKWave. That failure is your first data hazard.</li>
+<li>Synthesise both versions with Yosys and compare the flip-flop counts reported by <code>stat</code>: the difference is the cost of the pipeline registers.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pipelining</li><li>risc-v</li><li>cpu design</li><li>hazards</li><li>clock frequency</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="designing-an-soc-memory-map.html"><span>Previous in Computer architecture &amp; RISC-V</span>Designing an SoC memory map: regions, alignment and room to grow</a><a class="next" href="harvard-vs-von-neumann-today.html"><span>Next in Computer architecture &amp; RISC-V</span>Harvard vs von Neumann in microcontrollers today</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="data-hazards-and-forwarding.html">Data hazards and forwarding paths, traced cycle by cycle</a></h3>
+          <p>Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-load-use-hazard.html">The load-use hazard: why one bubble remains even with forwarding</a></h3>
+          <p>A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keeping interrupt handlers short: what belongs in an ISR and what does not · Ketuna blog</title>
+  <meta name="description" content="A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Keeping interrupt handlers short: what belongs in an ISR and what does not · Ketuna blog">
+  <meta property="og:description" content="A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.">
+  <link rel="canonical" href="https://ketuna.online/blog/keep-interrupt-handlers-short.html">
+  <meta property="og:url" content="https://ketuna.online/blog/keep-interrupt-handlers-short.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Keeping interrupt handlers short: what belongs in an ISR and what does not",
+  "description": "A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "interrupts, isr, latency, firmware design, rtos",
+  "articleSection": "Embedded systems",
+  "wordCount": 919,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/keep-interrupt-handlers-short.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Keeping interrupt handlers short: what belongs in an ISR and what does not</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-jobs-in-order">Three jobs, in order</a></li><li><a href="#the-cost-of-a-long-handler-in-numbers">The cost of a long handler, in numbers</a></li><li><a href="#a-worked-case-a-sensors-data-ready-line">A worked case: a sensor's data-ready line</a></li><li><a href="#ways-to-defer">Ways to defer</a></li><li><a href="#what-does-not-belong-in-an-isr">What does not belong in an ISR</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An interrupt handler runs when the hardware decides, not when your program is ready, and while it runs, other interrupts at the same or lower priority wait. Every microsecond you spend inside it is a microsecond added to the response time of everything else. That is the whole reason behind the advice "keep ISRs short", and once you see the arithmetic, deciding what goes in and what comes out stops being a matter of taste.</p>
+<h2 id="three-jobs-in-order">Three jobs, in order</h2>
+<p>A well-written interrupt service routine (ISR) does three things and then returns:</p>
+<ol>
+<li><strong>Acknowledge.</strong> Clear the condition that raised the interrupt, usually by writing a flag or reading a data register, as the reference manual describes. If you return without clearing a level-triggered source, the interrupt fires again immediately and the main program never runs.</li>
+<li><strong>Capture.</strong> Save anything the hardware will overwrite soon: a received byte, a timer capture value, an ADC result, a timestamp. If you do not take it now, it is gone.</li>
+<li><strong>Defer.</strong> Tell the rest of the program that something happened, using a flag, a queue or an operating-system signal, so the real work runs outside the interrupt.</li>
+</ol>
+<p>Parsing a message, updating a display, writing to flash, logging, retrying a bus transfer: all of that is deferred work.</p>
+<h2 id="the-cost-of-a-long-handler-in-numbers">The cost of a long handler, in numbers</h2>
+<p>Take a board with two interrupt sources at the same priority: a UART receiving at 115200 baud with the common 8N1 format, and a periodic timer. Each byte on the wire is 10 bits, so a new byte can arrive every 10 / 115200 s, about 86.8 µs. Suppose the UART has a receive holding register that keeps one byte. The firmware then has roughly 86.8 µs to read each byte before the next one overwrites it.</p>
+<p>Now someone adds a debug message to the timer ISR: a 40-character <code>printf</code> sent out on a second, polled UART at the same baud rate. Sending 40 characters takes 40 × 86.8 µs, about 3.5 ms. While the timer ISR busy-waits on that output, the receive interrupt cannot run, and up to 40 incoming bytes arrive. With one byte of buffering, about 39 of them are lost. The bug is in the timer ISR, but the symptom appears in the UART protocol code, which is why these problems take so long to find.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="ki-title ki-desc" font-size="14">
+<title id="ki-title">A long timer ISR delays the UART ISR past its deadline</title>
+<desc id="ki-desc">Two timelines. In the top one, a long timer ISR occupies the CPU while several UART bytes arrive, so the UART ISR runs late and bytes are overwritten. In the bottom one, the timer ISR only sets a flag and returns, the UART ISR runs as soon as each byte arrives, and the deferred work runs in the main loop.</desc>
+<text x="10" y="26" class="dg-text">Long ISR</text>
+<rect x="60" y="40" width="300" height="30" class="dg-amber" fill-opacity="0.4"/>
+<text x="210" y="60" text-anchor="middle" class="dg-text">timer ISR + printf</text>
+<rect x="362" y="40" width="20" height="30" class="dg-core"/>
+<path d="M120,84 V74 M180,84 V74 M240,84 V74 M300,84 V74" class="dg-line"/>
+<text x="210" y="102" text-anchor="middle" class="dg-muted">bytes arrive: overwritten before read</text>
+<text x="390" y="60" class="dg-text">UART</text>
+<text x="10" y="138" class="dg-text">Short ISR</text>
+<rect x="60" y="152" width="16" height="30" class="dg-amber" fill-opacity="0.4"/>
+<rect x="120" y="152" width="12" height="30" class="dg-core"/>
+<rect x="180" y="152" width="12" height="30" class="dg-core"/>
+<rect x="240" y="152" width="12" height="30" class="dg-core"/>
+<rect x="300" y="152" width="12" height="30" class="dg-core"/>
+<rect x="80" y="190" width="36" height="12" class="dg-box"/>
+<rect x="136" y="190" width="40" height="12" class="dg-box"/>
+<text x="330" y="200" class="dg-muted">main loop does</text>
+<text x="330" y="216" class="dg-muted">the slow work</text>
+<line x1="60" y1="222" x2="320" y2="222" class="dg-dash"/>
+</svg>
+<figcaption>When the handler only signals and returns, each byte is read within microseconds and the slow work moves to the main loop.</figcaption>
+</figure>
+
+<p>The general rule: the worst-case delay for any interrupt is at least as long as the longest handler that can block it, plus any section of code that runs with interrupts disabled. Short handlers keep that number small and predictable.</p>
+<h2 id="a-worked-case-a-sensors-data-ready-line">A worked case: a sensor's data-ready line</h2>
+<p>An external accelerometer pulls a GPIO pin low when a new sample is ready. Reading the sample takes an I2C transaction of several bytes. At 400 kHz each byte with its acknowledge bit takes 9 clock periods, 22.5 µs, so a six-byte read with address and register bytes costs a few hundred microseconds even before any bus retries. That transfer does not belong in the GPIO interrupt.</p>
+<p>Here is the tempting version:</p>
+<pre><code class="language-c">void gpio_isr(void)                     /* do not do this */
+{
+    gpio_clear_flag(ACCEL_INT_PIN);
+    i2c_read(ACCEL_ADDR, REG_DATA, buf, 6);  /* blocks on the bus */
+    filter_update(buf);                      /* maths in the ISR  */
+    printf(&quot;x=%d\n&quot;, x);                     /* slow output       */
+}
+</code></pre>
+<p>And the short version, which acknowledges, captures a timestamp and defers:</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+static volatile bool     accel_ready;
+static volatile uint32_t accel_stamp;
+
+void gpio_isr(void)
+{
+    gpio_clear_flag(ACCEL_INT_PIN);     /* 1. acknowledge */
+    accel_stamp = timer_now();          /* 2. capture     */
+    accel_ready = true;                 /* 3. defer       */
+}
+
+int main(void)
+{
+    init_all();
+    for (;;) {
+        if (accel_ready) {
+            accel_ready = false;
+            uint8_t buf[6];
+            if (i2c_read(ACCEL_ADDR, REG_DATA, buf, 6) == 0)
+                filter_update(buf, accel_stamp);
+        }
+        /* other work */
+    }
+}
+</code></pre>
+<p>The timestamp is captured in the ISR because it is the one piece of information that changes meaning if you read it later. The data itself stays safely in the sensor until the main loop asks for it.</p>
+<h2 id="ways-to-defer">Ways to defer</h2>
+<ul>
+<li><strong>A flag.</strong> One <code>volatile bool</code> per event, as above. Fine when the main loop is fast compared with the event rate and missing a repeat event does no harm, because two events between checks look like one.</li>
+<li><strong>A queue.</strong> When every event carries data that must not be lost, such as received bytes, the ISR pushes into a single-producer, single-consumer ring buffer; see <a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a>.</li>
+<li><strong>An RTOS signal.</strong> With a scheduler, the ISR gives a semaphore or submits a work item, and a task blocked on it wakes and does the work. In Zephyr, <code>k_sem_give()</code> and <code>k_work_submit()</code> may be called from an ISR. Use only the calls the RTOS documents as ISR-safe, and never wait on anything inside a handler.</li>
+</ul>
+<h2 id="what-does-not-belong-in-an-isr">What does not belong in an ISR</h2>
+<ul>
+<li>Formatted printing, logging to flash, or anything that waits for a slow peripheral</li>
+<li>Blocking waits, delays and polling loops</li>
+<li>Taking a mutex or calling <code>malloc</code></li>
+<li>Long loops whose length depends on data</li>
+<li>Heavy floating-point work on cores where the handler must save extra registers for it</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>The Ketuna track D lab D4 runs a timer interrupt and a UART receive interrupt on QEMU's RISC-V <code>virt</code> machine. Add a busy-wait of a few milliseconds to the timer handler, then type into the console and record, with the <code>mtime</code> counter, the largest gap between entering the timer handler and the next entry into the UART handler. QEMU holds input back when its UART is full, so bytes arrive late rather than being lost; the latency number is what tells you a real board would drop them.</li>
+<li>Move the work out with a flag, repeat the measurement, and compare the worst-case delay with the 86.8 µs byte period.</li>
+<li>On a real board, toggle a spare GPIO at the start and end of each ISR and watch it with a logic analyser and the open-source PulseView. The pulse widths are your handler times; compare them with the byte period you calculated.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>interrupts</li><li>isr</li><li>latency</li><li>firmware design</li><li>rtos</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="zephyr-kconfig-basics.html"><span>Previous in Embedded systems</span>Kconfig in Zephyr: turning features on without editing source</a><a class="next" href="low-power-sleep-and-wake.html"><span>Next in Embedded systems</span>Low-power firmware: sleep modes, wake sources and measuring the current you saved</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="superloop-or-rtos.html">Superloop or RTOS? Deciding with timing requirements, not fashion</a></h3>
+          <p>A superloop with interrupts is enough more often than people think. Work out the worst-case loop time against each deadline, and you will see exactly which requirement, if any, calls for a preemptive scheduler.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="using-a-watchdog-properly.html">Using a watchdog properly: what to kick, where, and when not to</a></h3>
+          <p>A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="dma-double-buffering-for-adc.html">Moving ADC samples with DMA and double buffering</a></h3>
+          <p>Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

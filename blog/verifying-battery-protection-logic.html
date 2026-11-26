@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verifying battery-protection logic: over-voltage, under-voltage and fault latching · Ketuna blog</title>
+  <meta name="description" content="Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Verifying battery-protection logic: over-voltage, under-voltage and fault latching · Ketuna blog">
+  <meta property="og:description" content="Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.">
+  <link rel="canonical" href="https://ketuna.online/blog/verifying-battery-protection-logic.html">
+  <meta property="og:url" content="https://ketuna.online/blog/verifying-battery-protection-logic.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Verifying battery-protection logic: over-voltage, under-voltage and fault latching",
+  "description": "Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "battery management, assertions, safety, directed tests, sva",
+  "articleSection": "Verification",
+  "wordCount": 926,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/verifying-battery-protection-logic.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Verifying battery-protection logic: over-voltage, under-voltage and fault latching</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-block-under-test">The block under test</a></li><li><a href="#state-the-safety-rules-as-assertions">State the safety rules as assertions</a></li><li><a href="#directed-tests-for-every-boundary">Directed tests for every boundary</a></li><li><a href="#a-reference-model-for-the-sample-by-sample-behaviour">A reference model for the sample-by-sample behaviour</a></li><li><a href="#what-to-cover">What to cover</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A battery protection block decides when to disconnect a lithium-ion cell from its charger or its load. If it trips too eagerly, the product shuts down for no reason. If it fails to trip, a cell can be overcharged or over-discharged, which damages it and in the worst case creates a fire risk. That asymmetry changes how you verify it: you are not just checking that it works, you are hunting for any input sequence in which it fails to protect. Assertions that state the safety rules directly, plus directed tests aimed at every boundary, are the core of the job.</p>
+<p>A note on scope: this article is about verifying digital decision logic. Real battery protection also depends on analog measurement accuracy, independent hardware protection and the cell manufacturer's limits. Design and test of real battery systems should follow the applicable safety standards and be reviewed by qualified engineers.</p>
+<h2 id="the-block-under-test">The block under test</h2>
+<p>Consider a simplified protection block for one cell. Every sample period, an ADC delivers the cell voltage in millivolts, and a current sensor delivers a signed current. The thresholds below are made up for illustration; real values come from the cell's datasheet.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Condition</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Over-voltage (OV)</td>
+<td>voltage ≥ 4250 mV for 4 consecutive samples</td>
+<td>Turn off charge FET</td>
+</tr>
+<tr>
+<td>OV recovery</td>
+<td>voltage ≤ 4150 mV (100 mV hysteresis)</td>
+<td>Charge FET may turn back on</td>
+</tr>
+<tr>
+<td>Under-voltage (UV)</td>
+<td>voltage ≤ 2800 mV for 4 consecutive samples</td>
+<td>Turn off discharge FET</td>
+</tr>
+<tr>
+<td>Over-current (OC)</td>
+<td>current beyond the limit on any sample</td>
+<td>Turn off both FETs, latch the fault</td>
+</tr>
+<tr>
+<td>OC clear</td>
+<td>software clear command <em>and</em> current back in range</td>
+<td>Release the latch</td>
+</tr>
+<tr>
+<td>Reset</td>
+<td>any reset</td>
+<td>Both FETs off until the first valid sample</td>
+</tr>
+</tbody>
+</table></div>
+<p>Even this small table encodes several distinct mechanisms: thresholds, debounce counts, hysteresis, latching and a safe default. Each is a source of bugs.</p>
+<h2 id="state-the-safety-rules-as-assertions">State the safety rules as assertions</h2>
+<p>Write the rules that must never be broken first, before any test. These assertions run in every simulation, so they check the random tests and the directed tests alike.</p>
+<pre><code class="language-systemverilog">module bms_props (input logic clk, rst_n, sample_valid,
+                  input logic ov_flag, uv_flag, oc_latched,
+                  input logic chg_en, dsg_en, clear_cmd, oc_now);
+  default clocking cb @(posedge clk); endclocking
+  default disable iff (!rst_n);
+
+  // Safety: no FET is on while its fault is active
+  a_no_chg_in_ov:  assert property (ov_flag    |-&gt; !chg_en);
+  a_no_dsg_in_uv:  assert property (uv_flag    |-&gt; !dsg_en);
+  a_oc_both_off:   assert property (oc_latched |-&gt; !chg_en &amp;&amp; !dsg_en);
+
+  // Latching: an over-current fault stays latched until cleared
+  // with the current back in range
+  a_oc_holds: assert property (oc_latched &amp;&amp; !(clear_cmd &amp;&amp; !oc_now)
+                               |=&gt; oc_latched);
+
+  // Outputs are never unknown outside reset
+  a_known: assert property (!$isunknown({chg_en, dsg_en}));
+
+  // Reset default: both FETs off while reset is asserted.
+  // The explicit disable iff (1'b0) overrides the default above.
+  a_reset_safe: assert property (disable iff (1'b0)
+                                 !rst_n |-&gt; !chg_en &amp;&amp; !dsg_en);
+endmodule
+</code></pre>
+<p>The reset assertion overrides the module's default <code>disable iff</code>, because it is precisely the behaviour during reset that it checks. The flags in the properties are internal decisions of the design; checking them against the FET outputs catches wiring and priority mistakes. The <em>timing</em> of the flags, for example that OV is declared after exactly four samples, is better checked by a model in the testbench, because it depends on counting samples.</p>
+<h2 id="directed-tests-for-every-boundary">Directed tests for every boundary</h2>
+<p>Random voltages spread uniformly across the ADC range will rarely land exactly on 4250 mV, and almost never four times in a row. The boundaries need directed tests. A useful list for this block:</p>
+<ol>
+<li><strong>Exact threshold.</strong> Four samples at 4250 mV must trip OV; four at 4249 mV must not.</li>
+<li><strong>Debounce count.</strong> Three samples at 4300 mV followed by one at 4200 mV must not trip; the count must restart.</li>
+<li><strong>Debounce exactly met.</strong> Four samples over the threshold trip on the fourth, not the third or fifth.</li>
+<li><strong>Hysteresis.</strong> After OV, a sample at 4151 mV must keep the charge FET off; 4150 mV allows recovery.</li>
+<li><strong>Chatter.</strong> A voltage alternating between 4249 and 4251 mV each sample must not trip, because no four consecutive samples exceed the threshold.</li>
+<li><strong>UV mirror.</strong> The same five tests at the UV threshold, with inequalities in the other direction.</li>
+<li><strong>OC latch.</strong> A single over-current sample turns both FETs off; the latch holds after the current returns to normal.</li>
+<li><strong>Clear with fault still present.</strong> A clear command while the current is still beyond the limit must not release the latch.</li>
+<li><strong>Clear with fault gone.</strong> A clear command after the current has returned to range releases it.</li>
+<li><strong>Fault during reset release.</strong> An over-current on the first sample after reset must still latch.</li>
+</ol>
+<p>Tests 1 and 4 are where off-by-one errors in comparisons show up: <code>&gt;</code> written instead of <code>&gt;=</code>, or hysteresis applied in the wrong direction. Test 5 catches debounce counters that count total samples above threshold instead of consecutive ones.</p>
+<h2 id="a-reference-model-for-the-sample-by-sample-behaviour">A reference model for the sample-by-sample behaviour</h2>
+<p>For random and long tests, a small Python model in the testbench predicts the FET states after each sample. It is deliberately written from the table above, not from the RTL.</p>
+<pre><code class="language-python">OV_MV, OV_CLR_MV, UV_MV, UV_CLR_MV, N = 4250, 4150, 2800, 2900, 4
+
+class BmsModel:
+    def __init__(self):
+        self.ov = self.uv = self.oc = False
+        self.ov_cnt = self.uv_cnt = 0
+
+    def sample(self, mv, oc_now, clear):
+        self.ov_cnt = self.ov_cnt + 1 if mv &gt;= OV_MV else 0
+        self.uv_cnt = self.uv_cnt + 1 if mv &lt;= UV_MV else 0
+        if self.ov_cnt &gt;= N: self.ov = True
+        elif mv &lt;= OV_CLR_MV: self.ov = False
+        if self.uv_cnt &gt;= N: self.uv = True
+        elif mv &gt;= UV_CLR_MV: self.uv = False
+        if oc_now: self.oc = True
+        elif clear: self.oc = False
+        chg = not (self.ov or self.oc)
+        dsg = not (self.uv or self.oc)
+        return chg, dsg
+</code></pre>
+<p>Writing the model raised a question the table did not answer: what is the UV recovery voltage? The model assumes 2900 mV by symmetry, but that is a guess. It must be confirmed with the spec owner before the model is trusted.</p>
+<h2 id="what-to-cover">What to cover</h2>
+<p>Functional coverage confirms that the dangerous situations actually occurred. Useful bins: each fault type entered and exited; debounce runs of length 1, 3, 4 and more; samples exactly at each threshold and each recovery level; clear commands with and without the fault present; and a fault arriving on the first sample after reset. Any bin left empty is a protection case nobody has exercised.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the protection block in Verilog from the table, with a sample strobe, debounce counters, hysteresis and the OC latch.</li>
+<li>Build a cocotb testbench on Icarus Verilog that drives samples, runs the model above alongside the design, and implements the ten directed tests.</li>
+<li>Plant three bugs, one at a time: <code>&gt;</code> instead of <code>&gt;=</code> for OV, a debounce counter that does not reset, and a clear that ignores <code>oc_now</code>. Confirm each is caught, and note which test or assertion catches it.</li>
+<li>Bind the property module with Verilator's <code>--assert</code> and run a long random test with voltages biased towards the thresholds.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>battery management</li><li>assertions</li><li>safety</li><li>directed tests</li><li>sva</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="verifying-a-uart-end-to-end.html"><span>Previous in Verification</span>Verifying a UART end to end: framing, baud error and coverage closure</a><a class="next" href="what-simulation-misses-in-cdc.html"><span>Next in Verification</span>What simulation cannot tell you about clock domain crossings</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="sva-first-properties.html">SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property</a></h3>
+          <p>Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="directed-or-constrained-random.html">Directed tests or constrained random? Using each where it pays off</a></h3>
+          <p>Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IR drop and electromigration in plain terms · Ketuna blog</title>
+  <meta name="description" content="IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="IR drop and electromigration in plain terms · Ketuna blog">
+  <meta property="og:description" content="IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.">
+  <link rel="canonical" href="https://ketuna.online/blog/ir-drop-and-electromigration.html">
+  <meta property="og:url" content="https://ketuna.online/blog/ir-drop-and-electromigration.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "IR drop and electromigration in plain terms",
+  "description": "IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ir drop, electromigration, power integrity, reliability, sign-off",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 972,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/ir-drop-and-electromigration.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>IR drop and electromigration in plain terms</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#ir-drop-ohms-law-across-the-grid">IR drop: Ohm's law across the grid</a></li><li><a href="#a-small-model-you-can-run">A small model you can run</a></li><li><a href="#electromigration-current-wears-metal-away">Electromigration: current wears metal away</a></li><li><a href="#where-each-problem-appears">Where each problem appears</a></li><li><a href="#how-they-are-fixed">How they are fixed</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Two checks near the end of a physical design flow are about the metal itself rather than the logic. IR drop asks whether every cell actually receives the supply voltage the timing analysis assumed. Electromigration asks whether the wires will still be intact after years of carrying current. They sound similar because both come from current flowing in metal, but they fail on very different timescales: IR drop can break a chip on the first day, electromigration long after it has shipped.</p>
+<h2 id="ir-drop-ohms-law-across-the-grid">IR drop: Ohm's law across the grid</h2>
+<p>Every cell draws current from the power grid. That current flows through the resistance of rails, vias, straps and rings, and by Ohm's law each piece of metal drops a voltage V = I × R. A cell deep inside the block sees the pin voltage minus all the drops on its path to the supply, and also a ground that sits slightly above true ground for the same reason on the return path.</p>
+<p>Why it matters: a CMOS gate's delay depends strongly on its supply voltage. Lower supply means less drive current, so slower switching. Timing sign-off uses a supply voltage for each corner; if the real supply at some cells is lower than that, those cells are slower than the report says, and a path with small positive slack can fail in silicon.</p>
+<p>There are two flavours:</p>
+<ul>
+<li><strong>Static IR drop</strong> uses average currents over a clock cycle. It shows the steady, structural weakness of the grid: thin rails far from straps, macros with few power connections.</li>
+<li><strong>Dynamic IR drop</strong> uses currents over time, including the spike when many flops and clock buffers switch at a clock edge. Decoupling capacitance (on-chip decap cells and the grid's own capacitance) supplies charge locally during these spikes, but a cluster of busy cells can still pull the local supply down briefly.</li>
+</ul>
+<h2 id="a-small-model-you-can-run">A small model you can run</h2>
+<p>The last stage of the grid is the rail along a row of cells. This script models one rail between two straps, with cells drawing current at evenly spaced taps. The values are made up for illustration.</p>
+<pre><code class="language-python"># Static IR drop along one rail fed from both ends
+VDD = 1.80          # supply at the straps, volts
+N = 20              # cells tapped along the rail
+R_SEG = 0.5         # ohms of rail between neighbouring taps
+I_CELL = 50e-6      # average current per cell, amps
+
+# Nodes 0..N+1: nodes 0 and N+1 are the straps, 1..N are cells.
+# Solve the resistor ladder with simple Gauss-Seidel iteration.
+v = [VDD] * (N + 2)
+for _ in range(20000):
+    for k in range(1, N + 1):
+        v[k] = (v[k - 1] + v[k + 1]) / 2 - I_CELL * R_SEG / 2
+
+worst = min(v)
+print(f&quot;worst cell voltage {worst:.4f} V, drop {1000*(VDD-worst):.2f} mV&quot;)
+</code></pre>
+<p>It prints a worst drop of 1.37 mV, at the cells in the middle. You can check that by hand: by symmetry, each half of the rail feeds 10 cells, and the segment nearest the strap carries all 10 cells' current, the next one 9, and so on. The drop to the middle is (10 + 9 + … + 1) × 50 µA × 0.5 Ω = 55 × 25 µV = 1.375 mV.</p>
+<p>That is only the rail. The straps, the vias and the ring add their own drops in series, and real currents are spiky. Real IR analysis tools solve the same kind of resistor network, but with millions of nodes and currents taken from a power analysis of your design.</p>
+<h2 id="electromigration-current-wears-metal-away">Electromigration: current wears metal away</h2>
+<p>Electromigration (EM) is a slow mechanical failure. Electrons flowing through a metal wire collide with metal atoms and, over time, push them along in the direction of electron flow. Where atoms leave, a <strong>void</strong> forms and the wire thins until it breaks (an open). Where they pile up, a <strong>hillock</strong> forms that can touch a neighbour (a short). Neither happens quickly; the concern is the expected lifetime of the product.</p>
+<p>The rate depends on two things:</p>
+<ul>
+<li><strong>Current density</strong>, the current divided by the wire's cross-section. The same current in a narrower or thinner wire wears it faster.</li>
+<li><strong>Temperature.</strong> Atoms move more easily when hot, so EM lifetime falls steeply with temperature.</li>
+</ul>
+<p>A widely used empirical model, Black's equation, captures both: the median time to failure falls as a power of current density and rises exponentially with activation energy over temperature. Foundries turn their reliability data into simple design rules: a maximum current per micrometre of wire width for each layer and via type, at a stated temperature and lifetime.</p>
+<p>An illustrative check, with a made-up limit of 1.0 mA per µm of width for some layer: a strap that carries 3 mA must be at least 3 µm wide on that layer. Vias have their own limits per cut, so a strap that needs more current needs more via cuts where it connects downwards, not just more width.</p>
+<h2 id="where-each-problem-appears">Where each problem appears</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Location</th>
+<th>IR drop risk</th>
+<th>EM risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Power straps and rings</td>
+<td>Long, high-current paths</td>
+<td>High average current in one direction</td>
+</tr>
+<tr>
+<td>Via stacks to rails</td>
+<td>Resistance adds up through layers</td>
+<td>High current concentrated in few cuts</td>
+</tr>
+<tr>
+<td>Rails far from straps</td>
+<td>Accumulated drop at the far cells</td>
+<td>Usually low current per rail</td>
+</tr>
+<tr>
+<td>Clock nets and high-fanout signals</td>
+<td>Not applicable</td>
+<td>Large switching currents; checked with RMS and peak limits</td>
+</tr>
+</tbody>
+</table></div>
+<p>Signal nets are checked for EM too, mainly clock nets and strongly driven nets, because they switch often and charge large capacitances. Their current flows in both directions, which is less damaging than one-way power current, so different limits apply.</p>
+<h2 id="how-they-are-fixed">How they are fixed</h2>
+<ul>
+<li><strong>Wider or more frequent straps</strong> lower resistance and current density at once.</li>
+<li><strong>More via cuts</strong> at strap-to-rail connections.</li>
+<li><strong>Spreading high-power cells</strong> so that no region draws a concentrated current.</li>
+<li><strong>Adding decap cells</strong> near busy logic to absorb dynamic spikes.</li>
+<li><strong>Upsizing clock wires</strong> or using wider rules on clock nets with high currents.</li>
+</ul>
+<p>Both are much easier to fix at the floorplan than after routing, because the fixes need metal that routing would otherwise use.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then change it so the rail is fed from one end only and compare the worst drop.</li>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 and find the IR drop report produced by OpenROAD's power analysis step. Locate the cells with the lowest voltage.</li>
+<li>Change the power grid pitch in the configuration, rerun, and compare the worst-case drop.</li>
+<li>Look up the EM rules in the PDK documentation and check the widths of your straps against your estimated currents.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ir drop</li><li>electromigration</li><li>power integrity</li><li>reliability</li><li>sign-off</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-a-timing-report.html"><span>Previous in Physical design &amp; tape-out</span>How to read a static timing report line by line</a><a class="next" href="inside-a-standard-cell-library.html"><span>Next in Physical design &amp; tape-out</span>Inside a standard-cell library: Liberty, LEF and what the numbers mean</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="metal-fill-and-density-rules.html">Metal fill, density rules and why the fab cares about empty space</a></h3>
+          <p>Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAC units and systolic arrays: how ML accelerators reuse data · Ketuna blog</title>
+  <meta name="description" content="A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="MAC units and systolic arrays: how ML accelerators reuse data · Ketuna blog">
+  <meta property="og:description" content="A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.">
+  <link rel="canonical" href="https://ketuna.online/blog/mac-units-and-systolic-arrays.html">
+  <meta property="og:url" content="https://ketuna.online/blog/mac-units-and-systolic-arrays.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "MAC units and systolic arrays: how ML accelerators reuse data",
+  "description": "A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ml accelerators, systolic array, mac, verilog, hardware",
+  "articleSection": "Edge AI",
+  "wordCount": 906,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/mac-units-and-systolic-arrays.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>MAC units and systolic arrays: how ML accelerators reuse data</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-mac-unit">The MAC unit</a></li><li><a href="#why-parallel-macs-starve">Why parallel MACs starve</a></li><li><a href="#the-systolic-idea">The systolic idea</a></li><li><a href="#one-pe-in-verilog">One PE in Verilog</a></li><li><a href="#counting-cycles-and-utilisation">Counting cycles and utilisation</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Putting sixteen multipliers on a chip is easy. Keeping all sixteen busy is the hard part, because each multiply needs two operands, and memories cannot deliver thirty-two fresh bytes every cycle without becoming large, slow and power-hungry. A systolic array solves this by making operands travel: a value is read from memory once and then handed from cell to cell, doing useful work at every stop. This article builds the idea from a single multiply-accumulate unit up to a small array you can model in a few lines of Python.</p>
+<h2 id="the-mac-unit">The MAC unit</h2>
+<p>The basic building block of every ML accelerator is the <strong>multiply-accumulate (MAC) unit</strong>: a multiplier feeding an adder whose output goes back into an accumulator register. Each cycle it computes acc ← acc + a × b. For int8 inference, a and b are signed 8-bit numbers and the accumulator is wider, typically 24 to 32 bits, because sums of many 16-bit products grow quickly.</p>
+<p>Why int8 matters here: the area and energy of an array multiplier grow roughly with the square of the operand width, so an 8 × 8 multiplier is a small fraction of a 32-bit one. That is what lets an accelerator afford many of them.</p>
+<p>A matrix multiply C = A · B, where A is M × K and B is K × N, needs M × N × K MACs. Every layer you care about, dense or convolutional, can be arranged as such a product. The question is how to feed the MACs.</p>
+<h2 id="why-parallel-macs-starve">Why parallel MACs starve</h2>
+<p>Imagine 16 independent MAC units, each computing one element of a 4 × 4 output tile. Every cycle, unit (i, j) needs a[i][k] and b[k][j]. Look at what is shared: all four units in row i need the same a[i][k], and all four in column j need the same b[k][j]. If each unit fetches its own operands, the memory must deliver 32 bytes per cycle, though only 8 of them are distinct.</p>
+<p>You could broadcast each value over long wires to every unit that needs it. That works for small arrays, but long, heavily loaded wires are slow and burn energy, and the problem gets worse as the array grows. The systolic answer is to replace broadcast with a relay.</p>
+<h2 id="the-systolic-idea">The systolic idea</h2>
+<p>In a <strong>systolic array</strong>, the processing elements (PEs) are arranged in a grid and each one connects only to its immediate neighbours. In the <strong>output-stationary</strong> form used here, each PE owns one output element and keeps its accumulator in place:</p>
+<ul>
+<li>elements of A enter at the left edge and move one PE to the right each cycle</li>
+<li>elements of B enter at the top edge and move one PE down each cycle</li>
+<li>each PE multiplies the pair passing through it and adds the product to its accumulator</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="sa-title sa-desc" font-size="14">
+<title id="sa-title">A three by three output-stationary systolic array</title>
+<desc id="sa-desc">Nine processing elements in a grid. Rows of matrix A enter from the left, each row delayed one cycle more than the row above. Columns of matrix B enter from the top, each column delayed one cycle more than the column to its left. Data moves right and down between neighbours.</desc>
+<text x="250" y="20" text-anchor="middle" class="dg-text">B columns enter from the top</text>
+<text x="190" y="50" text-anchor="middle" class="dg-muted">+0</text>
+<text x="280" y="50" text-anchor="middle" class="dg-muted">+1</text>
+<text x="370" y="50" text-anchor="middle" class="dg-muted">+2</text>
+<text x="20" y="100" class="dg-muted">A row 0 +0</text>
+<text x="20" y="190" class="dg-muted">A row 1 +1</text>
+<text x="20" y="280" class="dg-muted">A row 2 +2</text>
+<rect x="160" y="70" width="60" height="50" class="dg-core"/>
+<rect x="250" y="70" width="60" height="50" class="dg-box"/>
+<rect x="340" y="70" width="60" height="50" class="dg-box"/>
+<rect x="160" y="160" width="60" height="50" class="dg-box"/>
+<rect x="250" y="160" width="60" height="50" class="dg-box"/>
+<rect x="340" y="160" width="60" height="50" class="dg-box"/>
+<rect x="160" y="250" width="60" height="50" class="dg-box"/>
+<rect x="250" y="250" width="60" height="50" class="dg-box"/>
+<rect x="340" y="250" width="60" height="50" class="dg-box"/>
+<text x="190" y="100" text-anchor="middle" class="dg-text">PE 0,0</text>
+<text x="280" y="100" text-anchor="middle" class="dg-text">PE 0,1</text>
+<text x="370" y="100" text-anchor="middle" class="dg-text">PE 0,2</text>
+<text x="190" y="190" text-anchor="middle" class="dg-text">PE 1,0</text>
+<text x="280" y="190" text-anchor="middle" class="dg-text">PE 1,1</text>
+<text x="370" y="190" text-anchor="middle" class="dg-text">PE 1,2</text>
+<text x="190" y="280" text-anchor="middle" class="dg-text">PE 2,0</text>
+<text x="280" y="280" text-anchor="middle" class="dg-text">PE 2,1</text>
+<text x="370" y="280" text-anchor="middle" class="dg-text">PE 2,2</text>
+<path d="M120,95 H154 M220,95 H244 M310,95 H334 M120,185 H154 M220,185 H244 M310,185 H334 M120,275 H154 M220,275 H244 M310,275 H334" class="dg-line"/>
+<path d="M190,56 V64 M280,56 V64 M370,56 V64 M190,120 V154 M280,120 V154 M370,120 V154 M190,210 V244 M280,210 V244 M370,210 V244" class="dg-line"/>
+<path d="M154,91 L160,95 L154,99 Z M244,91 L250,95 L244,99 Z M334,91 L340,95 L334,99 Z M154,181 L160,185 L154,189 Z M244,181 L250,185 L244,189 Z M334,181 L340,185 L334,189 Z M154,271 L160,275 L154,279 Z M244,271 L250,275 L244,279 Z M334,271 L340,275 L334,279 Z" class="dg-arrow"/>
+<path d="M186,64 L190,70 L194,64 Z M276,64 L280,70 L284,64 Z M366,64 L370,70 L374,64 Z M186,154 L190,160 L194,154 Z M276,154 L280,160 L284,154 Z M366,154 L370,160 L374,154 Z M186,244 L190,250 L194,244 Z M276,244 L280,250 L284,244 Z M366,244 L370,250 L374,244 Z" class="dg-arrow"/>
+</svg>
+<figcaption>Operands enter at the edges with a one-cycle skew per row and column, then hop one PE per cycle; each PE keeps its own output.</figcaption>
+</figure>
+
+<p>The <strong>skew</strong> is what makes it work. Row i of A is delayed by i cycles and column j of B by j cycles, so a[i][k] and b[k][j] both reach PE (i, j) at cycle t = i + j + k. Work sweeps across the array as a diagonal wavefront. Each value read from memory is used N times as it crosses the array, so the memory only supplies 2N values per cycle for N<sup>2</sup> MACs.</p>
+<h2 id="one-pe-in-verilog">One PE in Verilog</h2>
+<p>Each PE is two pipeline registers and a MAC:</p>
+<pre><code class="language-verilog">module pe #(parameter AW = 24) (
+  input  wire                 clk,
+  input  wire                 clear,   // start a new output
+  input  wire signed [7:0]    a_in,    // from the left neighbour
+  input  wire signed [7:0]    b_in,    // from the neighbour above
+  output reg  signed [7:0]    a_out,   // to the right neighbour
+  output reg  signed [7:0]    b_out,   // to the neighbour below
+  output reg  signed [AW-1:0] acc      // this PE's output element
+);
+  always @(posedge clk) begin
+    a_out &lt;= a_in;
+    b_out &lt;= b_in;
+    acc   &lt;= (clear ? 0 : acc) + a_in * b_in;
+  end
+endmodule
+</code></pre>
+<p>Wiring an N × N grid is two nested <code>generate</code> loops connecting <code>a_out</code> of PE (i, j) to <code>a_in</code> of PE (i, j+1), and <code>b_out</code> to <code>b_in</code> of PE (i+1, j). Every wire is short and goes to exactly one place, which is why systolic arrays reach high clock rates with modest effort in physical design.</p>
+<h2 id="counting-cycles-and-utilisation">Counting cycles and utilisation</h2>
+<p>The last PE, (N−1, N−1), receives its final pair at cycle (N−1) + (N−1) + (K−1), so a tile needs K + 2(N − 1) cycles before the results are ready to drain. Model it before writing RTL:</p>
+<pre><code class="language-python">import numpy as np
+
+def systolic_os(A, B):
+    N, K = A.shape
+    a = np.zeros((N, N), dtype=np.int64)
+    b = np.zeros((N, N), dtype=np.int64)
+    acc = np.zeros((N, N), dtype=np.int64)
+    cycles = K + 2 * (N - 1)
+    for t in range(cycles):
+        a = np.roll(a, 1, axis=1)          # a moves one PE right
+        b = np.roll(b, 1, axis=0)          # b moves one PE down
+        for i in range(N):                 # skewed feed, left edge
+            k = t - i
+            a[i, 0] = A[i, k] if 0 &lt;= k &lt; K else 0
+        for j in range(N):                 # skewed feed, top edge
+            k = t - j
+            b[0, j] = B[k, j] if 0 &lt;= k &lt; K else 0
+        acc += a * b                       # every PE does one MAC
+    return acc, cycles
+
+rng = np.random.default_rng(0)
+A = rng.integers(-128, 128, (4, 64))
+B = rng.integers(-128, 128, (64, 4))
+C, cycles = systolic_os(A, B)
+print(np.array_equal(C, A @ B), cycles)    # True 70
+</code></pre>
+<p>For N = 4 and K = 64, the array does 4 × 4 × 64 = 1,024 MACs in 70 cycles. Its peak is 16 MACs per cycle, so utilisation is 1,024 / (16 × 70) ≈ 91 %. With K = 8 the same array needs 14 cycles for 128 MACs, about 57 %. The fill and drain of the wavefront are a fixed cost, so short reductions and small layers waste a large array.</p>
+<p>Pitfalls to watch for:</p>
+<ul>
+<li>forgetting the skew, so operands meet the wrong partners and results are quietly wrong</li>
+<li>sizing the accumulator for typical data instead of the worst-case sum of products</li>
+<li>quoting peak MACs per cycle without the utilisation for real layer shapes</li>
+<li>using a 2-D array for batch-1 dense layers, where there is no second dimension to reuse weights across and most PEs sit idle</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python model above and change N and K to see how utilisation moves.</li>
+<li>Simulate the <code>pe</code> module with Icarus Verilog (<code>iverilog -g2005</code>, then <code>vvp</code>) and check that −128 × −128 accumulates correctly with a 24-bit <code>acc</code>.</li>
+<li>Build a 2 × 2 array with <code>generate</code> loops, drive it with skewed inputs from a testbench, and compare the result with numpy.</li>
+<li>Synthesise the 2 × 2 array with Yosys (<code>synth -top</code> your module, then <code>stat</code>) and see how the cell count splits between multipliers and registers.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ml accelerators</li><li>systolic array</li><li>mac</li><li>verilog</li><li>hardware</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="int8-quantization-explained.html"><span>Previous in Edge AI</span>Int8 quantization explained: scale, zero point and what you lose</a><a class="next" href="thresholds-rules-or-a-model.html"><span>Next in Edge AI</span>Making decisions on a soil sensor node: thresholds, rules or a model?</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

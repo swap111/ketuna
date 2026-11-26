@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why 100% code coverage does not mean the design is verified · Ketuna blog</title>
+  <meta name="description" content="Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why 100% code coverage does not mean the design is verified · Ketuna blog">
+  <meta property="og:description" content="Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.">
+  <link rel="canonical" href="https://ketuna.online/blog/full-code-coverage-is-not-done.html">
+  <meta property="og:url" content="https://ketuna.online/blog/full-code-coverage-is-not-done.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why 100% code coverage does not mean the design is verified",
+  "description": "Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "code coverage, verilator, toggle coverage, fsm coverage, verification",
+  "articleSection": "Verification",
+  "wordCount": 875,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/full-code-coverage-is-not-done.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Why 100% code coverage does not mean the design is verified</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-each-metric-counts">What each metric counts</a></li><li><a href="#executed-is-not-the-same-as-checked">Executed is not the same as checked</a></li><li><a href="#covered-at-the-wrong-values">Covered at the wrong values</a></li><li><a href="#code-that-should-exist-but-does-not">Code that should exist but does not</a></li><li><a href="#how-to-use-code-coverage-well">How to use code coverage well</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Code coverage is the first metric most students meet, and the easiest to misread. The simulator reports that 100% of lines and branches executed, the bar turns green, and it feels like the job is finished. It is not. Code coverage measures what the <em>simulator</em> did with the <em>code that exists</em>. It says nothing about whether the results were checked, whether the code does what the spec asks, or whether something the spec requires was never written at all.</p>
+<h2 id="what-each-metric-counts">What each metric counts</h2>
+<p>Simulators can collect several kinds of code coverage automatically, with no extra testbench code.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>What it counts</th>
+<th>What a hole tells you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line (statement)</td>
+<td>Each statement executed at least once</td>
+<td>Some code never ran</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>Each side of every <code>if</code> and each <code>case</code> item taken</td>
+<td>A decision only ever went one way</td>
+</tr>
+<tr>
+<td>Condition / expression</td>
+<td>Each sub-term of a boolean expression affecting the outcome</td>
+<td>Part of a condition was never tested on its own</td>
+</tr>
+<tr>
+<td>Toggle</td>
+<td>Each bit of each signal went 0→1 and 1→0</td>
+<td>A bit was stuck, or a field was never used</td>
+</tr>
+<tr>
+<td>FSM</td>
+<td>Each state visited, each transition taken</td>
+<td>A state or transition was never reached</td>
+</tr>
+</tbody>
+</table></div>
+<p>These are useful. A line that never ran is a line nobody has tested, and a hole in FSM transition coverage often points straight at an error path the tests forgot. Code coverage is a good <em>minimum</em>. The trouble starts when it is treated as a <em>maximum</em>.</p>
+<h2 id="executed-is-not-the-same-as-checked">Executed is not the same as checked</h2>
+<p>Coverage tools record that a line ran. They do not know whether any checker looked at the result. Imagine a testbench whose scoreboard is accidentally disconnected: every line of RTL still executes, coverage still reports 100%, and no wrong output would ever be caught.</p>
+<p>This is not far-fetched. A monitor that samples on the wrong edge, a comparison that is skipped when a queue is empty, or an assertion compiled out by a missing define all produce full coverage and zero checking. The defence is to prove the checkers can fail: inject a bug on purpose and confirm a test reports it.</p>
+<h2 id="covered-at-the-wrong-values">Covered at the wrong values</h2>
+<p>Here is a level comparator for an over-temperature flag. Suppose the spec says the flag must assert when the reading is <strong>at or above</strong> the limit.</p>
+<pre><code class="language-verilog">module overtemp (
+  input  wire       clk,
+  input  wire [7:0] temp,
+  input  wire [7:0] limit,
+  output reg        hot
+);
+  always @(posedge clk) begin
+    if (temp &gt; limit)   // bug: spec says temp &gt;= limit
+      hot &lt;= 1'b1;
+    else
+      hot &lt;= 1'b0;
+  end
+endmodule
+</code></pre>
+<p>A test that drives <code>temp = 20, limit = 100</code> and then <code>temp = 200, limit = 100</code> takes both branches. Line coverage is 100%, branch coverage is 100%, and the outputs are correct for those inputs. The bug shows only when <code>temp == limit</code>, a value the test never used. No code-coverage metric can see this, because the faulty line <em>was</em> executed. What was missing is a test at the boundary, and only a person reading the spec knows the boundary matters.</p>
+<p>Functional coverage catches it if the plan has a bin for <code>temp == limit</code>. That bin exists only because someone wrote down that equality is a special case.</p>
+<h2 id="code-that-should-exist-but-does-not">Code that should exist but does not</h2>
+<p>The deepest limit is the simplest. Coverage measures code that exists. If the spec says the receiver must flag a parity error and the designer never implemented parity checking, there is no line, branch or state to be uncovered. The coverage report is complete and clean, and the feature is missing.</p>
+<p>The same applies to:</p>
+<ul>
+<li>an error response that the spec requires and the RTL never generates</li>
+<li>a register field that should be read-only but is writable, because the decode simply treats it like the others</li>
+<li>a timeout that should abort a stuck transfer, absent from the FSM entirely</li>
+</ul>
+<p>Only a verification plan derived from the spec, with a check and a functional coverage goal for each feature, exposes these. That is why the plan comes first and code coverage comes last, as a cross-check.</p>
+<h2 id="how-to-use-code-coverage-well">How to use code coverage well</h2>
+<p>Code coverage earns its place when you read the holes rather than the percentage.</p>
+<ol>
+<li><strong>Close functional coverage first.</strong> Then look at code coverage to find RTL your plan did not anticipate.</li>
+<li><strong>Explain every hole.</strong> An unreached line is either missing stimulus, dead code that should be removed, or a defensive branch that cannot be reached by design. Each needs a decision, and a waiver needs a written reason.</li>
+<li><strong>Treat toggle holes on control bits seriously.</strong> A mode bit that never toggled means one mode was never tested. Toggle holes on the top bits of a wide data bus are usually less alarming.</li>
+<li><strong>Look at FSM transitions, not just states.</strong> Visiting every state by the common path can leave the error transitions untested.</li>
+<li><strong>Exclude carefully.</strong> Excluding code to reach a target hides exactly the places where bugs like to sit. Every exclusion should be reviewed.</li>
+</ol>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Save the comparator above as <code>overtemp.v</code> and write a cocotb or SystemVerilog test that drives only the two values described, checking <code>hot</code> each cycle.</li>
+<li>Build it with Verilator using <code>--coverage</code>, run it, and annotate the source with <code>verilator_coverage --annotate</code>; confirm the <code>if</code> shows both branches taken.</li>
+<li>Add a test at <code>temp == limit</code> and watch it fail against the spec while the coverage numbers stay exactly the same.</li>
+<li>Write a one-line functional coverage bin for the equality case, fix the RTL, and rerun to see it pass.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>code coverage</li><li>verilator</li><li>toggle coverage</li><li>fsm coverage</li><li>verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="when-gate-level-simulation-pays.html"><span>Previous in Verification</span>When gate-level simulation is still worth running</a><a class="next" href="writing-a-verification-plan.html"><span>Next in Verification</span>Writing a verification plan that someone can actually check against</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debugging-a-failing-test-systematically.html">Debugging a failing test systematically: from the first mismatch to root cause</a></h3>
+          <p>A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fpga-prototyping-as-verification.html">FPGA prototyping as a verification step: what it finds that simulation misses</a></h3>
+          <p>Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

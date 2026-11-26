@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debugging bare-metal firmware with GDB and OpenOCD · Ketuna blog</title>
+  <meta name="description" content="How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Debugging bare-metal firmware with GDB and OpenOCD · Ketuna blog">
+  <meta property="og:description" content="How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.">
+  <link rel="canonical" href="https://ketuna.online/blog/debugging-with-gdb-and-openocd.html">
+  <meta property="og:url" content="https://ketuna.online/blog/debugging-with-gdb-and-openocd.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Debugging bare-metal firmware with GDB and OpenOCD",
+  "description": "How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "gdb, openocd, jtag, debugging, risc-v",
+  "articleSection": "Embedded systems",
+  "wordCount": 923,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/debugging-with-gdb-and-openocd.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Debugging bare-metal firmware with GDB and OpenOCD</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-programs-and-a-cable">Three programs and a cable</a></li><li><a href="#connecting">Connecting</a></li><li><a href="#breakpoints-software-and-hardware">Breakpoints: software and hardware</a></li><li><a href="#watchpoints-who-changed-my-variable">Watchpoints: who changed my variable</a></li><li><a href="#looking-at-memory-and-peripherals">Looking at memory and peripherals</a></li><li><a href="#making-the-debugger-tell-the-truth">Making the debugger tell the truth</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When firmware misbehaves, the first instinct is to add <code>printf</code> calls. On a microcontroller that has real costs: it needs a working UART, it changes timing, it grows the image, and it cannot show you a variable at the moment a fault happens. A debugger can. With GDB, OpenOCD and an inexpensive probe you can stop the core at any line, read any variable or peripheral register, and catch the instruction that corrupts memory. This article walks through the set-up and the handful of commands that do most of the work.</p>
+<h2 id="three-programs-and-a-cable">Three programs and a cable</h2>
+<p>The chain has four links:</p>
+<ul>
+<li><strong>GDB</strong>, the GNU debugger, built for your target (<code>riscv64-unknown-elf-gdb</code> or a multi-architecture build such as <code>gdb-multiarch</code>). It reads your ELF file, so it knows the source lines, symbols and types.</li>
+<li><strong>OpenOCD</strong>, an open-source debug server. It speaks the GDB remote protocol on a TCP port (3333 by default) and translates requests into low-level debug operations.</li>
+<li><strong>A debug probe</strong>, a small USB device that drives the target's JTAG pins.</li>
+<li><strong>The on-chip debug logic.</strong> On RISC-V this is the debug module described by the RISC-V Debug Specification. It can halt the core, read and write registers and memory, and provides a limited number of hardware triggers for breakpoints and watchpoints.</li>
+</ul>
+<p>GDB never touches the hardware directly. It asks OpenOCD to "halt", "read 4 bytes at this address" or "set a breakpoint here", and OpenOCD does it through the probe. QEMU provides the same GDB protocol with no hardware at all, which makes it a good place to practise.</p>
+<h2 id="connecting">Connecting</h2>
+<p>OpenOCD is configured with two script files: one for the probe (the interface) and one for the chip (the target). Many boards also have a single board file.</p>
+<pre><code class="language-bash">openocd -f interface/&lt;your-probe&gt;.cfg -f target/&lt;your-chip&gt;.cfg
+</code></pre>
+<p>The exact file names come from your OpenOCD installation's <code>scripts</code> folder or your board's documentation. Once OpenOCD reports that it found the target, start GDB in another terminal:</p>
+<pre><code class="language-text">$ riscv64-unknown-elf-gdb build/app.elf
+(gdb) target extended-remote :3333
+(gdb) monitor reset halt
+(gdb) load
+(gdb) break main
+(gdb) continue
+</code></pre>
+<p><code>monitor</code> passes a command straight to OpenOCD; here it resets the chip and halts it at the first instruction. <code>load</code> writes the ELF file's loadable sections to the target, including flash if OpenOCD knows the flash layout. After <code>continue</code>, the core runs until it reaches <code>main</code>.</p>
+<p>To practise without a board, run a RISC-V program on QEMU with <code>-s -S</code> added to the command line. <code>-s</code> opens a GDB server on port 1234 and <code>-S</code> holds the CPU at reset until GDB says go. Then use <code>target remote :1234</code> instead of port 3333.</p>
+<h2 id="breakpoints-software-and-hardware">Breakpoints: software and hardware</h2>
+<p>A <strong>software breakpoint</strong> replaces an instruction with a break instruction (<code>ebreak</code> on RISC-V). That needs writable memory, so it works for code in RAM. Code in flash cannot be patched this way on most parts, so GDB needs a <strong>hardware breakpoint</strong>, which uses one of the core's trigger registers to compare the program counter.</p>
+<pre><code class="language-text">(gdb) hbreak uart_isr          # hardware breakpoint on a function
+(gdb) break ringbuf.c:42 if head == tail
+(gdb) info breakpoints
+(gdb) delete 2
+</code></pre>
+<p>The number of hardware triggers is small and differs between implementations; when you run out, GDB or OpenOCD reports an error when it tries to insert them. The conditional breakpoint above is evaluated by GDB each time the core stops there, so it is slow if the line runs often, but it saves restarting until the interesting case appears.</p>
+<h2 id="watchpoints-who-changed-my-variable">Watchpoints: who changed my variable</h2>
+<p>The most valuable debugger feature in firmware is the <strong>watchpoint</strong>: stop the core when an address is written. It answers the question "which code is corrupting this variable?", which is nearly impossible with print statements.</p>
+<pre><code class="language-text">(gdb) watch rx.overflows        # stop on write
+(gdb) rwatch config_ptr         # stop on read
+(gdb) continue
+Hardware watchpoint 3: rx.overflows
+Old value = 0
+New value = 1
+uart_rx_isr () at ringbuf.c:31
+</code></pre>
+<p>GDB shows the old and new values and the line that wrote it. Watchpoints use the same limited hardware triggers, so watch a single variable rather than a large array.</p>
+<h2 id="looking-at-memory-and-peripherals">Looking at memory and peripherals</h2>
+<p>Peripheral registers are just addresses, so GDB can read them:</p>
+<pre><code class="language-text">(gdb) x/1bx 0x10000005          # UART line status register (QEMU virt)
+0x10000005:     0x60
+(gdb) x/8wx &amp;rx.buf             # 8 words of a buffer, in hex
+(gdb) p/x rx.head
+(gdb) p/x $mcause               # RISC-V CSR, if the target exposes it
+(gdb) info registers pc sp ra
+</code></pre>
+<p><code>x/NFU addr</code> means examine N units of size U (<code>b</code> byte, <code>h</code> half-word, <code>w</code> word) in format F (<code>x</code> hex, <code>d</code> decimal, <code>i</code> instructions). On the QEMU <code>virt</code> machine's 16550-style UART, the line status value <code>0x60</code> has both "transmitter empty" bits set and the "data ready" bit clear.</p>
+<p>Be careful: <strong>reading a register can change the hardware</strong>. Reading the UART's receive register removes a byte from its FIFO; reading some status registers clears their flags. A debugger window that refreshes a peripheral view every time the core stops can silently eat data. Read side-effect registers deliberately, once, or not at all.</p>
+<h2 id="making-the-debugger-tell-the-truth">Making the debugger tell the truth</h2>
+<ul>
+<li><strong>Build with <code>-g</code></strong> so GDB has source and type information. It does not change the generated code.</li>
+<li><strong>Debug at <code>-Og</code></strong> while stepping. At <code>-O2</code> variables live only in registers, lines are reordered and GDB reports "optimized out". Retest at release settings afterwards, because some bugs only appear there.</li>
+<li><strong>Remember that halting changes behaviour.</strong> While the core is stopped, peripherals keep running: UART bytes overflow, timers wrap, and a watchdog may reset the chip unless it is frozen in debug mode. For timing problems, use a GPIO toggle and a logic analyser instead.</li>
+<li><strong>Script repetitive set-up.</strong> Put the connection, <code>monitor reset halt</code>, <code>load</code> and your usual breakpoints in a file and start with <code>gdb -x debug.gdb build/app.elf</code>.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build any program from the Ketuna track D labs, start it on QEMU with <code>-s -S</code>, connect with <code>target remote :1234</code>, and step from <code>_start</code> to <code>main</code> with <code>stepi</code> while printing <code>$sp</code>.</li>
+<li>Set a watchpoint on a ring-buffer index, type into the QEMU console, and confirm that GDB stops inside the receive interrupt handler.</li>
+<li>With a real board and OpenOCD, read the UART status register with <code>x/1bx</code> before and after sending a character from your laptop, and explain each bit that changed.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>gdb</li><li>openocd</li><li>jtag</li><li>debugging</li><li>risc-v</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="safe-firmware-updates-ab-slots.html"><span>Previous in Embedded systems</span>Bootloaders and safe firmware updates: A/B slots, verification and rollback</a><a class="next" href="finding-the-cause-of-a-firmware-crash.html"><span>Next in Embedded systems</span>Finding the cause of a firmware crash from the trap state</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="finding-the-cause-of-a-firmware-crash.html">Finding the cause of a firmware crash from the trap state</a></h3>
+          <p>When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-happens-before-main.html">What happens before main(): startup code on a microcontroller</a></h3>
+          <p>Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

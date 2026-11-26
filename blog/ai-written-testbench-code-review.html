@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Using AI to write testbench code without trusting it blindly · Ketuna blog</title>
+  <meta name="description" content="Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Using AI to write testbench code without trusting it blindly · Ketuna blog">
+  <meta property="og:description" content="Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.">
+  <link rel="canonical" href="https://ketuna.online/blog/ai-written-testbench-code-review.html">
+  <meta property="og:url" content="https://ketuna.online/blog/ai-written-testbench-code-review.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Using AI to write testbench code without trusting it blindly",
+  "description": "Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ai tools, code review, cocotb, testbench, verification",
+  "articleSection": "Verification",
+  "wordCount": 864,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/ai-written-testbench-code-review.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Using AI to write testbench code without trusting it blindly</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-the-first-test-should-be-yours">Why the first test should be yours</a></li><li><a href="#give-it-the-spec-not-the-rtl">Give it the spec, not the RTL</a></li><li><a href="#a-worked-review">A worked review</a></li><li><a href="#a-review-checklist-for-generated-test-code">A review checklist for generated test code</a></li><li><a href="#keep-a-record">Keep a record</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>AI assistants are good at producing testbench code quickly: drivers, loops, random generators, boilerplate around a simulator. That speed is real and worth using. But a testbench has an unusual property. Its job is to fail when the design is wrong, and code that never fails looks exactly like code that works. A generated test that checks nothing will pass, and so will the next fifty. The habit that makes AI useful here is simple to state: write the first test yourself, then use AI for more, and review every generated check against the specification rather than against your sense that it looks plausible.</p>
+<h2 id="why-the-first-test-should-be-yours">Why the first test should be yours</h2>
+<p>Writing the first test by hand does three things no assistant can do for you.</p>
+<ul>
+<li><strong>You learn the interface.</strong> Reset polarity, when outputs are valid, how a handshake completes. Without that, you cannot judge whether generated code drives or samples correctly.</li>
+<li><strong>You build a known-good reference.</strong> A small test you understand line by line, and have seen fail against a deliberately broken design, becomes the yardstick for anything generated later.</li>
+<li><strong>You read the spec closely.</strong> Writing even one check forces you to decide what "correct" means, which is the knowledge you need for every review afterwards.</li>
+</ul>
+<p>Once that test exists and you have watched it catch a planted bug, an assistant can extend it far faster than you could, and you can tell when its output is wrong.</p>
+<h2 id="give-it-the-spec-not-the-rtl">Give it the spec, not the RTL</h2>
+<p>What you put into the prompt decides what the output can check. If you paste the RTL and ask for tests, the assistant will tend to describe what the RTL <em>does</em>, and tests derived from the RTL agree with the RTL, bugs included. Paste the relevant part of the specification instead: the register table, the protocol rules, the error behaviour. Then any disagreement between generated tests and the design is a real question.</p>
+<p>Follow your organisation's rules about what may be shared with external tools; design data is often confidential.</p>
+<h2 id="a-worked-review">A worked review</h2>
+<p>Suppose you ask for a cocotb test for a saturating 8-bit accumulator: each cycle with <code>en</code> high adds <code>din</code> to <code>acc</code>, which sticks at 255 instead of wrapping. Here is the kind of draft you might get back, with problems typical of generated test code.</p>
+<pre><code class="language-python">@cocotb.test()
+async def test_accumulate(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit=&quot;ns&quot;).start())
+    dut.rst.value = 1
+    await Timer(20, unit=&quot;ns&quot;)
+    dut.rst.value = 0
+    total = 0
+    for _ in range(50):
+        v = random.randint(0, 20)
+        dut.din.value = v
+        dut.en.value = 1
+        await RisingEdge(dut.clk)
+        total = int(dut.acc.value)            # (1)
+        assert int(dut.acc.value) == total    # (2)
+    try:
+        assert total &lt;= 255                   # (3)
+    except AssertionError:
+        dut._log.warning(&quot;overflow?&quot;)         # (4)
+</code></pre>
+<p>Read it as a reviewer, checking each line against the spec.</p>
+<ol>
+<li><strong>The expected value comes from the design.</strong> <code>total</code> is read from <code>acc</code>, so the model is the DUT itself.</li>
+<li><strong>The check is a tautology.</strong> Comparing <code>acc</code> with a value just read from <code>acc</code> can never fail.</li>
+<li><strong>The range check is meaningless.</strong> An 8-bit signal is always ≤ 255.</li>
+<li><strong>A failure is swallowed.</strong> Catching the assertion and logging a warning turns a failure into a pass.</li>
+</ol>
+<p>There are quieter problems too. Fifty values up to 20 sum to at most 1,000, so saturation is likely to happen, but the test never checks that <code>acc</code> stops at 255 rather than wrapping. <code>en</code> is never low, so "hold when disabled" is untested. Reset is released on a timer instead of a clock edge. And it samples <code>acc</code> right at the edge, where a registered output may still show its old value.</p>
+<p>Here is the reviewed version, with a model written from the spec.</p>
+<pre><code class="language-python">@cocotb.test()
+async def test_accumulate_saturates(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit=&quot;ns&quot;).start())
+    dut.rst.value, dut.en.value, dut.din.value = 1, 0, 0
+    await ClockCycles(dut.clk, 2)
+    dut.rst.value = 0
+    model, saturated = 0, False
+    for _ in range(200):
+        v, en = random.randint(0, 40), random.random() &lt; 0.8
+        dut.din.value, dut.en.value = v, int(en)
+        await RisingEdge(dut.clk)
+        await ReadOnly()
+        if en:
+            model = min(255, model + v)       # spec: stick at 255
+        saturated |= model == 255
+        assert int(dut.acc.value) == model, \
+            f&quot;acc={int(dut.acc.value)} expected {model}&quot;
+        await FallingEdge(dut.clk)            # leave read-only phase
+    assert saturated, &quot;test never reached saturation&quot;
+</code></pre>
+<p>The model is independent of the design, <code>en</code> is randomised, the check runs every cycle at a safe sampling point, and the final assertion proves the interesting case actually happened.</p>
+<h2 id="a-review-checklist-for-generated-test-code">A review checklist for generated test code</h2>
+<ul>
+<li>Where does each expected value come from? It must be the spec or a model, never the DUT's own outputs.</li>
+<li>Can each assertion fail? Imagine a broken design and trace whether the check would notice.</li>
+<li>Are any failures caught, logged and ignored?</li>
+<li>Is every signal name real, and does every API call exist in the tool version you use?</li>
+<li>Are outputs sampled at a defined point, such as after <code>ReadOnly()</code>?</li>
+<li>Does the stimulus reach the corners in the plan, and is there a check that it did?</li>
+<li>Is there an end-of-test check that something was actually compared?</li>
+</ul>
+<p>Then run the generated test against a design with a planted bug. If it passes, it is not finished.</p>
+<h2 id="keep-a-record">Keep a record</h2>
+<p>Note in a short log what you asked for, what came back, what was wrong, and how you found it: by review, by a planted bug, or by a test failure. Over a few weeks the log shows you where generated code needs the closest reading, and it lets a reviewer see how the testbench was built and checked.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a saturating accumulator in Verilog, and write one cocotb test for it by hand on Icarus Verilog; plant a wrapping bug and confirm your test catches it.</li>
+<li>Paste only the spec sentence into an AI assistant and ask for three more tests; review each with the checklist above before running anything.</li>
+<li>Run the generated tests against the buggy design; for any that pass, write down which checklist item explains why.</li>
+<li>Fix the tests, rerun against both versions of the design, and record what review caught and what only the planted bug revealed.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ai tools</li><li>code review</li><li>cocotb</li><li>testbench</li><li>verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="uvm-in-one-diagram.html"><span>Previous in Verification</span>UVM in one diagram: sequences, drivers, monitors and the agent</a><a class="next" href="riscv-core-lockstep-verification.html"><span>Next in Verification</span>Verifying a RISC-V core against a reference model in lockstep</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-cocotb-testbench.html">Your first cocotb testbench: clock, reset, drive and check a counter</a></h3>
+          <p>Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debugging-a-failing-test-systematically.html">Debugging a failing test systematically: from the first mismatch to root cause</a></h3>
+          <p>A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

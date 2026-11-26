@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Presenting your project in a short technical talk · Ketuna blog</title>
+  <meta name="description" content="Build a short project talk around one message and a problem-approach-result arc, with diagrams readable from the back row and a rehearsed demo that has a recorded fallback.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Presenting your project in a short technical talk · Ketuna blog">
+  <meta property="og:description" content="Build a short project talk around one message and a problem-approach-result arc, with diagrams readable from the back row and a rehearsed demo that has a recorded fallback.">
+  <link rel="canonical" href="https://ketuna.online/blog/presenting-your-project-in-a-short-talk.html">
+  <meta property="og:url" content="https://ketuna.online/blog/presenting-your-project-in-a-short-talk.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Presenting your project in a short technical talk",
+  "description": "Build a short project talk around one message and a problem-approach-result arc, with diagrams readable from the back row and a rehearsed demo that has a recorded fallback.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "presentation, communication, demo, diagrams",
+  "articleSection": "Careers & skills",
+  "wordCount": 1062,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/presenting-your-project-in-a-short-talk.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Presenting your project in a short technical talk</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build a short project talk around one message and a problem-approach-result arc, with diagrams readable from the back row and a rehearsed demo that has a recorded fallback.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-from-one-message">Start from one message</a></li><li><a href="#use-a-problem-approach-result-arc">Use a problem, approach, result arc</a></li><li><a href="#make-every-diagram-readable-from-the-back">Make every diagram readable from the back</a></li><li><a href="#a-demo-with-a-fallback">A demo with a fallback</a></li><li><a href="#handling-questions">Handling questions</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>At some point you will have ten minutes to explain months of work: at a project review, a demo day, a conference poster session or an interview panel. Most short technical talks fail in the same ways. They try to cover everything, they show slides nobody can read, and the live demo breaks. A good short talk is a different thing from a report read aloud, and it is built with a few deliberate choices.</p>
+<h2 id="start-from-one-message">Start from one message</h2>
+<p>Before you open any slide software, write one sentence that you want every listener to remember. Not the title, the message. For example:</p>
+<blockquote>
+<p>"We built a UART receiver that tolerates 4 % baud mismatch, and proved it with a random testbench that found two bugs our directed tests missed."</p>
+</blockquote>
+<p>Everything in the talk either supports that sentence or is cut. This is hard, because you know a hundred interesting details and each feels important. But a listener can carry away perhaps one or two ideas from a ten-minute talk. If you give them twelve, they choose at random, or remember none.</p>
+<p>The message also tells you what your evidence slide must show. In the example, that is the mismatch tolerance and the bugs found. If you cannot point to the slide that proves your message, the talk is not ready.</p>
+<h2 id="use-a-problem-approach-result-arc">Use a problem, approach, result arc</h2>
+<p>Technical audiences follow a simple structure easily. For a ten-minute slot, a rough split is:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Time</th>
+<th>What it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Problem</td>
+<td>1.5 min</td>
+<td>What were you trying to do, and why does it matter?</td>
+</tr>
+<tr>
+<td>Approach</td>
+<td>3 min</td>
+<td>What did you build, and what were the key decisions?</td>
+</tr>
+<tr>
+<td>Result</td>
+<td>3 min</td>
+<td>What does the evidence show? Demo here</td>
+</tr>
+<tr>
+<td>Limits and next</td>
+<td>1 min</td>
+<td>What does not work yet, and what would you do next?</td>
+</tr>
+<tr>
+<td>Close</td>
+<td>0.5 min</td>
+<td>Repeat the message</td>
+</tr>
+</tbody>
+</table></div>
+<p>Leave the remaining time for questions, or keep it as buffer, because talks almost always run longer than rehearsals suggest.</p>
+<p>Spend the approach section on <strong>decisions</strong>, not on a tour of every module. "We chose 16× oversampling and majority voting on the middle three samples, because it gave margin for clock mismatch at a small area cost" teaches the audience something. A slide listing all fourteen RTL files teaches nothing.</p>
+<p>Be honest about limits. A short "what does not work" slide makes the rest of the talk more credible, and it pre-empts the hardest question from the audience. Reviewers trust a presenter who knows where the edges are.</p>
+<h2 id="make-every-diagram-readable-from-the-back">Make every diagram readable from the back</h2>
+<p>Most technical slides fail by density. A rule of thumb that works: if a slide cannot be understood in the time it takes you to say two sentences about it, it has too much on it.</p>
+<p>For diagrams in particular:</p>
+<ul>
+<li><strong>One idea per diagram.</strong> A top-level block diagram with five boxes, not the full hierarchy.</li>
+<li><strong>Large text.</strong> If labels are smaller than the body text of the slide, they will be unreadable on a projector.</li>
+<li><strong>Highlight what you are talking about.</strong> Colour or outline the one block or path under discussion, and grey out the rest.</li>
+<li><strong>Redraw, do not paste.</strong> A screenshot of a full schematic, a 40-signal waveform or a raw timing report is unreadable. Redraw the four signals that matter, or crop and annotate.</li>
+<li><strong>Label axes and units</strong> on every plot, and say what "good" looks like before showing the line.</li>
+</ul>
+<p>Sketching your diagrams by hand first is a useful test. If you cannot draw the system simply on paper, the slide version will not be simple either.</p>
+<h2 id="a-demo-with-a-fallback">A demo with a fallback</h2>
+<p>A live demo is the most convincing thing you can show and the most likely thing to fail. Boards brown out on a weak USB port, a laptop updates itself, the projector changes the screen resolution, a cable is left at home. Plan for failure as part of the design.</p>
+<ul>
+<li><strong>Rehearse the exact demo</strong>, on the exact hardware and laptop, at least twice, ideally once in the actual room.</li>
+<li><strong>Script it.</strong> Write down every command and click. Put long commands in a script so you type one short line, not a paragraph under pressure.</li>
+<li><strong>Record a fallback.</strong> Capture a short screen recording or a set of screenshots of the demo working. If the live version fails, say so plainly, switch to the recording within a few seconds, and move on.</li>
+<li><strong>Prepare the starting state.</strong> Board flashed, terminal open at the right baud rate, files in place, notifications off.</li>
+<li><strong>Keep it short.</strong> A thirty-second demo that shows the key result beats a five-minute walkthrough.</li>
+</ul>
+<p>Switching calmly to a recording does not count against you. Spending three minutes debugging in front of the audience does.</p>
+<h2 id="handling-questions">Handling questions</h2>
+<p>Repeat or rephrase each question before answering, so everyone hears it and you confirm you understood it. Answer the question asked, briefly, then stop. If you do not know, say so and say how you would find out: "I have not measured power; I would run the gate-level activity through the open-source power analysis in the flow." Guessing confidently and being wrong costs more credibility than an honest "I don't know".</p>
+<p>Prepare for the three questions you most fear. They are usually about a limitation, a design choice you are unsure of, or the part a teammate built. Have a backup slide ready for each.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Starting with the table of contents.</strong> Start with the problem instead; ten minutes does not need a map.</li>
+<li><strong>Reading the slides aloud.</strong> The audience reads faster than you speak; say what the slide does not.</li>
+<li><strong>Too many slides.</strong> As a rough guide, one slide per minute or fewer.</li>
+<li><strong>No rehearsal with a timer.</strong> First-time talks run long; cut until the rehearsal fits with time to spare.</li>
+<li><strong>Ending on "any questions?"</strong> End on your message, then invite questions.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write your project's one-sentence message. Ask a classmate to read your current slides and tell you what they think the message is; compare.</li>
+<li>Draft five slides using the arc above. Redraw one dense diagram, such as a waveform from GTKWave or a layout view from KLayout, down to the few elements that matter, with large labels.</li>
+<li>Script your demo into a single shell script, and record a fallback screen capture of it working.</li>
+<li>Rehearse twice with a timer and one listener. Cut whatever made you run over, and note the questions they asked.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>presentation</li><li>communication</li><li>demo</li><li>diagrams</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="experienced-verification-interviews.html"><span>Previous in Careers &amp; skills</span>Preparing for experienced verification interviews: methodology questions and how to answer them</a><a class="next" href="python-for-hardware-engineers.html"><span>Next in Careers &amp; skills</span>Python for hardware engineers: the parts you will use every day</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="getting-the-most-from-a-mentor.html">Getting the most out of a mentor: bring questions, show work</a></h3>
+          <p>A mentor&#x27;s time is limited, so the value comes from your preparation. Bring specific questions, share work in progress early, and act on feedback between meetings so each session starts further ahead.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="lead-with-the-conclusion.html">Technical writing for engineers: lead with the conclusion</a></h3>
+          <p>Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

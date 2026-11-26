@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verification and validation: building the right product vs building it right · Ketuna blog</title>
+  <meta name="description" content="Verification checks that the product meets its requirements; validation checks that it meets the user&#x27;s real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Verification and validation: building the right product vs building it right · Ketuna blog">
+  <meta property="og:description" content="Verification checks that the product meets its requirements; validation checks that it meets the user&#x27;s real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.">
+  <link rel="canonical" href="https://ketuna.online/blog/verification-vs-validation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/verification-vs-validation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Verification and validation: building the right product vs building it right",
+  "description": "Verification checks that the product meets its requirements; validation checks that it meets the user's real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "verification, validation, v-model, requirements, testing",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 864,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/verification-vs-validation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Verification and validation: building the right product vs building it right</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Verification checks that the product meets its requirements; validation checks that it meets the user&#x27;s real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-questions-two-answers">Two questions, two answers</a></li><li><a href="#the-v-model">The V-model</a></li><li><a href="#examples-of-each">Examples of each</a></li><li><a href="#passing-one-failing-the-other">Passing one, failing the other</a></li><li><a href="#planning-both-from-the-start">Planning both from the start</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Imagine a soil moisture sensor that passes every test in its plan: accuracy within limits, battery life met, radio range met. Then farmers start using it and stop after a month, because it has to be pulled out of the ground to read, and nobody wants to dig it up every week. The team did everything right and still built the wrong product. Verification and validation are two different checks, and this story is what happens when you do only one of them.</p>
+<h2 id="two-questions-two-answers">Two questions, two answers</h2>
+<p>The short versions are worth memorising:</p>
+<ul>
+<li><strong>Verification: did we build the product right?</strong> Does the design meet its written requirements and specifications? The reference is the requirements document.</li>
+<li><strong>Validation: did we build the right product?</strong> Does the product meet the needs of its real users, in their real environment? The reference is the user and the problem.</li>
+</ul>
+<p>Verification can be done largely in a lab, by engineers, against numbers. Validation needs users, or at least realistic conditions and someone who represents the users. Both are necessary because requirements are themselves a translation of user needs, written by people who can misunderstand. Verification proves you followed the translation. Validation checks that the translation was right.</p>
+<h2 id="the-v-model">The V-model</h2>
+<p>A common way to picture the relationship is the V-model. The left side goes down from needs to requirements to design to implementation. The right side climbs back up, testing at each level against the matching item on the left.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="vv-title vv-desc" font-size="14">
+<title id="vv-title">The V-model linking specification levels to test levels</title>
+<desc id="vv-desc">A V shape. On the left, descending: user needs, system requirements, subsystem design, implementation at the bottom. On the right, ascending: unit tests, integration tests, system verification, and at the top, validation with users. Dashed horizontal lines connect each left box to the right box at the same level. The top line is labelled validation; the lower lines are labelled verification.</desc>
+<rect x="20" y="20" width="140" height="32" rx="4" class="dg-box"/>
+<text x="90" y="41" text-anchor="middle" class="dg-text">user needs</text>
+<rect x="60" y="80" width="140" height="32" rx="4" class="dg-box"/>
+<text x="130" y="101" text-anchor="middle" class="dg-text">system reqs</text>
+<rect x="100" y="140" width="140" height="32" rx="4" class="dg-box"/>
+<text x="170" y="161" text-anchor="middle" class="dg-text">subsystem design</text>
+<rect x="170" y="200" width="140" height="32" rx="4" class="dg-core"/>
+<text x="240" y="221" text-anchor="middle" class="dg-text">implementation</text>
+<rect x="240" y="140" width="140" height="32" rx="4" class="dg-track"/>
+<text x="310" y="161" text-anchor="middle" class="dg-text">unit + integration</text>
+<rect x="280" y="80" width="140" height="32" rx="4" class="dg-track"/>
+<text x="350" y="101" text-anchor="middle" class="dg-text">system tests</text>
+<rect x="320" y="20" width="140" height="32" rx="4" class="dg-amber" fill-opacity="0.35"/>
+<text x="390" y="41" text-anchor="middle" class="dg-text">user trials</text>
+<line x1="160" y1="36" x2="320" y2="36" class="dg-amber-line" stroke-width="2"/>
+<text x="240" y="30" text-anchor="middle" class="dg-text">validation</text>
+<line x1="200" y1="96" x2="280" y2="96" class="dg-dash"/>
+<text x="240" y="90" text-anchor="middle" class="dg-muted">verification</text>
+<line x1="90" y1="52" x2="130" y2="80" class="dg-line"/>
+<line x1="130" y1="112" x2="170" y2="140" class="dg-line"/>
+<line x1="170" y1="172" x2="210" y2="200" class="dg-line"/>
+<line x1="270" y1="200" x2="310" y2="172" class="dg-line"/>
+<line x1="310" y1="140" x2="350" y2="112" class="dg-line"/>
+<line x1="350" y1="80" x2="390" y2="52" class="dg-line"/>
+</svg>
+<figcaption>Each level on the right is checked against its partner on the left; only the top link, against user needs, is validation.</figcaption>
+</figure>
+
+<p>The V-model is sometimes criticised for suggesting a strict sequence, with no testing until the bottom is reached. Treat it as a map of <em>what is checked against what</em>, not as a schedule. Good teams start validation early, with prototypes and mock-ups, long before the right-hand side of the V is complete.</p>
+<h2 id="examples-of-each">Examples of each</h2>
+<p>For a clip-on safety badge that detects a fall and alerts a supervisor:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Verification or validation</th>
+<th>Checked against</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Measuring sleep current on the bench</td>
+<td>Verification</td>
+<td>Requirement: average current limit</td>
+</tr>
+<tr>
+<td>Running the fall-detection model on a recorded test set</td>
+<td>Verification</td>
+<td>Requirement: detection and false-alarm rates</td>
+</tr>
+<tr>
+<td>Drop test of the enclosure from a set height</td>
+<td>Verification</td>
+<td>Requirement: mechanical robustness</td>
+</tr>
+<tr>
+<td>Night-shift workers wearing prototypes for a week</td>
+<td>Validation</td>
+<td>Need: workers will actually wear it all shift</td>
+</tr>
+<tr>
+<td>Supervisors responding to alerts in a drill</td>
+<td>Validation</td>
+<td>Need: help arrives quickly when someone falls</td>
+</tr>
+<tr>
+<td>Checking that the alert tone is audible in a noisy plant</td>
+<td>Validation (and later a new requirement)</td>
+<td>Need: the wearer knows the alert was sent</td>
+</tr>
+</tbody>
+</table></div>
+<p>The last row shows something important. Validation often discovers needs that were never written down. When it does, the finding becomes a new requirement, and that requirement then gets verified. The two activities feed each other.</p>
+<h2 id="passing-one-failing-the-other">Passing one, failing the other</h2>
+<p>The opening story is a product that passed verification and failed validation: correct to its specification, wrong for its users. The cause was a missing need ("readable without removing the probe") that never became a requirement.</p>
+<p>The opposite also happens. A team builds a quick prototype that users love in a field trial, so validation looks good, but the design has never been checked against its temperature range or its battery-life requirement. It will fail in summer or need charging too often. Enthusiastic feedback does not replace measurement.</p>
+<p>For chip design the vocabulary is the same but the emphasis shifts. A large part of a chip team's effort is <em>design verification</em>: proving the RTL matches the specification, with simulation, coverage and formal methods. Validation of the chip happens in the system, often first on an FPGA prototype running real software, and then on silicon in the target product.</p>
+<h2 id="planning-both-from-the-start">Planning both from the start</h2>
+<p>A good plan names both activities for every major need:</p>
+<ul>
+<li>each requirement has a verification method (inspection, analysis, demonstration or test) and a test ID</li>
+<li>each key user need has a validation activity: who, where, under what conditions, and what result would count as success</li>
+<li>validation activities are scheduled early, on prototypes, when findings are cheap to act on</li>
+<li>results of both feed the same change process, so a validation finding becomes a tracked requirement</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating the requirements as the truth.</strong> They are a translation of needs and can be wrong. Validation is how you find out.</li>
+<li><strong>Validating only at the end.</strong> By then a missing need can cost a redesign.</li>
+<li><strong>Letting users stand in for measurement.</strong> Positive feedback on comfort says nothing about battery life at 45 °C.</li>
+<li><strong>Calling every test "validation".</strong> Using the words loosely hides which question has actually been answered.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take a project you have built and list five checks you made. Label each as verification or validation, and write what it was checked against.</li>
+<li>For the same project, write two user needs that you never validated, and design a short trial with real users to check each one.</li>
+<li>If your project includes RTL, write a <strong>cocotb</strong> test with <strong>Icarus Verilog</strong> that verifies one requirement, then describe in a paragraph how you would validate the same feature on an FPGA board with real inputs.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>verification</li><li>validation</li><li>v-model</li><li>requirements</li><li>testing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="traceability-from-requirement-to-test.html"><span>Previous in Systems &amp; product engineering</span>Traceability from requirement to test: why it saves projects</a><a class="next" href="requirements-that-can-be-tested.html"><span>Next in Systems &amp; product engineering</span>Writing requirements that can be tested: shall, measurable, one thing each</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="requirements-that-can-be-tested.html">Writing requirements that can be tested: shall, measurable, one thing each</a></h3>
+          <p>How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="traceability-from-requirement-to-test.html">Traceability from requirement to test: why it saves projects</a></h3>
+          <p>Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

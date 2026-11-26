@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RISC-V traps and CSRs: what happens between an interrupt and your handler · Ketuna blog</title>
+  <meta name="description" content="Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="RISC-V traps and CSRs: what happens between an interrupt and your handler · Ketuna blog">
+  <meta property="og:description" content="Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.">
+  <link rel="canonical" href="https://ketuna.online/blog/riscv-traps-and-csrs.html">
+  <meta property="og:url" content="https://ketuna.online/blog/riscv-traps-and-csrs.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RISC-V traps and CSRs: what happens between an interrupt and your handler",
+  "description": "Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, interrupts, exceptions, csr, firmware",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 901,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/riscv-traps-and-csrs.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>RISC-V traps and CSRs: what happens between an interrupt and your handler</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Follow a machine-mode trap step by step through mtvec, mepc, mcause and mstatus, write a minimal trap entry in assembly and C, and see exactly how mret puts everything back.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#exceptions-and-interrupts-share-one-mechanism">Exceptions and interrupts share one mechanism</a></li><li><a href="#what-the-hardware-does-in-order">What the hardware does, in order</a></li><li><a href="#a-minimal-trap-entry">A minimal trap entry</a></li><li><a href="#what-mret-undoes">What mret undoes</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a RISC-V microcontroller, a timer fires, and a few cycles later your C function <code>timer_tick()</code> is running. In between, the hardware does a short, precisely defined sequence of steps through a handful of control and status registers (CSRs), and your trap entry code does the rest. If you know that sequence you can write the entry code yourself, debug a handler that returns to the wrong place, and read a core's RTL with confidence. This article walks through machine mode, the one privilege level every RISC-V core has.</p>
+<h2 id="exceptions-and-interrupts-share-one-mechanism">Exceptions and interrupts share one mechanism</h2>
+<p>RISC-V calls both kinds of event a <strong>trap</strong>.</p>
+<ul>
+<li>An <strong>exception</strong> is caused by the instruction itself: an illegal instruction, a misaligned or faulting access, an <code>ecall</code> or an <code>ebreak</code>. It is synchronous; it happens at that instruction every time.</li>
+<li>An <strong>interrupt</strong> comes from outside the instruction stream: the machine timer, a software interrupt from another hart, or an external interrupt from a platform interrupt controller. It is asynchronous and is taken between instructions.</li>
+</ul>
+<p>Both go through the same entry sequence. The <code>mcause</code> register tells your handler which one it was: its most significant bit is 1 for interrupts and 0 for exceptions, and the remaining bits give the cause code.</p>
+<h2 id="what-the-hardware-does-in-order">What the hardware does, in order</h2>
+<p>When a trap is taken in machine mode, the core performs these updates as a single step:</p>
+<ol>
+<li><strong><code>mepc</code></strong> gets the address to come back to. For an exception, that is the faulting instruction itself. For an interrupt, it is the instruction that would have executed next.</li>
+<li><strong><code>mcause</code></strong> gets the cause: for example <code>0x8000_0007</code> for the machine timer interrupt, <code>0x0000_0002</code> for an illegal instruction, <code>0x0000_000B</code> for <code>ecall</code> from machine mode.</li>
+<li><strong><code>mtval</code></strong> gets extra information where it helps: the faulting address for an access fault or misaligned access, the bad instruction bits for an illegal instruction (if the core supports that), otherwise zero.</li>
+<li><strong><code>mstatus</code></strong> saves and disables interrupts: the previous interrupt enable <code>MIE</code> is copied into <code>MPIE</code>, <code>MIE</code> is cleared, and the previous privilege level is saved in <code>MPP</code>.</li>
+<li><strong>The PC</strong> jumps to the address in <strong><code>mtvec</code></strong>. In direct mode every trap goes to the same address. In vectored mode, interrupts go to <code>mtvec</code> base + 4 × cause, so each interrupt source can have its own entry point, while exceptions still go to the base.</li>
+</ol>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="tr-title tr-desc" font-size="14">
+<title id="tr-title">Machine-mode trap entry and return</title>
+<desc id="tr-desc">An event leads to hardware updates of mepc, mcause, mtval and mstatus, then a jump to mtvec. Software in the handler saves registers, handles the cause and restores registers. The mret instruction restores the PC from mepc and the interrupt enable from MPIE, returning to the interrupted code.</desc>
+<rect x="10" y="20" width="100" height="56" class="dg-box"/><text x="60" y="44" text-anchor="middle" class="dg-text">event</text><text x="60" y="62" text-anchor="middle" class="dg-muted">irq or fault</text>
+<line x1="110" y1="48" x2="124" y2="48" class="dg-line"/><path d="M124,44 L130,48 L124,52 Z" class="dg-arrow"/>
+<rect x="130" y="12" width="200" height="72" class="dg-core"/><text x="230" y="32" text-anchor="middle" class="dg-text">hardware, one step</text><text x="230" y="52" text-anchor="middle" class="dg-muted">mepc, mcause, mtval</text><text x="230" y="70" text-anchor="middle" class="dg-muted">MPIE←MIE, MIE←0, MPP</text>
+<line x1="330" y1="48" x2="344" y2="48" class="dg-line"/><path d="M344,44 L350,48 L344,52 Z" class="dg-arrow"/>
+<rect x="350" y="20" width="120" height="56" class="dg-box"/><text x="410" y="44" text-anchor="middle" class="dg-text">PC ← mtvec</text><text x="410" y="62" text-anchor="middle" class="dg-muted">trap entry</text>
+<line x1="410" y1="76" x2="410" y2="124" class="dg-line"/><path d="M406,124 L410,130 L414,124 Z" class="dg-arrow"/>
+<rect x="230" y="130" width="240" height="72" class="dg-amber" fill-opacity="0.3"/><text x="350" y="152" text-anchor="middle" class="dg-text">software handler</text><text x="350" y="172" text-anchor="middle" class="dg-muted">save regs, read mcause,</text><text x="350" y="190" text-anchor="middle" class="dg-muted">handle, restore regs</text>
+<line x1="230" y1="166" x2="196" y2="166" class="dg-line"/><path d="M196,162 L190,166 L196,170 Z" class="dg-arrow"/>
+<rect x="10" y="130" width="180" height="72" class="dg-core"/><text x="100" y="152" text-anchor="middle" class="dg-text">mret</text><text x="100" y="172" text-anchor="middle" class="dg-muted">PC←mepc, MIE←MPIE</text><text x="100" y="190" text-anchor="middle" class="dg-muted">privilege←MPP</text>
+</svg>
+<figcaption>Hardware saves only what it must; everything else, including the general registers, is the handler's job.</figcaption>
+</figure>
+
+<p>Notice what the hardware does <strong>not</strong> do: it saves no general-purpose registers and switches no stack. That is deliberate. A minimal trap entry keeps hardware small and leaves the policy to software, which knows how many registers it needs.</p>
+<p>Interrupts are taken only when they are enabled at two levels: the global <code>mstatus.MIE</code> bit, and the per-source bit in <code>mie</code> (bit 7, <code>MTIE</code>, for the timer). The <code>mip</code> register shows which sources are pending. An interrupt is taken when <code>MIE</code> is set and a source is both pending and enabled.</p>
+<h2 id="a-minimal-trap-entry">A minimal trap entry</h2>
+<p>Because a C function may freely overwrite the caller-saved registers (<code>ra</code>, <code>t0</code> to <code>t6</code>, <code>a0</code> to <code>a7</code>, sixteen in all), the entry code must save those before calling C. The callee-saved registers are preserved by the C function itself.</p>
+<pre><code class="language-text">    .text
+    .align 2                  # mtvec needs 4-byte alignment
+    .globl trap_entry
+trap_entry:
+    addi  sp, sp, -64         # 16 registers x 4 bytes
+    sw    ra,  0(sp)
+    sw    t0,  4(sp)
+    sw    t1,  8(sp)
+    sw    t2, 12(sp)
+    sw    a0, 16(sp)
+    sw    a1, 20(sp)
+    # ... a2-a7 and t3-t6 at 24(sp) to 60(sp)
+    csrr  a0, mcause          # argument 1
+    csrr  a1, mepc            # argument 2
+    call  trap_handler        # returns the resume address
+    csrw  mepc, a0
+    lw    ra,  0(sp)
+    # ... restore the other 15 registers
+    addi  sp, sp, 64
+    mret
+</code></pre>
+<p>The C side decides what to do and where to resume:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define MCAUSE_IRQ (1u &lt;&lt; 31)
+
+void timer_tick(void);   /* writes a new mtimecmp */
+
+uint32_t trap_handler(uint32_t mcause, uint32_t mepc)
+{
+    if (mcause &amp; MCAUSE_IRQ) {
+        if ((mcause &amp; 0x7FFFFFFFu) == 7u)
+            timer_tick();
+        return mepc;          /* resume where we were */
+    }
+    if (mcause == 11u)        /* ecall from M-mode */
+        return mepc + 4u;     /* ecall is always 4 bytes */
+    for (;;) { }              /* unexpected: stop for the debugger */
+}
+</code></pre>
+<p>The <code>ecall</code> case shows the most common trap bug. For an exception, <code>mepc</code> points at the trapping instruction. If the handler returns to it unchanged, the core executes <code>ecall</code> again, traps again, and loops forever. For an interrupt, <code>mepc</code> already points to the next instruction, so it must not be adjusted.</p>
+<p>The timer case shows the second most common bug. The machine timer interrupt stays pending while <code>mtime</code> ≥ <code>mtimecmp</code>. If <code>timer_tick()</code> does not write a later value into <code>mtimecmp</code>, the interrupt fires again the moment <code>mret</code> re-enables interrupts.</p>
+<p>To set it all up: write the address of <code>trap_entry</code> into <code>mtvec</code> (low two bits 0 for direct mode), set <code>MTIE</code> in <code>mie</code>, and finally set <code>MIE</code> in <code>mstatus</code>, for example with <code>csrsi mstatus, 8</code>, since <code>MIE</code> is bit 3.</p>
+<h2 id="what-mret-undoes">What mret undoes</h2>
+<p><code>mret</code> reverses step 4 and step 5: the PC is loaded from <code>mepc</code>, <code>MIE</code> is restored from <code>MPIE</code>, <code>MPIE</code> is set to 1, and the privilege level returns to the one saved in <code>MPP</code>. Because <code>MIE</code> was cleared on entry and is restored only by <code>mret</code>, a handler is not interrupted by another machine-mode interrupt unless it deliberately sets <code>MIE</code> again. Nested interrupts are possible, but then the handler must first save <code>mepc</code> and <code>mstatus</code>, since a second trap would overwrite them.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Returning to <code>mepc</code> after an exception.</strong> The instruction traps again; advance past it if the cause is handled.</li>
+<li><strong>Not clearing the interrupt source.</strong> Level-sensitive sources re-trigger immediately after <code>mret</code>.</li>
+<li><strong>Misaligned <code>mtvec</code>.</strong> The low bits are the mode field, so an odd handler address silently changes the mode.</li>
+<li><strong>Enabling <code>MIE</code> before <code>mtvec</code> is set.</strong> The first interrupt jumps to whatever reset left in <code>mtvec</code>.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build the entry code and handler with a RISC-V GCC cross-compiler for <code>rv32imac</code> with <code>-mabi=ilp32</code> and run it on the QEMU <code>virt</code> machine, which has a machine timer.</li>
+<li>Start QEMU with <code>-s -S</code> and connect GDB; put a breakpoint on <code>trap_handler</code> and print <code>mcause</code>, <code>mepc</code> and <code>mstatus</code> at each trap.</li>
+<li>Add a deliberate illegal instruction (<code>.word 0</code>) and check that <code>mcause</code> is 2 and <code>mepc</code> points at it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>interrupts</li><li>exceptions</li><li>csr</li><li>firmware</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="navic-receiver-hw-sw-partition.html"><span>Previous in Computer architecture &amp; RISC-V</span>Partitioning a NavIC receiver SoC between hardware correlators and firmware</a><a class="next" href="rv32i-instruction-formats.html"><span>Next in Computer architecture &amp; RISC-V</span>RV32I in one sitting: every instruction format and why it is laid out that way</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-an-soc-memory-map.html">Designing an SoC memory map: regions, alignment and room to grow</a></h3>
+          <p>Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="riscv-interrupt-controllers.html">Interrupt controllers in RISC-V SoCs: what the core-local and platform-level units do</a></h3>
+          <p>Timer and software interrupts stay local to each hart; external interrupts pass through a platform-level controller with priorities, thresholds and claim/complete. How the pieces fit and where they bite.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -6,7 +6,87 @@
     <atom:link href="https://ketuna.online/blog/feed.xml" rel="self" type="application/rss+xml"/>
     <description>Practical articles on chips, firmware and products from Ketuna.</description>
     <language>en-in</language>
-    <lastBuildDate>Thu, 26 Nov 2026 20:13:26 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 26 Nov 2026 20:46:23 +0000</lastBuildDate>
+    <item>
+      <title>Zephyr devicetree for beginners: describing hardware so drivers can find it</title>
+      <link>https://ketuna.online/blog/zephyr-devicetree-first-look.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/zephyr-devicetree-first-look.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.</description>
+    </item>
+    <item>
+      <title>Your first time as a technical lead: planning, unblocking and reviewing</title>
+      <link>https://ketuna.online/blog/first-time-technical-lead.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/first-time-technical-lead.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>A new technical lead&#x27;s job shifts from doing the work to making the team&#x27;s work succeed. How to break work down, keep people unblocked, review well, and still keep your own engineering skills sharp.</description>
+    </item>
+    <item>
+      <title>Your first cocotb testbench: clock, reset, drive and check a counter</title>
+      <link>https://ketuna.online/blog/first-cocotb-testbench.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/first-cocotb-testbench.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.</description>
+    </item>
+    <item>
+      <title>Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</title>
+      <link>https://ketuna.online/blog/first-circuit-in-xschem-and-ngspice.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/first-circuit-in-xschem-and-ngspice.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Analog &amp; mixed-signal</category>
+      <description>Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.</description>
+    </item>
+    <item>
+      <title>X in RTL simulation: how unknowns hide bugs and how to flush them out</title>
+      <link>https://ketuna.online/blog/x-propagation-in-rtl-simulation.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/x-propagation-in-rtl-simulation.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.</description>
+    </item>
+    <item>
+      <title>Writing your first SDC: clocks, I/O delays and false paths</title>
+      <link>https://ketuna.online/blog/writing-your-first-sdc.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/writing-your-first-sdc.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Physical design &amp; tape-out</category>
+      <description>Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.</description>
+    </item>
+    <item>
+      <title>Writing the requirements for a BLDC motor controller, from fans to e-mobility</title>
+      <link>https://ketuna.online/blog/bldc-controller-requirements.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/bldc-controller-requirements.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Systems &amp; product engineering</category>
+      <description>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</description>
+    </item>
+    <item>
+      <title>Writing reusable Verilog with parameters and generate blocks</title>
+      <link>https://ketuna.online/blog/parameterized-verilog-modules.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/parameterized-verilog-modules.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Digital &amp; VLSI design</category>
+      <description>Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</description>
+    </item>
+    <item>
+      <title>Writing requirements that can be tested: shall, measurable, one thing each</title>
+      <link>https://ketuna.online/blog/requirements-that-can-be-tested.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/requirements-that-can-be-tested.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Systems &amp; product engineering</category>
+      <description>How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</description>
+    </item>
+    <item>
+      <title>Writing int8 inference for one dense layer in plain C</title>
+      <link>https://ketuna.online/blog/int8-dense-layer-in-plain-c.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/int8-dense-layer-in-plain-c.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Edge AI</category>
+      <description>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</description>
+    </item>
     <item>
       <title>Writing an interrupt-safe ring buffer for UART receive</title>
       <link>https://ketuna.online/blog/interrupt-safe-uart-ring-buffer.html</link>
@@ -14,6 +94,254 @@
       <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
       <category>Embedded systems</category>
       <description>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</description>
+    </item>
+    <item>
+      <title>Writing a weekly status update that managers and peers can scan</title>
+      <link>https://ketuna.online/blog/weekly-status-update.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/weekly-status-update.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>A good weekly status update fits in a few lines, done, next, blocked and risks, each backed by a link to evidence rather than adjectives. Here is the format, a worked example and the mistakes to avoid.</description>
+    </item>
+    <item>
+      <title>Writing a verification plan that someone can actually check against</title>
+      <link>https://ketuna.online/blog/writing-a-verification-plan.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/writing-a-verification-plan.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Turn a specification into numbered plan items, each with a stimulus, a check and a coverage goal, so that anyone can trace a requirement to the test that proves it.</description>
+    </item>
+    <item>
+      <title>Writing a small device driver: the layers between a register and an API</title>
+      <link>https://ketuna.online/blog/writing-a-small-device-driver.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/writing-a-small-device-driver.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.</description>
+    </item>
+    <item>
+      <title>Writing a little RISC-V assembly to understand what your C compiles to</title>
+      <link>https://ketuna.online/blog/assembly-to-understand-your-c.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/assembly-to-understand-your-c.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Computer architecture &amp; RISC-V</category>
+      <description>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</description>
+    </item>
+    <item>
+      <title>Writing a blameless postmortem after a failed lab or project</title>
+      <link>https://ketuna.online/blog/blameless-postmortems.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/blameless-postmortems.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>How to write a postmortem after a project goes wrong: a factual timeline, contributing causes found with &quot;why&quot; questions, what went well, and concrete actions with owners, all without blaming people.</description>
+    </item>
+    <item>
+      <title>Writing a README that explains your project in two minutes</title>
+      <link>https://ketuna.online/blog/a-readme-that-explains-in-two-minutes.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/a-readme-that-explains-in-two-minutes.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</description>
+    </item>
+    <item>
+      <title>Working in a capstone team: roles, milestones and disagreements</title>
+      <link>https://ketuna.online/blog/working-in-a-capstone-team.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/working-in-a-capstone-team.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>How a small capstone team avoids the usual failures: agree interfaces and owners in week one, track milestones by what is tested, and settle technical disagreements with data instead of volume.</description>
+    </item>
+    <item>
+      <title>Wireless products in India: the approvals to plan for before launch</title>
+      <link>https://ketuna.online/blog/planning-wireless-approvals.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/planning-wireless-approvals.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.</description>
+    </item>
+    <item>
+      <title>Will the model fit? Estimating flash and RAM for TinyML</title>
+      <link>https://ketuna.online/blog/will-the-model-fit-flash-and-ram.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/will-the-model-fit-flash-and-ram.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Edge AI</category>
+      <description>Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.</description>
+    </item>
+    <item>
+      <title>Will every task meet its deadline? Response-time analysis worked by hand</title>
+      <link>https://ketuna.online/blog/response-time-analysis-by-hand.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/response-time-analysis-by-hand.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.</description>
+    </item>
+    <item>
+      <title>Why owning design IP matters for an electronics ecosystem</title>
+      <link>https://ketuna.online/blog/why-design-ip-ownership-matters.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/why-design-ip-ownership-matters.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>The difference between assembling electronic products and owning their designs, how owning the design changes who controls cost, features and supply, and what it means for the skills engineers build.</description>
+    </item>
+    <item>
+      <title>Why low-cost water quality sensing matters, and what makes it hard</title>
+      <link>https://ketuna.online/blog/why-low-cost-water-quality-sensing-is-hard.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/why-low-cost-water-quality-sensing-is-hard.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.</description>
+    </item>
+    <item>
+      <title>Why hold violations are worse than setup violations, and how tools fix them</title>
+      <link>https://ketuna.online/blog/why-hold-violations-are-worse.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/why-hold-violations-are-worse.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Physical design &amp; tape-out</category>
+      <description>A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.</description>
+    </item>
+    <item>
+      <title>Why an I2C bus gets stuck low, and how firmware recovers it</title>
+      <link>https://ketuna.online/blog/recovering-a-stuck-i2c-bus.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/recovering-a-stuck-i2c-bus.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</description>
+    </item>
+    <item>
+      <title>Why a two-flop synchronizer works, and when it doesn&#x27;t</title>
+      <link>https://ketuna.online/blog/why-a-two-flop-synchronizer-works.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/why-a-two-flop-synchronizer-works.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Digital &amp; VLSI design</category>
+      <description>A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.</description>
+    </item>
+    <item>
+      <title>Why RISC-V scrambles its immediate bits</title>
+      <link>https://ketuna.online/blog/why-riscv-scrambles-immediates.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/why-riscv-scrambles-immediates.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Computer architecture &amp; RISC-V</category>
+      <description>Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.</description>
+    </item>
+    <item>
+      <title>Why BLDC motors are spreading in fans and appliances, and the chip inside</title>
+      <link>https://ketuna.online/blog/bldc-motors-in-fans-and-appliances.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/bldc-motors-in-fans-and-appliances.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</description>
+    </item>
+    <item>
+      <title>Why 100% code coverage does not mean the design is verified</title>
+      <link>https://ketuna.online/blog/full-code-coverage-is-not-done.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/full-code-coverage-is-not-done.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Line, branch, toggle and FSM coverage show which parts of the RTL were exercised. They cannot show wrong conditions that were never tested at the boundary, unchecked outputs, or features nobody wrote.</description>
+    </item>
+    <item>
+      <title>Which corners to sign off: process, voltage and temperature for digital timing</title>
+      <link>https://ketuna.online/blog/signoff-corners-for-digital-timing.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/signoff-corners-for-digital-timing.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Physical design &amp; tape-out</category>
+      <description>Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.</description>
+    </item>
+    <item>
+      <title>Where dynamic power goes: activity, capacitance, voltage and frequency</title>
+      <link>https://ketuna.online/blog/where-dynamic-power-goes.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/where-dynamic-power-goes.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Digital &amp; VLSI design</category>
+      <description>Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.</description>
+    </item>
+    <item>
+      <title>Where accidental latches come from, and how to read the synthesis warning</title>
+      <link>https://ketuna.online/blog/where-accidental-latches-come-from.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/where-accidental-latches-come-from.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Digital &amp; VLSI design</category>
+      <description>A combinational block that does not assign every output on every path makes synthesis infer a latch. Learn to spot the cause, read the warning, and prevent it with defaults and always_comb.</description>
+    </item>
+    <item>
+      <title>When to ask for help, and how to ask so you get a useful answer</title>
+      <link>https://ketuna.online/blog/asking-for-help-well.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/asking-for-help-well.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Careers &amp; skills</category>
+      <description>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</description>
+    </item>
+    <item>
+      <title>When gate-level simulation is still worth running</title>
+      <link>https://ketuna.online/blog/when-gate-level-simulation-pays.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/when-gate-level-simulation-pays.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.</description>
+    </item>
+    <item>
+      <title>What volatile really does in embedded C, and what it does not</title>
+      <link>https://ketuna.online/blog/what-volatile-really-does.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-volatile-really-does.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</description>
+    </item>
+    <item>
+      <title>What simulation cannot tell you about clock domain crossings</title>
+      <link>https://ketuna.online/blog/what-simulation-misses-in-cdc.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-simulation-misses-in-cdc.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>RTL simulation never goes metastable and resolves every synchronizer in a fixed number of cycles, so it hides real CDC bugs. Structural checks, randomised synchronizer delay and targeted assertions fill the gap.</description>
+    </item>
+    <item>
+      <title>What logic synthesis actually does to your RTL</title>
+      <link>https://ketuna.online/blog/what-logic-synthesis-does.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-logic-synthesis-does.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Physical design &amp; tape-out</category>
+      <description>Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.</description>
+    </item>
+    <item>
+      <title>What happens in an assembly and test facility: from wafer to packaged, tested part</title>
+      <link>https://ketuna.online/blog/inside-an-assembly-and-test-facility.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/inside-an-assembly-and-test-facility.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.</description>
+    </item>
+    <item>
+      <title>What happens before main(): startup code on a microcontroller</title>
+      <link>https://ketuna.online/blog/what-happens-before-main.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-happens-before-main.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Embedded systems</category>
+      <description>Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.</description>
+    </item>
+    <item>
+      <title>What an instruction set promises, and what it leaves to the hardware</title>
+      <link>https://ketuna.online/blog/what-an-isa-promises.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-an-isa-promises.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Computer architecture &amp; RISC-V</category>
+      <description>An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.</description>
+    </item>
+    <item>
+      <title>What a low-cost vision sensor can classify on-chip</title>
+      <link>https://ketuna.online/blog/what-a-tiny-vision-sensor-can-classify.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-a-tiny-vision-sensor-can-classify.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Edge AI</category>
+      <description>Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.</description>
+    </item>
+    <item>
+      <title>What a drone flight-controller SoC needs: latency, sensor interfaces and safety</title>
+      <link>https://ketuna.online/blog/drone-flight-controller-soc-needs.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/drone-flight-controller-soc-needs.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Computer architecture &amp; RISC-V</category>
+      <description>A flight controller is a hard real-time system with many serial and PWM interfaces and no tolerance for hangs. Derive its SoC requirements from a control-loop latency budget, the sensor list and the fail-safes.</description>
     </item>
     <item>
       <title>What NavIC is, and what it takes to build a receiver for it</title>
@@ -24,12 +352,60 @@
       <description>NavIC is India&#x27;s regional satellite navigation system. This article explains how it differs from global systems, how any satellite receiver finds its position, and what a NavIC receiver chip has to do.</description>
     </item>
     <item>
-      <title>Setup and hold time, explained with one flip-flop and a clock edge</title>
-      <link>https://ketuna.online/blog/setup-and-hold-time-explained.html</link>
-      <guid isPermaLink="true">https://ketuna.online/blog/setup-and-hold-time-explained.html</guid>
+      <title>What BIS registration and certification mean for an electronics product</title>
+      <link>https://ketuna.online/blog/what-bis-certification-means.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/what-bis-certification-means.html</guid>
       <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
-      <category>Digital &amp; VLSI design</category>
-      <description>A flip-flop needs its input to sit still for a short window around the clock edge. Here is what that window is, why missing it breaks a design, and how to work out the fastest safe clock by hand.</description>
+      <category>India&#x27;s electronics ecosystem</category>
+      <description>What India&#x27;s national standards body does, how product registration and certification work in outline, what an engineer must prepare for them, and why you must check the current product lists yourself.</description>
+    </item>
+    <item>
+      <title>Weight-stationary, output-stationary and row-stationary dataflows compared</title>
+      <link>https://ketuna.online/blog/accelerator-dataflows-compared.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/accelerator-dataflows-compared.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Edge AI</category>
+      <description>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</description>
+    </item>
+    <item>
+      <title>Virtual memory and the TLB: translating addresses without slowing down</title>
+      <link>https://ketuna.online/blog/virtual-memory-and-the-tlb.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/virtual-memory-and-the-tlb.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Computer architecture &amp; RISC-V</category>
+      <description>A RISC-V Sv32 page walk worked step by step, why every access cannot afford it, and the TLB choices that hide it (reach, superpages, ASIDs, fences, the VIPT limit).</description>
+    </item>
+    <item>
+      <title>Verifying battery-protection logic: over-voltage, under-voltage and fault latching</title>
+      <link>https://ketuna.online/blog/verifying-battery-protection-logic.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/verifying-battery-protection-logic.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.</description>
+    </item>
+    <item>
+      <title>Verifying an ML accelerator against a numpy golden model</title>
+      <link>https://ketuna.online/blog/verifying-an-ml-accelerator.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/verifying-an-ml-accelerator.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Edge AI</category>
+      <description>An ML accelerator is verified like any datapath, against a bit-exact integer reference. Writing that numpy golden model, choosing random and corner tensors, and comparing layer by layer to localise bugs.</description>
+    </item>
+    <item>
+      <title>Verifying a UART end to end: framing, baud error and coverage closure</title>
+      <link>https://ketuna.online/blog/verifying-a-uart-end-to-end.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/verifying-a-uart-end-to-end.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.</description>
+    </item>
+    <item>
+      <title>Verifying a RISC-V core against a reference model in lockstep</title>
+      <link>https://ketuna.online/blog/riscv-core-lockstep-verification.html</link>
+      <guid isPermaLink="true">https://ketuna.online/blog/riscv-core-lockstep-verification.html</guid>
+      <pubDate>Fri, 27 Nov 2026 06:00:00 +0000</pubDate>
+      <category>Verification</category>
+      <description>Compare a core&#x27;s architectural state with an instruction set simulator after every retired instruction, and handle the hard parts - traps, interrupts, counters and device reads - without false mismatches.</description>
     </item>
   </channel>
 </rss>

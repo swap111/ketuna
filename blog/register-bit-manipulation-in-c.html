@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setting, clearing and testing register bits safely in C · Ketuna blog</title>
+  <meta name="description" content="Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Setting, clearing and testing register bits safely in C · Ketuna blog">
+  <meta property="og:description" content="Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.">
+  <link rel="canonical" href="https://ketuna.online/blog/register-bit-manipulation-in-c.html">
+  <meta property="og:url" content="https://ketuna.online/blog/register-bit-manipulation-in-c.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Setting, clearing and testing register bits safely in C",
+  "description": "Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "embedded c, registers, bit manipulation, gpio, interrupts",
+  "articleSection": "Embedded systems",
+  "wordCount": 919,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/register-bit-manipulation-in-c.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Setting, clearing and testing register bits safely in C</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#masks-shifts-and-the-four-operations">Masks, shifts and the four operations</a></li><li><a href="#multi-bit-fields">Multi-bit fields</a></li><li><a href="#hazard-one-read-modify-write-meets-an-interrupt">Hazard one: read-modify-write meets an interrupt</a></li><li><a href="#hazard-two-bits-that-react-to-being-written">Hazard two: bits that react to being written</a></li><li><a href="#pitfalls-checklist">Pitfalls checklist</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Almost every line of a low-level driver changes a few bits in a 32-bit register and leaves the rest alone. The C operators for this are simple, and that is the danger: <code>REG |= BIT</code> looks like one action but is three, and on real hardware those three steps can collide with an interrupt or with bits that react to being written. This article covers the idioms, then the two hazards that break them, and the register designs that make them safe.</p>
+<h2 id="masks-shifts-and-the-four-operations">Masks, shifts and the four operations</h2>
+<p>Name every bit with a mask built from an unsigned shift:</p>
+<pre><code class="language-c">#define UART_CTRL_TXEN   (1u &lt;&lt; 0)
+#define UART_CTRL_RXEN   (1u &lt;&lt; 1)
+</code></pre>
+<p>The <code>u</code> matters. <code>1 &lt;&lt; 31</code> shifts a 1 into the sign bit of a signed <code>int</code>, which is undefined behaviour in C; the optimiser is allowed to assume it never happens. <code>1u &lt;&lt; 31</code> is well defined.</p>
+<p>With a mask <code>m</code> the four operations are:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Code</th>
+<th>Why it works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Set bits</td>
+<td><code>reg |= m;</code></td>
+<td>OR with 1 forces a 1; OR with 0 keeps the bit</td>
+</tr>
+<tr>
+<td>Clear bits</td>
+<td><code>reg &amp;= ~m;</code></td>
+<td>AND with 0 forces a 0; AND with 1 keeps the bit</td>
+</tr>
+<tr>
+<td>Toggle bits</td>
+<td><code>reg ^= m;</code></td>
+<td>XOR with 1 flips; XOR with 0 keeps</td>
+</tr>
+<tr>
+<td>Test a bit</td>
+<td><code>(reg &amp; m) != 0</code></td>
+<td>Non-zero only if the bit is set</td>
+</tr>
+</tbody>
+</table></div>
+<p>Write the test as <code>!= 0</code> rather than <code>== m</code> unless you really mean "all of these bits". For a single-bit mask they agree; for a multi-bit mask they do not.</p>
+<h2 id="multi-bit-fields">Multi-bit fields</h2>
+<p>Many registers pack small numbers into fields: a 3-bit mode, an 8-bit divider. Describe each field by a shift and a mask, and write it in two steps, clear then insert:</p>
+<pre><code class="language-c">/* A made-up control register: bit 0 EN, bits 6:4 MODE, bits 15:8 DIV */
+#define CTRL_EN          (1u &lt;&lt; 0)
+#define CTRL_MODE_SHIFT  4u
+#define CTRL_MODE_MASK   (0x7u &lt;&lt; CTRL_MODE_SHIFT)
+#define CTRL_DIV_SHIFT   8u
+#define CTRL_DIV_MASK    (0xFFu &lt;&lt; CTRL_DIV_SHIFT)
+
+static inline uint32_t field_set(uint32_t reg, uint32_t mask,
+                                 uint32_t shift, uint32_t val)
+{
+    return (reg &amp; ~mask) | ((val &lt;&lt; shift) &amp; mask);
+}
+
+static inline uint32_t field_get(uint32_t reg, uint32_t mask,
+                                 uint32_t shift)
+{
+    return (reg &amp; mask) &gt;&gt; shift;
+}
+</code></pre>
+<p>The final <code>&amp; mask</code> in <code>field_set</code> stops an out-of-range value from spilling into the neighbouring field: writing 9 into a 3-bit field gives 1, not a corrupted divider. Starting from <code>0xA5A5A5A5</code>, setting MODE to 3, DIV to <code>0x10</code> and EN gives <code>0xA5A510B5</code>; you can check by hand that the upper 16 bits are untouched.</p>
+<p>When writing a real register, read it once into a local, apply all the field changes to the local, and write it back once. Each access to a <code>volatile</code> register is a real bus transaction, and some peripherals act on every write.</p>
+<h2 id="hazard-one-read-modify-write-meets-an-interrupt">Hazard one: read-modify-write meets an interrupt</h2>
+<p><code>GPIO_OUT |= LED</code> compiles to a load, an OR and a store. Suppose a timer ISR toggles a different pin in the same register:</p>
+<ol>
+<li>Main loop loads <code>GPIO_OUT</code> = <code>0b0000</code>.</li>
+<li>The timer interrupt fires. The ISR sets bit 2: the register becomes <code>0b0100</code>.</li>
+<li>Main loop ORs bit 0 into its stale copy and stores <code>0b0001</code>.</li>
+</ol>
+<p>The ISR's change to bit 2 is gone, and nothing reports an error. This is not fixed by <code>volatile</code>: volatile guarantees the load and store happen, not that nothing happens between them. It shows up only when the interrupt lands in a window of two or three instructions, so it can survive weeks of testing.</p>
+<p>There are three fixes, in order of preference:</p>
+<ul>
+<li><strong>Use the hardware's set and clear registers.</strong> Many GPIO and interrupt blocks provide separate addresses where writing a 1 sets (or clears) that bit and writing 0 does nothing. <code>GPIO_SET = LED;</code> is a single store with no read, so nothing can slip in between.</li>
+<li><strong>Use an atomic instruction.</strong> On RISC-V, the control and status registers have <code>csrs</code> and <code>csrc</code> instructions that set or clear bits atomically; that is how firmware enables interrupts in <code>mstatus</code> safely. For memory-mapped registers the "A" extension's atomic memory operations exist, but whether a peripheral supports them depends on the bus, so check the manual.</li>
+<li><strong>Make it a short critical section.</strong> Disable interrupts, do the read-modify-write, restore the previous interrupt state.</li>
+</ul>
+<h2 id="hazard-two-bits-that-react-to-being-written">Hazard two: bits that react to being written</h2>
+<p>Not every bit is plain storage. Status registers often have <strong>write-1-to-clear</strong> (W1C) flags: the hardware sets a flag, and firmware clears it by writing a 1 to that bit position. Now look at what <code>STATUS |= RX_DONE</code> does when both <code>RX_DONE</code> and <code>TX_DONE</code> are set: it reads both 1s and writes both back, clearing <em>both</em> flags. The transmit event is lost.</p>
+<p>For a W1C register, never read-modify-write. Write only the bit you mean:</p>
+<pre><code class="language-c">STATUS = RX_DONE;    /* clears RX_DONE; writing 0 elsewhere has no effect */
+</code></pre>
+<p>Other bit types to look for in the register description:</p>
+<ul>
+<li><strong>Read-to-clear:</strong> reading the register clears flags, so even a debugger window that polls it changes behaviour.</li>
+<li><strong>Write-only or reserved bits:</strong> they may read as 0 whatever you wrote, so a read-modify-write can reset a field you set earlier. Reserved bits should usually be written with their reset value.</li>
+<li><strong>Self-clearing bits:</strong> a "start" bit that hardware clears when done. Reading back 0 is normal.</li>
+</ul>
+<h2 id="pitfalls-checklist">Pitfalls checklist</h2>
+<ul>
+<li>Signed shifts: always <code>1u &lt;&lt; n</code> or <code>UINT32_C(1) &lt;&lt; n</code>.</li>
+<li>Integer promotion: <code>~(uint8_t)0x01</code> is an <code>int</code> with value -2, not <code>0xFE</code>. Cast or mask the result when working with narrow types.</li>
+<li>Precedence: <code>reg &amp; mask == 0</code> parses as <code>reg &amp; (mask == 0)</code>. Use parentheses.</li>
+<li>Testing a bit you just wrote in a write-only field. Keep a shadow copy in RAM if you need to know what you wrote.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Copy <code>field_set</code> and <code>field_get</code> into a host C file and write <code>assert</code> tests with <code>gcc</code>: out-of-range values, the top field in the register, and a check that every bit outside the mask is unchanged.</li>
+<li>Compile <code>GPIO_OUT |= 1u;</code> for RISC-V with <code>riscv64-unknown-elf-gcc -O2 -S</code> and find the load, OR and store. Mark the instruction gap where an interrupt would cause a lost update.</li>
+<li>Open the register description of any peripheral in a reference manual and classify each status bit as read/write, W1C, read-to-clear or read-only. Compare your list with a colleague's.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>embedded c</li><li>registers</li><li>bit manipulation</li><li>gpio</li><li>interrupts</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="firmware-ci-with-qemu-and-renode.html"><span>Previous in Embedded systems</span>Running firmware without a board: QEMU and Renode in CI</a><a class="next" href="six-step-bldc-commutation.html"><span>Next in Embedded systems</span>Six-step BLDC commutation in firmware: Hall sensors, PWM and timing</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-volatile-really-does.html">What volatile really does in embedded C, and what it does not</a></h3>
+          <p>volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
+          <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

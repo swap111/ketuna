@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What simulation cannot tell you about clock domain crossings · Ketuna blog</title>
+  <meta name="description" content="RTL simulation never goes metastable and resolves every synchronizer in a fixed number of cycles, so it hides real CDC bugs. Structural checks, randomised synchronizer delay and targeted assertions fill the gap.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What simulation cannot tell you about clock domain crossings · Ketuna blog">
+  <meta property="og:description" content="RTL simulation never goes metastable and resolves every synchronizer in a fixed number of cycles, so it hides real CDC bugs. Structural checks, randomised synchronizer delay and targeted assertions fill the gap.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-simulation-misses-in-cdc.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-simulation-misses-in-cdc.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What simulation cannot tell you about clock domain crossings",
+  "description": "RTL simulation never goes metastable and resolves every synchronizer in a fixed number of cycles, so it hides real CDC bugs. Structural checks, randomised synchronizer delay and targeted assertions fill the gap.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "cdc, metastability, synchronizers, assertions, simulation",
+  "articleSection": "Verification",
+  "wordCount": 861,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-simulation-misses-in-cdc.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>What simulation cannot tell you about clock domain crossings</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">RTL simulation never goes metastable and resolves every synchronizer in a fixed number of cycles, so it hides real CDC bugs. Structural checks, randomised synchronizer delay and targeted assertions fill the gap.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-rtl-simulation-assumes">What RTL simulation assumes</a></li><li><a href="#bugs-that-hide-behind-those-assumptions">Bugs that hide behind those assumptions</a></li><li><a href="#structural-checks-come-first">Structural checks come first</a></li><li><a href="#making-simulation-less-optimistic">Making simulation less optimistic</a></li><li><a href="#assertions-on-the-crossing-rules">Assertions on the crossing rules</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Clock domain crossing bugs have an unpleasant profile: they pass every simulation, pass static timing because the crossing paths are excluded, and then appear on silicon as rare, temperature-dependent failures that nobody can reproduce on demand. The reason is not that teams test too little. It is that RTL simulation is structurally unable to show the failure mechanisms of asynchronous crossings. Knowing exactly what it hides tells you which other checks you need.</p>
+<h2 id="what-rtl-simulation-assumes">What RTL simulation assumes</h2>
+<p>An RTL simulator evaluates a flip-flop as an ideal sampler. On the clock edge it takes whatever value its input holds and presents it at the output after zero or one delta cycle. There is no setup window, no hold window and no metastability. Two consequences follow.</p>
+<p>First, a two-flop synchronizer in simulation always has <em>exactly</em> the same latency, determined only by when the source changes relative to the destination clock edges in the simulated waveform. On silicon, when the input changes close to an edge, the first flop may resolve either way, so the signal arrives one destination cycle earlier or later. Its latency is non-deterministic by one cycle.</p>
+<p>Second, clocks in a testbench usually have fixed, rational periods, such as 10 ns and 15 ns. Their relative phase repeats every few cycles, so the simulation explores only a handful of alignments. Real asynchronous clocks drift through every phase.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 190" role="img" aria-labelledby="cdc-title cdc-desc" font-size="14">
+<title id="cdc-title">Two separately synchronized bits reconverging</title>
+<desc id="cdc-desc">Two bits from the source clock domain each pass through their own two-flop synchronizer into the destination domain and then meet in combinational logic. In simulation both synchronizers have identical latency; on silicon one may take a cycle longer, so the logic briefly sees a combination that never existed in the source.</desc>
+<rect x="10" y="20" width="110" height="150" rx="8" class="dg-track"/>
+<text x="65" y="40" text-anchor="middle" class="dg-text">clk A</text>
+<rect x="150" y="20" width="320" height="150" rx="8" class="dg-box"/>
+<text x="310" y="40" text-anchor="middle" class="dg-text">clk B</text>
+<text x="40" y="78" class="dg-text">a0</text>
+<text x="40" y="138" class="dg-text">a1</text>
+<line x1="65" y1="73" x2="174" y2="73" class="dg-line"/>
+<line x1="65" y1="133" x2="174" y2="133" class="dg-line"/>
+<rect x="174" y="58" width="40" height="30" class="dg-core"/>
+<rect x="234" y="58" width="40" height="30" class="dg-core"/>
+<rect x="174" y="118" width="40" height="30" class="dg-core"/>
+<rect x="234" y="118" width="40" height="30" class="dg-core"/>
+<line x1="214" y1="73" x2="234" y2="73" class="dg-line"/>
+<line x1="214" y1="133" x2="234" y2="133" class="dg-line"/>
+<path d="M274,73 H320 V93 H344 M274,133 H320 V113 H344" class="dg-line" fill="none"/>
+<rect x="344" y="83" width="60" height="40" rx="6" class="dg-amber" fill-opacity="0.35"/>
+<text x="374" y="108" text-anchor="middle" class="dg-text">logic</text>
+<line x1="404" y1="103" x2="454" y2="103" class="dg-line"/>
+<path d="M448,99 L454,103 L448,107 Z" class="dg-arrow"/>
+<text x="224" y="166" text-anchor="middle" class="dg-muted">each sync: 2 or 3 cycles on silicon</text>
+</svg>
+<figcaption>Simulation gives both synchronizers the same latency; silicon may not, so the logic can see a value the source never produced.</figcaption>
+</figure>
+
+<h2 id="bugs-that-hide-behind-those-assumptions">Bugs that hide behind those assumptions</h2>
+<p><strong>Multi-bit values synchronized bit by bit.</strong> If a 4-bit value changes from 0111 to 1000 and each bit has its own synchronizer, silicon can deliver any mixture for a cycle, such as 1111 or 0000. In simulation every bit arrives on the same edge, and the intermediate value never appears.</p>
+<p><strong>Reconvergence.</strong> Two control signals synchronized separately and then combined, as in the diagram, can arrive one cycle apart even if they changed together. Logic that expects them to agree sees a mismatch that simulation never produces.</p>
+<p><strong>Pulses lost between slow edges.</strong> A one-cycle pulse from a fast domain may fall entirely between two edges of the slower clock. Whether simulation catches this depends on the chosen periods and phases; a lucky ratio can make the pulse land on an edge every time.</p>
+<p><strong>Data sampled before it is stable.</strong> A handshake that sends a request and changes the data in the same source cycle relies on the data path being faster than the request synchronizer. Simulation with zero-delay wires always agrees; silicon may not.</p>
+<h2 id="structural-checks-come-first">Structural checks come first</h2>
+<p>The most effective defence is static. Structural CDC analysis reads the design, identifies which clock drives each flop, and examines every path where data moves between flops in different domains. It reports crossings with no synchronizer, combinational logic in front of the first synchronizer flop (which can glitch), multi-bit buses whose bits are synchronized separately, and signals that reconverge after separate synchronization.</p>
+<p>Dedicated CDC tools do this thoroughly. In a fully open-source flow the support is thinner, so design discipline matters more: put every crossing in a small set of reviewed synchronizer modules (two-flop, toggle pulse, handshake, asynchronous FIFO), forbid crossings anywhere else, and have each crossing reviewed by a second engineer. A netlist script that lists every flop-to-flop path between clock domains and flags any that does not end in an approved synchronizer is a worthwhile project in itself.</p>
+<h2 id="making-simulation-less-optimistic">Making simulation less optimistic</h2>
+<p>You cannot make an RTL simulator go metastable, but you can make it model the <em>consequence</em>: uncertain latency. Give the synchronizer a simulation-only mode that randomly adds a cycle.</p>
+<pre><code class="language-verilog">module sync2 (input wire clk, input wire d, output wire q);
+  reg s1, s2;
+  always @(posedge clk) begin s1 &lt;= d; s2 &lt;= s1; end
+`ifdef CDC_RANDOM_DELAY
+  reg s3, pick;
+  always @(posedge clk) begin
+    s3 &lt;= s2;
+    if (s1 != s2) pick &lt;= $urandom % 2;   // choose on each change
+  end
+  assign q = pick ? s3 : s2;
+`else
+  assign q = s2;
+`endif
+endmodule
+</code></pre>
+<p>With the define set, each change takes either two or three cycles to appear, chosen randomly per change and reproducible through the simulator's seed. Separately synchronized bits now arrive out of step, and reconvergence bugs that were invisible start failing. Run the regression with and without the define, and with several seeds.</p>
+<p>Two more habits help. Use clock periods with an awkward ratio, such as 10 ns and 13.7 ns, so the relative phase walks through many alignments. And vary the phase offset of the second clock between seeds.</p>
+<h2 id="assertions-on-the-crossing-rules">Assertions on the crossing rules</h2>
+<p>Each synchronization scheme has rules that make it safe. Write them down as assertions in the source domain, where they can be checked in every simulation.</p>
+<pre><code class="language-systemverilog">// Gray-coded pointer: at most one bit changes per source clock
+a_gray_one_bit: assert property (@(posedge clk_a) disable iff (!rst_a_n)
+                  $countones(wptr_gray ^ $past(wptr_gray)) &lt;= 1);
+
+// Handshake: data stays stable while the request is outstanding
+a_data_held: assert property (@(posedge clk_a) disable iff (!rst_a_n)
+               req &amp;&amp; !ack_sync |=&gt; $stable(data));
+
+// Level signal into a slower domain lasts long enough to be seen
+a_min_width: assert property (@(posedge clk_a) disable iff (!rst_a_n)
+               $rose(flag) |=&gt; flag[*3]);
+</code></pre>
+<p>The last one needs its repeat count derived from the actual clock ratio, with margin; three cycles here is only a placeholder. These assertions check the <em>protocol</em> that makes the crossing safe. They do not prove the absence of metastability, but they catch the design mistakes that turn metastability into a functional failure.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build an asynchronous FIFO, or take one from your coursework, and simulate it with Icarus Verilog using clocks of 10 ns and 13.7 ns.</li>
+<li>Replace the Gray-code pointer synchronizer with one that synchronizes the binary pointer bit by bit, and confirm that plain simulation still passes.</li>
+<li>Add the random-delay <code>sync2</code> with <code>-DCDC_RANDOM_DELAY</code> and run several seeds; see whether the scoreboard now catches corrupted data.</li>
+<li>Add the Gray-code assertion and check it fires immediately on the binary version.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>cdc</li><li>metastability</li><li>synchronizers</li><li>assertions</li><li>simulation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="verifying-battery-protection-logic.html"><span>Previous in Verification</span>Verifying battery-protection logic: over-voltage, under-voltage and fault latching</a><a class="next" href="when-gate-level-simulation-pays.html"><span>Next in Verification</span>When gate-level simulation is still worth running</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debugging-a-failing-test-systematically.html">Debugging a failing test systematically: from the first mismatch to root cause</a></h3>
+          <p>A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="prove-a-fifo-never-overflows.html">Proving a FIFO never overflows with SymbiYosys</a></h3>
+          <p>Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

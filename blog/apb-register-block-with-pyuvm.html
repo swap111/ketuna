@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testing an APB register block with pyuvm, from sequence to scoreboard · Ketuna blog</title>
+  <meta name="description" content="A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Testing an APB register block with pyuvm, from sequence to scoreboard · Ketuna blog">
+  <meta property="og:description" content="A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.">
+  <link rel="canonical" href="https://ketuna.online/blog/apb-register-block-with-pyuvm.html">
+  <meta property="og:url" content="https://ketuna.online/blog/apb-register-block-with-pyuvm.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Testing an APB register block with pyuvm, from sequence to scoreboard",
+  "description": "A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pyuvm, apb, register model, scoreboard, cocotb",
+  "articleSection": "Verification",
+  "wordCount": 870,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/apb-register-block-with-pyuvm.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Testing an APB register block with pyuvm, from sequence to scoreboard</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-block-and-its-spec">The block and its spec</a></li><li><a href="#the-register-model-is-the-reference">The register model is the reference</a></li><li><a href="#driver-and-monitor-on-a-protocol-with-wait-states">Driver and monitor on a protocol with wait states</a></li><li><a href="#the-scoreboard-predicts-and-compares">The scoreboard predicts and compares</a></li><li><a href="#reset-checks-deserve-their-own-sequence">Reset checks deserve their own sequence</a></li><li><a href="#mutations-this-environment-should-catch">Mutations this environment should catch</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Register blocks look like the easiest thing on a chip to verify, and that is why they ship with bugs. Every field has an access policy, a reset value, a width and sometimes a side effect, and the bugs live in exactly those details: a read-only field that accepts writes, a byte strobe ignored on one register, a counter that increments on an error response. This walk-through builds a pyuvm environment for a small APB slave and concentrates on the part that does the real work, the register model that predicts every response.</p>
+<h2 id="the-block-and-its-spec">The block and its spec</h2>
+<p>The design is an APB slave with one wait state on reads and none on writes:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Register</th>
+<th>Access</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td>CTRL</td>
+<td>RW</td>
+<td>8 bits; upper 24 read as 0</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>DATA</td>
+<td>RW</td>
+<td>byte strobes honoured</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td>STATUS</td>
+<td>RO</td>
+<td>[31:16] fixed ID, [15:0] count of accepted writes</td>
+</tr>
+<tr>
+<td>0x0C</td>
+<td>SCRATCH</td>
+<td>RW</td>
+<td>byte strobes honoured</td>
+</tr>
+</tbody>
+</table></div>
+<p>Unmapped addresses and any write to STATUS complete with <code>pslverr = 1</code> and change nothing. All registers reset to zero except the ID field.</p>
+<p>Two lines in that table hide most of the interesting cases. "Accepted writes" means a write with an error response must not increment the counter. And "changes nothing" on an error means the counter, the target register and every other register stay put.</p>
+<h2 id="the-register-model-is-the-reference">The register model is the reference</h2>
+<p>The model knows the spec and nothing about pins or timing. It holds a mirror of every register and, for each transfer, returns the predicted <code>prdata</code> and <code>pslverr</code> while updating its mirror the way the design should.</p>
+<pre><code class="language-python">class ApbRegModel:
+    ID = 0x0A51
+    RW = {0x00: 0x0000_00FF, 0x04: 0xFFFF_FFFF, 0x0C: 0xFFFF_FFFF}
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.mirror = {a: 0 for a in self.RW}
+        self.wr_count = 0
+
+    @staticmethod
+    def strobe_mask(pstrb):
+        return sum(0xFF &lt;&lt; (8 * i) for i in range(4) if pstrb &gt;&gt; i &amp; 1)
+
+    def predict(self, write, addr, wdata=0, pstrb=0xF):
+        &quot;&quot;&quot;Return (prdata, pslverr); update the mirror as the spec says.&quot;&quot;&quot;
+        if addr == 0x08:
+            if write:
+                return 0, 1                       # STATUS is read-only
+            return (self.ID &lt;&lt; 16) | (self.wr_count &amp; 0xFFFF), 0
+        if addr not in self.RW:
+            return 0, 1                           # unmapped
+        if not write:
+            return self.mirror[addr], 0
+        m = self.strobe_mask(pstrb) &amp; self.RW[addr]
+        self.mirror[addr] = (self.mirror[addr] &amp; ~m) | (wdata &amp; m)
+        self.wr_count += 1
+        return 0, 0
+</code></pre>
+<p>Notice what the model encodes explicitly: the field mask for CTRL, strobe merging, the error rule, and the counter's dependence on success. Each of those is a line a reviewer can hold against the spec. Write it from the table, not from the RTL. If you transcribe the RTL's <code>case</code> statement, the model inherits whatever the RTL got wrong, and the scoreboard agrees with it forever.</p>
+<p>One subtlety: with <code>pstrb = 0</code> on a mapped register, this model counts the write as accepted while changing no data. Whether that is right is a spec question. Raise it with the designer and record the answer, rather than letting either the model or the RTL decide silently.</p>
+<h2 id="driver-and-monitor-on-a-protocol-with-wait-states">Driver and monitor on a protocol with wait states</h2>
+<p>The driver turns an item into APB phases. Because reads take a wait state, it must loop on <code>pready</code> rather than assume a fixed length. Driving on the falling edge keeps the setup and access phases clear of the rising edge where the slave samples.</p>
+<pre><code class="language-python">class ApbDriver(uvm_driver):
+    def start_of_simulation_phase(self):
+        self.dut = cocotb.top
+
+    async def run_phase(self):
+        d = self.dut
+        while True:
+            it = await self.seq_item_port.get_next_item()
+            await FallingEdge(d.pclk)                    # setup phase
+            d.psel.value, d.penable.value = 1, 0
+            d.pwrite.value, d.paddr.value = it.write, it.addr
+            d.pwdata.value, d.pstrb.value = it.wdata, it.pstrb
+            await FallingEdge(d.pclk)                    # access phase
+            d.penable.value = 1
+            while True:
+                await ReadOnly()                 # settled bus values
+                done = d.pready.value == 1
+                await RisingEdge(d.pclk)         # slave samples here
+                if done:
+                    break
+            await FallingEdge(d.pclk)
+            d.psel.value, d.penable.value = 0, 0
+            self.seq_item_port.item_done()
+</code></pre>
+<p>The monitor is independent of the driver. On each rising edge where <code>psel</code>, <code>penable</code> and <code>pready</code> are all high, it builds a transaction from the bus, including the observed <code>prdata</code> and <code>pslverr</code>, and calls <code>self.ap.write(txn)</code>. It never reads the sequence item, so a driver bug that sends the wrong strobe is observed as what it really was.</p>
+<h2 id="the-scoreboard-predicts-and-compares">The scoreboard predicts and compares</h2>
+<p>The scoreboard is a <code>uvm_subscriber</code> connected to the monitor's analysis port. For each observed transfer it asks the model what should have happened and compares.</p>
+<pre><code class="language-python">class ApbScoreboard(uvm_subscriber):
+    def build_phase(self):
+        self.model = ApbRegModel()
+        self.seen, self.errors = 0, []
+
+    def write(self, t):
+        exp_rdata, exp_err = self.model.predict(
+            t.write, t.addr, t.wdata, t.pstrb)
+        self.seen += 1
+        if t.pslverr != exp_err or (not t.write and t.prdata != exp_rdata):
+            self.errors.append(f&quot;{t}: expected rdata={exp_rdata:#x} &quot;
+                               f&quot;err={exp_err}&quot;)
+
+    def check_phase(self):
+        assert self.seen &gt; 0, &quot;scoreboard saw no transfers&quot;
+        assert not self.errors, &quot;\n&quot;.join(self.errors[:10])
+</code></pre>
+<p>This is implicit prediction: the mirror updates from what the monitor saw, not from what the sequence intended. It is the right choice here because it keeps the scoreboard valid for any stimulus, including traffic that does not come from your sequences.</p>
+<h2 id="reset-checks-deserve-their-own-sequence">Reset checks deserve their own sequence</h2>
+<p>Reset values are part of the spec and are often wrong in quiet ways. A dedicated sequence reads every register straight after reset, before any write. If reset is applied again mid-test, the scoreboard must call <code>model.reset()</code> at the same moment, which means something in the environment has to observe the reset pin. A reset monitor that broadcasts reset events is cleaner than having the test call the model directly, because it also works when reset comes from another source.</p>
+<p>A sensible sequence set for this block:</p>
+<ul>
+<li><strong>Reset values</strong>: read all four registers, plus one unmapped address</li>
+<li><strong>Write then read</strong>: each RW register with full and partial strobes</li>
+<li><strong>Error paths</strong>: writes to STATUS and to unmapped addresses, each followed by a STATUS read to prove the counter did not move</li>
+<li><strong>Random</strong>: random address, direction, data and strobes, biased towards the four valid addresses</li>
+</ul>
+<h2 id="mutations-this-environment-should-catch">Mutations this environment should catch</h2>
+<p>Before trusting the environment, break the RTL deliberately and check that each mutation fails:</p>
+<ul>
+<li>increment the counter on error responses</li>
+<li>ignore <code>pstrb[3]</code> on SCRATCH</li>
+<li>let CTRL keep bits above 7</li>
+<li>return the wrong ID</li>
+</ul>
+<p>If one survives, the gap is in stimulus or in the model, and you now know where. An environment that has never caught a seeded bug has not been shown to catch anything.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the four-register APB slave in Verilog from the table above, without looking at any reference implementation.</li>
+<li>Build the environment with pyuvm and cocotb on Icarus Verilog: item, the four sequences, driver, monitor, scoreboard, agent, env and test; run it and confirm <code>check_phase</code> passes.</li>
+<li>Apply the four mutations one at a time and confirm each produces scoreboard errors.</li>
+<li>Add a coverage subscriber with bins for each register × direction × error outcome, and use the holes to decide which sequence needs more weight.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pyuvm</li><li>apb</li><li>register model</li><li>scoreboard</li><li>cocotb</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sva-first-properties.html"><span>Previous in Verification</span>SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property</a><a class="next" href="uvm-in-one-diagram.html"><span>Next in Verification</span>UVM in one diagram: sequences, drivers, monitors and the agent</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="scoreboards-and-reference-models.html">Scoreboards and reference models: checking outputs you did not predict by hand</a></h3>
+          <p>Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="directed-or-constrained-random.html">Directed tests or constrained random? Using each where it pays off</a></h3>
+          <p>Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

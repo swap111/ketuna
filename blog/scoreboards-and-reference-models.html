@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scoreboards and reference models: checking outputs you did not predict by hand · Ketuna blog</title>
+  <meta name="description" content="Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Scoreboards and reference models: checking outputs you did not predict by hand · Ketuna blog">
+  <meta property="og:description" content="Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.">
+  <link rel="canonical" href="https://ketuna.online/blog/scoreboards-and-reference-models.html">
+  <meta property="og:url" content="https://ketuna.online/blog/scoreboards-and-reference-models.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Scoreboards and reference models: checking outputs you did not predict by hand",
+  "description": "Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "scoreboard, reference model, cocotb, python, self-checking",
+  "articleSection": "Verification",
+  "wordCount": 872,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/scoreboards-and-reference-models.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Scoreboards and reference models: checking outputs you did not predict by hand</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Pair a Python reference model with a scoreboard so random tests check themselves. Covers in-order matching with a queue, out-of-order matching by tag, and the end-of-test checks that stop silent passes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#where-the-pieces-sit">Where the pieces sit</a></li><li><a href="#writing-the-reference-model">Writing the reference model</a></li><li><a href="#in-order-matching-with-a-queue">In-order matching with a queue</a></li><li><a href="#out-of-order-matching-by-tag">Out-of-order matching by tag</a></li><li><a href="#the-end-of-test-checks">The end-of-test checks</a></li><li><a href="#when-model-and-design-disagree">When model and design disagree</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Once stimulus is random, you can no longer write the expected output next to each input by hand. Something must compute the right answer automatically and compare it with what the design produced. That is the job of two cooperating pieces: a <strong>reference model</strong> that predicts outputs from inputs, and a <strong>scoreboard</strong> that pairs each prediction with the matching actual output and decides pass or fail. Getting the pairing right is most of the work, and it changes depending on whether the design keeps its outputs in order.</p>
+<h2 id="where-the-pieces-sit">Where the pieces sit</h2>
+<p>The scoreboard never touches pins. Monitors watch the design's input and output interfaces and turn pin activity into transactions. The input monitor feeds the model, the model produces expected transactions, and the scoreboard compares them with what the output monitor saw.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="sb-title sb-desc" font-size="14">
+<title id="sb-title">Scoreboard data flow</title>
+<desc id="sb-desc">An input monitor watches the design's input interface and sends transactions to a reference model. The model writes expected transactions into the scoreboard. An output monitor watches the design's output interface and sends actual transactions to the scoreboard, which compares the two.</desc>
+<rect x="180" y="20" width="120" height="50" rx="6" class="dg-core"/>
+<text x="240" y="50" text-anchor="middle" class="dg-text">DUT</text>
+<line x1="20" y1="45" x2="174" y2="45" class="dg-line"/>
+<path d="M174,41 L180,45 L174,49 Z" class="dg-arrow"/>
+<line x1="300" y1="45" x2="460" y2="45" class="dg-line"/>
+<path d="M454,41 L460,45 L454,49 Z" class="dg-arrow"/>
+<rect x="30" y="100" width="110" height="40" rx="6" class="dg-box"/>
+<text x="85" y="125" text-anchor="middle" class="dg-text">in monitor</text>
+<rect x="340" y="100" width="120" height="40" rx="6" class="dg-box"/>
+<text x="400" y="125" text-anchor="middle" class="dg-text">out monitor</text>
+<line x1="85" y1="45" x2="85" y2="94" class="dg-dash"/>
+<path d="M81,94 L85,100 L89,94 Z" class="dg-arrow"/>
+<line x1="400" y1="45" x2="400" y2="94" class="dg-dash"/>
+<path d="M396,94 L400,100 L404,94 Z" class="dg-arrow"/>
+<rect x="30" y="165" width="110" height="40" rx="6" class="dg-box"/>
+<text x="85" y="190" text-anchor="middle" class="dg-text">model</text>
+<line x1="85" y1="140" x2="85" y2="159" class="dg-line"/>
+<path d="M81,159 L85,165 L89,159 Z" class="dg-arrow"/>
+<rect x="190" y="160" width="130" height="50" rx="6" class="dg-amber" fill-opacity="0.3"/>
+<text x="255" y="182" text-anchor="middle" class="dg-text">scoreboard</text>
+<text x="255" y="200" text-anchor="middle" class="dg-muted">expected vs actual</text>
+<line x1="140" y1="185" x2="184" y2="185" class="dg-line"/>
+<path d="M184,181 L190,185 L184,189 Z" class="dg-arrow"/>
+<path d="M400,140 V185 H326" class="dg-line" fill="none"/>
+<path d="M326,181 L320,185 L326,189 Z" class="dg-arrow"/>
+</svg>
+<figcaption>Monitors turn pins into transactions; the model predicts, the scoreboard compares.</figcaption>
+</figure>
+
+<p>Keeping the model separate from the comparison matters. The model knows the spec; the scoreboard knows how to match. You can swap a simple model for a more detailed one, or reuse the scoreboard on another block, without rewriting both.</p>
+<h2 id="writing-the-reference-model">Writing the reference model</h2>
+<p>A reference model should be the most obviously correct statement of the spec you can write, at the transaction level, with no clocks or pins. For a block that adds a 16-bit saturating offset to each sample, the model is a few lines:</p>
+<pre><code class="language-python">def sat_add_model(sample, offset):
+    &quot;&quot;&quot;Signed 16-bit saturating add, as the spec describes it.&quot;&quot;&quot;
+    s = sample + offset
+    return max(-32768, min(32767, s))
+</code></pre>
+<p>Two rules keep a model useful. First, <strong>write it from the spec, not from the RTL</strong>. If you read the RTL and transcribe it into Python, you copy its bugs and the comparison always agrees. Second, <strong>keep it simpler than the design</strong>. The RTL may pipeline, share hardware and use clever bit tricks. The model should not; its value is that a reviewer can check it against the spec in a minute.</p>
+<h2 id="in-order-matching-with-a-queue">In-order matching with a queue</h2>
+<p>If the design produces outputs in the same order as inputs, which is true of most pipelines and FIFOs, the scoreboard is a queue. Predictions go in at the back; each actual output is compared with the front.</p>
+<pre><code class="language-python">from collections import deque
+
+class InOrderScoreboard:
+    def __init__(self, name):
+        self.name = name
+        self.expected = deque()
+        self.matched = 0
+        self.errors = []
+
+    def add_expected(self, txn):
+        self.expected.append(txn)
+
+    def add_actual(self, txn):
+        if not self.expected:
+            self.errors.append(f&quot;unexpected output {txn}&quot;)
+            return
+        exp = self.expected.popleft()
+        if txn == exp:
+            self.matched += 1
+        else:
+            self.errors.append(f&quot;expected {exp}, got {txn}&quot;)
+
+    def final_check(self):
+        assert not self.errors, self.errors[:5]
+        assert not self.expected, f&quot;{len(self.expected)} never came out&quot;
+        assert self.matched &gt; 0, &quot;scoreboard saw nothing&quot;
+</code></pre>
+<p>The pipeline latency does not appear anywhere, which is deliberate. Because the queue absorbs any delay, the same scoreboard works whether the design takes one cycle or twelve, and keeps working when someone adds a pipeline stage.</p>
+<h2 id="out-of-order-matching-by-tag">Out-of-order matching by tag</h2>
+<p>Some designs return results out of order: a memory controller that serves a hit before an earlier miss, or a bus fabric with several outstanding transactions identified by an ID. A single queue would report false mismatches. Instead, keep one queue per tag, or a dictionary keyed by whatever identifies a transaction.</p>
+<pre><code class="language-python">from collections import defaultdict, deque
+
+class TaggedScoreboard:
+    def __init__(self):
+        self.pending = defaultdict(deque)   # tag -&gt; expected data
+        self.errors = []
+
+    def add_expected(self, tag, data):
+        self.pending[tag].append(data)
+
+    def add_actual(self, tag, data):
+        q = self.pending.get(tag)
+        if not q:
+            self.errors.append(f&quot;tag {tag}: response with no request&quot;)
+            return
+        exp = q.popleft()
+        if exp != data:
+            self.errors.append(f&quot;tag {tag}: expected {exp}, got {data}&quot;)
+
+    def final_check(self):
+        left = {t: len(q) for t, q in self.pending.items() if q}
+        assert not self.errors, self.errors[:5]
+        assert not left, f&quot;outstanding requests: {left}&quot;
+</code></pre>
+<p>Within one tag, order is still checked, because most protocols promise in-order responses for the same ID. Across tags, any order is allowed. Match the scoreboard to exactly the ordering rule the spec promises: looser than the spec hides reordering bugs; stricter produces false failures.</p>
+<h2 id="the-end-of-test-checks">The end-of-test checks</h2>
+<p>The three assertions in <code>final_check</code> prevent the most embarrassing class of bug, the silent pass.</p>
+<ul>
+<li><strong>Errors list empty.</strong> The obvious one.</li>
+<li><strong>Nothing left pending.</strong> If the design swallowed a transaction, the scoreboard never saw a mismatch, only a missing output. Without this check the test passes.</li>
+<li><strong>At least one match.</strong> If the output monitor is wired to the wrong signal and never fires, there are zero mismatches and zero matches. Only the count reveals it.</li>
+</ul>
+<p>Call <code>final_check</code> after the stimulus finishes and the design has drained, for example after waiting enough cycles for the deepest pipeline to empty.</p>
+<h2 id="when-model-and-design-disagree">When model and design disagree</h2>
+<p>A mismatch does not automatically mean the RTL is wrong. There are three suspects, and you should rule each one in or out deliberately:</p>
+<ol>
+<li><strong>The design</strong> does not follow the spec. This is the bug you were hoping to find.</li>
+<li><strong>The model</strong> misreads the spec. Models are code, and code has bugs. Re-read the spec line the model implements before blaming the RTL.</li>
+<li><strong>The spec</strong> is ambiguous, and the designer and the model author read it differently. Neither is wrong yet; the spec needs a sentence added.</li>
+</ol>
+<p>The third case is more common than beginners expect, and it is valuable: the scoreboard has found a place where two careful engineers understood the same document in two ways. Settle it with the designer, update the spec, and then fix whichever side lost the argument.</p>
+<p>Make mismatch messages easy to act on. Print the input that produced the expectation, the simulation time, and both values in the same number base. A message that says only "mismatch" sends you to the waveform viewer for every failure; one that says "sample 32760 + offset 20: expected 32767, got −32756" often names the bug outright.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small pipelined saturating adder in Verilog with two or three register stages, and a cocotb testbench with an input monitor, the model above and <code>InOrderScoreboard</code>.</li>
+<li>Drive 1,000 random samples on Icarus Verilog, including values near ±32767, and check <code>final_check</code> passes.</li>
+<li>Break the design three ways (wrong saturation limit, a dropped output, the output monitor watching the wrong valid signal) and confirm each is caught, noting which assertion fired.</li>
+<li>Add a fourth pipeline stage and confirm the scoreboard needs no changes.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>scoreboard</li><li>reference model</li><li>cocotb</li><li>python</li><li>self-checking</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="running-a-coverage-review.html"><span>Previous in Verification</span>Running a coverage review: which holes to close and which to waive</a><a class="next" href="hardware-regression-in-ci.html"><span>Next in Verification</span>Setting up a hardware regression in CI: seeds, triage and flaky tests</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="first-cocotb-testbench.html">Your first cocotb testbench: clock, reset, drive and check a counter</a></h3>
+          <p>Build a complete self-checking cocotb testbench in Python for a 4-bit counter, and learn what await, the clock task, reset and ReadOnly actually do in simulation time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

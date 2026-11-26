@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open shuttles and shared tape-outs: how students can get a design onto real silicon · Ketuna blog</title>
+  <meta name="description" content="How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Open shuttles and shared tape-outs: how students can get a design onto real silicon · Ketuna blog">
+  <meta property="og:description" content="How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.">
+  <link rel="canonical" href="https://ketuna.online/blog/open-shuttles-for-students.html">
+  <meta property="og:url" content="https://ketuna.online/blog/open-shuttles-for-students.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Open shuttles and shared tape-outs: how students can get a design onto real silicon",
+  "description": "How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "tape-out, mpw shuttle, open pdk, sky130, students",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1006,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/open-shuttles-for-students.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Open shuttles and shared tape-outs: how students can get a design onto real silicon</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How multi-project shuttles split the cost of a tape-out, what open PDKs and open-source flows make possible for students, and a practical checklist for preparing a small design for a shared run.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-a-mask-set-is-the-expensive-part">Why a mask set is the expensive part</a></li><li><a href="#how-shared-runs-split-the-cost">How shared runs split the cost</a></li><li><a href="#what-open-pdks-and-open-tools-make-possible">What open PDKs and open tools make possible</a></li><li><a href="#preparing-a-design-for-a-shuttle">Preparing a design for a shuttle</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#what-comes-back-and-what-to-do-with-it">What comes back, and what to do with it</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>For most of the history of chip design, a student's design ended as a simulation waveform. Making a real chip needed a mask set, and a mask set cost far more than any college project could justify. Shared shuttles and open process design kits have changed that. A small, careful design can now go to a real foundry alongside many others and come back as silicon you can power up on your desk. This article explains how that works and how to prepare.</p>
+<h2 id="why-a-mask-set-is-the-expensive-part">Why a mask set is the expensive part</h2>
+<p>A chip is made by printing patterns onto a silicon wafer, layer by layer, using a set of photomasks. Each layer needs its own mask, and a modern process needs dozens of them. Making those masks is a large fixed cost, paid once, whether you then make one wafer or a thousand.</p>
+<p>For a high-volume product, that fixed cost is spread over millions of chips. For a student who wants a handful of chips to test, it would be the entire bill. The trick is to stop treating the mask set as yours alone.</p>
+<h2 id="how-shared-runs-split-the-cost">How shared runs split the cost</h2>
+<p>A <strong>multi-project wafer</strong> (MPW) run, often called a <strong>shuttle</strong>, puts many independent designs side by side on the same masks. Every wafer from the run carries a copy of every design. After fabrication, the wafers are cut up and each participant receives some dies of their own design. The mask and wafer cost is shared by everyone on the run, so each pays a fraction.</p>
+<p>Some community projects take the idea a step further. They place many very small designs, sometimes called tiles, inside a single shared chip, with a common multiplexer that selects which design is connected to the pins. Each tile is tiny and has only a few inputs and outputs, but the cost per participant drops again, low enough for individual students and hobbyists. Tiny Tapeout is one well-known open project that works this way.</p>
+<p>The price of sharing is constraints: a fixed area, a fixed number of pins, a fixed set of process options and a fixed deadline. Treat those constraints as part of the specification, not as obstacles.</p>
+<h2 id="what-open-pdks-and-open-tools-make-possible">What open PDKs and open tools make possible</h2>
+<p>A <strong>process design kit</strong> (PDK) is the foundry's description of a manufacturing process: transistor models for simulation, design rules for layout, standard cell libraries and more. Traditionally a PDK is released only under a non-disclosure agreement, which keeps it out of most classrooms.</p>
+<p>Open PDKs, such as sky130, gf180 and IHP SG13G2, publish this data openly. Combined with open-source tools, they let you run the full flow on your own laptop:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Open-source tool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simulation</td>
+<td>Icarus Verilog, Verilator, cocotb</td>
+</tr>
+<tr>
+<td>Synthesis</td>
+<td>Yosys</td>
+</tr>
+<tr>
+<td>Place and route, timing</td>
+<td>OpenROAD, OpenSTA</td>
+</tr>
+<tr>
+<td>Full flow orchestration</td>
+<td>LibreLane</td>
+</tr>
+<tr>
+<td>Layout view and checks</td>
+<td>Magic, KLayout, Netgen</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because every file is open, you can see exactly what goes to the foundry and why each check exists. The concepts carry over to commercial flows; only the command names change.</p>
+<h2 id="preparing-a-design-for-a-shuttle">Preparing a design for a shuttle</h2>
+<p>Shuttle deadlines are fixed and do not move for late projects. A design that is almost ready on submission day misses the run. Work backwards from the deadline and leave real margin.</p>
+<p>A practical checklist:</p>
+<ol>
+<li><strong>Read the shuttle's rules first.</strong> Note the area, pin count, clock limits, required top-level module name and file layout. Many shared-tile projects provide a template repository; start from it.</li>
+<li><strong>Keep the design small and simple.</strong> A counter, a small state machine, a UART or a tiny processor is ambitious enough. A design that fits easily leaves room for fixing timing.</li>
+<li><strong>Verify thoroughly in RTL.</strong> Write a self-checking testbench, not just a waveform you look at. Test reset, every input combination you care about and the edge cases.</li>
+<li><strong>Run gate-level simulation.</strong> Simulate the synthesised netlist too. It catches problems that RTL simulation hides, such as uninitialised registers or unintended latches.</li>
+<li><strong>Get clean signoff.</strong> Timing must close at the target clock, and design rule checks and layout-versus-schematic must be clean. Do not submit with "probably harmless" violations.</li>
+<li><strong>Write a bring-up plan and documentation.</strong> Describe each pin, how to reset the design and what output to expect for a given input. You will forget the details by the time the chips arrive.</li>
+<li><strong>Get a review.</strong> Ask someone who did not write the design to read your testbench and pin description. Fresh eyes catch the mistake you have stopped seeing.</li>
+</ol>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Starting from a large design and cutting it down at the last minute</li>
+<li>Testing only the happy path in simulation</li>
+<li>Relying on a reset value that the hardware does not guarantee</li>
+<li>Leaving the documentation for after submission</li>
+<li>Assuming a design that passed in one tool version will pass in the shuttle's pinned version</li>
+</ul>
+<h2 id="what-comes-back-and-what-to-do-with-it">What comes back, and what to do with it</h2>
+<p>Turnaround from submission to packaged chips is usually several months, so plan your project around that gap. When the chips arrive, follow your bring-up plan: power up carefully, apply reset, drive the simplest input and check the simplest output before anything else. If something does not work, your simulation testbench and documentation are the tools for finding out why.</p>
+<p>Even a small design that works on silicon teaches lessons no simulation does: how real clocks and resets behave, how much margin you really had, and how much a good test plan saves you. It is also concrete evidence of the skills employers look for, because you can show the full flow from specification to measured result.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install an open PDK such as sky130 and run the example design that ships with <strong>LibreLane</strong> end to end.</li>
+<li>Write a small design, such as an 8-bit counter with an enable, with a self-checking <strong>cocotb</strong> testbench.</li>
+<li>Harden it, open the result in <strong>KLayout</strong>, and read the timing and DRC reports line by line.</li>
+<li>Read the current rules of an open shared-tile project and check whether your design would fit its area and pin limits.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>tape-out</li><li>mpw shuttle</li><li>open pdk</li><li>sky130</li><li>students</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="how-smart-energy-meters-work.html"><span>Previous in India&#x27;s electronics ecosystem</span>How smart energy meters work and why utilities deploy them</a><a class="next" href="planning-compliance-testing-early.html"><span>Next in India&#x27;s electronics ecosystem</span>Planning compliance testing early: EMC, safety and environmental tests</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Advanced</span></div>
+          <h3><a href="first-technical-decisions-for-a-chip-startup.html">Starting a chip-design startup: the first technical decisions</a></h3>
+          <p>The first technical decisions a chip startup makes, choosing the first product, the process node, which IP to build or license, the tool flow and a tape-out path, and how each one constrains the others and the budget.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="getting-the-most-from-hardware-hackathons.html">Getting the most from hardware hackathons and design contests</a></h3>
+          <p>How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

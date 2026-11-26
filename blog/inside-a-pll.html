@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inside a PLL: phase detector, charge pump, loop filter and VCO · Ketuna blog</title>
+  <meta name="description" content="A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Inside a PLL: phase detector, charge pump, loop filter and VCO · Ketuna blog">
+  <meta property="og:description" content="A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.">
+  <link rel="canonical" href="https://ketuna.online/blog/inside-a-pll.html">
+  <meta property="og:url" content="https://ketuna.online/blog/inside-a-pll.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Inside a PLL: phase detector, charge pump, loop filter and VCO",
+  "description": "A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pll, clocking, charge pump, vco, mixed signal",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1120,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/inside-a-pll.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Inside a PLL: phase detector, charge pump, loop filter and VCO</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-loop-at-a-glance">The loop at a glance</a></li><li><a href="#phase-frequency-detector-two-flip-flops-and-a-gate">Phase-frequency detector: two flip-flops and a gate</a></li><li><a href="#charge-pump-and-loop-filter-from-pulses-to-a-voltage">Charge pump and loop filter: from pulses to a voltage</a></li><li><a href="#the-vco-and-the-divider">The VCO and the divider</a></li><li><a href="#watching-it-lock">Watching it lock</a></li><li><a href="#design-choices-and-pitfalls">Design choices and pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A crystal oscillator gives an accurate, stable frequency, but only up to a few tens of megahertz. A processor wants hundreds of megahertz, a serial link gigahertz. The phase-locked loop (PLL) bridges the gap: it runs a fast, tunable oscillator and continuously steers it so that a divided-down copy stays in step with the crystal. Every block in the loop is simple on its own. The art is in how they work together, and that is what this article walks through.</p>
+<h2 id="the-loop-at-a-glance">The loop at a glance</h2>
+<p>A charge-pump PLL has five blocks in a ring:</p>
+<ol>
+<li>A <strong>phase-frequency detector (PFD)</strong> compares the reference clock with the feedback clock.</li>
+<li>A <strong>charge pump (CP)</strong> turns the PFD's decisions into packets of current.</li>
+<li>A <strong>loop filter</strong> turns those current packets into a smooth control voltage.</li>
+<li>A <strong>voltage-controlled oscillator (VCO)</strong> produces a frequency set by that voltage.</li>
+<li>A <strong>feedback divider</strong> divides the VCO output by N and returns it to the PFD.</li>
+</ol>
+<p>When the loop is locked, the divided VCO clock has the same frequency and a fixed phase relative to the reference, so:</p>
+<blockquote>
+<p>f<sub>VCO</sub> = N × f<sub>REF</sub></p>
+</blockquote>
+<p>With a 12 MHz crystal and N = 40, the VCO runs at 480 MHz. Change N and the output frequency changes in steps of f<sub>REF</sub>; that is an integer-N synthesiser.</p>
+<h2 id="phase-frequency-detector-two-flip-flops-and-a-gate">Phase-frequency detector: two flip-flops and a gate</h2>
+<p>The usual PFD is two D flip-flops with their D inputs tied high, plus an AND gate. The reference clock clocks the first flip-flop, whose output is called UP; the feedback clock clocks the second, whose output is DOWN. When both outputs are high, the AND gate resets both.</p>
+<p>Follow one cycle. If the reference edge arrives first, UP goes high and stays high until the feedback edge arrives, sets DOWN, and the AND resets both. The width of the UP pulse equals the time by which the reference led. If the feedback edge comes first, DOWN pulses instead. So the PFD outputs a pulse whose width is the phase error and whose identity (UP or DOWN) is its sign.</p>
+<p>The "frequency" part matters too. If the VCO is far off frequency, one input produces more edges than the other, and the PFD keeps asserting the same output most of the time. A plain multiplier phase detector would average to zero in that case; the PFD instead pushes the loop steadily in the right direction, so the PLL pulls in from any starting frequency within the VCO's range.</p>
+<h2 id="charge-pump-and-loop-filter-from-pulses-to-a-voltage">Charge pump and loop filter: from pulses to a voltage</h2>
+<p>The charge pump is two switched current sources: UP connects a current I<sub>CP</sub> into the loop filter, DOWN connects an equal current out of it. Each reference cycle delivers a charge of I<sub>CP</sub> times the pulse width, so the charge is proportional to the phase error.</p>
+<p>If the filter were just a capacitor, the control voltage would be the integral of phase error. But the VCO already integrates: phase is the integral of frequency. Two integrators in a loop give 180° of phase shift at all frequencies, so the loop would have zero phase margin and oscillate. The fix is a <strong>resistor in series with the capacitor</strong>. The resistor adds a voltage I<sub>CP</sub> × R during each pulse, a term <em>proportional</em> to phase error rather than integrated. In control terms it creates a zero that restores phase margin around the loop bandwidth.</p>
+<p>A small capacitor, typically about a tenth of the main one, is added in parallel with the series R-C. Without it, every charge-pump pulse would produce a voltage step across R and jolt the VCO frequency once per reference cycle, producing spurs at the reference frequency in the output spectrum. The small capacitor smooths those steps.</p>
+<h2 id="the-vco-and-the-divider">The VCO and the divider</h2>
+<p>On chip the VCO is commonly a <strong>ring oscillator</strong>: an odd number of inverting stages in a loop, oscillating at f = 1/(2·n·t<sub>d</sub>) for n stages of delay t<sub>d</sub>. The control voltage sets the stage delay, for example by limiting each stage's current. Ring oscillators are small and tune widely, but they are noisier than <strong>LC oscillators</strong>, which use an on-chip inductor and capacitor and are used where low phase noise matters, such as radio synthesisers.</p>
+<p>The VCO's tuning sensitivity K<sub>VCO</sub>, in hertz per volt, is a loop gain parameter as important as I<sub>CP</sub>. The divider is digital: a counter that toggles its output every N/2 input cycles, or a chain of prescalers for high frequencies.</p>
+<h2 id="watching-it-lock">Watching it lock</h2>
+<p>The model below updates the loop once per reference cycle. Each cycle it measures the phase error, delivers the corresponding charge to the filter, sets the VCO frequency from the control voltage, and advances the VCO phase. The values are illustrative, chosen for a loop bandwidth of a few hundred kilohertz, well below the 12 MHz reference.</p>
+<pre><code class="language-python"># Phase-domain model of a charge-pump PLL, updated once per reference
+# cycle. Illustrative values: 12 MHz reference, N = 40, 480 MHz target.
+F_REF, N = 12e6, 40
+T_REF = 1 / F_REF
+F0, KVCO = 400e6, 200e6      # VCO: 400 MHz at 0 V, 200 MHz per volt
+ICP = 50e-6                  # charge-pump current, A
+R, C = 12.5e3, 50e-12        # loop filter: R in series with C
+
+phase_vco = 0.0              # VCO phase, in VCO cycles
+v_c = 0.0                    # voltage on the loop-filter capacitor
+for n in range(1, 121):
+    err = n - phase_vco / N             # phase error, reference cycles
+    err = max(-1.0, min(1.0, err))      # a PFD saturates at one cycle
+    charge = ICP * err * T_REF          # UP or DOWN pulse into the filter
+    v_c += charge / C                   # integral path
+    v_ctrl = v_c + ICP * R * err        # plus proportional path (R)
+    f_vco = F0 + KVCO * v_ctrl
+    phase_vco += f_vco * T_REF
+    if n % 15 == 0:
+        print(f&quot;cycle {n:3d}: f_vco {f_vco/1e6:7.2f} MHz, &quot;
+              f&quot;error {err:+.3f} cycles&quot;)
+</code></pre>
+<p>Starting from 400 MHz, the VCO overshoots to about 486 MHz by cycle 15, swings back below 480 MHz, and settles at 480.00 MHz with essentially zero phase error by about cycle 60, which is 5 µs at 12 MHz. Set R to zero and run it again: the loop oscillates, exactly as the two-integrator argument predicts.</p>
+<p>The model is deliberately simple. It averages each pulse over a cycle, ignores the small filter capacitor and treats the VCO as perfectly linear. Real design uses a continuous-time linear model for bandwidth and phase margin, then a behavioural or transistor-level simulation.</p>
+<h2 id="design-choices-and-pitfalls">Design choices and pitfalls</h2>
+<ul>
+<li><strong>Loop bandwidth.</strong> Keep it well below the reference frequency, often a tenth or less, because the PFD only samples the phase once per reference cycle. Inside the bandwidth the loop follows the reference and suppresses VCO noise; outside it, VCO noise passes through.</li>
+<li><strong>Larger N multiplies noise.</strong> Reference and PFD noise appear at the output multiplied by N. A higher reference frequency, and so a smaller N, is usually better.</li>
+<li><strong>Charge-pump mismatch.</strong> If the UP and DOWN currents differ, the loop settles with a static phase offset that makes their charges cancel, and the resulting pulses each cycle cause reference spurs.</li>
+<li><strong>Lock detection.</strong> Firmware must not switch the system clock to the PLL until a lock-detect signal confirms the loop has settled.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the model above, then halve and double I<sub>CP</sub> and R and see how settling time and overshoot change.</li>
+<li>Write the two-flip-flop PFD in <strong>Verilog</strong> and simulate it with <strong>Icarus Verilog</strong> using two clocks of slightly different frequency; view UP and DOWN in <strong>GTKWave</strong> and confirm the pulse widths track the phase difference.</li>
+<li>In <strong>ngspice</strong>, build a three-stage current-starved ring oscillator with sky130 devices and plot its frequency against control voltage to find K<sub>VCO</sub>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pll</li><li>clocking</li><li>charge pump</li><li>vco</li><li>mixed signal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="bandgap-reference-intuition.html"><span>Previous in Analog &amp; mixed-signal</span>How a bandgap reference makes a voltage that ignores temperature</a><a class="next" href="interfacing-water-quality-sensors.html"><span>Next in Analog &amp; mixed-signal</span>Interfacing pH, conductivity and turbidity sensors: the analog side</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="jitter-and-phase-noise.html">Jitter and phase noise: what they are and why ADCs and radios care</a></h3>
+          <p>Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="analog-and-digital-on-one-die.html">Putting analog and digital on one die: substrate noise, supplies and isolation</a></h3>
+          <p>Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="comparator-design-tradeoffs.html">Comparators: speed, offset, hysteresis and kickback</a></h3>
+          <p>A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

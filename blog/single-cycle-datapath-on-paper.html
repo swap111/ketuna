@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building a single-cycle RISC-V datapath on paper first · Ketuna blog</title>
+  <meta name="description" content="Before writing CPU RTL, trace each instruction class through fetch, decode, execute, memory and write-back on paper. You get the control table, the muxes and the critical path almost for free.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Building a single-cycle RISC-V datapath on paper first · Ketuna blog">
+  <meta property="og:description" content="Before writing CPU RTL, trace each instruction class through fetch, decode, execute, memory and write-back on paper. You get the control table, the muxes and the critical path almost for free.">
+  <link rel="canonical" href="https://ketuna.online/blog/single-cycle-datapath-on-paper.html">
+  <meta property="og:url" content="https://ketuna.online/blog/single-cycle-datapath-on-paper.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a single-cycle RISC-V datapath on paper first",
+  "description": "Before writing CPU RTL, trace each instruction class through fetch, decode, execute, memory and write-back on paper. You get the control table, the muxes and the critical path almost for free.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, datapath, single-cycle, cpu design, control signals",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 902,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/single-cycle-datapath-on-paper.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Building a single-cycle RISC-V datapath on paper first</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Before writing CPU RTL, trace each instruction class through fetch, decode, execute, memory and write-back on paper. You get the control table, the muxes and the critical path almost for free.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-five-steps-every-instruction-takes">The five steps every instruction takes</a></li><li><a href="#trace-one-instruction-of-each-class">Trace one instruction of each class</a></li><li><a href="#the-control-table-falls-out-of-the-trace">The control table falls out of the trace</a></li><li><a href="#the-critical-path-also-on-paper">The critical path, also on paper</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Many students who start a RISC-V core open an editor and begin typing Verilog. A few hundred lines later the core runs <code>addi</code> but not <code>sw</code>, and nobody can say which multiplexer is wrong. The fix is old-fashioned: draw the datapath on paper, and trace every instruction class through it by hand before writing a line of RTL. An hour of tracing gives you the list of blocks, every multiplexer, the full control table and a first estimate of the clock period.</p>
+<h2 id="the-five-steps-every-instruction-takes">The five steps every instruction takes</h2>
+<p>A single-cycle core does all the work for one instruction between two clock edges. Conceptually there are five steps:</p>
+<ol>
+<li><strong>Fetch:</strong> the program counter (PC) addresses instruction memory and the 32-bit instruction comes out.</li>
+<li><strong>Decode:</strong> the fields are sliced, the register file reads <code>rs1</code> and <code>rs2</code>, and the immediate is rebuilt.</li>
+<li><strong>Execute:</strong> the ALU computes a result, an address, or a branch comparison.</li>
+<li><strong>Memory:</strong> loads read data memory; stores write it.</li>
+<li><strong>Write-back:</strong> a result goes into <code>rd</code>, and the PC is updated to PC + 4, a branch target or a jump target.</li>
+</ol>
+<p>Not every instruction uses every step. A store has no write-back; an <code>add</code> never touches data memory. Tracing shows you exactly which parts each class uses, and that is where the multiplexers come from.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="scd-title scd-desc" font-size="14">
+<title id="scd-title">Single-cycle RISC-V datapath</title>
+<desc id="scd-desc">Left to right: the PC feeds instruction memory, which feeds the register file and the immediate generator. A multiplexer chooses between register rs2 and the immediate as the second ALU input. The ALU output addresses data memory. A write-back multiplexer chooses the ALU result or the loaded data and sends it back to the register file. Below, a next-PC multiplexer chooses PC plus 4 or a branch target and feeds the PC.</desc>
+<rect x="8" y="80" width="44" height="40" class="dg-core"/><text x="30" y="105" text-anchor="middle" class="dg-text">PC</text>
+<line x1="52" y1="100" x2="68" y2="100" class="dg-line"/><path d="M68,96 L74,100 L68,104 Z" class="dg-arrow"/>
+<rect x="74" y="70" width="70" height="60" class="dg-box"/><text x="109" y="96" text-anchor="middle" class="dg-text">instr</text><text x="109" y="114" text-anchor="middle" class="dg-text">mem</text>
+<line x1="144" y1="100" x2="158" y2="100" class="dg-line"/><path d="M158,96 L164,100 L158,104 Z" class="dg-arrow"/>
+<rect x="164" y="60" width="72" height="80" class="dg-box"/><text x="200" y="96" text-anchor="middle" class="dg-text">reg</text><text x="200" y="114" text-anchor="middle" class="dg-text">file</text>
+<line x1="152" y1="100" x2="152" y2="170" class="dg-line"/><line x1="152" y1="170" x2="164" y2="170" class="dg-line"/>
+<rect x="164" y="155" width="72" height="30" class="dg-box"/><text x="200" y="175" text-anchor="middle" class="dg-text">imm</text>
+<line x1="236" y1="80" x2="290" y2="80" class="dg-line"/>
+<line x1="236" y1="115" x2="250" y2="115" class="dg-line"/>
+<line x1="236" y1="170" x2="256" y2="170" class="dg-line"/><line x1="256" y1="170" x2="256" y2="135" class="dg-line"/>
+<path d="M250,105 L264,111 L264,139 L250,145 Z" class="dg-amber" fill-opacity="0.5"/>
+<line x1="264" y1="125" x2="290" y2="125" class="dg-line"/>
+<path d="M290,66 L324,84 L324,124 L290,142 L290,110 L298,104 L290,98 Z" class="dg-core"/><text x="309" y="108" text-anchor="middle" class="dg-text">ALU</text>
+<line x1="324" y1="104" x2="344" y2="104" class="dg-line"/><path d="M344,100 L350,104 L344,108 Z" class="dg-arrow"/>
+<rect x="350" y="70" width="66" height="60" class="dg-box"/><text x="383" y="96" text-anchor="middle" class="dg-text">data</text><text x="383" y="114" text-anchor="middle" class="dg-text">mem</text>
+<line x1="337" y1="104" x2="337" y2="150" class="dg-line"/><line x1="337" y1="150" x2="440" y2="150" class="dg-line"/>
+<line x1="416" y1="100" x2="440" y2="100" class="dg-line"/>
+<path d="M440,88 L456,94 L456,156 L440,162 Z" class="dg-amber" fill-opacity="0.5"/>
+<line x1="456" y1="125" x2="470" y2="125" class="dg-line"/><line x1="470" y1="125" x2="470" y2="30" class="dg-line"/>
+<line x1="470" y1="30" x2="200" y2="30" class="dg-line"/><line x1="200" y1="30" x2="200" y2="54" class="dg-line"/><path d="M196,54 L200,60 L204,54 Z" class="dg-arrow"/>
+<text x="330" y="24" class="dg-muted">write-back</text>
+<rect x="74" y="205" width="70" height="30" class="dg-box"/><text x="109" y="225" text-anchor="middle" class="dg-text">PC + 4</text>
+<rect x="164" y="205" width="72" height="30" class="dg-box"/><text x="200" y="225" text-anchor="middle" class="dg-text">PC + imm</text>
+<line x1="74" y1="220" x2="40" y2="220" class="dg-line"/>
+<path d="M24,200 L40,206 L40,240 L24,246 Z" class="dg-amber" fill-opacity="0.5"/>
+<line x1="236" y1="220" x2="250" y2="220" class="dg-line"/><line x1="250" y1="220" x2="250" y2="245" class="dg-line"/><line x1="250" y1="245" x2="40" y2="245" class="dg-dash"/>
+<line x1="24" y1="222" x2="4" y2="222" class="dg-line"/><line x1="4" y1="222" x2="4" y2="100" class="dg-line"/><line x1="4" y1="100" x2="8" y2="100" class="dg-line"/>
+<text x="270" y="235" class="dg-muted">next PC</text>
+</svg>
+<figcaption>The shaded shapes are the three multiplexers that tracing reveals: ALU operand, write-back source and next PC.</figcaption>
+</figure>
+
+<h2 id="trace-one-instruction-of-each-class">Trace one instruction of each class</h2>
+<p>Take five instructions and push each through the drawing with a pencil. Mark the wires that carry useful data and note what every multiplexer must select.</p>
+<ul>
+<li><strong><code>add x3, x1, x2</code> (R-type):</strong> register file reads x1 and x2; the ALU operand mux selects <code>rs2</code>; the ALU adds; data memory is idle; the write-back mux selects the ALU result; the register file writes x3; next PC is PC + 4.</li>
+<li><strong><code>addi x3, x1, 5</code> (I-type):</strong> same as <code>add</code>, except the ALU operand mux selects the immediate.</li>
+<li><strong><code>lw x6, 8(x5)</code> (load):</strong> the ALU adds x5 and 8 to form an address; data memory reads; the write-back mux selects the loaded data. This instruction uses every block in series.</li>
+<li><strong><code>sw x6, 8(x5)</code> (store):</strong> the ALU forms the address as for a load; <code>rs2</code> (x6) goes to the data memory's write port; the register file does not write.</li>
+<li><strong><code>beq x1, x2, label</code> (branch):</strong> the ALU compares x1 and x2; a separate adder computes PC + offset; if they are equal, the next-PC mux selects the target. No memory access, no register write.</li>
+</ul>
+<p><code>jal</code>, <code>jalr</code>, <code>lui</code> and <code>auipc</code> add a few more inputs: the write-back mux gains a PC + 4 input for the return address, and the ALU's first operand may need to be the PC for <code>auipc</code>. Draw them in too.</p>
+<h2 id="the-control-table-falls-out-of-the-trace">The control table falls out of the trace</h2>
+<p>Each multiplexer select and each write enable becomes a column. Each instruction class becomes a row. Filling it from your traces gives the control unit directly:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>ALU operand B</th>
+<th>Memory</th>
+<th>Reg write</th>
+<th>Write-back source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R-type</td>
+<td>rs2</td>
+<td>none</td>
+<td>yes</td>
+<td>ALU</td>
+</tr>
+<tr>
+<td>I-type ALU</td>
+<td>imm</td>
+<td>none</td>
+<td>yes</td>
+<td>ALU</td>
+</tr>
+<tr>
+<td>Load</td>
+<td>imm</td>
+<td>read</td>
+<td>yes</td>
+<td>memory</td>
+</tr>
+<tr>
+<td>Store</td>
+<td>imm</td>
+<td>write</td>
+<td>no</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>rs2</td>
+<td>none</td>
+<td>no</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>jal</code></td>
+<td>(unused)</td>
+<td>none</td>
+<td>yes</td>
+<td>PC + 4</td>
+</tr>
+</tbody>
+</table></div>
+<p>Add a next-PC column (PC + 4, branch target if taken, jump target) and an ALU-operation column driven by <code>funct3</code> and <code>funct7</code>, and you have the whole decoder on one page. In RTL it becomes a <code>case</code> on the opcode with a handful of assignments per row. When a test fails later, you can check the waveform against the table row by row.</p>
+<h2 id="the-critical-path-also-on-paper">The critical path, also on paper</h2>
+<p>Because everything happens in one cycle, the clock period must cover the slowest instruction. Write a delay next to each block and add them along each class's path. With delays made up for illustration (instruction memory 250 ps, register read 150 ps, ALU 200 ps, data memory 250 ps, write-back mux plus register setup 50 ps):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Blocks on the path</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R-type</td>
+<td>imem, regfile, ALU, mux</td>
+<td>250 + 150 + 200 + 50 = 650 ps</td>
+</tr>
+<tr>
+<td>Store</td>
+<td>imem, regfile, ALU, dmem</td>
+<td>250 + 150 + 200 + 250 = 850 ps</td>
+</tr>
+<tr>
+<td>Load</td>
+<td>imem, regfile, ALU, dmem, mux</td>
+<td>250 + 150 + 200 + 250 + 50 = 900 ps</td>
+</tr>
+</tbody>
+</table></div>
+<p>The load sets the period at 900 ps, so the core runs at about 1.11 GHz in this made-up technology, and every <code>add</code> wastes 250 ps waiting. That waste is exactly what pipelining recovers, and you can see it before writing any code.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Drawing one memory.</strong> A single-cycle core fetches and loads in the same cycle, so it needs separate instruction and data ports.</li>
+<li><strong>Letting x0 be written.</strong> The register file must ignore writes to x0; mark it on the drawing.</li>
+<li><strong>Forgetting byte enables.</strong> <code>sb</code> and <code>sh</code> write only some bytes of a word, so the data memory needs per-byte write enables.</li>
+<li><strong>Leaving control signals undefined for some rows.</strong> Unused selects should still have a safe default, especially register write and memory write, which must be off.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Print the datapath above, then trace <code>jalr x1, 0(x5)</code> and <code>auipc x7, 0x10</code>. Add whatever wires and mux inputs they need.</li>
+<li>Turn your control table into a Verilog <code>case</code> statement and simulate a small core in Icarus Verilog with a self-checking program of one test per class.</li>
+<li>Compare your trace with a waveform in GTKWave: for each instruction, check every select signal against the table before trusting the result.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>datapath</li><li>single-cycle</li><li>cpu design</li><li>control signals</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="branch-prediction-basics.html"><span>Previous in Computer architecture &amp; RISC-V</span>Branch prediction from static rules to two-bit counters</a><a class="next" href="cache-coherence-in-two-cores.html"><span>Next in Computer architecture &amp; RISC-V</span>Cache coherence in two cores: the problem MESI solves</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="single-cycle-to-five-stage-pipeline.html">From single-cycle to a five-stage pipeline: what changes and why</a></h3>
+          <p>Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

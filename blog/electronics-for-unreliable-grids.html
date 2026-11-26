@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Power cuts, surges and voltage swings: designing electronics for real-world grids · Ketuna blog</title>
+  <meta name="description" content="How to design electronics that survive power cuts, surges and wide voltage swings, using brown-out detection with hysteresis, layered surge protection, wide-input supplies and a hold-up budget for saving state.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Power cuts, surges and voltage swings: designing electronics for real-world grids · Ketuna blog">
+  <meta property="og:description" content="How to design electronics that survive power cuts, surges and wide voltage swings, using brown-out detection with hysteresis, layered surge protection, wide-input supplies and a hold-up budget for saving state.">
+  <link rel="canonical" href="https://ketuna.online/blog/electronics-for-unreliable-grids.html">
+  <meta property="og:url" content="https://ketuna.online/blog/electronics-for-unreliable-grids.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Power cuts, surges and voltage swings: designing electronics for real-world grids",
+  "description": "How to design electronics that survive power cuts, surges and wide voltage swings, using brown-out detection with hysteresis, layered surge protection, wide-input supplies and a hold-up budget for saving state.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "power supply, brown-out, surge protection, hardware design, reliability",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 975,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/electronics-for-unreliable-grids.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Power cuts, surges and voltage swings: designing electronics for real-world grids</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to design electronics that survive power cuts, surges and wide voltage swings, using brown-out detection with hysteresis, layered surge protection, wide-input supplies and a hold-up budget for saving state.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-device-actually-sees">What the device actually sees</a></li><li><a href="#brown-out-detection-with-hysteresis">Brown-out detection with hysteresis</a></li><li><a href="#the-hold-up-budget">The hold-up budget</a></li><li><a href="#layered-surge-protection">Layered surge protection</a></li><li><a href="#wide-input-supplies-and-safe-restart">Wide-input supplies and safe restart</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A product designed against a clean, steady bench supply often fails in its first week in a real home, shop or farm. The mains voltage sags in the evening and rises at night, the supply cuts out and comes back several times in a minute, a pump motor or lightning strike sends a spike down the line, and a generator or inverter takes over with its own idea of a sine wave. Electronics that work in these conditions are not exotic. They follow a handful of principles, applied from the first schematic.</p>
+<h2 id="what-the-device-actually-sees">What the device actually sees</h2>
+<p>It helps to name the disturbances separately, because each needs a different defence:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Disturbance</th>
+<th>What happens</th>
+<th>Main defence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sustained under- or over-voltage</td>
+<td>Mains sits well away from nominal for minutes or hours</td>
+<td>Wide-input power supply</td>
+</tr>
+<tr>
+<td>Brown-out</td>
+<td>Supply sags slowly, or dips briefly, then recovers</td>
+<td>Brown-out detection with hysteresis</td>
+</tr>
+<tr>
+<td>Outage</td>
+<td>Supply disappears, sometimes repeatedly</td>
+<td>Hold-up energy and safe state saving</td>
+</tr>
+<tr>
+<td>Surge and transient</td>
+<td>Short high-energy spike from switching or lightning</td>
+<td>Layered surge protection</td>
+</tr>
+<tr>
+<td>Inrush on restore</td>
+<td>Large current when capacitors charge at power-up</td>
+<td>Inrush limiting</td>
+</tr>
+</tbody>
+</table></div>
+<p>The worst moments are often not the outage itself but the transitions: the slow fall as the supply dies, and the bouncy return when it comes back.</p>
+<h2 id="brown-out-detection-with-hysteresis">Brown-out detection with hysteresis</h2>
+<p>A microcontroller running below its minimum voltage can execute garbage. It may corrupt flash, drive outputs to random states or lock up. Most microcontrollers have a built-in brown-out reset that holds the chip in reset below a threshold. Enable it, always.</p>
+<p>For product behaviour you also want an earlier warning, measured on a higher rail or on the rectified input, that gives firmware time to act. The key is <strong>hysteresis</strong>: use a lower threshold to declare power failing and a higher one to declare it good again. With a single threshold, a supply hovering near it will flip the state hundreds of times a second.</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+#define V_FAIL_MV   9000u   /* illustrative thresholds on a 12 V rail */
+#define V_GOOD_MV  10500u
+#define GOOD_COUNT    50u   /* consecutive good samples before restart */
+
+static bool power_ok = false;
+static uint16_t good_samples = 0;
+
+void power_monitor_sample(uint32_t rail_mv)  /* call every 1 ms */
+{
+    if (power_ok) {
+        if (rail_mv &lt; V_FAIL_MV) {
+            power_ok = false;
+            good_samples = 0;
+            /* stop motors, save state, stop writing flash */
+        }
+    } else if (rail_mv &gt; V_GOOD_MV) {
+        if (++good_samples &gt;= GOOD_COUNT) {
+            power_ok = true;
+            /* restart loads in a controlled order */
+        }
+    } else {
+        good_samples = 0;
+    }
+}
+</code></pre>
+<p>The counter adds a second form of hysteresis, in time: power must stay good for 50 ms before loads restart, so a bouncing supply does not start and stop a motor repeatedly.</p>
+<h2 id="the-hold-up-budget">The hold-up budget</h2>
+<p>When power fails, the bulk capacitors keep the electronics running briefly. Whether that is long enough to save state is a calculation, not a hope. The energy available between the rail voltage at failure and the lowest voltage at which your regulator still works is:</p>
+<blockquote>
+<p>E = ½ C (V<sub>1</sub><sup>2</sup> − V<sub>2</sub><sup>2</sup>)</p>
+</blockquote>
+<p>An illustrative example: a 470 µF capacitor on a 12 V rail, a regulator that keeps working down to 6 V, and a load of 1 W.</p>
+<blockquote>
+<p>E = 0.5 × 470 µF × (144 − 36) V<sup>2</sup> ≈ 25.4 mJ, so t ≈ 25.4 mJ ÷ 1 W ≈ 25 ms</p>
+</blockquote>
+<p>If your flash write and shutdown take 10 ms after the warning fires, you have margin. If a last-minute firmware change makes the save take 40 ms, you do not, and only a measurement on the bench will tell you. Note that the warning threshold eats into this energy too: if you only detect failure at 9 V, recompute with V<sub>1</sub> = 9 V, which gives about 10.6 mJ and roughly 10 ms. That is why detection on the rectified input, before the main rail, is often worth the extra parts.</p>
+<p>Turn off heavy loads, such as relays, LEDs and radios, the moment power-fail is detected, so the stored energy goes to the processor.</p>
+<h2 id="layered-surge-protection">Layered surge protection</h2>
+<p>Surges are absorbed in layers, from the most robust part at the input to the most sensitive part at the chip:</p>
+<ol>
+<li><strong>Fuse</strong> at the input, so a failed protection part opens the circuit instead of catching fire</li>
+<li><strong>Metal oxide varistor</strong> across the line, which clamps large, high-energy surges</li>
+<li><strong>Inductance or resistance</strong>, such as a common-mode choke or the supply's input filter, which slows the edge and shares the energy</li>
+<li><strong>TVS diodes</strong> on the low-voltage side and on every external connection, such as sensor lines, data ports and antenna feeds</li>
+</ol>
+<p>Two layout rules matter as much as the parts. Keep surge current paths short and wide, straight from the protection device to the return, and do not route surge return currents under sensitive analog circuits. Remember that cables to remote sensors are antennas and surge paths too; protect them where they enter the box.</p>
+<p>Varistors wear with each large surge they absorb, so a design that takes frequent surges should be inspected or designed for replacement. For the formal requirements, the IEC standard series on electromagnetic compatibility includes surge immunity tests; check the current edition that applies to your product.</p>
+<h2 id="wide-input-supplies-and-safe-restart">Wide-input supplies and safe restart</h2>
+<p>A switching supply designed for a wide input range rides through sags and swells that would push a narrow-range design out of regulation or overheat a linear regulator. Check its behaviour at both ends of the range at full load and at high ambient temperature, not just at nominal.</p>
+<p>On restore, limit <strong>inrush</strong> with an NTC thermistor or an active circuit, so the charging capacitors do not blow the fuse or weld relay contacts. Then bring loads back in a defined order, after the hysteresis delay. A product that comes back from an outage the same way every time is far easier to support than one that sometimes does not come back at all.</p>
+<p>Mains work is dangerous. Build and test mains circuits only with qualified supervision and isolated test equipment.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Recompute the hold-up example for your own design and measure it: trigger an oscilloscope on the power-fail signal and see how long the rail stays above your regulator's minimum.</li>
+<li>Simulate a slowly falling supply driving your brown-out logic in <strong>ngspice</strong>, or feed recorded voltage samples into the C function above compiled with <strong>GCC</strong> on your PC.</li>
+<li>In <strong>KiCad</strong>, review your board's surge path from connector to protection device to return, and shorten it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>power supply</li><li>brown-out</li><li>surge protection</li><li>hardware design</li><li>reliability</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="planning-compliance-testing-early.html"><span>Previous in India&#x27;s electronics ecosystem</span>Planning compliance testing early: EMC, safety and environmental tests</a><a class="next" href="reading-a-procurement-specification.html"><span>Next in India&#x27;s electronics ecosystem</span>Reading a public procurement specification as an engineer</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="planning-compliance-testing-early.html">Planning compliance testing early: EMC, safety and environmental tests</a></h3>
+          <p>Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

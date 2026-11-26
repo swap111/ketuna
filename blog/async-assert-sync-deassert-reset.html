@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins · Ketuna blog</title>
+  <meta name="description" content="Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins · Ketuna blog">
+  <meta property="og:description" content="Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.">
+  <link rel="canonical" href="https://ketuna.online/blog/async-assert-sync-deassert-reset.html">
+  <meta property="og:url" content="https://ketuna.online/blog/async-assert-sync-deassert-reset.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Synchronous vs asynchronous reset, and why \"assert async, release sync\" wins",
+  "description": "Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "reset, synchronizer, timing, rtl coding",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 930,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/async-assert-sync-deassert-reset.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-kinds-of-reset">Two kinds of reset</a></li><li><a href="#why-release-is-the-dangerous-part">Why release is the dangerous part</a></li><li><a href="#the-reset-synchronizer">The reset synchronizer</a></li><li><a href="#practical-rules-that-follow">Practical rules that follow</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Reset looks like the least interesting signal in a design: hold it low, everything goes to zero, release it, the chip starts. Most reset bugs live in that last word. Releasing reset is a change of state that happens relative to a running clock, and like any other signal it can arrive in the wrong place in the clock cycle. "Assert asynchronously, de-assert synchronously" is the standard answer, and the reason is worth understanding properly.</p>
+<h2 id="two-kinds-of-reset">Two kinds of reset</h2>
+<p><strong>Synchronous reset</strong> is just another data input. The flop only looks at it on a clock edge:</p>
+<pre><code class="language-systemverilog">always_ff @(posedge clk)
+  if (!rst_n) q &lt;= '0;
+  else        q &lt;= d;
+</code></pre>
+<p>The reset is a mux in front of D. It is timed like any other path, it cannot cause a glitch on the flop, and it filters short pulses on the reset line. But it needs a running clock to take effect, and the extra mux sits in the data path.</p>
+<p><strong>Asynchronous reset</strong> uses a flop with a dedicated reset pin that acts immediately:</p>
+<pre><code class="language-systemverilog">always_ff @(posedge clk or negedge rst_n)
+  if (!rst_n) q &lt;= '0;
+  else        q &lt;= d;
+</code></pre>
+<p>The flop resets the moment <code>rst_n</code> goes low, clock or no clock. That matters at power-up, when clocks may not be stable yet, and for putting outputs into a safe state before anything else happens. The data path stays clean.</p>
+<h2 id="why-release-is-the-dangerous-part">Why release is the dangerous part</h2>
+<p>Asynchronous <em>assertion</em> is harmless: every flop goes to its reset value, whatever the clock is doing. <em>Release</em> is different. The reset pin of a flop has its own timing requirements, called <strong>recovery</strong> and <strong>removal</strong>, which are the reset pin's equivalent of setup and hold:</p>
+<ul>
+<li>Recovery time: reset must be released at least this long <em>before</em> the clock edge, for the flop to leave reset on that edge.</li>
+<li>Removal time: reset must stay asserted at least this long <em>after</em> the edge, for the flop to stay in reset on that edge.</li>
+</ul>
+<p>If the external reset is released inside that window, the flop may leave reset on this edge, on the next one, or go metastable. In a design with thousands of flops spread across the chip, the reset net reaches each one at a slightly different time. Some flops come out of reset one cycle earlier than others.</p>
+<p>Picture a state machine whose state register is one-hot with <code>IDLE = 0001</code> as its reset value. If bit 0 leaves reset a cycle late while the other bits start running, the machine can see <code>0000</code> for one cycle and never recover. Or a counter starts counting one cycle before the logic that reads it. These bugs depend on exact release timing, so they appear on some boards or some power-ups and not others.</p>
+<h2 id="the-reset-synchronizer">The reset synchronizer</h2>
+<p>The fix keeps async assertion and makes release synchronous to the clock that the flops use:</p>
+<pre><code class="language-systemverilog">module reset_sync (
+  input  logic clk,
+  input  logic rst_n_async,   // from pin or reset controller
+  output logic rst_n_sync     // to the flops in this domain
+);
+  logic meta_q;
+  always_ff @(posedge clk or negedge rst_n_async)
+    if (!rst_n_async) begin
+      meta_q     &lt;= 1'b0;
+      rst_n_sync &lt;= 1'b0;
+    end else begin
+      meta_q     &lt;= 1'b1;     // a constant 1 shifts in
+      rst_n_sync &lt;= meta_q;
+    end
+endmodule
+</code></pre>
+<p>Walk through it:</p>
+<ol>
+<li>When <code>rst_n_async</code> goes low, both flops clear immediately. <code>rst_n_sync</code> goes low at once, without waiting for a clock. Assertion stays asynchronous.</li>
+<li>When <code>rst_n_async</code> goes high, a constant 1 is shifted in. The first flop might see the release inside its recovery window and go metastable, exactly like the first flop of a data synchronizer.</li>
+<li>The second flop gives it one full clock period to resolve. <code>rst_n_sync</code> therefore rises cleanly, just after a clock edge, one or two cycles after the external release.</li>
+</ol>
+<p>Now every flop in the domain sees its reset released by a signal that was launched from a flop on a clock edge. That release is an ordinary timed path, and static timing analysis checks recovery and removal on every flop, just as it checks setup and hold on data paths.</p>
+<h2 id="practical-rules-that-follow">Practical rules that follow</h2>
+<ul>
+<li><strong>One reset synchronizer per clock domain.</strong> A reset synchronized to one clock is asynchronous to every other clock.</li>
+<li><strong>The synchronized reset is a high-fanout net.</strong> It reaches every flop in the domain, so it is buffered as a tree during physical design, and its timing must close like any other path. If it cannot close in one cycle at your clock speed, the reset tree may need pipelining, which adds cycles of latency.</li>
+<li><strong>Order the release where it matters.</strong> If block B must not start before block A, release A's reset first, or let A tell B it is ready.</li>
+<li><strong>Filter glitches on the async input.</strong> A short noise pulse on an external reset pin will asynchronously reset part of the chip. Board-level filtering, or a reset controller that requires the input to be low for a minimum time, is common.</li>
+<li><strong>Not every flop needs reset.</strong> Datapath registers whose contents are overwritten before use often do not need one. Leaving reset off saves area and routing, but control flops (state machines, valid bits, counters) almost always need it.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Using the raw external reset directly as the asynchronous reset of every flop, with no synchronizer on release</li>
+<li>Sharing one synchronized reset across two unrelated clocks</li>
+<li>Putting logic between the two synchronizer flops, or using the first flop's output anywhere</li>
+<li>Mixing reset polarities without a clear naming convention (<code>rst_n</code> for active-low)</li>
+<li>Assuming simulation proves reset works: zero-delay RTL simulation releases all flops on the same delta, so it cannot show uneven release</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate <code>reset_sync</code> in <strong>Icarus Verilog</strong> and release <code>rst_n_async</code> at a random time between clock edges. Confirm in <strong>GTKWave</strong> that <code>rst_n_sync</code> drops instantly and rises only on a clock edge, one to two cycles later.</li>
+<li>Synthesise it with <strong>Yosys</strong> against a sky130 standard-cell library and check that it maps to flops with an asynchronous reset pin.</li>
+<li>In <strong>OpenSTA</strong>, load the netlist, create a clock, and run <code>report_checks</code> on the paths ending at the reset pins of downstream flops to see recovery and removal checks reported.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>reset</li><li>synchronizer</li><li>timing</li><li>rtl coding</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="glitch-free-clock-switching.html"><span>Previous in Digital &amp; VLSI design</span>Switching between two clocks without a glitch</a><a class="next" href="valid-ready-handshake-rules.html"><span>Next in Digital &amp; VLSI design</span>The valid/ready handshake: the rules that keep pipelines from losing data</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

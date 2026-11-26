@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory BIST and JTAG boundary scan: testing what scan cannot reach · Ketuna blog</title>
+  <meta name="description" content="Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Memory BIST and JTAG boundary scan: testing what scan cannot reach · Ketuna blog">
+  <meta property="og:description" content="Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.">
+  <link rel="canonical" href="https://ketuna.online/blog/mbist-and-boundary-scan.html">
+  <meta property="og:url" content="https://ketuna.online/blog/mbist-and-boundary-scan.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Memory BIST and JTAG boundary scan: testing what scan cannot reach",
+  "description": "Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "mbist, jtag, boundary scan, march test, dft",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 855,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/mbist-and-boundary-scan.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Memory BIST and JTAG boundary scan: testing what scan cannot reach</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Scan chains test logic but not memory arrays or the solder joints on a board. Learn how on-chip memory BIST runs march algorithms, and how JTAG boundary scan tests board interconnect through four pins.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-memories-need-their-own-test">Why memories need their own test</a></li><li><a href="#march-algorithms">March algorithms</a></li><li><a href="#jtag-a-standard-test-port">JTAG: a standard test port</a></li><li><a href="#boundary-scan-testing-the-board">Boundary scan: testing the board</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Scan chains make flip-flops controllable and observable, and ATPG then covers the logic between them. Two important things stay out of reach. Embedded memories are dense arrays of bit cells, not flip-flops, and their failure modes are different from those of logic gates. And once a chip is soldered onto a board, the connections between chips cannot be probed easily at all. Memory built-in self-test (MBIST) and JTAG boundary scan fill those two gaps, and they often share the same test port.</p>
+<h2 id="why-memories-need-their-own-test">Why memories need their own test</h2>
+<p>An SRAM array packs bit cells as tightly as the process allows, so it is where defects are most likely to land. Its faults also behave differently from logic faults:</p>
+<ul>
+<li><strong>Stuck-at faults:</strong> a cell always reads 0 or 1.</li>
+<li><strong>Transition faults:</strong> a cell can be written one way but not the other.</li>
+<li><strong>Coupling faults:</strong> writing or reading one cell disturbs a neighbour.</li>
+<li><strong>Address decoder faults:</strong> an address selects no cell, the wrong cell, or several cells.</li>
+<li><strong>Data retention faults:</strong> a cell loses its value after some time.</li>
+</ul>
+<p>You could test a memory from outside through scan, by loading addresses and data into scan flops around it, but a thorough test needs many reads and writes per cell and would take an impractical number of shift cycles. Instead, a small <strong>MBIST controller</strong> is built next to each memory (or shared across several). It generates addresses and data, runs the test at the memory's own speed, compares read data with expected values, and reports pass or fail through a few bits.</p>
+<h2 id="march-algorithms">March algorithms</h2>
+<p>The standard tests are <strong>march algorithms</strong>: a sequence of elements, each of which walks through all addresses in a fixed order (up or down) and does the same short list of reads and writes at every address. A popular one is March C−, written as:</p>
+<blockquote>
+<p>⇕(w0); ⇑(r0, w1); ⇑(r1, w0); ⇓(r0, w1); ⇓(r1, w0); ⇕(r0)</p>
+</blockquote>
+<p>Here ⇑ means ascending addresses, ⇓ descending, ⇕ either. It performs 10 operations per address, so its run time grows linearly with memory size: 10N operations for N words. The combination of directions and the read-before-write pattern is what lets it detect stuck-at, transition, many coupling faults and address decoder faults.</p>
+<p>This Python model runs March C− on a toy 16-word, 1-bit memory with injected faults.</p>
+<pre><code class="language-python"># March C- on a toy memory model, with optional injected faults
+N = 16
+
+class Memory:
+    def __init__(self, stuck=None, coupling=None):
+        self.cells = [0] * N
+        self.stuck = stuck          # (addr, value) stuck-at fault
+        self.coupling = coupling    # (aggressor, victim): 0-&gt;1 sets victim
+
+    def write(self, a, v):
+        if self.coupling and a == self.coupling[0] and v == 1 \
+                and self.cells[a] == 0:
+            vic = self.coupling[1]
+            self.cells[vic] = 1
+        self.cells[a] = v
+        if self.stuck and a == self.stuck[0]:
+            self.cells[a] = self.stuck[1]
+
+    def read(self, a):
+        return self.cells[a]
+
+def march_c_minus(mem):
+    up, down = range(N), range(N - 1, -1, -1)
+    # Each element: (address order, [operations])
+    elements = [
+        (up,   [(&quot;w&quot;, 0)]),
+        (up,   [(&quot;r&quot;, 0), (&quot;w&quot;, 1)]),
+        (up,   [(&quot;r&quot;, 1), (&quot;w&quot;, 0)]),
+        (down, [(&quot;r&quot;, 0), (&quot;w&quot;, 1)]),
+        (down, [(&quot;r&quot;, 1), (&quot;w&quot;, 0)]),
+        (up,   [(&quot;r&quot;, 0)]),
+    ]
+    for order, ops in elements:
+        for a in order:
+            for op, v in ops:
+                if op == &quot;w&quot;:
+                    mem.write(a, v)
+                elif mem.read(a) != v:
+                    return f&quot;FAIL at address {a}, expected {v}&quot;
+    return &quot;PASS&quot;
+
+print(&quot;good memory:   &quot;, march_c_minus(Memory()))
+print(&quot;stuck-at-0 @5: &quot;, march_c_minus(Memory(stuck=(5, 0))))
+print(&quot;coupling 3-&gt;9: &quot;, march_c_minus(Memory(coupling=(3, 9))))
+print(&quot;coupling 9-&gt;3: &quot;, march_c_minus(Memory(coupling=(9, 3))))
+</code></pre>
+<p>It prints <code>PASS</code> for the good memory and a failure address for each faulty one. The coupling faults are caught in both directions, aggressor below victim and above it, which is exactly why the algorithm walks the array both up and down. Try deleting the two descending elements: one of the coupling cases will then slip through.</p>
+<p>In hardware, the controller is a small state machine with an address counter, a data generator and a comparator. Larger memories often add <strong>repair</strong>: spare rows or columns that a fuse or register can swap in for a failing one, using the addresses the BIST logged.</p>
+<h2 id="jtag-a-standard-test-port">JTAG: a standard test port</h2>
+<p>The IEEE 1149.1 standard, commonly called JTAG, defines a test access port (TAP) with four required signals and one optional:</p>
+<ul>
+<li><code>TCK</code>: test clock</li>
+<li><code>TMS</code>: test mode select, which steps a small state machine (the TAP controller)</li>
+<li><code>TDI</code>: test data in</li>
+<li><code>TDO</code>: test data out</li>
+<li><code>TRST</code>: optional asynchronous reset of the TAP</li>
+</ul>
+<p>Through these pins you load an <strong>instruction register</strong>, which selects which <strong>data register</strong> sits between <code>TDI</code> and <code>TDO</code>. Standard instructions include <code>BYPASS</code> (a one-bit register, so a chip can be skipped in a chain of chips), <code>IDCODE</code> (a fixed identification value) and the boundary scan instructions below. Designers add their own instructions too, for example to start MBIST and read its result, or to access a processor's debug logic.</p>
+<h2 id="boundary-scan-testing-the-board">Boundary scan: testing the board</h2>
+<p><strong>Boundary scan</strong> places a scan cell at every digital I/O pin, between the pad and the core logic. These cells form a shift register reachable through the TAP. With the <code>EXTEST</code> instruction, the cells take control of the pins: you shift a pattern into the output cells of one chip, drive it onto the board traces, and capture what arrives at the input cells of the chip on the other end. <code>SAMPLE/PRELOAD</code> lets you observe the pins without disturbing normal operation and preload values before <code>EXTEST</code>.</p>
+<p>This finds board-level faults such as opens (a bad solder joint), shorts between adjacent traces, and pins tied the wrong way, all without probes touching the board. Several chips on a board can be chained, <code>TDO</code> of one to <code>TDI</code> of the next, and tested together. The pin-level description of each chip's boundary scan cells is published in a standard description language (BSDL) so that test software knows the chain's structure.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the March C− model above, then add an address decoder fault (two addresses mapped to the same cell) and check that it is detected.</li>
+<li>Write a tiny MBIST state machine in Verilog for a 16 × 8 memory model and simulate it in <strong>Icarus Verilog</strong> or <strong>Verilator</strong>, with a fault injected by <code>force</code> in the testbench.</li>
+<li>Read the JTAG TAP controller's 16-state diagram in an open-source debug project's documentation and trace the <code>TMS</code> sequence that moves from <code>Test-Logic-Reset</code> to <code>Shift-DR</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>mbist</li><li>jtag</li><li>boundary scan</li><li>march test</li><li>dft</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reproducible-physical-design-flows.html"><span>Previous in Physical design &amp; tape-out</span>Making a physical design flow reproducible: pinned tools, configs and seeds</a><a class="next" href="metal-fill-and-density-rules.html"><span>Next in Physical design &amp; tape-out</span>Metal fill, density rules and why the fab cares about empty space</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="first-day-of-chip-bring-up.html">The first day with your chip back from the fab: a bring-up plan</a></h3>
+          <p>Bring-up goes in a fixed order so that one fault cannot hide another or destroy the part. Learn a staged plan: current-limited power-up, clocks and reset, JTAG and scan, then functions, with everything recorded.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="scan-chains-and-atpg.html">Scan chains and ATPG: how chips are tested after manufacturing</a></h3>
+          <p>Every manufactured chip must be tested for defects in seconds. Learn how scan turns flip-flops into a shift register, how ATPG generates patterns, and what fault coverage really measures.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

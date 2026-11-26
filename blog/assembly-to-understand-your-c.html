@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing a little RISC-V assembly to understand what your C compiles to · Ketuna blog</title>
+  <meta name="description" content="Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing a little RISC-V assembly to understand what your C compiles to · Ketuna blog">
+  <meta property="og:description" content="Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.">
+  <link rel="canonical" href="https://ketuna.online/blog/assembly-to-understand-your-c.html">
+  <meta property="og:url" content="https://ketuna.online/blog/assembly-to-understand-your-c.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing a little RISC-V assembly to understand what your C compiles to",
+  "description": "Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, assembly, calling convention, c, compilers",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 810,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/assembly-to-understand-your-c.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Writing a little RISC-V assembly to understand what your C compiles to</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-calling-convention-on-one-card">The calling convention on one card</a></li><li><a href="#a-loop-where-did-my-index-go">A loop: where did my index go?</a></li><li><a href="#a-function-call-why-the-stack-frame-looks-like-that">A function call: why the stack frame looks like that</a></li><li><a href="#writing-a-few-lines-yourself">Writing a few lines yourself</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>You do not need to write programs in assembly to benefit from reading it. When a firmware bug only appears at <code>-O2</code>, when an interrupt handler is slower than expected, or when you want to know whether a loop really uses the instruction you designed into your core, the answer is in the compiler's output. Reading that output is a skill you can learn in an afternoon, provided you have two things in hand: the RV32I instructions and the calling convention. This article walks through two small functions.</p>
+<h2 id="the-calling-convention-on-one-card">The calling convention on one card</h2>
+<p>The ISA gives you 32 registers, x0 to x31. The <strong>calling convention</strong>, part of the ABI (application binary interface), says how compiled code uses them, so that functions compiled separately can call each other. The assembler accepts the ABI names, and compiler output uses them:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ABI name</th>
+<th>Register</th>
+<th>Role</th>
+<th>Preserved across a call?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zero</code></td>
+<td>x0</td>
+<td>Always 0</td>
+<td>(constant)</td>
+</tr>
+<tr>
+<td><code>ra</code></td>
+<td>x1</td>
+<td>Return address</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>sp</code></td>
+<td>x2</td>
+<td>Stack pointer</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>a0</code> to <code>a7</code></td>
+<td>x10 to x17</td>
+<td>Arguments; <code>a0</code> and <code>a1</code> also return values</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>t0</code> to <code>t6</code></td>
+<td>x5 to x7, x28 to x31</td>
+<td>Temporaries</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>s0</code> to <code>s11</code></td>
+<td>x8, x9, x18 to x27</td>
+<td>Saved registers; <code>s0</code> can be the frame pointer</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two rules carry most of the meaning. <strong>Arguments arrive in <code>a0</code>, <code>a1</code>, …, and the result leaves in <code>a0</code>.</strong> And <strong><code>s</code> registers must be preserved by any function that uses them</strong>, while <code>a</code> and <code>t</code> registers may be destroyed by any call. The stack grows downwards and <code>sp</code> is kept 16-byte aligned.</p>
+<h2 id="a-loop-where-did-my-index-go">A loop: where did my index go?</h2>
+<pre><code class="language-c">int sum(const int *a, int n)
+{
+    int s = 0;
+    for (int i = 0; i &lt; n; i++)
+        s += a[i];
+    return s;
+}
+</code></pre>
+<p>Compiled for RV32I at <code>-O2</code>, the output looks like this. Exact register choices and labels vary with compiler version, so treat it as representative rather than exact:</p>
+<pre><code class="language-text">sum:
+    ble   a1, zero, .L4    # if n &lt;= 0, return 0
+    slli  a1, a1, 2        # n * 4: size in bytes
+    add   a3, a0, a1       # a3 = &amp;a[n], one past the end
+    li    a5, 0            # s = 0
+.L3:
+    lw    a4, 0(a0)        # load *a
+    addi  a0, a0, 4        # a++ (4 bytes per int)
+    add   a5, a5, a4       # s += value
+    bne   a0, a3, .L3      # loop until a reaches the end
+    mv    a0, a5           # return s in a0
+    ret
+.L4:
+    li    a0, 0
+    ret
+</code></pre>
+<p>Read it with the convention in mind. <code>a</code> arrives in <code>a0</code> and <code>n</code> in <code>a1</code>. The variable <code>i</code> has disappeared: the compiler turned <code>a[i]</code> into a pointer that advances by 4 bytes each iteration and compares it with an end pointer computed once before the loop. That removes a multiply (or shift) and an add from every iteration. The loop body is four instructions. The result is moved into <code>a0</code> just before <code>ret</code>, which is a pseudo-instruction for <code>jalr x0, 0(ra)</code>: jump to the return address and discard the link.</p>
+<p>Two habits help here. Map each C variable to a register before reading the loop, and look for the loop's back branch (here <code>bne ... .L3</code>) to find the body quickly.</p>
+<h2 id="a-function-call-why-the-stack-frame-looks-like-that">A function call: why the stack frame looks like that</h2>
+<pre><code class="language-c">int scale(int x);              /* defined elsewhere */
+
+int twice_scaled(int x)
+{
+    return scale(x) + scale(x + 1);
+}
+</code></pre>
+<p>Again at <code>-O2</code>, representative output:</p>
+<pre><code class="language-text">twice_scaled:
+    addi  sp, sp, -16      # make a 16-byte frame
+    sw    ra, 12(sp)       # save return address
+    sw    s0, 8(sp)        # save caller's s0
+    sw    s1, 4(sp)        # save caller's s1
+    mv    s0, a0           # keep x safe across the call
+    call  scale            # a0 = scale(x)
+    mv    s1, a0           # keep the first result safe
+    addi  a0, s0, 1        # argument: x + 1
+    call  scale            # a0 = scale(x + 1)
+    add   a0, s1, a0       # sum, in the return register
+    lw    ra, 12(sp)
+    lw    s0, 8(sp)
+    lw    s1, 4(sp)
+    addi  sp, sp, 16
+    ret
+</code></pre>
+<p>Every line follows from the convention:</p>
+<ul>
+<li><code>call</code> overwrites <code>ra</code> with its own return address, so <code>ra</code> must be saved first, or <code>twice_scaled</code> could never return to its caller.</li>
+<li><code>x</code> is needed after the first call, but <code>a0</code> is not preserved across calls. The compiler copies it into <code>s0</code>, which <code>scale</code> must preserve. Because <code>twice_scaled</code> now uses <code>s0</code>, it must save the caller's <code>s0</code> and restore it at the end. The same reasoning applies to <code>s1</code>, which holds the first result.</li>
+<li>The frame is 16 bytes even though only 12 are used, to keep <code>sp</code> 16-byte aligned.</li>
+</ul>
+<p>Compile the same function at <code>-O0</code> and the picture changes: every variable lives in the stack frame, <code>s0</code> is set up as a frame pointer, and each use reloads from memory. It is easier to map to the source line by line, and much slower. When a bug appears only at <code>-O2</code>, comparing the two outputs often shows which assumption the optimiser was entitled to make, such as a missing <code>volatile</code>.</p>
+<h2 id="writing-a-few-lines-yourself">Writing a few lines yourself</h2>
+<p>Reading leads naturally to writing small pieces. Here is <code>sum</code> written by hand, which you can assemble, link with a C <code>main</code>, and call:</p>
+<pre><code class="language-text">    .text
+    .globl sum_asm
+sum_asm:                   # int sum_asm(const int *a, int n)
+    li    t0, 0            # running sum in a temporary
+1:  beqz  a1, 2f           # n == 0: done
+    lw    t1, 0(a0)
+    add   t0, t0, t1
+    addi  a0, a0, 4
+    addi  a1, a1, -1
+    j     1b
+2:  mv    a0, t0           # result in a0
+    ret
+</code></pre>
+<p>It uses only <code>a</code> and <code>t</code> registers and calls nothing, so it needs no stack frame at all. Compare it with the compiler's version and you will see why the compiler moved the test out of the loop: yours runs two branches per iteration, the compiler's only one.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading <code>-O0</code> output as "what the program does".</strong> Optimised code can look completely different and still be correct.</li>
+<li><strong>Forgetting that a call destroys <code>a</code> and <code>t</code> registers.</strong> Any value needed afterwards must live in an <code>s</code> register or on the stack.</li>
+<li><strong>Not saving <code>ra</code> in a function that calls another.</strong> It returns to itself forever.</li>
+<li><strong>Misaligning the stack.</strong> Keep <code>sp</code> a multiple of 16 at call boundaries.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile both C functions with <code>riscv64-unknown-elf-gcc -O2 -march=rv32i -mabi=ilp32 -S</code> and compare with the listings above; then repeat with <code>-O0</code>.</li>
+<li>Assemble <code>sum_asm</code>, link it with a C test program, and run it under <code>qemu-riscv32</code> or Spike, checking that it matches <code>sum</code>.</li>
+<li>Disassemble the linked program with <code>riscv64-unknown-elf-objdump -d</code> and find how <code>call</code> was encoded (as <code>jal</code>, or as an <code>auipc</code> and <code>jalr</code> pair).</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>assembly</li><li>calling convention</li><li>c</li><li>compilers</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="why-riscv-scrambles-immediates.html"><span>Previous in Computer architecture &amp; RISC-V</span>Why RISC-V scrambles its immediate bits</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="custom-instruction-or-peripheral.html">Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></h3>
+          <p>RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="data-hazards-and-forwarding.html">Data hazards and forwarding paths, traced cycle by cycle</a></h3>
+          <p>Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

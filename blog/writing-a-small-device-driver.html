@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing a small device driver: the layers between a register and an API · Ketuna blog</title>
+  <meta name="description" content="Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing a small device driver: the layers between a register and an API · Ketuna blog">
+  <meta property="og:description" content="Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.">
+  <link rel="canonical" href="https://ketuna.online/blog/writing-a-small-device-driver.html">
+  <meta property="og:url" content="https://ketuna.online/blog/writing-a-small-device-driver.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing a small device driver: the layers between a register and an API",
+  "description": "Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "device drivers, i2c, embedded c, firmware design, testing",
+  "articleSection": "Embedded systems",
+  "wordCount": 839,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/writing-a-small-device-driver.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Writing a small device driver: the layers between a register and an API</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-four-layers">The four layers</a></li><li><a href="#layer-1-the-register-map">Layer 1: the register map</a></li><li><a href="#layer-2-a-bus-interface-you-can-replace">Layer 2: a bus interface you can replace</a></li><li><a href="#layer-3-initialisation-that-checks-everything">Layer 3: initialisation that checks everything</a></li><li><a href="#layer-4-the-interrupt-path-and-the-api">Layer 4: the interrupt path and the API</a></li><li><a href="#testing-it-without-the-board">Testing it without the board</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first driver most people write is a single function that pokes registers and returns a number. It works on the bench, then grows: a retry here, a delay there, a global flag set by an interrupt. Six months later nobody can change it without breaking something. A small driver does not need a framework, but it does need layers with clear jobs. This article builds one for a sensor, layer by layer, and explains what each layer protects you from.</p>
+<h2 id="the-four-layers">The four layers</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="dv-title dv-desc" font-size="14">
+<title id="dv-title">Layers of a small sensor driver</title>
+<desc id="dv-desc">Four stacked boxes. At the top, application code calls the driver API. Below it, the driver logic holds the initialisation sequence, the interrupt path and unit conversion. Below that, a bus interface of function pointers connects either to the real I2C driver or to a fake used in host tests. At the bottom, the register map header holds addresses and bit masks.</desc>
+<rect x="60" y="14" width="360" height="40" rx="6" class="dg-core"/>
+<text x="240" y="39" text-anchor="middle" class="dg-text">Application: tmp_read_mdegc()</text>
+<rect x="60" y="70" width="360" height="40" rx="6" class="dg-box"/>
+<text x="240" y="95" text-anchor="middle" class="dg-text">Driver logic: init, ISR flag, units</text>
+<rect x="60" y="126" width="360" height="40" rx="6" class="dg-amber" fill-opacity="0.3"/>
+<text x="240" y="151" text-anchor="middle" class="dg-text">Bus interface: read, write, delay</text>
+<rect x="60" y="182" width="170" height="40" rx="6" class="dg-box"/>
+<text x="145" y="207" text-anchor="middle" class="dg-text">Real I2C driver</text>
+<rect x="250" y="182" width="170" height="40" rx="6" class="dg-track"/>
+<text x="335" y="207" text-anchor="middle" class="dg-text">Fake for tests</text>
+<path d="M240,54 V70 M240,110 V126 M145,166 V182 M335,166 V182" class="dg-line"/>
+<text x="240" y="244" text-anchor="middle" class="dg-muted">register map header: used by the driver logic</text>
+</svg>
+<figcaption>Each layer talks only to the one below it, so the bus can be swapped for a fake and the driver tested without hardware.</figcaption>
+</figure>
+
+<p>The sensor in this example is made up so that the code stands on its own: an I2C temperature sensor with an identity register, a control register with a self-clearing reset bit, a data-ready interrupt output, and a signed 16-bit result in units of 1/128 °C.</p>
+<h2 id="layer-1-the-register-map">Layer 1: the register map</h2>
+<p>Start by copying the register table from the datasheet into a header, using the datasheet's own names so that a reviewer can check it line by line:</p>
+<pre><code class="language-c">/* tmp_regs.h: register map of a made-up I2C temperature sensor */
+#define TMP_REG_ID       0x0Fu  /* reads TMP_ID_VALUE              */
+#define TMP_REG_CTRL     0x10u
+#define TMP_CTRL_RESET   (1u &lt;&lt; 7)  /* self-clearing soft reset   */
+#define TMP_CTRL_DRDYIE  (1u &lt;&lt; 1)  /* data-ready pin enable      */
+#define TMP_CTRL_RUN     (1u &lt;&lt; 0)  /* continuous conversion      */
+#define TMP_REG_DATA_H   0x12u  /* then DATA_L; 1/128 degC per LSB */
+#define TMP_ID_VALUE     0xA5u
+</code></pre>
+<p>Nothing else goes in this file. When the next revision of the part moves a bit, there is exactly one place to change.</p>
+<h2 id="layer-2-a-bus-interface-you-can-replace">Layer 2: a bus interface you can replace</h2>
+<p>The driver should not call the I2C controller directly. It calls three functions through a small structure, and whoever creates the driver decides what they point to:</p>
+<pre><code class="language-c">#include &lt;errno.h&gt;
+#include &lt;stdint.h&gt;
+
+struct tmp_bus {
+    int  (*read)(void *ctx, uint8_t reg, uint8_t *buf, unsigned len);
+    int  (*write)(void *ctx, uint8_t reg, uint8_t val);
+    void (*delay_ms)(unsigned ms);
+    void *ctx;                  /* for example: controller + address */
+};
+
+struct tmp_dev {
+    const struct tmp_bus *bus;
+    volatile int data_ready;    /* set by the data-ready interrupt */
+};
+</code></pre>
+<p>On the board, <code>read</code> and <code>write</code> wrap the real I2C driver with the sensor's bus address. On a laptop they point at a fake that stores registers in an array. The driver logic is identical in both, which is the whole point.</p>
+<h2 id="layer-3-initialisation-that-checks-everything">Layer 3: initialisation that checks everything</h2>
+<p>A good initialisation sequence never assumes the hardware is there. It waits for power-up, confirms the part's identity, resets it to a known state with a bounded wait, configures it, and reads the configuration back:</p>
+<pre><code class="language-c">static int rd8(struct tmp_dev *d, uint8_t reg, uint8_t *v)
+{
+    return d-&gt;bus-&gt;read(d-&gt;bus-&gt;ctx, reg, v, 1);
+}
+
+int tmp_init(struct tmp_dev *d, const struct tmp_bus *bus)
+{
+    uint8_t v;
+    int rc;
+
+    d-&gt;bus = bus;
+    d-&gt;data_ready = 0;
+    bus-&gt;delay_ms(2);                          /* power-up time  */
+
+    if ((rc = rd8(d, TMP_REG_ID, &amp;v)) != 0)
+        return rc;                             /* bus error      */
+    if (v != TMP_ID_VALUE)
+        return -ENODEV;                        /* wrong part     */
+
+    if ((rc = bus-&gt;write(bus-&gt;ctx, TMP_REG_CTRL, TMP_CTRL_RESET)) != 0)
+        return rc;
+    for (int i = 0; ; i++) {                   /* bounded wait   */
+        bus-&gt;delay_ms(1);
+        if ((rc = rd8(d, TMP_REG_CTRL, &amp;v)) != 0)
+            return rc;
+        if (!(v &amp; TMP_CTRL_RESET))
+            break;
+        if (i == 10)
+            return -ETIMEDOUT;
+    }
+
+    const uint8_t cfg = TMP_CTRL_RUN | TMP_CTRL_DRDYIE;
+    if ((rc = bus-&gt;write(bus-&gt;ctx, TMP_REG_CTRL, cfg)) != 0)
+        return rc;
+    if ((rc = rd8(d, TMP_REG_CTRL, &amp;v)) != 0)
+        return rc;
+    return (v == cfg) ? 0 : -EIO;              /* verify         */
+}
+</code></pre>
+<p>Each check turns a confusing failure into a specific error. A wrong identity means the wrong part was fitted, or the address is wrong. A reset that never completes means a dead or unpowered chip. A read-back mismatch catches a write that did not take. The loop limit means a missing sensor cannot hang the boot.</p>
+<h2 id="layer-4-the-interrupt-path-and-the-api">Layer 4: the interrupt path and the API</h2>
+<p>The sensor raises its data-ready pin when a conversion finishes. The GPIO interrupt handler does the minimum: it records the event. The bus transfer happens later, in the caller's context, because an I2C transaction is far too slow for an interrupt handler.</p>
+<pre><code class="language-c">void tmp_drdy_isr(struct tmp_dev *d)        /* from the GPIO ISR */
+{
+    d-&gt;data_ready = 1;
+}
+
+/* Returns 0 and the temperature in millidegrees Celsius,
+ * -EAGAIN if no new sample is ready, or a negative bus error.
+ * Call from thread or main-loop context only. */
+int tmp_read_mdegc(struct tmp_dev *d, int32_t *mdegc)
+{
+    uint8_t b[2];
+    int rc;
+
+    if (!d-&gt;data_ready)
+        return -EAGAIN;
+    d-&gt;data_ready = 0;
+    if ((rc = d-&gt;bus-&gt;read(d-&gt;bus-&gt;ctx, TMP_REG_DATA_H, b, 2)) != 0)
+        return rc;
+    int16_t raw = (int16_t)(((uint16_t)b[0] &lt;&lt; 8) | b[1]);
+    *mdegc = (int32_t)raw * 1000 / 128;
+    return 0;
+}
+</code></pre>
+<p>The comment above <code>tmp_read_mdegc</code> is part of the API, not decoration. It states the <strong>units</strong> (millidegrees, an integer, so no floating point is needed), every <strong>return code</strong>, and the <strong>context</strong> the function may be called from. A raw value of <code>0x0C80</code> (3200) gives 25,000 m°C; <code>0xFF00</code> (−256) gives −2000 m°C. Those two cases, positive and negative, are the first unit tests to write.</p>
+<p>With an RTOS, the flag becomes a semaphore given by the ISR, and the read function can wait on it with a timeout instead of returning <code>-EAGAIN</code>. If two threads can use the sensor, add a mutex around the bus transfer.</p>
+<h2 id="testing-it-without-the-board">Testing it without the board</h2>
+<p>Because the driver only sees <code>struct tmp_bus</code>, a fake bus of a dozen lines lets you run every path on a laptop in milliseconds. The fake keeps the sensor's registers in an array and, to model the self-clearing reset bit, clears it after it has been read twice:</p>
+<pre><code class="language-c">static uint8_t regs[256];
+static int reset_reads;
+
+static int fake_read(void *ctx, uint8_t reg, uint8_t *buf, unsigned n)
+{
+    (void)ctx;
+    for (unsigned i = 0; i &lt; n; i++)
+        buf[i] = regs[(uint8_t)(reg + i)];
+    if (reg == TMP_REG_CTRL &amp;&amp; (regs[reg] &amp; TMP_CTRL_RESET) &amp;&amp;
+        ++reset_reads &gt;= 2)
+        regs[reg] &amp;= (uint8_t)~TMP_CTRL_RESET;
+    return 0;
+}
+</code></pre>
+<p>A matching <code>fake_write</code> stores into <code>regs</code> and <code>fake_delay</code> does nothing. Now the hard cases are one line each: put <code>0x5A</code> in the identity register and <code>tmp_init</code> must return <code>-ENODEV</code>; make the fake never clear the reset bit and it must return <code>-ETIMEDOUT</code> after its bounded wait rather than looping forever. These are exactly the cases that are awkward to create on real hardware, which is why they so often go untested until a field failure.</p>
+<h3 id="review-checklist">Review checklist</h3>
+<ul>
+<li>Every register name and bit position matches the datasheet table</li>
+<li>Every wait has a limit, and every limit returns an error code</li>
+<li>Units are stated in the API and stored as integers</li>
+<li>No bus transfers, delays or printing inside the interrupt handler</li>
+<li>The driver contains no global state, so two sensors are two <code>tmp_dev</code> structures</li>
+<li>Errors from the bus layer are passed up, not swallowed</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile the driver on your laptop with <code>gcc</code> together with a fake bus whose <code>read</code> and <code>write</code> use a 256-byte array. Write tests for a wrong identity, a reset bit that never clears, a read-back mismatch, and the two temperature values above.</li>
+<li>Add a fake <code>write</code> that fails on the third call and confirm the error reaches the caller unchanged.</li>
+<li>Port the bus layer to a real I2C driver on a board, or to Zephyr's <code>i2c_write_read_dt()</code>, without changing the driver logic. Ask a colleague to review the register header against the datasheet before you power it up.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>device drivers</li><li>i2c</li><li>embedded c</li><li>firmware design</li><li>testing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="response-time-analysis-by-hand.html"><span>Previous in Embedded systems</span>Will every task meet its deadline? Response-time analysis worked by hand</a><a class="next" href="interrupt-safe-uart-ring-buffer.html"><span>Next in Embedded systems</span>Writing an interrupt-safe ring buffer for UART receive</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-filters-without-an-fpu.html">Fixed-point filters on a microcontroller without an FPU</a></h3>
+          <p>A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

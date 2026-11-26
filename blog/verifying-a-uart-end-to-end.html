@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verifying a UART end to end: framing, baud error and coverage closure · Ketuna blog</title>
+  <meta name="description" content="Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Verifying a UART end to end: framing, baud error and coverage closure · Ketuna blog">
+  <meta property="og:description" content="Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.">
+  <link rel="canonical" href="https://ketuna.online/blog/verifying-a-uart-end-to-end.html">
+  <meta property="og:url" content="https://ketuna.online/blog/verifying-a-uart-end-to-end.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Verifying a UART end to end: framing, baud error and coverage closure",
+  "description": "Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "uart, baud rate, coverage closure, cocotb, protocol verification",
+  "articleSection": "Verification",
+  "wordCount": 905,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/verifying-a-uart-end-to-end.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Verifying a UART end to end: framing, baud error and coverage closure</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Check every field of a UART frame, work out how much baud mismatch a receiver must tolerate and test it with a fractional-rate driver, then close coverage on parity, framing and glitch errors.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-frame-and-where-the-receiver-samples">The frame and where the receiver samples</a></li><li><a href="#how-much-baud-error-a-receiver-can-tolerate">How much baud error a receiver can tolerate</a></li><li><a href="#a-driver-that-can-send-at-any-rate">A driver that can send at any rate</a></li><li><a href="#checks-for-each-part-of-the-frame">Checks for each part of the frame</a></li><li><a href="#closing-coverage-on-the-error-cases">Closing coverage on the error cases</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A UART is often the first protocol block students design, and most UART testbenches stop at a loopback test: send a byte, receive the same byte, pass. That test exercises the happy path at exactly the right baud rate with perfect frames. Real receivers face transmitters whose clocks are a little fast or slow, lines that glitch, and frames with bad parity or a missing stop bit. Verifying a UART properly means checking each part of the frame, deliberately sending imperfect traffic, and proving with coverage that every error case was exercised.</p>
+<h2 id="the-frame-and-where-the-receiver-samples">The frame and where the receiver samples</h2>
+<p>An asynchronous serial frame has no clock. The line idles high; a falling edge marks the start bit; data bits follow least significant first; an optional parity bit comes next; and one or more stop bits return the line high. The receiver finds the start edge, waits half a bit to reach the middle of the start bit, checks the line is still low, then samples once per bit time in the middle of each following bit.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="ua-title ua-desc" font-size="14">
+<title id="ua-title">UART frame with mid-bit sampling points</title>
+<desc id="ua-desc">A UART line idles high, falls for the start bit, carries eight data bits D0 to D7, a parity bit and a stop bit back at high. A dot marks the middle of each bit, where the receiver samples. The last sample, in the stop bit, is ten and a half bit times after the start edge.</desc>
+<path d="M10,40 H40 V90 H110 V40 H145 V90 H180 V40 H250 V90 H285 V40 H320 V90 H390 V40 H470" class="dg-line" fill="none"/>
+<text x="57" y="115" text-anchor="middle" class="dg-text">S</text>
+<text x="92" y="115" text-anchor="middle" class="dg-muted">D0</text>
+<text x="127" y="115" text-anchor="middle" class="dg-muted">D1</text>
+<text x="162" y="115" text-anchor="middle" class="dg-muted">D2</text>
+<text x="197" y="115" text-anchor="middle" class="dg-muted">D3</text>
+<text x="232" y="115" text-anchor="middle" class="dg-muted">D4</text>
+<text x="267" y="115" text-anchor="middle" class="dg-muted">D5</text>
+<text x="302" y="115" text-anchor="middle" class="dg-muted">D6</text>
+<text x="337" y="115" text-anchor="middle" class="dg-muted">D7</text>
+<text x="372" y="115" text-anchor="middle" class="dg-text">P</text>
+<text x="407" y="115" text-anchor="middle" class="dg-text">stop</text>
+<circle cx="57" cy="65" r="4" class="dg-amber"/>
+<circle cx="92" cy="65" r="4" class="dg-amber"/>
+<circle cx="127" cy="65" r="4" class="dg-amber"/>
+<circle cx="162" cy="65" r="4" class="dg-amber"/>
+<circle cx="197" cy="65" r="4" class="dg-amber"/>
+<circle cx="232" cy="65" r="4" class="dg-amber"/>
+<circle cx="267" cy="65" r="4" class="dg-amber"/>
+<circle cx="302" cy="65" r="4" class="dg-amber"/>
+<circle cx="337" cy="65" r="4" class="dg-amber"/>
+<circle cx="372" cy="65" r="4" class="dg-amber"/>
+<circle cx="407" cy="65" r="4" class="dg-amber"/>
+<line x1="40" y1="140" x2="401" y2="140" class="dg-line"/>
+<path d="M401,136 L407,140 L401,144 Z" class="dg-arrow"/>
+<text x="224" y="160" text-anchor="middle" class="dg-muted">10.5 bit times from start edge to last sample</text>
+</svg>
+<figcaption>Each dot is a sample in the middle of a bit; timing error accumulates up to the last one, in the stop bit.</figcaption>
+</figure>
+
+<p>The data pattern drawn here is 0x5A (bits 0, 1, 0, 1, 1, 0, 1, 0 from D0 to D7), with even parity, so the parity bit is 0.</p>
+<h2 id="how-much-baud-error-a-receiver-can-tolerate">How much baud error a receiver can tolerate</h2>
+<p>The receiver resynchronises only at the start edge. After that, any difference between the transmitter's bit time and the receiver's bit time accumulates across the frame. The last sample, in the stop bit, is where error is largest.</p>
+<p>For a frame with 8 data bits and parity, the stop-bit sample lands 10.5 bit times after the start edge. The sample stays inside the correct bit as long as the accumulated drift is less than half a bit:</p>
+<blockquote>
+<p>|relative baud error| × 10.5 &lt; 0.5, so |error| &lt; 0.5 / 10.5 ≈ 4.8%</p>
+</blockquote>
+<p>Without parity the last sample is at 9.5 bit times and the limit is 0.5 / 9.5 ≈ 5.3%. A receiver that detects the start edge with a 16× oversampled clock can be up to one sixteenth of a bit late finding it, which eats into the margin: (0.5 − 1/16) / 10.5 ≈ 4.2% with parity. These limits are for the <em>combined</em> mismatch between both ends, and real designs keep a good share of the margin for the other device's clock error.</p>
+<p>Clock division adds its own error. With an illustrative 50 MHz clock and 16× oversampling at 115,200 baud, the ideal divisor is 50,000,000 / (16 × 115,200) ≈ 27.13. Rounding to 27 gives 115,741 baud, about 0.47% fast, before any oscillator tolerance is counted.</p>
+<h2 id="a-driver-that-can-send-at-any-rate">A driver that can send at any rate</h2>
+<p>To test tolerance, the testbench must transmit at rates the design's own transmitter never produces. A cocotb driver with a bit time in picoseconds can do that directly.</p>
+<pre><code class="language-python">from cocotb.triggers import Timer
+
+async def send_frame(line, byte, baud, error_pct=0.0,
+                     parity=&quot;even&quot;, stop_val=1):
+    bit_ps = round(1e12 / (baud * (1 + error_pct / 100)))
+    bits = [(byte &gt;&gt; i) &amp; 1 for i in range(8)]
+    frame = [0] + bits
+    if parity is not None:
+        p = sum(bits) % 2
+        frame.append(p if parity == &quot;even&quot; else 1 - p)
+    frame.append(stop_val)
+    for b in frame:
+        line.value = b
+        await Timer(bit_ps, unit=&quot;ps&quot;)
+    line.value = 1                       # back to idle
+</code></pre>
+<p><code>error_pct</code> skews the rate, <code>parity</code> can be made wrong by passing the opposite setting, and <code>stop_val=0</code> produces a framing error. A short low pulse on an idle line, shorter than half a bit, tests start-bit glitch rejection.</p>
+<h2 id="checks-for-each-part-of-the-frame">Checks for each part of the frame</h2>
+<p>A scoreboard compares received bytes and error flags with what the driver sent. Each plan item needs its own check:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Stimulus</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data order</td>
+<td>All 256 byte values</td>
+<td>Received byte equals sent byte</td>
+</tr>
+<tr>
+<td>Parity</td>
+<td>Correct and inverted parity</td>
+<td>Error flag only on inverted</td>
+</tr>
+<tr>
+<td>Stop bit</td>
+<td><code>stop_val = 0</code></td>
+<td>Framing error, no valid byte</td>
+</tr>
+<tr>
+<td>Glitch</td>
+<td>Low pulse under half a bit</td>
+<td>No frame started</td>
+</tr>
+<tr>
+<td>Back to back</td>
+<td>Next start bit right after stop</td>
+<td>No byte lost</td>
+</tr>
+<tr>
+<td>Baud skew</td>
+<td>−4% to +4% in steps</td>
+<td>Correct bytes inside the design's stated tolerance</td>
+</tr>
+</tbody>
+</table></div>
+<p>The baud-skew row needs a stated tolerance from the spec. If the spec does not give one, that is the first finding of the verification effort.</p>
+<h2 id="closing-coverage-on-the-error-cases">Closing coverage on the error cases</h2>
+<p>Random tests at nominal baud will hit all data values quickly and almost never produce errors, because the driver produces perfect frames unless told otherwise. Coverage makes that visible.</p>
+<p>A reasonable coverage model samples once per received frame or detected error, with bins for data corners (0x00, 0xFF, 0x55, 0xAA, other), error type (none, parity, framing, glitch rejected), baud skew class (slow edge, nominal, fast edge), and the gap before the frame (zero idle, short, long). Cross error type with skew class, because a parity error at the edge of tolerance exercises different sample timing from one at nominal rate.</p>
+<p>Closing it is then deliberate work: weight the random generator so a fraction of frames carry each error, sweep skew at the boundaries, and add directed tests for the combinations that stay empty. When a bin will not close, ask whether the case is truly reachable and, if not, waive it with a written reason.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a UART receiver in Verilog with a two-flop input synchronizer, mid-bit sampling and parity and framing error outputs.</li>
+<li>Build a cocotb testbench on Icarus Verilog with the driver above and a scoreboard, and run all 256 byte values at nominal baud.</li>
+<li>Sweep <code>error_pct</code> from −6 to +6 in 0.5% steps, find where the receiver starts failing, and compare it with the limit you calculated for your sampling scheme.</li>
+<li>Add a Python coverage dictionary for the bins described, and keep adjusting stimulus weights until every error bin and every cross bin is hit.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>uart</li><li>baud rate</li><li>coverage closure</li><li>cocotb</li><li>protocol verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="riscv-core-lockstep-verification.html"><span>Previous in Verification</span>Verifying a RISC-V core against a reference model in lockstep</a><a class="next" href="verifying-battery-protection-logic.html"><span>Next in Verification</span>Verifying battery-protection logic: over-voltage, under-voltage and fault latching</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="directed-or-constrained-random.html">Directed tests or constrained random? Using each where it pays off</a></h3>
+          <p>Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

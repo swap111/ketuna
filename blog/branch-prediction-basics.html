@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Branch prediction from static rules to two-bit counters · Ketuna blog</title>
+  <meta name="description" content="Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Branch prediction from static rules to two-bit counters · Ketuna blog">
+  <meta property="og:description" content="Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.">
+  <link rel="canonical" href="https://ketuna.online/blog/branch-prediction-basics.html">
+  <meta property="og:url" content="https://ketuna.online/blog/branch-prediction-basics.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Branch prediction from static rules to two-bit counters",
+  "description": "Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "branch prediction, pipelining, cpi, risc-v, microarchitecture",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 955,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/branch-prediction-basics.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Branch prediction from static rules to two-bit counters</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-cost-of-a-wrong-guess">The cost of a wrong guess</a></li><li><a href="#static-rules-no-state-at-all">Static rules: no state at all</a></li><li><a href="#one-bit-of-history">One bit of history</a></li><li><a href="#two-bit-saturating-counters">Two-bit saturating counters</a></li><li><a href="#direction-is-only-half-the-problem">Direction is only half the problem</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A pipelined core fetches a new instruction every cycle, but it learns whether a branch is taken only several stages later. In the meantime it has to fetch something. If it guesses wrong, the instructions fetched on the wrong path are thrown away and the cycles they occupied are lost. Branch prediction is the art of guessing well and cheaply. This article starts with the cost of a wrong guess, then works through static rules and the two simplest dynamic predictors by hand.</p>
+<h2 id="the-cost-of-a-wrong-guess">The cost of a wrong guess</h2>
+<p>In a classic five-stage pipeline that resolves branches in EX, two younger instructions are already in IF and ID when the outcome is known. If the guess was wrong, both are flushed: a <strong>misprediction penalty</strong> of two cycles. Deeper pipelines resolve branches later and pay more.</p>
+<p>The effect on average cycles per instruction (CPI) is a single formula:</p>
+<blockquote>
+<p>CPI = CPI<sub>base</sub> + (branch fraction) × (misprediction rate) × (penalty)</p>
+</blockquote>
+<p>Take numbers made up for illustration: a base CPI of 1, 15% of instructions are branches, and the penalty is 3 cycles.</p>
+<ul>
+<li>If half of all branches are mispredicted: CPI = 1 + 0.15 × 0.5 × 3 = 1.225.</li>
+<li>If only 10% are mispredicted: CPI = 1 + 0.15 × 0.1 × 3 = 1.045.</li>
+</ul>
+<p>The better predictor makes the whole program about 17% faster (1.225 / 1.045), and the only thing that changed was the guess. The penalty term grows with pipeline depth, which is why deep pipelines spend so much hardware on prediction.</p>
+<h2 id="static-rules-no-state-at-all">Static rules: no state at all</h2>
+<p>The simplest predictors use no memory of the past.</p>
+<ul>
+<li><strong>Always not-taken.</strong> Keep fetching PC + 4. It costs nothing and is right whenever the branch falls through. It is wrong on every iteration of a loop's backward branch.</li>
+<li><strong>Backward taken, forward not taken (BTFN).</strong> A branch with a negative offset usually closes a loop, so predict it taken; a forward branch usually skips an <code>if</code> body, so predict it not taken. The sign of the offset is bit 31 of the instruction, available at fetch.</li>
+</ul>
+<p>Static rules are a sensible choice for small embedded cores, where area matters more than the last few percent of speed. They fail on branches whose behaviour depends on data.</p>
+<h2 id="one-bit-of-history">One bit of history</h2>
+<p>A <strong>one-bit predictor</strong> keeps one bit per branch: the last outcome. Predict whatever happened last time. The bits live in a small table, the branch history table, indexed by low bits of the branch's PC.</p>
+<p>Trace a loop that runs 8 iterations and is entered many times. Its backward branch produces the pattern T, T, T, T, T, T, T, N, then repeats. In steady state:</p>
+<ul>
+<li>At the final N, the bit says T (it was taken last time): <strong>miss</strong>.</li>
+<li>On re-entry, the first T: the bit now says N: <strong>miss</strong>.</li>
+<li>The other six are correct.</li>
+</ul>
+<p>Two misses in eight, 75% accuracy. The second miss is annoying: one unusual exit has spoiled the prediction for the next entry.</p>
+<h2 id="two-bit-saturating-counters">Two-bit saturating counters</h2>
+<p>A <strong>two-bit counter</strong> fixes that by requiring two wrong outcomes in a row before changing its mind. Each branch gets a counter from 0 to 3. Taken increments it, not taken decrements it, and it saturates at both ends. Predict taken when the counter is 2 or 3.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="bp-title bp-desc" font-size="14">
+<title id="bp-title">Two-bit saturating counter state machine</title>
+<desc id="bp-desc">Four states in a row: strongly not taken 00, weakly not taken 01, weakly taken 10 and strongly taken 11. A taken outcome moves one state right, a not-taken outcome moves one state left. At the ends the state stays put. The two right-hand states predict taken.</desc>
+<rect x="258" y="50" width="214" height="100" class="dg-amber" fill-opacity="0.18"/>
+<text x="365" y="44" text-anchor="middle" class="dg-text">predict taken</text>
+<text x="120" y="44" text-anchor="middle" class="dg-text">predict not taken</text>
+<circle cx="60" cy="100" r="32" class="dg-box"/><text x="60" y="96" text-anchor="middle" class="dg-text">00</text><text x="60" y="114" text-anchor="middle" class="dg-muted">strong N</text>
+<circle cx="180" cy="100" r="32" class="dg-box"/><text x="180" y="96" text-anchor="middle" class="dg-text">01</text><text x="180" y="114" text-anchor="middle" class="dg-muted">weak N</text>
+<circle cx="300" cy="100" r="32" class="dg-box"/><text x="300" y="96" text-anchor="middle" class="dg-text">10</text><text x="300" y="114" text-anchor="middle" class="dg-muted">weak T</text>
+<circle cx="420" cy="100" r="32" class="dg-box"/><text x="420" y="96" text-anchor="middle" class="dg-text">11</text><text x="420" y="114" text-anchor="middle" class="dg-muted">strong T</text>
+<path d="M86,82 Q120,58 152,80" class="dg-line" fill="none"/><path d="M146,74 L155,83 L143,83 Z" class="dg-arrow"/>
+<path d="M206,82 Q240,58 272,80" class="dg-line" fill="none"/><path d="M266,74 L275,83 L263,83 Z" class="dg-arrow"/>
+<path d="M326,82 Q360,58 392,80" class="dg-line" fill="none"/><path d="M386,74 L395,83 L383,83 Z" class="dg-arrow"/>
+<text x="120" y="66" text-anchor="middle" class="dg-text">T</text><text x="240" y="66" text-anchor="middle" class="dg-text">T</text><text x="360" y="66" text-anchor="middle" class="dg-text">T</text>
+<path d="M154,120 Q120,144 88,120" class="dg-line" fill="none"/><path d="M94,126 L85,117 L97,117 Z" class="dg-arrow"/>
+<path d="M274,120 Q240,144 208,120" class="dg-line" fill="none"/><path d="M214,126 L205,117 L217,117 Z" class="dg-arrow"/>
+<path d="M394,120 Q360,144 328,120" class="dg-line" fill="none"/><path d="M334,126 L325,117 L337,117 Z" class="dg-arrow"/>
+<text x="120" y="150" text-anchor="middle" class="dg-text">N</text><text x="240" y="150" text-anchor="middle" class="dg-text">N</text><text x="360" y="150" text-anchor="middle" class="dg-text">N</text>
+<text x="60" y="160" text-anchor="middle" class="dg-muted">N stays</text>
+<text x="420" y="160" text-anchor="middle" class="dg-muted">T stays</text>
+</svg>
+<figcaption>A two-bit counter changes its prediction only after two consecutive surprises.</figcaption>
+</figure>
+
+<p>Trace the same 8-iteration loop. During the loop the counter sits at 3. At the final N it predicts T, a <strong>miss</strong>, and drops to 2. On re-entry it still predicts T, which is right, and climbs back to 3. One miss in eight: 87.5% accuracy, against 75% for the one-bit scheme and 12.5% for always not-taken. BTFN also gets 87.5% on this loop for free, which is why static rules remain respectable for loop-heavy code.</p>
+<p>Now a branch that alternates, T, N, T, N, such as <code>if (i &amp; 1)</code> inside a loop. Start the counter at 1 (weakly not taken):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>Counter before</th>
+<th>Prediction</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T</td>
+<td>1</td>
+<td>N</td>
+<td>miss</td>
+</tr>
+<tr>
+<td>N</td>
+<td>2</td>
+<td>T</td>
+<td>miss</td>
+</tr>
+<tr>
+<td>T</td>
+<td>1</td>
+<td>N</td>
+<td>miss</td>
+</tr>
+<tr>
+<td>N</td>
+<td>2</td>
+<td>T</td>
+<td>miss</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every guess is wrong. The counter bounces between 1 and 2, always one step behind. Always not-taken would get half of them right. Simple counters capture "this branch is usually one way"; they cannot capture patterns. That requires history-based predictors, which combine the PC with a record of recent outcomes to pick a counter.</p>
+<h2 id="direction-is-only-half-the-problem">Direction is only half the problem</h2>
+<p>A taken prediction is useless unless fetch also knows the <strong>target</strong> address in the same cycle, before the instruction has even been decoded. Cores therefore pair the counter table with a <strong>branch target buffer</strong> (a small cache from branch PC to target), and often a <strong>return address stack</strong> for function returns. A small embedded core may skip these and redirect after decode instead, accepting a one-cycle bubble on every taken branch.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Updating the counters with wrong-path branches.</strong> Train the table when the branch resolves, not when it is fetched speculatively.</li>
+<li><strong>Indexing with PC bits 1:0.</strong> With 4-byte instructions they are always zero; skip the alignment bits.</li>
+<li><strong>Judging a predictor on one loop.</strong> Accuracy depends entirely on the workload; replay real traces.</li>
+<li><strong>Forgetting aliasing.</strong> Two branches with the same low PC bits share a counter and can spoil each other.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a 30-line Python model that replays a list of (PC, taken) pairs through always not-taken, BTFN, one-bit and two-bit predictors and prints the accuracy of each.</li>
+<li>Generate a branch trace by running a small program in Spike with its instruction log enabled, or in QEMU, and filter out the branches.</li>
+<li>Implement a 64-entry table of two-bit counters in Verilog, simulate it in Icarus Verilog against your Python model, and synthesise it with Yosys to see how little logic it needs.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>branch prediction</li><li>pipelining</li><li>cpi</li><li>risc-v</li><li>microarchitecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="cache-associativity-and-policies.html"><span>Previous in Computer architecture &amp; RISC-V</span>Associativity, replacement and write policies: cache design choices compared</a><a class="next" href="single-cycle-datapath-on-paper.html"><span>Next in Computer architecture &amp; RISC-V</span>Building a single-cycle RISC-V datapath on paper first</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="data-hazards-and-forwarding.html">Data hazards and forwarding paths, traced cycle by cycle</a></h3>
+          <p>Trace read-after-write hazards on a five-stage pipeline diagram, see which bypass path covers each distance between producer and consumer, and write the forwarding unit with the right priority.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="single-cycle-to-five-stage-pipeline.html">From single-cycle to a five-stage pipeline: what changes and why</a></h3>
+          <p>Cutting a single-cycle core into five stages adds pipeline registers, raises the clock and creates hazards. Work out the real speed-up, what each register must carry, and what new logic you inherit.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-load-use-hazard.html">The load-use hazard: why one bubble remains even with forwarding</a></h3>
+          <p>A load&#x27;s data arrives at the end of the memory stage, one cycle too late to forward into the next instruction&#x27;s ALU. Learn why, how the pipeline detects it and stalls, and how compilers hide the bubble.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

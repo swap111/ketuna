@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metal fill, density rules and why the fab cares about empty space · Ketuna blog</title>
+  <meta name="description" content="Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Metal fill, density rules and why the fab cares about empty space · Ketuna blog">
+  <meta property="og:description" content="Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.">
+  <link rel="canonical" href="https://ketuna.online/blog/metal-fill-and-density-rules.html">
+  <meta property="og:url" content="https://ketuna.online/blog/metal-fill-and-density-rules.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Metal fill, density rules and why the fab cares about empty space",
+  "description": "Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "metal fill, density rules, cmp, parasitic extraction, sign-off",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 947,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/metal-fill-and-density-rules.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Metal fill, density rules and why the fab cares about empty space</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-polishing-needs-even-density">Why polishing needs even density</a></li><li><a href="#how-density-rules-are-checked">How density rules are checked</a></li><li><a href="#how-fill-is-inserted">How fill is inserted</a></li><li><a href="#fill-and-timing">Fill and timing</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Look at a finished layout in KLayout with the fill layers turned on, and the empty spaces between your wires are crowded with small rectangles that connect to nothing. They are not decoration. Each metal layer of a modern process is flattened by chemical-mechanical polishing (CMP), and polishing only works evenly when every region of the wafer has a similar fraction of metal. Fill makes that happen. It also adds capacitance to nearby wires, which means fill is a timing question as much as a manufacturing one.</p>
+<h2 id="why-polishing-needs-even-density">Why polishing needs even density</h2>
+<p>In a damascene metal process, trenches are etched into the dielectric, the wafer is covered with metal, and CMP grinds the excess away until only the metal in the trenches remains. The polishing pad is not perfectly rigid, and the materials polish at different rates.</p>
+<ul>
+<li>In <strong>sparse regions</strong>, there is little metal to support the pad, so it presses into the dielectric and the surface ends up lower.</li>
+<li>In <strong>dense regions</strong>, wide areas of metal polish faster than the surrounding dielectric and dish in the middle; neighbouring dielectric erodes too.</li>
+</ul>
+<p>The result is a surface whose height varies with the local metal density. Thickness variations change wire resistance and capacitance, and height steps carry up into the layers above, where lithography has limited depth of focus. Foundries therefore require every region of every layer to have a metal density within a minimum and a maximum, and often limit how sharply density may change between neighbouring regions.</p>
+<h2 id="how-density-rules-are-checked">How density rules are checked</h2>
+<p>Density is measured in <strong>windows</strong>: square regions of a size set by the foundry, stepped across the die with some overlap. For each window and each layer, the check computes the metal area divided by the window area and compares it against the limits.</p>
+<p>A worked example with illustrative numbers. Take a 50 µm × 50 µm window, so 2,500 µm², on one metal layer:</p>
+<ul>
+<li>Drawn signal and power metal in the window: 300 µm², a density of 300 / 2,500 = 12%.</li>
+<li>Suppose the minimum density rule is 20%. The window needs 0.20 × 2,500 = 500 µm² of metal, so 200 µm² more.</li>
+<li>With 2 µm × 2 µm fill squares (4 µm² each), that is 200 / 4 = 50 fill shapes, placed where spacing rules allow.</li>
+</ul>
+<p>The maximum rule works the other way. A region dominated by wide power straps can exceed it, and the fix is not fill but <strong>slotting</strong>: cutting openings into wide metal so its effective density drops, which the rules for wide metal often require anyway.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="mf-title mf-desc" font-size="14">
+<title id="mf-title">A density window before and after fill</title>
+<desc id="mf-desc">Two square windows side by side. The left window has three signal wires and large empty areas, labelled 12 percent density. The right window has the same wires plus a grid of small fill squares in the empty areas, kept a fixed distance away from the wires, labelled 20 percent density.</desc>
+<rect x="20" y="30" width="180" height="160" fill="none" class="dg-line"/>
+<rect x="30" y="60" width="160" height="8" class="dg-core"/>
+<rect x="30" y="110" width="100" height="8" class="dg-core"/>
+<rect x="60" y="150" width="130" height="8" class="dg-core"/>
+<text x="110" y="20" text-anchor="middle" class="dg-text">before: 12%</text>
+<rect x="280" y="30" width="180" height="160" fill="none" class="dg-line"/>
+<rect x="290" y="60" width="160" height="8" class="dg-core"/>
+<rect x="290" y="110" width="100" height="8" class="dg-core"/>
+<rect x="320" y="150" width="130" height="8" class="dg-core"/>
+<text x="370" y="20" text-anchor="middle" class="dg-text">after: 20%</text>
+<rect x="295" y="38" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="325" y="38" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="355" y="38" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="385" y="38" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="415" y="38" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="295" y="84" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="325" y="84" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="355" y="84" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="385" y="84" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="415" y="84" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="410" y="110" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="435" y="110" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="295" y="132" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="325" y="132" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="355" y="132" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="385" y="132" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="415" y="132" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="295" y="172" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="325" y="172" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="355" y="172" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="385" y="172" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<rect x="415" y="172" width="10" height="10" class="dg-amber" fill-opacity="0.6"/>
+<text x="240" y="212" text-anchor="middle" class="dg-muted">fill keeps a spacing from every wire</text>
+</svg>
+<figcaption>Fill shapes raise a sparse window to the minimum density while keeping a set distance from real wires.</figcaption>
+</figure>
+
+<h2 id="how-fill-is-inserted">How fill is inserted</h2>
+<p>Fill is normally added near the end of the flow, after routing and before the final DRC, because it needs to know where the real wires are.</p>
+<ul>
+<li><strong>Rule-based fill</strong> places shapes of a fixed size and pitch everywhere there is room, respecting spacing to real metal. It is simple and fast and tends to overfill.</li>
+<li><strong>Model-based or density-driven fill</strong> computes how much each window needs and adds only enough to meet the target, which limits the capacitance it adds.</li>
+</ul>
+<p>Fill can be <strong>floating</strong> (connected to nothing) or <strong>tied</strong> to a supply or ground. Tied fill has predictable capacitance because its voltage is fixed. Floating fill takes on a voltage set by its neighbours, which makes its effect harder to model exactly, but needs no connections. Which one your PDK and flow use is a foundry and flow decision; check your PDK's documentation. Open tools can insert fill: OpenROAD has a density fill command driven by a rules file, and KLayout and Magic scripts are used with open PDKs.</p>
+<p>Fill is also added to layers other than metal, such as polysilicon and diffusion, for the same reason: even density during processing.</p>
+<h2 id="fill-and-timing">Fill and timing</h2>
+<p>Every fill shape near a wire adds capacitance, both to the fill itself and, through floating fill, between neighbouring wires. A wire running through a newly filled region becomes slower than it was when timing was signed off without fill.</p>
+<p>Practical consequences:</p>
+<ul>
+<li><strong>Extract with fill.</strong> Sign-off parasitic extraction must run on the layout with fill in place, or use a model of its effect that the foundry accepts. Signing off timing before fill and inserting it afterwards is a classic way to lose the margin you thought you had.</li>
+<li><strong>Keep fill away from critical nets.</strong> Fill tools support keep-out distances around specified nets, such as clocks and the worst timing paths. The cost is that the density around them must be made up elsewhere in the window.</li>
+<li><strong>Leave margin.</strong> If fill is added late, keep some setup margin for the capacitance it will add.</li>
+<li><strong>Watch matched structures.</strong> In analog and clock circuits that rely on matching, uneven fill around matched wires creates mismatch. Use symmetric fill patterns or blockages.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Running DRC before fill and calling it final.</strong> Density is part of DRC, and fill shapes must themselves be DRC clean.</li>
+<li><strong>Ignoring maximum density.</strong> Wide straps and macros can exceed it.</li>
+<li><strong>Extracting timing without fill.</strong> Post-fill capacitance is real capacitance.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 and open the final GDS in <strong>KLayout</strong>. Toggle the fill layers on and off and see where fill went.</li>
+<li>Write a short <strong>Python</strong> script, or a KLayout macro, that computes metal density in fixed windows for one layer, and compare sparse and dense regions.</li>
+<li>Extract parasitics with and without fill (if your flow lets you skip fill) and compare total capacitance on a long net in the SPEF files.</li>
+<li>Load both SPEF files into <strong>OpenSTA</strong> with <code>read_spef</code> and compare <code>report_checks</code> on the worst path.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>metal fill</li><li>density rules</li><li>cmp</li><li>parasitic extraction</li><li>sign-off</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="mbist-and-boundary-scan.html"><span>Previous in Physical design &amp; tape-out</span>Memory BIST and JTAG boundary scan: testing what scan cannot reach</a><a class="next" href="extraction-and-signoff-timing.html"><span>Next in Physical design &amp; tape-out</span>Parasitic extraction and sign-off timing: why post-route numbers change</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="extraction-and-signoff-timing.html">Parasitic extraction and sign-off timing: why post-route numbers change</a></h3>
+          <p>Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

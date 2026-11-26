@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keeping an AI log: recording what you asked, what you kept and why · Ketuna blog</title>
+  <meta name="description" content="An AI log is a short record of each prompt, what came back, what you checked and what you kept. It makes AI use reviewable, shows you where the tool helps, and gives you honest answers in an interview.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Keeping an AI log: recording what you asked, what you kept and why · Ketuna blog">
+  <meta property="og:description" content="An AI log is a short record of each prompt, what came back, what you checked and what you kept. It makes AI use reviewable, shows you where the tool helps, and gives you honest answers in an interview.">
+  <link rel="canonical" href="https://ketuna.online/blog/keeping-an-ai-log.html">
+  <meta property="og:url" content="https://ketuna.online/blog/keeping-an-ai-log.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Keeping an AI log: recording what you asked, what you kept and why",
+  "description": "An AI log is a short record of each prompt, what came back, what you checked and what you kept. It makes AI use reviewable, shows you where the tool helps, and gives you honest answers in an interview.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ai tools, ai log, documentation, learning",
+  "articleSection": "Careers & skills",
+  "wordCount": 876,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/keeping-an-ai-log.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Keeping an AI log: recording what you asked, what you kept and why</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An AI log is a short record of each prompt, what came back, what you checked and what you kept. It makes AI use reviewable, shows you where the tool helps, and gives you honest answers in an interview.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-log-is-for">What the log is for</a></li><li><a href="#what-to-record-in-each-entry">What to record in each entry</a></li><li><a href="#a-sample-entry">A sample entry</a></li><li><a href="#keep-it-small-enough-to-keep">Keep it small enough to keep</a></li><li><a href="#what-not-to-put-in-the-log">What not to put in the log</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>If you use an AI assistant on a lab or project, three people eventually need to know how: a reviewer judging the risk in your code, an interviewer asking what you built yourself, and you, trying to learn which uses of the tool actually saved time. Memory is a poor record for all three. An AI log is a simple file in the repository where you note each interaction that produced something you used. It takes a few minutes per entry and pays back every one of them.</p>
+<h2 id="what-the-log-is-for">What the log is for</h2>
+<p><strong>For reviewers.</strong> A reviewer reading a pull request needs to know which parts were generated and how they were checked, because AI-written code fails in characteristic ways: wrong widths, invented register addresses, missing synchronizers. With a log, the reviewer can aim their attention at those parts instead of guessing.</p>
+<p><strong>For you as a learner.</strong> Patterns appear after a dozen entries. Perhaps the tool is reliably good at cocotb boilerplate and reliably wrong about your target's memory map. Perhaps your vague prompts cost more checking time than they saved. You cannot see these patterns without a record.</p>
+<p><strong>For interviews.</strong> An interviewer looking at your portfolio may ask, "Which parts of this did you write?" A candidate who says "I wrote the RTL by hand; the AI drafted the test skeleton, and here is the log showing two bugs I found in it" sounds like an engineer. A candidate who hesitates sounds like someone hiding something, even if they are not.</p>
+<h2 id="what-to-record-in-each-entry">What to record in each entry</h2>
+<p>Log every interaction that produced code, tests or text you kept, even partly. Skip throwaway questions such as "what does this Tcl command do" unless the answer shaped your design. Each entry needs only a handful of fields:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task and date</td>
+<td>Where in the project this happened</td>
+</tr>
+<tr>
+<td>Prompt, exact</td>
+<td>So someone can see what context the tool had</td>
+</tr>
+<tr>
+<td>What came back</td>
+<td>One or two lines, plus a link to the file or commit</td>
+</tr>
+<tr>
+<td>Your review before running</td>
+<td>What you predicted might be wrong, and why</td>
+</tr>
+<tr>
+<td>What testing found</td>
+<td>Each issue, and whether review, a test, lint or nothing caught it</td>
+</tr>
+<tr>
+<td>Verdict</td>
+<td>Used as is, used after fixes, or discarded, with one sentence of reason</td>
+</tr>
+<tr>
+<td>Next time</td>
+<td>How you would prompt or check differently</td>
+</tr>
+</tbody>
+</table></div>
+<p>The two fields people skip are the most valuable: <strong>review before running</strong> and <strong>what testing found</strong>. They are the evidence of your judgement. The prompt and output show what the tool did; those two fields show what you did.</p>
+<h2 id="a-sample-entry">A sample entry</h2>
+<p>Here is an example of a complete entry. The details are made up for illustration.</p>
+<pre><code class="language-text">## Entry 3: UART TX testbench, lab 3
+
+Prompt (exact):
+  &quot;Write a cocotb test for an 8N1 UART transmitter. Clock 50 MHz,
+   baud 115200, so 434 clocks per bit (50e6/115200 = 434.03,
+   rounded). Inputs: tx_start, tx_data[7:0]. Output: tx (idle
+   high). Sample each bit mid-period and compare with tx_data.
+   Include back-to-back bytes.&quot;
+
+What it produced:
+  tb/test_uart_tx.py, first draft (commit 4e2b1aa)
+
+My review before running:
+  - Expected it to sample at the bit edge, not mid-bit. It
+    sampled at 434 clocks from start: edge. Changed to 217
+    offset, then 434 per bit.
+  - Back-to-back test waited a fixed 10 bit times; my RTL needs
+    tx_start only after busy falls. Rewrote to wait on busy.
+
+What testing found:
+  | Issue                        | Found by    | Fixed how        |
+  | Stop bit never checked       | Planted bug | Added check      |
+  | (planted: stop bit driven 0) | (test pass) |                  |
+
+Verdict: used after fixes. Skeleton saved time; the checker
+needed rewriting.
+
+Next time: say &quot;check start and stop bits&quot; in the prompt, and
+plant a framing bug before trusting any generated checker.
+</code></pre>
+<p>Notice the planted-bug line. The generated test passed on a deliberately broken design, which showed that its checker was incomplete. That one line is worth more to a reviewer than the whole prompt.</p>
+<h2 id="keep-it-small-enough-to-keep">Keep it small enough to keep</h2>
+<p>A log you abandon after a week is no use. A few habits keep it alive:</p>
+<ul>
+<li><strong>Write the entry while you work</strong>, not at the end of the lab. Copy the prompt when you send it; add the review notes before you run anything.</li>
+<li><strong>One file per lab or project</strong>, such as <code>AI_LOG.md</code> at the repository root, committed alongside the code it describes.</li>
+<li><strong>Short is fine.</strong> A two-line entry with an honest verdict beats a perfect template left empty.</li>
+<li><strong>Summarise at the end.</strong> Count the bugs the tool introduced, how many your review caught, how many tests caught and how many slipped through, and note where it saved and cost time. This summary is what you will remember and what you can talk about in an interview.</li>
+</ul>
+<h2 id="what-not-to-put-in-the-log">What not to put in the log</h2>
+<p>The log lives in your repository, which may become public as part of a portfolio. Do not paste confidential designs, customer data, credentials or anything your organisation or course does not allow you to share. If a prompt contained sensitive material, record that you used the tool and summarise the request in general terms instead.</p>
+<p>Do not pad the log to look busy either. It is graded, formally or informally, on the quality of your checking, not on how much the tool did.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Logging only successes.</strong> Discarded outputs teach you the most about where the tool fails.</li>
+<li><strong>No link to the code.</strong> An entry that does not point to a file or commit cannot be checked.</li>
+<li><strong>Writing the log after the fact</strong> from memory, which turns it into a story rather than a record.</li>
+<li><strong>Recording the prompt but not the review.</strong> Without the review, the log shows the tool's work, not yours.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Create <code>AI_LOG.md</code> in your current lab repository with the fields from the table above.</li>
+<li>Next time you use an assistant, log the exact prompt before you read the answer, then write your predicted problems before you run anything.</li>
+<li>Test the output with your own checks (<code>verilator --lint-only</code>, an Icarus Verilog or cocotb testbench, or <code>gcc -Wall -Wextra</code> for C), plant one bug to confirm the test can fail, and record what each check found.</li>
+<li>At the end of the lab, write the summary counts and one sentence on where the tool helped most. Read it again before your next interview.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ai tools</li><li>ai log</li><li>documentation</li><li>learning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="how-to-run-a-design-review.html"><span>Previous in Careers &amp; skills</span>How to run a design review, and how to take part in one</a><a class="next" href="digital-design-interview-preparation.html"><span>Next in Careers &amp; skills</span>Preparing for digital design interviews: the topics that recur and how to practise</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="getting-the-most-from-a-mentor.html">Getting the most out of a mentor: bring questions, show work</a></h3>
+          <p>A mentor&#x27;s time is limited, so the value comes from your preparation. Bring specific questions, share work in progress early, and act on feedback between meetings so each session starts further ahead.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="lead-with-the-conclusion.html">Technical writing for engineers: lead with the conclusion</a></h3>
+          <p>Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

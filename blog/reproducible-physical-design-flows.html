@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Making a physical design flow reproducible: pinned tools, configs and seeds · Ketuna blog</title>
+  <meta name="description" content="A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Making a physical design flow reproducible: pinned tools, configs and seeds · Ketuna blog">
+  <meta property="og:description" content="A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.">
+  <link rel="canonical" href="https://ketuna.online/blog/reproducible-physical-design-flows.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reproducible-physical-design-flows.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Making a physical design flow reproducible: pinned tools, configs and seeds",
+  "description": "A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "reproducibility, librelane, containers, version control, open source eda",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 910,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reproducible-physical-design-flows.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Making a physical design flow reproducible: pinned tools, configs and seeds</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A layout result is only useful if someone else can produce it again. Learn how to pin the flow and PDK versions, keep configuration in version control, record seeds and write a run record anyone can follow.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-run-actually-depends-on">What a run actually depends on</a></li><li><a href="#pin-the-tools-with-a-container">Pin the tools with a container</a></li><li><a href="#pin-the-pdk">Pin the PDK</a></li><li><a href="#put-the-configuration-under-version-control">Put the configuration under version control</a></li><li><a href="#record-seeds-and-settle-nondeterminism">Record seeds and settle nondeterminism</a></li><li><a href="#write-a-run-record">Write a run record</a></li><li><a href="#test-reproducibility-on-purpose">Test reproducibility on purpose</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>You get a clean run: timing met, DRC clean, LVS matched. A week later a teammate runs "the same thing" on their machine and gets negative slack and a hundred DRC errors. Neither of you did anything wrong, but you were not running the same thing. A physical design result depends on the RTL, the configuration, the flow version, every tool inside it, the PDK version and sometimes a random seed. Unless all of those are pinned and recorded, a result cannot be repeated, reviewed or trusted.</p>
+<h2 id="what-a-run-actually-depends-on">What a run actually depends on</h2>
+<p>List the inputs honestly and the reasons for each become obvious:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Why it changes results</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTL and constraints</td>
+<td>Obviously; even a comment change can alter synthesis names and ordering</td>
+</tr>
+<tr>
+<td>Flow configuration</td>
+<td>Utilisation, density, clock period, every override</td>
+</tr>
+<tr>
+<td>Flow version</td>
+<td>Default values, step order and scripts change between releases</td>
+</tr>
+<tr>
+<td>Tool versions inside the flow</td>
+<td>Yosys, OpenROAD, Magic, KLayout and Netgen each evolve</td>
+</tr>
+<tr>
+<td>PDK version</td>
+<td>Cell libraries, rule decks and models are updated over time</td>
+</tr>
+<tr>
+<td>Seeds and threading</td>
+<td>Some algorithms use randomness or parallel ordering</td>
+</tr>
+<tr>
+<td>Host environment</td>
+<td>Rarely matters inside a container, but can outside one</td>
+</tr>
+</tbody>
+</table></div>
+<p>A practical example of why the PDK matters: a flow release expects the standard-cell libraries of a specific PDK build. Pair it with a newer PDK build whose libraries were revised, and the run can stop in the first few steps with an error that looks unrelated. Pinning both together, as a pair, avoids that.</p>
+<h2 id="pin-the-tools-with-a-container">Pin the tools with a container</h2>
+<p>The simplest way to pin every tool at once is to run the flow from a container image with an exact tag, rather than tools installed by hand on each machine. The image carries the flow and the specific versions of the tools it was tested with.</p>
+<ul>
+<li>Use an <strong>exact tag</strong>, never <code>latest</code>. A tag such as <code>latest</code> changes under you.</li>
+<li>For stronger pinning, record the image <strong>digest</strong>, a content hash that identifies exactly one image even if someone moves a tag.</li>
+<li>Change the image tag only deliberately, in a commit that says why, and rerun your reference designs to see what moved.</li>
+</ul>
+<h2 id="pin-the-pdk">Pin the PDK</h2>
+<p>PDKs are installed as versioned builds. Tools such as <code>ciel</code> install a PDK build identified by a commit hash into a directory you choose, so several versions can live side by side.</p>
+<ul>
+<li>Record the exact PDK hash in your repository, next to the flow configuration.</li>
+<li>Use the hash that your flow release documents as compatible. Many flow releases ship a list of the PDK versions they expect.</li>
+<li>Point the flow at that directory explicitly (for example through <code>PDK_ROOT</code>) instead of relying on whatever is installed in a default location.</li>
+</ul>
+<h2 id="put-the-configuration-under-version-control">Put the configuration under version control</h2>
+<p>Everything that is not a tool belongs in Git:</p>
+<ul>
+<li>RTL, constraints, the flow configuration file and any custom scripts,</li>
+<li>a small script or Makefile that runs the flow the same way every time,</li>
+<li>a file recording the image tag and PDK hash.</li>
+</ul>
+<p>Do not keep "the real settings" in your shell history. If a run used a command-line override, it belongs in a configuration file or in the run script. Run outputs, which are large, usually stay out of Git; the metrics summary of a reference run is small and worth committing, so later runs can be compared with it.</p>
+<h2 id="record-seeds-and-settle-nondeterminism">Record seeds and settle nondeterminism</h2>
+<p>Some steps can produce slightly different results from run to run. Placement and routing algorithms may use random initial conditions, and multithreaded steps can process work in different orders. If a step exposes a seed, set it explicitly and record it. If results still vary between identical runs, note how much, and do not treat differences smaller than that variation as meaningful. Comparing two settings on a single run each can mislead you if run-to-run variation is of the same size as the effect.</p>
+<h2 id="write-a-run-record">Write a run record</h2>
+<p>Every run you want to cite should leave a record. A short script can capture the essentials automatically:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+# Write a run record next to the run directory.
+set -euo pipefail
+image=ghcr.io/librelane/librelane:3.0.16
+pdk_hash=$(cat pdk_hash.txt)
+tag=$1
+{
+  echo &quot;run:       $tag&quot;
+  echo &quot;date:      $(date -u +%Y-%m-%dT%H:%M:%SZ)&quot;
+  echo &quot;commit:    $(git rev-parse HEAD)&quot;
+  echo &quot;dirty:     $(git status --porcelain | wc -l) changed files&quot;
+  echo &quot;image:     $image&quot;
+  echo &quot;digest:    $(docker image inspect --format \
+                   '{{index .RepoDigests 0}}' &quot;$image&quot;)&quot;
+  echo &quot;pdk:       sky130A $pdk_hash&quot;
+  echo &quot;config:    $(sha256sum config.json | cut -d' ' -f1)&quot;
+} &gt; &quot;runs/$tag.record.txt&quot;
+cat &quot;runs/$tag.record.txt&quot;
+</code></pre>
+<p>The "dirty" line matters: a run made from a working copy with uncommitted changes cannot be reproduced from the commit alone. Make it a rule that sign-off runs come from a clean checkout.</p>
+<h2 id="test-reproducibility-on-purpose">Test reproducibility on purpose</h2>
+<p>Reproducibility is a claim, so check it:</p>
+<ol>
+<li>Clone the repository into a fresh directory, or ask a teammate to do it on their machine.</li>
+<li>Install the pinned PDK, pull the pinned image, and run the script.</li>
+<li>Compare the new metrics summary with the committed one. Cell counts, die area, wire length and slack should match, or differ only within the run-to-run variation you measured.</li>
+</ol>
+<p>If they do not match, the difference is information: some input was not pinned. Find it and add it to the record.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Using <code>latest</code> images or "whatever PDK is installed".</strong> Results drift silently.</li>
+<li><strong>Upgrading the flow without the matching PDK,</strong> or the reverse.</li>
+<li><strong>Keeping settings in command-line overrides only.</strong> Nobody can rerun them later.</li>
+<li><strong>Comparing single runs</strong> when results vary from run to run.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> in its container, using an exact image tag and a PDK installed by hash with <code>ciel</code>.</li>
+<li>Write the run record script above into your repository and run it after each flow run.</li>
+<li>Clone the repository into a new directory, rerun, and diff the two <code>metrics.json</code> files with a short <strong>Python</strong> script.</li>
+<li>Run the identical configuration three times and note any variation in slack or wire length.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>reproducibility</li><li>librelane</li><li>containers</li><li>version control</li><li>open source eda</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="inside-a-standard-cell-library.html"><span>Previous in Physical design &amp; tape-out</span>Inside a standard-cell library: Liberty, LEF and what the numbers mean</a><a class="next" href="mbist-and-boundary-scan.html"><span>Next in Physical design &amp; tape-out</span>Memory BIST and JTAG boundary scan: testing what scan cannot reach</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="librelane-first-run.html">Hardening your first block with LibreLane: a guided first run</a></h3>
+          <p>Take a small registered design from Verilog to GDS with LibreLane on sky130. Write a minimal configuration, run the flow, and learn which reports and views to open first and what to look for in each.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="rtl-to-gds-in-one-page.html">RTL to GDS in one page: what each step of the flow takes in and hands out</a></h3>
+          <p>The RTL-to-GDS flow is a chain of steps, each reading files and writing files you can open. Learn what goes in and comes out of synthesis, floorplan, placement, clock tree, routing and sign-off.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

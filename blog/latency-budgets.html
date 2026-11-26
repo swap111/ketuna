@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Latency budgets: splitting end-to-end response time across subsystems · Ketuna blog</title>
+  <meta name="description" content="A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Latency budgets: splitting end-to-end response time across subsystems · Ketuna blog">
+  <meta property="og:description" content="A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.">
+  <link rel="canonical" href="https://ketuna.online/blog/latency-budgets.html">
+  <meta property="og:url" content="https://ketuna.online/blog/latency-budgets.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Latency budgets: splitting end-to-end response time across subsystems",
+  "description": "A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "latency, budgets, real-time, systems engineering, timing",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 895,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/latency-budgets.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Latency budgets: splitting end-to-end response time across subsystems</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A user-visible deadline becomes a set of allowances for sensing, sampling, filtering, processing and actuation that each owner can design to and test, with the worst case, not the average, adding up.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#draw-the-chain-first">Draw the chain first</a></li><li><a href="#worst-case-adds-averages-do-not">Worst case adds, averages do not</a></li><li><a href="#a-worked-budget">A worked budget</a></li><li><a href="#turning-allowances-into-tests">Turning allowances into tests</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A requirement like "the valve shall close within 2 s of gas concentration crossing the alarm threshold" is easy to write and surprisingly easy to miss. The delay is spread across a sensor, a sampling loop, a filter, some firmware and a mechanical actuator, each built by a different person who sees only their own piece. Each piece looks fast in isolation; together they are late. A latency budget breaks the end-to-end deadline into allowances that each owner can design to and measure, and it makes the hidden delays visible before integration does.</p>
+<h2 id="draw-the-chain-first">Draw the chain first</h2>
+<p>Start by listing every stage the event passes through, in order, from the physical cause to the physical effect. For a gas shut-off controller the chain might be:</p>
+<ol>
+<li><strong>Sensor response:</strong> the sensing element takes time to respond to a change in concentration.</li>
+<li><strong>Sampling wait:</strong> the firmware reads the sensor periodically, so a change can sit unseen for up to one sample period.</li>
+<li><strong>Filtering:</strong> a moving average smooths noise but delays the response.</li>
+<li><strong>Decision and command:</strong> firmware compares, logs and drives an output pin.</li>
+<li><strong>Actuation:</strong> the driver energises or de-energises the valve, and the valve physically moves to closed.</li>
+</ol>
+<p>Writing the chain down is often where the first mistake is found. Teams routinely forget the sampling wait and the filter, because neither is a "component" on the block diagram.</p>
+<h2 id="worst-case-adds-averages-do-not">Worst case adds, averages do not</h2>
+<p>The budget must use the <strong>worst case</strong> of each stage, because the requirement is a deadline, not an average. Two stages deserve special care because their worst case is set by design choices rather than by parts:</p>
+<ul>
+<li><strong>Sampling wait.</strong> If the event happens just after a sample, it is not seen until the next one. The worst-case wait is one full sample period, T.</li>
+<li><strong>Moving-average filter.</strong> An N-sample moving average needs N samples after a step before its output reaches the new level. If the step barely exceeds the threshold, the output crosses only at the last of those samples, adding up to (N − 1) × T after the first sample that sees the step.</li>
+</ul>
+<p>Both shrink if you sample faster, at the cost of power and processor time. That is exactly the kind of trade the budget is meant to expose.</p>
+<h2 id="a-worked-budget">A worked budget</h2>
+<p>All numbers here are made up for illustration; real sensor and valve times come from datasheets and measurements. The requirement is 2,000 ms. The firmware samples every T = 100 ms and averages N = 4 samples.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Basis</th>
+<th>Allowance (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sensor response to threshold</td>
+<td>sensor data, worst case</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>Sampling wait</td>
+<td>one period, T</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Moving-average filter</td>
+<td>(N − 1) × T</td>
+<td>300</td>
+</tr>
+<tr>
+<td>Decision, log, output</td>
+<td>measured on firmware</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Driver and valve closing</td>
+<td>valve data, worst case</td>
+<td>300</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>1,720</strong></td>
+</tr>
+<tr>
+<td><strong>Margin</strong></td>
+<td>2,000 − 1,720</td>
+<td><strong>280</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The margin is 280 ms, 14 % of the deadline. That is reasonable at concept stage but not generous: if the valve turns out slower at low supply voltage, or the sensor slower when cold, the margin disappears.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="lb-title lb-desc" font-size="14">
+<title id="lb-title">Latency budget as a stacked bar</title>
+<desc id="lb-desc">A horizontal bar representing 2,000 ms, divided into segments: sensor 1,000 ms takes half the bar, then sampling wait 100 ms, filter 300 ms, firmware 20 ms as a thin sliver, valve 300 ms, and finally a highlighted margin of 280 ms at the right end.</desc>
+<text x="30" y="24" class="dg-muted">0 ms</text>
+<text x="450" y="24" text-anchor="end" class="dg-muted">2,000 ms deadline</text>
+<rect x="30" y="40" width="210" height="40" class="dg-core"/>
+<rect x="240" y="40" width="21" height="40" class="dg-box"/>
+<rect x="261" y="40" width="63" height="40" class="dg-track"/>
+<rect x="324" y="40" width="4" height="40" class="dg-box"/>
+<rect x="328" y="40" width="63" height="40" class="dg-track"/>
+<rect x="391" y="40" width="59" height="40" class="dg-amber" fill-opacity="0.4"/>
+<rect x="30" y="40" width="420" height="40" fill="none" class="dg-line"/>
+<line x1="450" y1="30" x2="450" y2="90" class="dg-amber-line" stroke-width="2"/>
+<text x="135" y="65" text-anchor="middle" class="dg-text">sensor 1,000</text>
+<line x1="250" y1="80" x2="250" y2="106" class="dg-line"/>
+<text x="250" y="122" text-anchor="middle" class="dg-text">sample 100</text>
+<text x="292" y="65" text-anchor="middle" class="dg-text">filter</text>
+<line x1="326" y1="80" x2="326" y2="140" class="dg-line"/>
+<text x="326" y="156" text-anchor="middle" class="dg-text">firmware 20</text>
+<text x="360" y="65" text-anchor="middle" class="dg-text">valve</text>
+<text x="420" y="65" text-anchor="middle" class="dg-text">280</text>
+<text x="420" y="122" text-anchor="middle" class="dg-muted">margin</text>
+</svg>
+<figcaption>The sensor takes half the deadline, and the sampling wait plus filter, which appear on no block diagram, take a fifth.</figcaption>
+</figure>
+
+<p>The picture also shows where to look for savings. Halving the sample period to 50 ms saves 50 ms of sampling wait and 150 ms of filter delay, 200 ms in total, for a firmware change. Making the firmware ten times faster saves 18 ms. Engineers instinctively optimise the code they wrote; the budget points at the stages that matter.</p>
+<h2 id="turning-allowances-into-tests">Turning allowances into tests</h2>
+<p>Each allowance becomes a requirement for its owner, and each needs a way to measure it. Timing is easiest to measure from outside, with a logic analyser or oscilloscope and spare output pins:</p>
+<pre><code class="language-c">/* Instrumented control loop: toggle pins at stage boundaries. */
+void control_tick(void)              /* called every SAMPLE_MS */
+{
+    gpio_set(PIN_DBG_SAMPLE);        /* rising edge: sample taken */
+    int32_t raw = sensor_read();
+    int32_t avg = moving_avg_push(raw);
+    gpio_clear(PIN_DBG_SAMPLE);
+
+    if (avg &gt; ALARM_THRESHOLD &amp;&amp; !valve_closed) {
+        gpio_set(PIN_DBG_DECIDE);    /* decision made */
+        event_log(EVT_GAS_ALARM, avg);
+        valve_close();               /* drives the valve output */
+        valve_closed = true;
+        gpio_clear(PIN_DBG_DECIDE);
+    }
+}
+</code></pre>
+<p>On the analyser, the time from the first sample above threshold to the decision pin shows the filter delay; the width of the decision pulse shows firmware time; a valve position switch, if fitted, shows actuation. The <code>gpio_*</code>, <code>sensor_read</code> and <code>valve_close</code> functions stand for your platform's own drivers.</p>
+<p>Finally, test end to end. Stage measurements prove each allowance; only an end-to-end test proves that you did not forget a stage. For a real gas safety product, end-to-end testing follows the applicable product standard and uses a controlled test setup; this example is about the budgeting method, not a design to copy.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Adding typical values.</strong> Typical plus typical gives a number the product beats most of the time and misses some of the time, which is worse than missing always.</li>
+<li><strong>Forgetting periodic waits.</strong> Every polling loop, scheduler tick, radio slot or message queue between stages adds up to one period.</li>
+<li><strong>Measuring only at room temperature and nominal supply.</strong> Mechanical actuators and sensors slow down at the edges of their operating range.</li>
+<li><strong>No owner for the margin.</strong> If anyone can spend it silently, it will be gone before validation.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the stage chain for a system you have built, even a button that lights an LED through a polling loop, and estimate each stage's worst case.</li>
+<li>Add debug pin toggles at each stage boundary, capture them with a low-cost logic analyser and the open-source <strong>sigrok</strong> software (its <strong>PulseView</strong> viewer), and compare measured times with your budget.</li>
+<li>Change the sample period and filter length in your firmware and confirm that the measured delay moves as the formulas predict.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>latency</li><li>budgets</li><li>real-time</li><li>systems engineering</li><li>timing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="interface-control-documents.html"><span>Previous in Systems &amp; product engineering</span>Interface control documents: agreeing on the boundary before building</a><a class="next" href="mbse-without-the-jargon.html"><span>Next in Systems &amp; product engineering</span>Model-based systems engineering without the jargon</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interface-control-documents.html">Interface control documents: agreeing on the boundary before building</a></h3>
+          <p>An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="mbse-without-the-jargon.html">Model-based systems engineering without the jargon</a></h3>
+          <p>Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

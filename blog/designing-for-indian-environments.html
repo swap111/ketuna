@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing for dust, heat and moisture: environmental requirements for Indian conditions · Ketuna blog</title>
+  <meta name="description" content="How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing for dust, heat and moisture: environmental requirements for Indian conditions · Ketuna blog">
+  <meta property="og:description" content="How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.">
+  <link rel="canonical" href="https://ketuna.online/blog/designing-for-indian-environments.html">
+  <meta property="og:url" content="https://ketuna.online/blog/designing-for-indian-environments.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing for dust, heat and moisture: environmental requirements for Indian conditions",
+  "description": "How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "environmental requirements, enclosure, ip rating, condensation, reliability",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1142,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/designing-for-indian-environments.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Designing for dust, heat and moisture: environmental requirements for Indian conditions</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to write environmental requirements for products deployed in hot, dusty, humid and monsoon-affected sites, and how they drive enclosure ratings, venting, coatings, part choices and tests.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-from-the-site-not-from-a-template">Start from the site, not from a template</a></li><li><a href="#turn-conditions-into-testable-requirements">Turn conditions into testable requirements</a></li><li><a href="#dust-and-water-the-ip-code">Dust and water: the IP code</a></li><li><a href="#condensation-the-monsoon-problem">Condensation: the monsoon problem</a></li><li><a href="#materials-and-testing">Materials and testing</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A board that runs for months on a lab bench can fail in weeks on a pole beside a field, a rooftop in a coastal city, or inside a pump house. The electronics are the same; the environment is not. Across India a single product may meet dry heat and fine dust in one season and saturated monsoon air in the next, with large swings between day and night. Those conditions have to be written down as requirements at the start, because they decide the enclosure, the coating, the parts and the tests, and none of those can be added cheaply at the end.</p>
+<h2 id="start-from-the-site-not-from-a-template">Start from the site, not from a template</h2>
+<p>Environmental requirements copied from another product's specification describe somebody else's site. Instead, describe where your product will actually live, then turn each condition into a number:</p>
+<ul>
+<li><strong>Location and mounting:</strong> indoors, sheltered outdoors or fully exposed; on a wall, pole, vehicle or in the ground.</li>
+<li><strong>Temperature:</strong> the range of air temperature at the site, from historical weather records for the region, plus the effect of the installation. A sealed box in direct sun gets considerably hotter inside than the surrounding air; how much depends on its colour, size and venting, so estimate it or measure a sample box.</li>
+<li><strong>Humidity and water:</strong> humidity range, rain, wind-driven rain, hose-down cleaning, flooding or temporary immersion.</li>
+<li><strong>Dust and particles:</strong> fine soil dust, conductive dust near industrial sites, salt-laden air near the coast.</li>
+<li><strong>Biological:</strong> insects nesting in vents, rodents chewing cables, mould on organic materials.</li>
+<li><strong>Solar radiation:</strong> ultraviolet light degrades many plastics and cable jackets over time.</li>
+<li><strong>Mechanical:</strong> vibration on vehicles and pumps, handling and transport shocks.</li>
+</ul>
+<p>Use national meteorological data for the regions you sell into rather than guesses. If you cannot get site data, state the assumption in the requirement so it can be reviewed and tested.</p>
+<h2 id="turn-conditions-into-testable-requirements">Turn conditions into testable requirements</h2>
+<p>Each condition becomes one requirement with a number, a condition and a test method. The values below are made up for illustration:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ENV-1</td>
+<td>The unit shall operate to specification at enclosure-internal temperatures from 0 °C to 70 °C</td>
+<td>Test in a thermal chamber</td>
+</tr>
+<tr>
+<td>ENV-2</td>
+<td>The unit shall survive storage from −10 °C to 85 °C, unpowered</td>
+<td>Test</td>
+</tr>
+<tr>
+<td>ENV-3</td>
+<td>The enclosure shall meet IP65</td>
+<td>Test to the relevant IEC method</td>
+</tr>
+<tr>
+<td>ENV-4</td>
+<td>The unit shall operate after 10 days of cyclic damp heat with condensation</td>
+<td>Test</td>
+</tr>
+<tr>
+<td>ENV-5</td>
+<td>Exterior plastics shall retain function after UV exposure equivalent to the design life</td>
+<td>Analysis of material data plus test</td>
+</tr>
+</tbody>
+</table></div>
+<p>Notice that ENV-1 is written in terms of <em>internal</em> temperature. You then need a separate analysis, or a measurement, linking the worst site conditions to that internal figure. Keeping the two apart makes each one testable.</p>
+<h2 id="dust-and-water-the-ip-code">Dust and water: the IP code</h2>
+<p>The international standard IEC 60529 defines <strong>IP codes</strong>: two digits rating protection against solids and against water. The first digit runs up to 6, where 5 means dust-protected (some dust may enter but not enough to interfere) and 6 means dust-tight. The second digit runs up to 8 in the base scale, with, for example, 4 for splashing water, 5 for water jets, 6 for powerful jets and 7 for temporary immersion. So IP65 is dust-tight and protected against water jets. Check the current standard for the exact test conditions behind each digit.</p>
+<p>Two practical points. An IP rating applies to the enclosure as installed, with its glands, cables and seals, so a rated box with an unsealed cable entry is not rated. And higher is not automatically better: a fully sealed box traps heat and can trap moisture, which brings us to the problem that catches many outdoor designs.</p>
+<h2 id="condensation-the-monsoon-problem">Condensation: the monsoon problem</h2>
+<p>Air holds more water when warm. When humid air cools below its <strong>dew point</strong>, water condenses on the coolest surface, which may be your circuit board. A sealed enclosure is not perfectly sealed: as it heats by day and cools at night, it breathes, drawing in moist air through seals and cable glands. Over many cycles, water accumulates inside a box that would pass a spray test.</p>
+<p>A quick dew-point estimate shows how easily this happens. This uses the common Magnus approximation:</p>
+<pre><code class="language-python">import math
+
+def dew_point_c(temp_c, rh_percent):
+    a, b = 17.62, 243.12
+    g = math.log(rh_percent / 100) + a * temp_c / (b + temp_c)
+    return b * g / (a - g)
+
+print(round(dew_point_c(30, 80), 1))   # warm, humid evening air
+</code></pre>
+<p>It prints about 26.2 °C. If air at 30 °C and 80 % relative humidity enters the box in the evening, and the box cools to 24 °C overnight, any surface below 26.2 °C will collect water. That is a small temperature drop.</p>
+<p>Design responses, often combined:</p>
+<ul>
+<li><strong>Pressure-equalising vents</strong> with a breathable membrane, which let air move without pumping liquid water in, and let moisture out again.</li>
+<li><strong>Conformal coating</strong> on the board, a thin protective film (acrylic, silicone and polyurethane types are common) that keeps condensed water and dust off conductors. Mask connectors and test points before coating.</li>
+<li><strong>A small heater or keeping electronics warm</strong>, so the board stays above the dew point.</li>
+<li><strong>Drain holes</strong> at the lowest point, oriented downwards when installed.</li>
+<li><strong>Desiccant</strong>, useful for sealed boxes that are rarely opened, but it saturates eventually.</li>
+</ul>
+<h2 id="materials-and-testing">Materials and testing</h2>
+<h3 id="heat-parts-and-materials">Heat, parts and materials</h3>
+<p>Heat requirements flow into part selection. Choose parts rated for the internal temperature with margin: capacitors, especially electrolytics, wear out faster when hot, and batteries degrade and can become unsafe outside their temperature limits. Light-coloured enclosures and sun shields reduce solar heating. Plastics and cable jackets for outdoor use should be specified as UV-stabilised. Keep dissimilar metals apart in salty air, where galvanic corrosion is faster.</p>
+<h3 id="testing-what-you-specified">Testing what you specified</h3>
+<p>Environmental requirements are verified in chambers and test rigs: thermal cycling, damp heat with and without condensation, dust chambers, water spray and immersion, salt mist, UV exposure, vibration. The IEC 60068 family of standards describes many of these environmental test methods; check the current editions and any product standard that applies to your market. Do a cheap version early, such as a box with a temperature logger left on a rooftop through a few weeks of weather, and a full test at design validation.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Specifying air temperature when the electronics see enclosure temperature.</strong> The difference can be large in sun.</li>
+<li><strong>Sealing everything.</strong> Breathing enclosures accumulate water; vent them properly.</li>
+<li><strong>Coating over connectors and test points.</strong> It ruins contact and blocks production test.</li>
+<li><strong>Testing only new units.</strong> Seals, gaskets and plastics age; consider what the product looks like after years outdoors.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a product and a real deployment site. Write five environmental requirements with numbers, citing the weather data source you used for each temperature or humidity value.</li>
+<li>Run the dew-point function for a range of evening temperatures and humidities and find how far an enclosure must cool overnight before condensation starts.</li>
+<li>Put a small temperature and humidity logger, built from a microcontroller board running <strong>Zephyr</strong> or plain C, inside a sealed plastic box on a sunny rooftop for a week, and compare the internal and external readings.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>environmental requirements</li><li>enclosure</li><li>ip rating</li><li>condensation</li><li>reliability</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="water-quality-system-end-to-end.html"><span>Previous in Systems &amp; product engineering</span>Designing a water quality monitoring system end to end</a><a class="next" href="emc-basics-for-board-designers.html"><span>Next in Systems &amp; product engineering</span>EMC basics for board designers: loops, return paths and edges</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fmea-step-by-step.html">FMEA step by step: severity, occurrence, detection and what to do next</a></h3>
+          <p>A walk through a failure mode and effects analysis on a water pump controller, from listing failure modes and rating them to turning the top risks into design changes and tests, then re-scoring.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="reliability-basics-mtbf.html">Reliability basics: failure rates, MTBF and the bathtub curve</a></h3>
+          <p>What a failure rate and MTBF actually say, why an MTBF of centuries does not mean a product lasts centuries, how early failures and wear-out differ, and how derating parts keeps the failure rate low.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="thermal-design-basics.html">Thermal design basics: junction temperature and heat paths</a></h3>
+          <p>How to estimate a part&#x27;s junction temperature from its power and the thermal resistances between die and air, why copper area and airflow change the answer, and how to check the result against the part&#x27;s limits.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

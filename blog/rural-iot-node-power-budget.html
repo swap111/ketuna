@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A power budget for a battery-powered rural IoT node · Ketuna blog</title>
+  <meta name="description" content="Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="A power budget for a battery-powered rural IoT node · Ketuna blog">
+  <meta property="og:description" content="Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.">
+  <link rel="canonical" href="https://ketuna.online/blog/rural-iot-node-power-budget.html">
+  <meta property="og:url" content="https://ketuna.online/blog/rural-iot-node-power-budget.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "A power budget for a battery-powered rural IoT node",
+  "description": "Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "low power, iot, battery life, power budget, radio",
+  "articleSection": "Embedded systems",
+  "wordCount": 906,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/rural-iot-node-power-budget.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>A power budget for a battery-powered rural IoT node</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-node-and-its-cycle">The node and its cycle</a></li><li><a href="#the-budget-in-code">The budget in code</a></li><li><a href="#what-the-numbers-say">What the numbers say</a></li><li><a href="#rural-coverage-changes-the-budget">Rural coverage changes the budget</a></li><li><a href="#from-estimate-to-evidence">From estimate to evidence</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A soil-moisture or water-level sensor in a field may be hours from the nearest engineer. Changing its batteries costs a trip, so battery life is a product requirement, not a nice-to-have. The good news is that it can be estimated before the first board is built, with a spreadsheet or twenty lines of Python, and checked against measurements later. This article builds that budget for a typical node and shows which decisions move the answer most.</p>
+<h2 id="the-node-and-its-cycle">The node and its cycle</h2>
+<p>The example node, with every number made up for illustration, wakes every 15 minutes, reads a sensor, sends a short message over a low-power wide-area radio, listens briefly for an acknowledgement or a configuration change, and goes back to sleep. Between reports, everything that can be off is off.</p>
+<p>That gives a repeating cycle with two kinds of current:</p>
+<ul>
+<li><strong>Active phases</strong>, each with a current and a duration: the microcontroller awake, the sensor warming up, the radio transmitting, the radio receiving.</li>
+<li><strong>The sleep floor</strong>, which flows all the time: the microcontroller in deep sleep, the regulator's own quiescent current, the radio's sleep current, and leakage through the switch that powers the sensor.</li>
+</ul>
+<p>The figure of merit is the <strong>average current</strong>: the charge used in one cycle divided by the cycle's length. Battery capacity divided by average current is the life.</p>
+<h2 id="the-budget-in-code">The budget in code</h2>
+<p>Write the budget as a script rather than a one-off calculation, so you can change one number and see the effect at once:</p>
+<pre><code class="language-python"># Power budget for a duty-cycled sensor node (all numbers illustrative).
+PERIOD_S = 15 * 60                      # one report every 15 minutes
+
+# (name, current in mA, seconds per cycle) for the active phases
+active = [
+    (&quot;MCU awake&quot;,         4.0,  0.30),
+    (&quot;sensor warm-up&quot;,   10.0,  0.20),
+    (&quot;radio transmit&quot;,   40.0,  1.50),
+    (&quot;radio receive&quot;,    12.0,  1.00),
+]
+# always-on currents in mA (the sleep floor)
+sleep = {&quot;MCU sleep&quot;: 0.003, &quot;regulator&quot;: 0.002,
+         &quot;radio sleep&quot;: 0.001, &quot;sensor switch&quot;: 0.0001}
+
+active_mAs = sum(i * t for _, i, t in active)
+sleep_mA = sum(sleep.values())
+avg_mA = active_mAs / PERIOD_S + sleep_mA
+
+for name, i, t in active:
+    print(f&quot;{name:15s} {i*t:6.2f} mAs  {100*i*t/active_mAs:5.1f} %&quot;)
+print(f&quot;average: {avg_mA*1000:.1f} uA&quot;)
+
+CAPACITY_MAH = 2600                     # from the cell datasheet
+USABLE = 0.7                            # derating: cold, cut-off, ageing
+hours = CAPACITY_MAH * USABLE / avg_mA
+print(f&quot;life: {hours/24/365:.2f} years&quot;)
+</code></pre>
+<p>The output for these numbers:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Charge per cycle</th>
+<th>Share of active charge</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MCU awake</td>
+<td>1.20 mAs</td>
+<td>1.6 %</td>
+</tr>
+<tr>
+<td>Sensor warm-up</td>
+<td>2.00 mAs</td>
+<td>2.7 %</td>
+</tr>
+<tr>
+<td>Radio transmit</td>
+<td>60.00 mAs</td>
+<td>79.8 %</td>
+</tr>
+<tr>
+<td>Radio receive</td>
+<td>12.00 mAs</td>
+<td>16.0 %</td>
+</tr>
+</tbody>
+</table></div>
+<p>The active charge totals 75.2 mAs per cycle, which spread over 900 s is about 83.6 µA. The sleep floor adds 6.1 µA, for an average of about 89.7 µA. With 2600 mAh of which 70 % is treated as usable, that is about 20,300 hours, roughly 2.3 years.</p>
+<h2 id="what-the-numbers-say">What the numbers say</h2>
+<p><strong>The radio is almost everything.</strong> Transmit and receive together are about 96 % of the active charge. Shaving a millisecond off the microcontroller's wake time is irrelevant here; shortening the transmission or the receive window is not. This is typical of radio nodes, and it is why the first optimisation question is always "how many seconds of radio per day?".</p>
+<p><strong>The sleep floor matters more than it looks.</strong> 6.1 µA is small, but it flows for all 900 seconds. If a careless design left a 100 µA leak, through a pull-up resistor, a floating pin or an LED driver, it alone would exceed the entire active budget. Count every part on the board, including the regulator, which a datasheet comparison often forgets.</p>
+<p><strong>Derating is not optional.</strong> Cells deliver less than their nominal capacity in the cold, at high pulse currents and as they age, and the device stops working at some cut-off voltage before the cell is truly empty. The 70 % used here is a placeholder; take the real factors from the cell's datasheet for your temperature range and load profile.</p>
+<h2 id="rural-coverage-changes-the-budget">Rural coverage changes the budget</h2>
+<p>A node far from a gateway or a base station often needs a more robust radio setting, which usually means a lower data rate and therefore a longer transmission for the same message. It may also need retries when acknowledgements are lost. Run the scenario through the same script: if poor coverage doubles the transmit time to 3 s and every message needs one retry, the average rises to about 303 µA and the life falls to about 0.7 years, less than a third of the original estimate.</p>
+<p>The budget should therefore be calculated for the <em>worst</em> site you intend to support, not the best bench result. Some practical levers:</p>
+<ul>
+<li><strong>Report less often, or only on change.</strong> At a 30-minute period, the original case gives about 4.3 years and the poor-coverage case about 1.3 years.</li>
+<li><strong>Send fewer bytes.</strong> Encode readings as compact integers rather than text, and batch several readings into one message if the application tolerates the delay.</li>
+<li><strong>Shorten listening.</strong> Receive windows are pure cost when nothing arrives; keep them as short as the protocol allows.</li>
+<li><strong>Avoid retries that do not help.</strong> If a message fails several times, wait longer before trying again rather than draining the cell in a dead spot.</li>
+<li><strong>Harvest energy</strong> where the site allows, for example a small solar panel with a rechargeable cell, and redo the budget for the darkest weeks of the year.</li>
+</ul>
+<h2 id="from-estimate-to-evidence">From estimate to evidence</h2>
+<p>The budget is a model, and every current in it is a guess until measured. Once a prototype exists, measure each phase separately with a current-ranging instrument or a source-measure unit, with the debug probe disconnected, and replace the guessed numbers with measured ones. Then run the device for a few days on a known cell and compare the voltage drop with the prediction. Keeping the script and the measurement log together in the project repository makes the battery-life claim reviewable.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Copy the script, replace the numbers with those from the datasheets of parts you might use, and find which single item dominates your budget.</li>
+<li>Add a retry probability and an average number of retries per message, and plot battery life against reporting period with numpy and matplotlib.</li>
+<li>Show your budget to a colleague and ask them to find a current you forgot. There usually is one.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>low power</li><li>iot</li><li>battery life</li><li>power budget</li><li>radio</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="safe-firmware-updates-ab-slots.html"><span>Next in Embedded systems</span>Bootloaders and safe firmware updates: A/B slots, verification and rollback</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="low-power-sleep-and-wake.html">Low-power firmware: sleep modes, wake sources and measuring the current you saved</a></h3>
+          <p>How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="dma-double-buffering-for-adc.html">Moving ADC samples with DMA and double buffering</a></h3>
+          <p>Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

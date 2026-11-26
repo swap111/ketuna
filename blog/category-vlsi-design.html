@@ -44,7 +44,7 @@
         <div>
           <p class="crumbs"><a href="index.html">Blog</a> › Digital &amp; VLSI design</p>
           <h1>Digital &amp; VLSI design</h1>
-          <p class="lede">1 article, newest first.</p>
+          <p class="lede">30 articles, newest first.</p>
         </div>
       </div>
     </section>
@@ -54,17 +54,198 @@
         <nav aria-label="Categories" class="blog-tools">
         <ul class="catchips">
           <li><a href="index.html" data-cat="">All</a></li>
-          <li><a href="category-vlsi-design.html" aria-current="page">Digital &amp; VLSI design <span class="sr-only">(1)</span></a></li>
-          <li><a href="category-embedded.html">Embedded systems <span class="sr-only">(1)</span></a></li>
-          <li><a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem <span class="sr-only">(1)</span></a></li>
+          <li><a href="category-vlsi-design.html" aria-current="page">Digital &amp; VLSI design <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-verification.html">Verification <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-physical-design.html">Physical design &amp; tape-out <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-analog.html">Analog &amp; mixed-signal <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-architecture.html">Computer architecture &amp; RISC-V <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-embedded.html">Embedded systems <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-edge-ai.html">Edge AI <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-systems-product.html">Systems &amp; product engineering <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-careers.html">Careers &amp; skills <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem <span class="sr-only">(30)</span></a></li>
         </ul>
         </nav>
         <ul class="postgrid">
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="parameterized-verilog-modules.html">Writing reusable Verilog with parameters and generate blocks</a></h3>
+          <p>Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-a-two-flop-synchronizer-works.html">Why a two-flop synchronizer works, and when it doesn&#x27;t</a></h3>
+          <p>A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="where-dynamic-power-goes.html">Where dynamic power goes: activity, capacitance, voltage and frequency</a></h3>
+          <p>Dynamic power is activity times capacitance times voltage squared times frequency. Apply the equation to a small RTL block and see which of the four terms an RTL designer can actually change.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="where-accidental-latches-come-from.html">Where accidental latches come from, and how to read the synthesis warning</a></h3>
+          <p>A combinational block that does not assign every output on every path makes synthesis infer a latch. Learn to spot the cause, read the warning, and prevent it with defaults and always_comb.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="twos-complement-from-the-hardware-side.html">Two&#x27;s complement from the hardware side: why one adder does signed and unsigned</a></h3>
+          <p>The same binary adder adds signed and unsigned numbers; only the interpretation and the overflow check differ. Learn the overflow rules, sign extension and the Verilog signed traps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="valid-ready-handshake-rules.html">The valid/ready handshake: the rules that keep pipelines from losing data</a></h3>
+          <p>A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="glitch-free-clock-switching.html">Switching between two clocks without a glitch</a></h3>
+          <p>A plain mux between two clocks can emit a runt pulse when its select changes. See how the cross-coupled glitch-free clock mux used for low-power modes works, and the assumptions it quietly relies on.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
           <h3><a href="setup-and-hold-time-explained.html">Setup and hold time, explained with one flip-flop and a clock edge</a></h3>
           <p>A flip-flop needs its input to sit still for a short window around the clock edge. Here is what that window is, why missing it breaks a design, and how to work out the fastest safe clock by hand.</p>
           <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="sequencing-an-adc-array-from-rtl.html">Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering</a></h3>
+          <p>A sensor-fusion controller needs many channels sampled at known instants. Design the digital sequencer that schedules several multiplexed ADCs, respects settling time, timestamps each sample and buffers the results.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="ripple-carry-vs-carry-lookahead.html">Ripple-carry vs carry-lookahead: where the delay goes in an adder</a></h3>
+          <p>An adder&#x27;s delay is the time for a carry to travel. See why ripple-carry grows linearly with width, how generate and propagate signals let lookahead and prefix adders grow logarithmically, and when ripple is still right.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pipelining-a-datapath-step-by-step.html">Pipelining a datapath step by step: latency, throughput and the cost of registers</a></h3>
+          <p>Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="moore-or-mealy-by-timing.html">Moore or Mealy? Choosing an FSM style by timing, not by textbook</a></h3>
+          <p>A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="lint-warnings-that-point-at-bugs.html">Lint warnings that point at real RTL bugs</a></h3>
+          <p>Width mismatches, multiple drivers, combinational loops and unused signals are the lint warnings most worth reading. Here is what each one usually means in real RTL, with examples and fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="sizing-a-fifo-for-bursts.html">How deep should a FIFO be? Sizing it from burst length and rate mismatch</a></h3>
+          <p>A FIFO only has to hold the backlog that builds up while a burst arrives faster than it drains. Work out that backlog for a sensor burst, add margin for synchronizer latency, and check the idle-time condition.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fixed-point-arithmetic-for-rtl.html">Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation</a></h3>
+          <p>Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="systemverilog-design-features-day-one.html">Five SystemVerilog design features worth using from day one</a></h3>
+          <p>logic, always_ff and always_comb, enums, structs with packages, and unique case each turn a class of silent RTL bug into a tool error or warning. Here is what each one catches.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="draw-the-circuit-before-the-code.html">Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></h3>
+          <p>Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="skid-buffer-design.html">Designing a skid buffer to break a ready path without losing throughput</a></h3>
+          <p>A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="register-blocks-firmware-friendly.html">Designing a memory-mapped register block that firmware engineers will thank you for</a></h3>
+          <p>A register block is the contract between hardware and firmware. Choose access types deliberately, define reset values, avoid read side effects, get write-one-to-clear right, and document it all from one source.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="centre-aligned-pwm-with-dead-time.html">Designing a centre-aligned PWM block with dead time for a BLDC controller</a></h3>
+          <p>Build a centre-aligned PWM from an up/down counter, insert dead time so the high and low switches of a half-bridge are never on together, and update the duty cycle without glitches.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debouncing-a-button-in-rtl.html">Debouncing a push button in RTL, and why a counter beats a delay chain</a></h3>
+          <p>A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="crc-in-hardware-lfsr-to-parallel.html">Computing a CRC in hardware: from the polynomial to an LFSR and a parallel form</a></h3>
+          <p>Turn a CRC polynomial into a serial shift-register circuit, check it against a known test vector, then let a short script unroll it into XOR equations that process a whole byte per clock.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="glitch-free-clock-gating.html">Clock gating without glitches: the latch-based integrated clock gate</a></h3>
+          <p>ANDing a clock with an enable can chop clock pulses and clock flops at the wrong time. See how a latch that is transparent while the clock is low keeps the gated clock clean, and how to use the cell properly.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-energy-accumulator.html">Building the energy accumulator of a smart meter in fixed-point RTL</a></h3>
+          <p>Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fsm-state-encoding-choices.html">Binary, one-hot or Gray: how state encoding changes area, speed and safety</a></h3>
+          <p>State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="hardware-multiplier-architectures.html">Array, Booth and Wallace: how hardware multipliers trade area for speed</a></h3>
+          <p>A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         </ul>
       </div>

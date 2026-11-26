@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Six-step BLDC commutation in firmware: Hall sensors, PWM and timing · Ketuna blog</title>
+  <meta name="description" content="How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Six-step BLDC commutation in firmware: Hall sensors, PWM and timing · Ketuna blog">
+  <meta property="og:description" content="How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.">
+  <link rel="canonical" href="https://ketuna.online/blog/six-step-bldc-commutation.html">
+  <meta property="og:url" content="https://ketuna.online/blog/six-step-bldc-commutation.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Six-step BLDC commutation in firmware: Hall sensors, PWM and timing",
+  "description": "How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "motor control, bldc, pwm, hall sensors, timers",
+  "articleSection": "Embedded systems",
+  "wordCount": 983,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/six-step-bldc-commutation.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Six-step BLDC commutation in firmware: Hall sensors, PWM and timing</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-bridge-and-the-six-steps">The bridge and the six steps</a></li><li><a href="#reading-the-hall-sensors">Reading the Hall sensors</a></li><li><a href="#commutating-in-the-hall-interrupt">Commutating in the Hall interrupt</a></li><li><a href="#changing-the-outputs-without-shoot-through">Changing the outputs without shoot-through</a></li><li><a href="#speed-from-the-hall-period">Speed from the Hall period</a></li><li><a href="#detecting-a-stall">Detecting a stall</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A brushed DC motor commutates itself with brushes and a split ring. A brushless DC (BLDC) motor has no brushes, so the controller must switch current between its three windings at the right moments as the rotor turns. Six-step (trapezoidal) commutation with Hall sensors is the simplest way to do it, and it is a good piece of firmware to study, because it combines a lookup table, interrupt timing, PWM peripherals and fault handling, all with real consequences when something is wrong.</p>
+<p>A word on safety first. A motor drive switches substantial currents, a stalled motor can overheat windings and transistors within seconds, and a wrong switch pattern can short the supply through a bridge leg. Develop with a current-limited bench supply, a hardware overcurrent cut-off, and the rotor clamped or guarded. Mains-powered drives need qualified supervision.</p>
+<h2 id="the-bridge-and-the-six-steps">The bridge and the six steps</h2>
+<p>The three windings, called phases A, B and C, connect to a three-phase bridge: each phase has a high-side switch to the supply and a low-side switch to ground. In six-step drive, at any moment:</p>
+<ul>
+<li>one phase is driven high, with PWM on its high-side switch setting the effective voltage;</li>
+<li>one phase is held low, with its low-side switch on;</li>
+<li>the third phase floats, with both switches off.</li>
+</ul>
+<p>Current flows from the high phase through two windings to the low phase. There are six such pairs, and stepping through them in order rotates the magnetic field in 60° electrical steps:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>High (PWM)</th>
+<th>Low</th>
+<th>Floating</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>A</td>
+<td>B</td>
+<td>C</td>
+</tr>
+<tr>
+<td>2</td>
+<td>A</td>
+<td>C</td>
+<td>B</td>
+</tr>
+<tr>
+<td>3</td>
+<td>B</td>
+<td>C</td>
+<td>A</td>
+</tr>
+<tr>
+<td>4</td>
+<td>B</td>
+<td>A</td>
+<td>C</td>
+</tr>
+<tr>
+<td>5</td>
+<td>C</td>
+<td>A</td>
+<td>B</td>
+</tr>
+<tr>
+<td>6</td>
+<td>C</td>
+<td>B</td>
+<td>A</td>
+</tr>
+</tbody>
+</table></div>
+<p>The rotor follows the field. To keep it turning with maximum torque, the step must change as the rotor reaches each 60° boundary, which is exactly what the Hall sensors report.</p>
+<h2 id="reading-the-hall-sensors">Reading the Hall sensors</h2>
+<p>Three Hall sensors placed 120° electrical apart produce a 3-bit code that changes every 60°. Six codes appear in normal operation; <strong>000 and 111 never do</strong> with 120° spacing, so either of them means a disconnected sensor or a wiring fault.</p>
+<p>The mapping from Hall code to step depends on how the sensors are mounted relative to the windings, so it comes from the motor's documentation or from a calibration run: drive each step slowly at a low, current-limited duty, let the rotor settle, and record the Hall code. The table below is illustrative only:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+enum { PH_A, PH_B, PH_C };
+typedef struct { uint8_t hi, lo; } step_t;
+
+static const step_t steps[6] = {
+    { PH_A, PH_B }, { PH_A, PH_C }, { PH_B, PH_C },
+    { PH_B, PH_A }, { PH_C, PH_A }, { PH_C, PH_B },
+};
+
+/* Hall code (C:B:A bits) -&gt; step index; -1 = invalid. Illustrative:
+ * the real table comes from the motor data or a calibration run. */
+static const int8_t hall_to_step[8] = { -1, 5, 3, 4, 1, 0, 2, -1 };
+</code></pre>
+<p>Following the Hall sequence 5, 4, 6, 2, 3, 1 through this table gives steps 1 to 6 in order, one direction of rotation. For the opposite direction, a common approach is to apply the step three positions ahead, <code>(k + 3) % 6</code>, which reverses the current in the windings and therefore the torque.</p>
+<h2 id="commutating-in-the-hall-interrupt">Commutating in the Hall interrupt</h2>
+<p>Each Hall edge raises an interrupt. The handler reads the code, validates it, applies the new switch pattern and records the time for speed measurement. It must be short and predictable, because late commutation costs torque and causes current spikes.</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+
+static volatile uint8_t  last_hall;
+static volatile uint32_t last_edge_ticks, edge_period_ticks;
+static volatile bool     motor_fault;
+static volatile bool     reverse;              /* set by the application */
+
+void hall_isr(void)
+{
+    hall_clear_flags();
+    uint8_t code = hall_read();                 /* 3 GPIO bits */
+    int8_t  k    = hall_to_step[code];
+
+    if (k &lt; 0) {                                /* 000 or 111 */
+        bridge_all_off();
+        motor_fault = true;
+        return;
+    }
+    if (reverse)
+        k = (int8_t)((k + 3) % 6);
+
+    bridge_apply(steps[k].hi, steps[k].lo);     /* see below */
+
+    uint32_t now = timer_capture();             /* input capture */
+    edge_period_ticks = now - last_edge_ticks;
+    last_edge_ticks = now;
+    last_hall = code;
+}
+</code></pre>
+<p>A stricter handler also checks that <code>code</code> is the expected <em>next</em> code after <code>last_hall</code>. A code that jumps two steps usually means electrical noise on a sensor line, and acting on it applies the wrong pattern.</p>
+<h2 id="changing-the-outputs-without-shoot-through">Changing the outputs without shoot-through</h2>
+<p>The most dangerous moment is the change itself. If a high-side and a low-side switch on the same leg are on at the same time, even for a few nanoseconds, the supply is shorted through them. That is called shoot-through, and it can destroy the transistors.</p>
+<p>Three precautions, in hardware wherever possible:</p>
+<ul>
+<li><strong>Dead time.</strong> Motor-control timers insert a programmable delay between turning one switch of a leg off and the other on. Set it from the gate driver's and transistors' switching times, never zero.</li>
+<li><strong>Atomic pattern changes.</strong> Writing the six outputs one register at a time creates intermediate patterns. Many motor-control timers let you preload the next output configuration and apply all of it at once on a commutation event, which the Hall interrupt can trigger. Use that rather than sequential writes.</li>
+<li><strong>A hardware break input.</strong> Wire the overcurrent comparator to the timer's emergency-stop input, so the outputs turn off within the hardware's response time, without waiting for an interrupt.</li>
+</ul>
+<h2 id="speed-from-the-hall-period">Speed from the Hall period</h2>
+<p>Six Hall edges make one electrical revolution, and a motor with <em>p</em> pole pairs makes <em>p</em> electrical revolutions per mechanical one:</p>
+<blockquote>
+<p>rpm = 60 / (6 × T<sub>edge</sub> × p)</p>
+</blockquote>
+<p>For example, with edges 1 ms apart, the electrical period is 6 ms, about 166.7 Hz. For a motor with 4 pole pairs that is about 41.7 mechanical revolutions per second, or 2500 rpm. Measuring with timer input capture rather than reading a counter in software keeps interrupt latency out of the result. Averaging over six edges removes the error from imperfect sensor placement.</p>
+<h2 id="detecting-a-stall">Detecting a stall</h2>
+<p>If the rotor stops while current is applied, Hall edges stop, the pattern stays fixed, and full current flows continuously through two windings. A periodic check catches it:</p>
+<pre><code class="language-c">void control_tick(void)                         /* e.g. every 1 ms */
+{
+    uint32_t idle = timer_now() - last_edge_ticks;
+    if (duty_cmd &gt; 0 &amp;&amp; idle &gt; STALL_TIMEOUT_TICKS) {
+        bridge_all_off();
+        motor_fault = true;                     /* restart needs a reset */
+    }
+}
+</code></pre>
+<p>Choose the timeout from the slowest speed you need to run at, with margin, and handle start-up separately, since a motor starting from rest has no recent edge. Latch the fault rather than retrying automatically, so that a jammed mechanism is not repeatedly heated.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the table and the Hall handler as plain C, and test them on your laptop with <code>gcc</code>: feed the Hall sequence in both directions and check the step sequence, then feed 0 and 7 and check that the bridge is switched off.</li>
+<li>Simulate a rotor in Python with numpy: generate Hall codes from an angle that advances at a chosen speed, call the commutation logic, and confirm the rpm calculation.</li>
+<li>On real hardware with a current-limited supply, do the calibration run described above to build the true Hall table before you ever run the motor at speed. Have someone else review the dead-time setting.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>motor control</li><li>bldc</li><li>pwm</li><li>hall sensors</li><li>timers</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="register-bit-manipulation-in-c.html"><span>Previous in Embedded systems</span>Setting, clearing and testing register bits safely in C</a><a class="next" href="superloop-or-rtos.html"><span>Next in Embedded systems</span>Superloop or RTOS? Deciding with timing requirements, not fashion</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="timers-pwm-and-input-capture.html">Timers in practice: PWM output, input capture and the prescaler arithmetic</a></h3>
+          <p>How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="dma-double-buffering-for-adc.html">Moving ADC samples with DMA and double buffering</a></h3>
+          <p>Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Race conditions in firmware: shared variables between interrupts and tasks · Ketuna blog</title>
+  <meta name="description" content="Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Race conditions in firmware: shared variables between interrupts and tasks · Ketuna blog">
+  <meta property="og:description" content="Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.">
+  <link rel="canonical" href="https://ketuna.online/blog/race-conditions-between-isrs-and-tasks.html">
+  <meta property="og:url" content="https://ketuna.online/blog/race-conditions-between-isrs-and-tasks.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Race conditions in firmware: shared variables between interrupts and tasks",
+  "description": "Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "concurrency, interrupts, critical sections, atomics, embedded c",
+  "articleSection": "Embedded systems",
+  "wordCount": 988,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/race-conditions-between-isrs-and-tasks.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Race conditions in firmware: shared variables between interrupts and tasks</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#shape-one-the-torn-read">Shape one: the torn read</a></li><li><a href="#shapes-two-and-three-lost-updates-and-stale-decisions">Shapes two and three: lost updates and stale decisions</a></li><li><a href="#fix-one-a-short-critical-section">Fix one: a short critical section</a></li><li><a href="#fix-two-read-until-consistent">Fix two: read until consistent</a></li><li><a href="#fix-three-atomics-and-single-writer-design">Fix three: atomics and single-writer design</a></li><li><a href="#finding-races-before-the-field-does">Finding races before the field does</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An interrupt can arrive between any two instructions of your main loop or task. Most of the time that is harmless. But when the interrupt handler and the interrupted code share a variable, there are instruction boundaries where an interruption produces a value that never existed, or loses an update. These races depend on timing to the instruction, so they pass every bench test and appear in the field as a counter that jumps, a timeout that fires early or an event that is never handled. This article shows the three common shapes and the tools that fix each one.</p>
+<h2 id="shape-one-the-torn-read">Shape one: the torn read</h2>
+<p>A system tick counter is a classic. A timer interrupt increments a 64-bit count every millisecond, and the rest of the firmware reads it to measure time. A 64-bit count at 1 kHz will not overflow in any product's lifetime, which is why people choose it.</p>
+<pre><code class="language-c">static volatile uint64_t ticks;        /* incremented by timer ISR */
+
+void timer_isr(void) { ticks++; }
+
+uint64_t now_ms(void) { return ticks; }   /* broken on a 32-bit core */
+</code></pre>
+<p>On a 32-bit core, reading <code>ticks</code> takes two load instructions, one for each half. With GCC for RV32, the low word is loaded first. Now suppose <code>ticks</code> is <code>0x0000_0000_FFFF_FFFF</code>:</p>
+<ol>
+<li>The reader loads the low half: <code>0xFFFF_FFFF</code>.</li>
+<li>The timer interrupt fires and increments <code>ticks</code> to <code>0x0000_0001_0000_0000</code>.</li>
+<li>The reader loads the high half: <code>0x0000_0001</code>.</li>
+</ol>
+<p>The function returns <code>0x0000_0001_FFFF_FFFF</code>, a value that was never stored. It is 2<sup>32</sup> ticks ahead of the truth, about 49.7 days at 1 kHz. Any timeout computed from it expires at once, or a "last seen" timestamp makes a device look offline. The window is one instruction wide and opens only when the low half wraps, once every 49.7 days of uptime, which is why no test finds it.</p>
+<p><code>volatile</code> does not help. It guarantees both loads happen; it says nothing about what happens between them. The same problem hits 32-bit variables on 8-bit and 16-bit cores, and any structure of several fields that must be read as a set.</p>
+<h2 id="shapes-two-and-three-lost-updates-and-stale-decisions">Shapes two and three: lost updates and stale decisions</h2>
+<h3 id="the-lost-update">The lost update</h3>
+<pre><code class="language-c">static volatile uint32_t pending;      /* ISR adds, task subtracts */
+
+void rx_isr(void)  { pending++; }
+void task(void)    { if (pending) { pending--; handle_one(); } }
+</code></pre>
+<p><code>pending--</code> is load, subtract, store. If the receive interrupt runs between the load and the store, its increment is overwritten when the task stores its stale value minus one. One event is silently lost. The same happens with <code>reg |= bit</code> on a register that an interrupt also modifies.</p>
+<h3 id="check-then-act">Check, then act</h3>
+<pre><code class="language-c">if (buffer_count &lt; SIZE) {             /* check */
+    buffer[buffer_count++] = item;     /* act */
+}
+</code></pre>
+<p>If an interrupt adds an item between the check and the action, the code acts on a condition that is no longer true and writes past the end. Any time a decision is based on shared state, the decision and the action must be one indivisible step.</p>
+<h2 id="fix-one-a-short-critical-section">Fix one: a short critical section</h2>
+<p>The general remedy is to make the sequence indivisible by masking interrupts around it. Save the previous state and restore it, rather than blindly enabling interrupts afterwards, so the function is safe to call from code that already had them disabled. On RISC-V, one instruction clears the global enable bit and returns its old value:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define MSTATUS_MIE (1u &lt;&lt; 3)
+
+static inline uint32_t irq_save(void)
+{
+    uint32_t old;
+    __asm__ volatile (&quot;csrrc %0, mstatus, %1&quot;
+                      : &quot;=r&quot;(old) : &quot;r&quot;(MSTATUS_MIE) : &quot;memory&quot;);
+    return old &amp; MSTATUS_MIE;
+}
+
+static inline void irq_restore(uint32_t was_enabled)
+{
+    if (was_enabled)
+        __asm__ volatile (&quot;csrs mstatus, %0&quot;
+                          :: &quot;r&quot;(MSTATUS_MIE) : &quot;memory&quot;);
+}
+
+uint64_t now_ms(void)
+{
+    uint32_t s = irq_save();
+    uint64_t t = ticks;
+    irq_restore(s);
+    return t;
+}
+</code></pre>
+<p>The <code>"memory"</code> clobber is essential: it stops the compiler from moving the read of <code>ticks</code> outside the protected region. Keep critical sections to a few instructions. Every cycle spent with interrupts masked adds to the worst-case latency of every interrupt in the system.</p>
+<h2 id="fix-two-read-until-consistent">Fix two: read until consistent</h2>
+<p>When the writer is hardware or an interrupt you would rather not delay, read the halves in a loop until they agree. The RISC-V machine timer is the textbook case: on RV32, the 64-bit <code>mtime</code> register must be read as two 32-bit halves while it keeps counting:</p>
+<pre><code class="language-c">uint64_t mtime_read(volatile uint32_t *lo_reg, volatile uint32_t *hi_reg)
+{
+    uint32_t hi, lo;
+    do {
+        hi = *hi_reg;
+        lo = *lo_reg;
+    } while (hi != *hi_reg);           /* high half moved: try again */
+    return ((uint64_t)hi &lt;&lt; 32) | lo;
+}
+</code></pre>
+<p>If the high half is the same before and after reading the low half, no carry happened in between, so the pair is consistent. Retry loops never block the writer. They work when updates are rare compared with how long one read takes, which is true for a counter.</p>
+<h2 id="fix-three-atomics-and-single-writer-design">Fix three: atomics and single-writer design</h2>
+<p>C11 <code>&lt;stdatomic.h&gt;</code> gives operations that the compiler guarantees are indivisible, such as <code>atomic_fetch_add</code> and <code>atomic_fetch_sub</code>. On RISC-V cores with the A extension, these become single atomic memory instructions. On cores without it, check what your toolchain generates, since it may fall back to library calls that themselves need a critical section. A 64-bit atomic on a 32-bit core is usually not lock-free either.</p>
+<p>Often the cleanest fix is structural: give every shared variable <strong>exactly one writer</strong>. Instead of one <code>pending</code> counter that both sides modify, keep an <code>added</code> count written only by the interrupt and a <code>handled</code> count written only by the task; the work outstanding is <code>added - handled</code>. This is the principle behind the single-producer, single-consumer ring buffer described in <a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a>.</p>
+<h2 id="finding-races-before-the-field-does">Finding races before the field does</h2>
+<ul>
+<li><strong>List shared variables.</strong> For every variable touched by an interrupt, note its width, who writes it and who reads it. Anything wider than the core's natural word, or written by both sides, needs one of the fixes above.</li>
+<li><strong>Force the bad interleaving in a test.</strong> On the host, call the interrupt handler from inside the reader at the worst point, through a test hook, and assert that the result is still valid.</li>
+<li><strong>Start counters near the wrap.</strong> Initialise <code>ticks</code> to just below <code>0xFFFF_FFFF</code> in test builds so the rare case happens in the first second.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compile <code>return ticks;</code> for RV32 with <code>riscv64-unknown-elf-gcc -O2 -S</code> and find the two loads. Mark where an interrupt causes the torn value.</li>
+<li>On the host, simulate the torn read by splitting the read into two halves with a call to <code>timer_isr()</code> between them, starting <code>ticks</code> at <code>0xFFFFFFFF</code>, and print the result. Then apply each fix and show that the test passes.</li>
+<li>On QEMU's RISC-V <code>virt</code> machine, where <code>mtime</code> sits at <code>0x0200BFF8</code> and counts at 10 MHz, read it with the retry loop. Then work out how often its low half wraps (about every 7 minutes) and explain why a naive two-load read can pass a long test run and still fail in the field.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>concurrency</li><li>interrupts</li><li>critical sections</li><li>atomics</li><li>embedded c</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="priority-inversion-and-inheritance.html"><span>Previous in Embedded systems</span>Priority inversion, and how priority inheritance fixes it</a><a class="next" href="reading-a-linker-script.html"><span>Next in Embedded systems</span>Reading a linker script: sections, memory regions and the map file</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="register-bit-manipulation-in-c.html">Setting, clearing and testing register bits safely in C</a></h3>
+          <p>Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-volatile-really-does.html">What volatile really does in embedded C, and what it does not</a></h3>
+          <p>volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

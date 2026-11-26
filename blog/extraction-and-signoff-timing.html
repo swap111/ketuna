@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parasitic extraction and sign-off timing: why post-route numbers change · Ketuna blog</title>
+  <meta name="description" content="Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Parasitic extraction and sign-off timing: why post-route numbers change · Ketuna blog">
+  <meta property="og:description" content="Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.">
+  <link rel="canonical" href="https://ketuna.online/blog/extraction-and-signoff-timing.html">
+  <meta property="og:url" content="https://ketuna.online/blog/extraction-and-signoff-timing.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Parasitic extraction and sign-off timing: why post-route numbers change",
+  "description": "Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "parasitic extraction, spef, signal integrity, sign-off timing, crosstalk",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 932,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/extraction-and-signoff-timing.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Parasitic extraction and sign-off timing: why post-route numbers change</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Before routing, wire delay is a guess. After routing, extraction measures real resistance, capacitance and coupling. See with a worked RC example why a path that passed after placement can fail at sign-off.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-placement-stage-timing-assumes">What placement-stage timing assumes</a></li><li><a href="#what-extraction-measures">What extraction measures</a></li><li><a href="#a-worked-example-one-net-three-views">A worked example: one net, three views</a></li><li><a href="#corners-multiply-the-picture">Corners multiply the picture</a></li><li><a href="#keeping-the-surprise-small">Keeping the surprise small</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Timing that is clean after placement and fails after routing is one of the most common surprises in a first physical design run. Nothing is broken. The earlier number was an estimate based on where cells sat, and the later number is based on the wires that were actually drawn, with their real lengths, layers, vias and neighbours. Understanding what changes between the two tells you how much margin to keep early and where to look when the post-route report turns red.</p>
+<h2 id="what-placement-stage-timing-assumes">What placement-stage timing assumes</h2>
+<p>Before routing, the timing engine needs a delay for every net that does not exist yet. It estimates the wire from cell positions, typically using a Steiner tree or a bounding-box length, and multiplies by per-unit resistance and capacitance for an assumed layer. Some flows run a global route and estimate parasitics from its guides, which is better but still not exact.</p>
+<p>These estimates miss several things:</p>
+<ul>
+<li><strong>Detours.</strong> Congestion forces some nets around obstacles, making them longer than the ideal tree.</li>
+<li><strong>Layer choice.</strong> Lower metals are thinner and more resistive than upper ones. A net estimated on a mid layer but routed on a low one is slower.</li>
+<li><strong>Vias.</strong> Each via adds resistance, and a net that changes layers often accumulates it.</li>
+<li><strong>Coupling.</strong> The estimate usually lumps all capacitance to ground. In reality a large part of a wire's capacitance is to its neighbours on the same layer.</li>
+</ul>
+<h2 id="what-extraction-measures">What extraction measures</h2>
+<p>Parasitic extraction reads the routed layout and the PDK's process data (layer thicknesses, dielectric constants, sheet resistances) and computes, for each net, a network of resistors and capacitors. It separates <strong>ground capacitance</strong> (to the substrate and to power shapes) from <strong>coupling capacitance</strong> (to specific neighbouring signal nets). The result is written in SPEF, a standard parasitic exchange format that timing tools read. OpenROAD's <code>openRCX</code> is one open extractor; Magic can also extract parasitics.</p>
+<p>The timing tool then computes delays with these RC networks, using a model such as Elmore delay for a first-order view or more accurate waveform-based methods at sign-off.</p>
+<h2 id="a-worked-example-one-net-three-views">A worked example: one net, three views</h2>
+<p>Take one net with illustrative numbers. A driver with an effective output resistance R<sub>d</sub> = 2 kΩ drives a routed wire with R<sub>w</sub> = 400 Ω and total capacitance C<sub>w</sub> = 60 fF, into a load pin of C<sub>L</sub> = 10 fF. With the wire as a distributed RC line, the Elmore delay is:</p>
+<blockquote>
+<p>t ≈ R<sub>d</sub>(C<sub>w</sub> + C<sub>L</sub>) + R<sub>w</sub>(C<sub>w</sub>/2 + C<sub>L</sub>)</p>
+</blockquote>
+<ul>
+<li><strong>Placement estimate:</strong> suppose the estimate assumed 30 fF of wire capacitance and ignored wire resistance. Then t ≈ 2000 × 40 fF = 80 ps.</li>
+<li><strong>Extracted, neighbours quiet:</strong> 2000 × 70 fF + 400 × (30 + 10) fF = 140 + 16 = 156 ps.</li>
+</ul>
+<p>The routed net is nearly twice as slow as the estimate. On a path of ten gates, a few nets like this can turn positive slack negative.</p>
+<p>Now split the 60 fF into 40 fF to ground and 20 fF coupling to one neighbour. When the neighbour switches in the <strong>opposite</strong> direction at the same time, the voltage across the coupling capacitor changes twice as much, and the effective coupling roughly doubles. When it switches in the <strong>same</strong> direction, the effective coupling falls towards zero.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Neighbour behaviour</th>
+<th>Effective C<sub>w</sub></th>
+<th>Elmore delay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Same direction</td>
+<td>40 fF</td>
+<td>112 ps</td>
+</tr>
+<tr>
+<td>Quiet</td>
+<td>60 fF</td>
+<td>156 ps</td>
+</tr>
+<tr>
+<td>Opposite direction</td>
+<td>80 fF</td>
+<td>200 ps</td>
+</tr>
+</tbody>
+</table></div>
+<p>The same wire can be anywhere from 112 ps to 200 ps depending on what its neighbour does. Sign-off timing with signal integrity analysis considers this window: it uses the slow case for setup checks and the fast case for hold checks, and also checks <strong>crosstalk noise</strong>, where a switching neighbour couples a glitch onto a quiet net that could be captured as a wrong value.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 190" role="img" aria-labelledby="ex-title ex-desc" font-size="14">
+<title id="ex-title">Ground and coupling capacitance on a routed wire</title>
+<desc id="ex-desc">Two parallel wires, a victim and an aggressor, above a ground plane. Capacitors connect each wire down to ground, and a coupling capacitor connects the two wires to each other.</desc>
+<rect x="60" y="40" width="360" height="14" class="dg-core"/>
+<text x="430" y="52" class="dg-text">victim</text>
+<rect x="60" y="100" width="360" height="14" class="dg-box"/>
+<text x="430" y="112" class="dg-text">aggressor</text>
+<rect x="40" y="165" width="400" height="10" class="dg-track"/>
+<text x="240" y="160" text-anchor="middle" class="dg-muted">ground / substrate</text>
+<line x1="240" y1="54" x2="240" y2="72" class="dg-amber-line" stroke-width="2"/>
+<line x1="228" y1="72" x2="252" y2="72" class="dg-amber-line" stroke-width="2"/>
+<line x1="228" y1="80" x2="252" y2="80" class="dg-amber-line" stroke-width="2"/>
+<line x1="240" y1="80" x2="240" y2="100" class="dg-amber-line" stroke-width="2"/>
+<text x="260" y="82" class="dg-text">C coupling</text>
+<line x1="110" y1="54" x2="110" y2="62" class="dg-line"/>
+<line x1="98" y1="62" x2="122" y2="62" class="dg-line"/>
+<line x1="98" y1="68" x2="122" y2="68" class="dg-line"/>
+<path d="M110,68 V90 H30 V165" fill="none" class="dg-dash"/>
+<text x="20" y="35" class="dg-muted">C ground</text>
+<line x1="370" y1="114" x2="370" y2="130" class="dg-line"/>
+<line x1="358" y1="130" x2="382" y2="130" class="dg-line"/>
+<line x1="358" y1="136" x2="382" y2="136" class="dg-line"/>
+<line x1="370" y1="136" x2="370" y2="165" class="dg-line"/>
+</svg>
+<figcaption>Part of each wire's capacitance goes to ground and part to its neighbour; the neighbour's switching changes how much of the coupling the driver sees.</figcaption>
+</figure>
+
+<h2 id="corners-multiply-the-picture">Corners multiply the picture</h2>
+<p>Extraction itself has corners. Metal thickness and width, and dielectric thickness, vary across wafers, so PDKs provide RC corners, such as a maximum-capacitance case and a minimum-capacitance case. Sign-off runs timing at combinations of transistor corners (slow, typical, fast with voltage and temperature) and RC corners. A path that is critical at one combination may be comfortable at another. Most flows sign off setup at slow transistors with high RC and hold at fast transistors with low RC, plus any other combinations the foundry requires.</p>
+<h2 id="keeping-the-surprise-small">Keeping the surprise small</h2>
+<ul>
+<li><strong>Keep margin early.</strong> Close timing after placement with some slack held back, because routing will take some of it.</li>
+<li><strong>Compare reports on the same path.</strong> When a path fails post-route, find it in the placement report and see which nets grew. A single large jump points to a detour or a low-layer route.</li>
+<li><strong>Use non-default rules for critical nets.</strong> Wider spacing or upper layers for clocks and the worst nets reduce coupling and resistance.</li>
+<li><strong>Do not hand-tune to the estimate.</strong> Optimising hard against placement parasitics can fit noise in the estimate rather than the real design.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130. Find the worst setup path in the placement-stage timing report and in the post-route sign-off report.</li>
+<li>Locate the SPEF file in the run directory and find one net from that path. Read its total capacitance and coupling entries.</li>
+<li>Load the netlist, Liberty and SPEF into <strong>OpenSTA</strong> with <code>read_spef</code>, then compare <code>report_checks</code> for that path with and without the SPEF loaded.</li>
+<li>Recompute the table above in <strong>Python</strong> for one of your real nets, using the resistances and capacitances from the SPEF.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>parasitic extraction</li><li>spef</li><li>signal integrity</li><li>sign-off timing</li><li>crosstalk</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="metal-fill-and-density-rules.html"><span>Previous in Physical design &amp; tape-out</span>Metal fill, density rules and why the fab cares about empty space</a><a class="next" href="physical-design-for-voltage-domains.html"><span>Next in Physical design &amp; tape-out</span>Physical design for multiple voltage domains: level shifters, isolation and floorplan</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="metal-fill-and-density-rules.html">Metal fill, density rules and why the fab cares about empty space</a></h3>
+          <p>Chemical-mechanical polishing needs even metal density, so empty regions get filled with dummy shapes. Learn how density windows are checked, how fill is inserted, and how its capacitance affects sign-off timing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

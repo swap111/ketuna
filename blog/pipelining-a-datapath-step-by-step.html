@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipelining a datapath step by step: latency, throughput and the cost of registers · Ketuna blog</title>
+  <meta name="description" content="Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Pipelining a datapath step by step: latency, throughput and the cost of registers · Ketuna blog">
+  <meta property="og:description" content="Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.">
+  <link rel="canonical" href="https://ketuna.online/blog/pipelining-a-datapath-step-by-step.html">
+  <meta property="og:url" content="https://ketuna.online/blog/pipelining-a-datapath-step-by-step.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Pipelining a datapath step by step: latency, throughput and the cost of registers",
+  "description": "Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pipelining, datapath, mac, timing, valid bit",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 805,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/pipelining-a-datapath-step-by-step.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Pipelining a datapath step by step: latency, throughput and the cost of registers</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-unpipelined-mac">The unpipelined MAC</a></li><li><a href="#first-cut-register-the-product">First cut: register the product</a></li><li><a href="#balanced-cut-split-the-multiplier">Balanced cut: split the multiplier</a></li><li><a href="#what-it-costs">What it costs</a></li><li><a href="#carrying-a-valid-bit">Carrying a valid bit</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A multiply-accumulate (MAC) unit sits at the heart of every digital filter and neural-network accelerator. Written as one line of RTL, it is also usually the longest path in the block, and it sets the clock speed for everything around it. Pipelining is how you break that path into pieces, and doing it well is mostly bookkeeping: balancing the pieces, counting the registers, and keeping track of which data is valid.</p>
+<h2 id="the-unpipelined-mac">The unpipelined MAC</h2>
+<pre><code class="language-verilog">always @(posedge clk)
+  if (en) acc &lt;= acc + a * b;
+</code></pre>
+<p>Between the input registers and <code>acc</code> there is a multiplier followed by an adder. Use these delays, made up for illustration: the 16 × 16 multiplier takes 4.0 ns, the 40-bit adder 2.0 ns, and each register adds 0.4 ns of overhead (clock-to-Q plus setup).</p>
+<blockquote>
+<p>T<sub>clk</sub> ≥ 0.4 + 4.0 + 2.0 = 6.4 ns, about 156 MHz</p>
+</blockquote>
+<p>One MAC completes every cycle, so throughput is 156 million MACs per second, and each result is ready one cycle after its inputs.</p>
+<h2 id="first-cut-register-the-product">First cut: register the product</h2>
+<p>Put a register between the multiplier and the adder. The two halves are now separate paths:</p>
+<ul>
+<li>multiplier stage: 0.4 + 4.0 = 4.4 ns</li>
+<li>accumulate stage: 0.4 + 2.0 = 2.4 ns</li>
+</ul>
+<p>The clock is set by the slower stage, 4.4 ns, or about 227 MHz. That is better, but the accumulate stage now idles for 2 ns of every cycle. The lesson: a pipeline is only as fast as its slowest stage, so the gain from a cut depends on how evenly it splits the delay.</p>
+<h2 id="balanced-cut-split-the-multiplier">Balanced cut: split the multiplier</h2>
+<p>A hardware multiplier has a natural internal seam. It first reduces its partial products to two numbers (a carry-save form) and then adds those two in a final adder. Suppose each half takes 2.0 ns. Cutting there gives three stages of equal logic:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Logic</th>
+<th>Period needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Partial-product reduction</td>
+<td>2.4 ns</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Final multiplier add</td>
+<td>2.4 ns</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Accumulate</td>
+<td>2.4 ns</td>
+</tr>
+</tbody>
+</table></div>
+<p>Now T<sub>clk</sub> = 2.4 ns, about 417 MHz. Throughput rose by 6.4 / 2.4 ≈ 2.67 times. It did not triple, because the 0.4 ns register overhead is paid in every stage. That overhead is why pipelining has diminishing returns: as the logic per stage shrinks, the fixed register cost takes a larger share of each cycle.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 160" role="img" aria-labelledby="pl-title pl-desc" font-size="14">
+<title id="pl-title">Three-stage pipelined multiply-accumulate</title>
+<desc id="pl-desc">Inputs a and b enter partial-product reduction, then a register, the final multiplier add, a register, and an accumulate adder whose output register feeds back to its own input. A valid bit travels through a matching chain of two registers below the datapath and enables the accumulate stage.</desc>
+<text x="8" y="56" class="dg-text">a,b</text>
+<rect x="50" y="40" width="90" height="40" class="dg-box"/>
+<text x="95" y="65" text-anchor="middle" class="dg-text">PP reduce</text>
+<rect x="152" y="30" width="12" height="60" class="dg-core"/>
+<rect x="180" y="40" width="90" height="40" class="dg-box"/>
+<text x="225" y="65" text-anchor="middle" class="dg-text">final add</text>
+<rect x="282" y="30" width="12" height="60" class="dg-core"/>
+<rect x="310" y="40" width="80" height="40" class="dg-box"/>
+<text x="350" y="65" text-anchor="middle" class="dg-text">acc add</text>
+<rect x="402" y="30" width="12" height="60" class="dg-core"/>
+<path d="M36,60 H50 M140,60 H152 M164,60 H180 M270,60 H282 M294,60 H310 M390,60 H402" class="dg-line"/>
+<path d="M414,60 H440 V18 H330 V40" class="dg-amber-line" stroke-width="2"/>
+<path d="M326,34 L330,40 L334,34 Z" class="dg-arrow"/>
+<text x="446" y="64" class="dg-text">acc</text>
+<rect x="152" y="110" width="12" height="24" class="dg-core"/>
+<rect x="282" y="110" width="12" height="24" class="dg-core"/>
+<path d="M60,122 H152 M164,122 H282 M294,122 H350 V80" class="dg-line"/>
+<path d="M346,86 L350,80 L354,86 Z" class="dg-arrow"/>
+<text x="10" y="127" class="dg-text">valid</text>
+<text x="200" y="153" text-anchor="middle" class="dg-muted">valid travels with its data</text>
+</svg>
+<figcaption>Each stage register in the datapath has a matching register in the valid chain, which enables the accumulator; the accumulator's feedback loop stays inside one stage.</figcaption>
+</figure>
+
+<h2 id="what-it-costs">What it costs</h2>
+<p><strong>Latency.</strong> A result now appears three cycles after its inputs: 3 × 2.4 = 7.2 ns, slightly <em>longer</em> than the 6.4 ns of the unpipelined version. Pipelining raises throughput, not speed for a single operation. If the consumer needs one answer as soon as possible, pipelining can make it worse.</p>
+<p><strong>Registers.</strong> Each cut adds a register as wide as the data crossing it. The carry-save cut carries two wide vectors, so it is the most expensive. Registers cost area, clock power on every edge, and clock-tree load. Count them before you cut, and prefer seams where the data is narrow.</p>
+<p><strong>The feedback loop.</strong> Notice that the accumulator adder and its register stay together in one stage. The accumulate depends on its own previous result, so you cannot insert a register inside that loop without changing what the circuit computes: with two registers in the loop you would have two interleaved accumulators. Loops set a hard floor on the clock period; only the feed-forward part of a path can be pipelined freely.</p>
+<h2 id="carrying-a-valid-bit">Carrying a valid bit</h2>
+<p>Once data takes three cycles to flow through, the accumulator must know <em>which</em> cycles hold real data. The standard method is a valid bit that travels in a parallel register chain, one flop per stage:</p>
+<pre><code class="language-verilog">module mac3 (
+  input  wire               clk, rst_n,
+  input  wire               in_valid,
+  input  wire signed [15:0] a, b,
+  output reg  signed [39:0] acc
+);
+  reg               v1, v2;
+  reg signed [31:0] p1, p2;   // stand-ins for the two multiplier halves
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      v1 &lt;= 1'b0; v2 &lt;= 1'b0; acc &lt;= 40'sd0;
+    end else begin
+      v1 &lt;= in_valid;
+      v2 &lt;= v1;
+      if (v2) acc &lt;= acc + p2;
+    end
+  end
+  always @(posedge clk) begin   // data needs no reset
+    p1 &lt;= a * b;    // in a real design, stage 1 is PP reduction
+    p2 &lt;= p1;
+  end
+endmodule
+</code></pre>
+<p>The valid flops are reset so the pipeline starts empty; the data flops are not, because their contents are ignored whenever the matching valid bit is low. That saves reset routing on the widest registers. The accumulator only updates when <code>v2</code> says the product beside it is real, so bubbles in the input stream are harmless.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Pipelining the data but not the control.</strong> Every signal that qualifies the data, such as valid, last, or a channel number, must be delayed by the same number of stages.</li>
+<li><strong>Unbalanced stages.</strong> One long stage wastes the gains of all the others.</li>
+<li><strong>Cutting inside a feedback loop.</strong> It changes the function, not just the timing.</li>
+<li><strong>Forgetting downstream latency.</strong> Any logic waiting for the result now waits longer; update its counters and testbench expectations.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the three-stage pipeline on paper with every register and its width, and add up the flip-flops before writing any code.</li>
+<li>Simulate <code>mac3</code> in <strong>Icarus Verilog</strong> with <code>in_valid</code> toggling randomly and compare <code>acc</code> against a Python model that accumulates only the valid products.</li>
+<li>Synthesise the unpipelined and pipelined versions with <strong>Yosys</strong> against a sky130 library, then compare the critical path in <strong>OpenSTA</strong> with <code>report_checks</code> and the flip-flop count with <code>stat</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pipelining</li><li>datapath</li><li>mac</li><li>timing</li><li>valid bit</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="moore-or-mealy-by-timing.html"><span>Previous in Digital &amp; VLSI design</span>Moore or Mealy? Choosing an FSM style by timing, not by textbook</a><a class="next" href="ripple-carry-vs-carry-lookahead.html"><span>Next in Digital &amp; VLSI design</span>Ripple-carry vs carry-lookahead: where the delay goes in an adder</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="hardware-multiplier-architectures.html">Array, Booth and Wallace: how hardware multipliers trade area for speed</a></h3>
+          <p>A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="moore-or-mealy-by-timing.html">Moore or Mealy? Choosing an FSM style by timing, not by textbook</a></h3>
+          <p>A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading a linker script: sections, memory regions and the map file · Ketuna blog</title>
+  <meta name="description" content="How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reading a linker script: sections, memory regions and the map file · Ketuna blog">
+  <meta property="og:description" content="How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-a-linker-script.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-a-linker-script.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading a linker script: sections, memory regions and the map file",
+  "description": "How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "linker script, memory map, map file, flash, ram",
+  "articleSection": "Embedded systems",
+  "wordCount": 929,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-a-linker-script.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Reading a linker script: sections, memory regions and the map file</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-blocks-memory-and-sections">Two blocks: MEMORY and SECTIONS</a></li><li><a href="#load-address-and-run-address">Load address and run address</a></li><li><a href="#three-numbers-from-size">Three numbers from size</a></li><li><a href="#reading-the-map-file">Reading the map file</a></li><li><a href="#common-memory-hogs">Common memory hogs</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Sooner or later a firmware build fails with "region RAM overflowed", or the image suddenly grows by 20 kB after a one-line change. Both questions are answered by two files most people never open: the linker script, which says where everything goes, and the map file, which says where everything went. Reading them takes about fifteen minutes to learn and saves days.</p>
+<h2 id="two-blocks-memory-and-sections">Two blocks: MEMORY and SECTIONS</h2>
+<p>A GNU ld linker script for a microcontroller has two main parts. <code>MEMORY</code> lists the physical memories. <code>SECTIONS</code> says which pieces of your program go into which memory, in what order.</p>
+<pre><code class="language-text">MEMORY
+{
+  FLASH (rx)  : ORIGIN = 0x80000000, LENGTH = 256K
+  RAM   (rwx) : ORIGIN = 0x80040000, LENGTH = 256K
+}
+
+SECTIONS
+{
+  .text : {
+    KEEP(*(.text.start))
+    *(.text .text.*)
+  } &gt; FLASH
+
+  .rodata : { *(.rodata .rodata.*) } &gt; FLASH
+
+  .data : ALIGN(4) {
+    _sdata = .;
+    *(.data .data.*)
+    . = ALIGN(4);
+    _edata = .;
+  } &gt; RAM AT &gt; FLASH
+  _sidata = LOADADDR(.data);
+
+  .bss (NOLOAD) : ALIGN(4) {
+    _sbss = .;
+    *(.bss .bss.* COMMON)
+    . = ALIGN(4);
+    _ebss = .;
+  } &gt; RAM
+}
+</code></pre>
+<p>This is the layout used in the Ketuna track D labs on QEMU's <code>virt</code> machine, which pretends the first 256 kB of its RAM is flash. Read the <code>SECTIONS</code> block line by line:</p>
+<ul>
+<li><code>.text : { ... } &gt; FLASH</code> creates an <strong>output section</strong> called <code>.text</code> and fills it with <strong>input sections</strong> from every object file. <code>*(.text .text.*)</code> means "from all files, every section whose name is <code>.text</code> or starts with <code>.text.</code>". The <code>&gt; FLASH</code> puts the result in the flash region.</li>
+<li><code>KEEP(...)</code> protects a section from <code>--gc-sections</code>, which removes anything no code refers to. The reset entry is referenced only by the hardware, so it must be kept.</li>
+<li><code>.</code> is the <strong>location counter</strong>: the current address. <code>_sdata = .;</code> defines a symbol whose value is that address. It occupies no memory; it is a label that startup code can use.</li>
+<li><code>ALIGN(4)</code> rounds the counter up to a multiple of 4, so word-wide copy loops work.</li>
+</ul>
+<h2 id="load-address-and-run-address">Load address and run address</h2>
+<p>The line that confuses most readers is <code>&gt; RAM AT &gt; FLASH</code>. An initialised global such as <code>int mode = 3;</code> must be in RAM when the program runs, because the program may change it. But RAM is empty at power-up, so the value 3 has to be stored in flash. The section therefore has two addresses:</p>
+<ul>
+<li>the <strong>VMA</strong> (virtual memory address, really just the run address): where the code expects the variable, in RAM;</li>
+<li>the <strong>LMA</strong> (load memory address): where its bytes sit in the image, in flash.</li>
+</ul>
+<p><code>&gt; RAM AT &gt; FLASH</code> sets the VMA in RAM and the LMA in flash. <code>LOADADDR(.data)</code> gives the LMA, which startup code reads as <code>_sidata</code> and copies to <code>_sdata</code>. Code and constants run in place, so for <code>.text</code> and <code>.rodata</code> the two addresses are the same. <code>.bss</code> has no initial contents, so it is marked <code>NOLOAD</code> and gets only a run address.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 270" role="img" aria-labelledby="ls-title ls-desc" font-size="14">
+<title id="ls-title">Placement of output sections in flash and RAM</title>
+<desc id="ls-desc">Two columns. The flash column holds .text, .rodata and the load image of .data. The RAM column holds the run copy of .data, then .bss, then the stack at the top. A dashed arrow shows the .data load image being copied into RAM at startup.</desc>
+<text x="100" y="22" text-anchor="middle" class="dg-text">FLASH (rx)</text>
+<text x="370" y="22" text-anchor="middle" class="dg-text">RAM (rwx)</text>
+<rect x="30" y="32" width="140" height="70" class="dg-box"/>
+<text x="100" y="72" text-anchor="middle" class="dg-text">.text</text>
+<rect x="30" y="102" width="140" height="40" class="dg-box"/>
+<text x="100" y="127" text-anchor="middle" class="dg-text">.rodata</text>
+<rect x="30" y="142" width="140" height="34" class="dg-amber" fill-opacity="0.35"/>
+<text x="100" y="164" text-anchor="middle" class="dg-text">.data (LMA)</text>
+<rect x="30" y="176" width="140" height="70" class="dg-track"/>
+<text x="100" y="216" text-anchor="middle" class="dg-muted">free</text>
+<rect x="300" y="32" width="140" height="34" class="dg-amber" fill-opacity="0.35"/>
+<text x="370" y="54" text-anchor="middle" class="dg-text">.data (VMA)</text>
+<rect x="300" y="66" width="140" height="44" class="dg-box"/>
+<text x="370" y="93" text-anchor="middle" class="dg-text">.bss</text>
+<rect x="300" y="110" width="140" height="86" class="dg-track"/>
+<text x="370" y="158" text-anchor="middle" class="dg-muted">heap / free</text>
+<rect x="300" y="196" width="140" height="50" class="dg-core"/>
+<text x="370" y="226" text-anchor="middle" class="dg-text">stack</text>
+<path d="M170,159 C230,159 240,49 294,49" class="dg-dash" fill="none"/>
+<path d="M292,44 L300,49 L292,54 Z" class="dg-arrow"/>
+<text x="235" y="128" text-anchor="middle" class="dg-muted">copied</text>
+<text x="235" y="144" text-anchor="middle" class="dg-muted">at reset</text>
+</svg>
+<figcaption>Only .data appears twice: its initial values in flash, its working copy in RAM.</figcaption>
+</figure>
+
+<h2 id="three-numbers-from-size">Three numbers from size</h2>
+<p>After every link, run the size tool. Here is output from a made-up build, for illustration:</p>
+<pre><code class="language-bash">$ riscv64-unknown-elf-size app.elf
+   text    data     bss     dec     hex filename
+   6716     136   12544   19396    4bc4 app.elf
+</code></pre>
+<p>The columns are totals, not sections. <code>text</code> includes code and constants. Flash use is <code>text + data</code> = 6852 bytes, because the initial values of <code>.data</code> live in flash. Static RAM use is <code>data + bss</code> = 12,680 bytes. If the script reserves the stack as a <code>NOLOAD</code> section, as the lab script does with 8 kB, that reservation is counted inside <code>bss</code>.</p>
+<p>For a percentage view, add <code>-Wl,--print-memory-usage</code> to the link command. With the same numbers, FLASH shows 6852 B of 256 kB, about 2.61 %, and RAM 12,680 B, about 4.84 %.</p>
+<h2 id="reading-the-map-file">Reading the map file</h2>
+<p>Totals tell you that memory is used, not by what. For that, ask the linker for a map: add <code>-Wl,-Map=app.map</code>. The file is long, but the part you need is the "Linker script and memory map" section, which lists each output section with its address and size, followed by every input section that went into it:</p>
+<pre><code class="language-text">.data           0x80040000       0x88 load address 0x80001a3c
+                0x80040000                _sdata = .
+ *(.data .data.*)
+ .data.lut      0x80040000       0x80 build/filter.o
+ .data.mode     0x80040080        0x4 build/main.o
+</code></pre>
+<p>Each input line gives the section name, its run address, its size in hex and the object file it came from. The header line shows both addresses at once: run address <code>0x80040000</code>, load address after the code. Search for the largest sizes and you know which file to look at.</p>
+<p>A quicker route to the biggest symbols is <code>nm</code>:</p>
+<pre><code class="language-bash">riscv64-unknown-elf-nm --print-size --size-sort --reverse-sort app.elf | head
+</code></pre>
+<p>The symbol type letter tells you where each item lives: <code>T</code> for code, <code>R</code> for read-only data, <code>D</code> for initialised data, <code>B</code> for <code>.bss</code>.</p>
+<h2 id="common-memory-hogs">Common memory hogs</h2>
+<ul>
+<li><strong>A missing <code>const</code>.</strong> <code>static uint16_t lut[64] = {...};</code> goes into <code>.data</code> and costs 128 bytes of flash <em>and</em> 128 bytes of RAM. Add <code>const</code> and it moves to <code>.rodata</code>, flash only. In the map, a table under <code>.data</code> that the code never writes is the clue.</li>
+<li><strong>Formatted printing.</strong> A full <code>printf</code> with floating-point support can be the largest thing in a small image. The map shows library objects by name, so you can see exactly what one <code>printf("%f")</code> pulled in.</li>
+<li><strong>Large zeroed buffers.</strong> They cost nothing in flash but all of their size in RAM, under <code>.bss</code>. Check whether two buffers that are never used at the same time could share memory.</li>
+<li><strong>Dead code kept alive.</strong> Build with <code>-ffunction-sections -fdata-sections</code> and link with <code>--gc-sections</code> so unused functions are dropped. Without the first two flags, each object file is one big section and the linker can only keep or drop it whole.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Link any small RISC-V program with the script above and <code>-Wl,-Map=app.map,--print-memory-usage</code>. Open the map and find <code>_sdata</code>, <code>_sidata</code> and the file each <code>.data</code> input section came from.</li>
+<li>Run <code>riscv64-unknown-elf-objdump -h app.elf</code>. Check that <code>.data</code> shows different VMA and LMA columns and <code>.text</code> does not.</li>
+<li>Add a 64-entry initialised table without <code>const</code>, rebuild, and note the change in the <code>data</code> column of <code>size</code>. Add <code>const</code> and watch the bytes move to <code>text</code>.</li>
+<li>Make the RAM region 8 kB long and read the linker's overflow message. Then explain to a colleague, using the map, which section pushed it over.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>linker script</li><li>memory map</li><li>map file</li><li>flash</li><li>ram</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="race-conditions-between-isrs-and-tasks.html"><span>Previous in Embedded systems</span>Race conditions in firmware: shared variables between interrupts and tasks</a><a class="next" href="reading-a-microcontroller-datasheet.html"><span>Next in Embedded systems</span>Reading a microcontroller datasheet and reference manual efficiently</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="safe-firmware-updates-ab-slots.html">Bootloaders and safe firmware updates: A/B slots, verification and rollback</a></h3>
+          <p>A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-firmware-architecture.html">Firmware architecture for a smart energy meter: metering, events and logs</a></h3>
+          <p>How to structure smart meter firmware so metering is never disturbed by communication, tamper events are recorded reliably, and energy totals survive sudden power loss, with the hold-up and flash-wear arithmetic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

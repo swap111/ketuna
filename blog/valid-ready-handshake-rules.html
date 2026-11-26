@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The valid/ready handshake: the rules that keep pipelines from losing data · Ketuna blog</title>
+  <meta name="description" content="A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The valid/ready handshake: the rules that keep pipelines from losing data · Ketuna blog">
+  <meta property="og:description" content="A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.">
+  <link rel="canonical" href="https://ketuna.online/blog/valid-ready-handshake-rules.html">
+  <meta property="og:url" content="https://ketuna.online/blog/valid-ready-handshake-rules.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The valid/ready handshake: the rules that keep pipelines from losing data",
+  "description": "A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "handshake, valid ready, backpressure, pipelining, interfaces",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 827,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/valid-ready-handshake-rules.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>The valid/ready handshake: the rules that keep pipelines from losing data</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A transfer happens on a clock edge where valid and ready are both high. Learn the rules that follow from that, why valid must never wait for ready, and how backpressure ripples back through pipeline stages.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#when-a-transfer-happens">When a transfer happens</a></li><li><a href="#the-senders-rules">The sender's rules</a></li><li><a href="#the-receivers-rules">The receiver's rules</a></li><li><a href="#a-pipeline-stage-with-backpressure">A pipeline stage with backpressure</a></li><li><a href="#how-backpressure-ripples-and-its-cost">How backpressure ripples, and its cost</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Almost every streaming interface inside a chip, from a sensor front end to a DMA engine, uses the same two-wire handshake: the sender drives <code>valid</code>, the receiver drives <code>ready</code>. It looks trivial. Yet many integration bugs in streaming designs are handshake bugs: data dropped during a stall, a word sent twice, or two blocks waiting for each other forever. They all come from breaking one of a handful of rules.</p>
+<h2 id="when-a-transfer-happens">When a transfer happens</h2>
+<p>The core definition is one sentence:</p>
+<blockquote>
+<p>A transfer happens on a rising clock edge where <code>valid</code> and <code>ready</code> are both 1.</p>
+</blockquote>
+<p>Nothing else counts. <code>valid</code> high with <code>ready</code> low means "I have data, you are not taking it": the sender must wait. <code>ready</code> high with <code>valid</code> low means "I could take data, you have none": nothing happens. Only the coincidence of both on an edge moves a word.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="vr-title vr-desc" font-size="14">
+<title id="vr-title">Valid/ready handshake with one stall</title>
+<desc id="vr-desc">A clock with six rising edges. Valid rises after the first edge with data D0 and stays high. Ready is low for the first three edges, so D0 is held through two edges. Ready rises, and D0 transfers on the fourth edge where both are high. D1 then transfers on the fifth edge, after which valid goes low.</desc>
+<text x="6" y="40" class="dg-text">clk</text>
+<path d="M60,50 H75 V25 H105 V50 H135 V25 H165 V50 H195 V25 H225 V50 H255 V25 H285 V50 H315 V25 H345 V50 H375 V25 H405 V50 H460" class="dg-line"/>
+<text x="6" y="90" class="dg-text">valid</text>
+<path d="M60,100 H80 V75 H320 V100 H460" class="dg-line"/>
+<text x="6" y="140" class="dg-text">data</text>
+<path d="M60,125 H80 L86,138 L80,150 H60 M86,138 L92,125 H254 L260,138 L254,150 H92 Z M260,138 L266,125 H314 L320,138 L314,150 H266 Z M320,138 L326,125 H460 M326,150 H460" class="dg-line"/>
+<text x="170" y="143" text-anchor="middle" class="dg-text">D0</text>
+<text x="290" y="143" text-anchor="middle" class="dg-text">D1</text>
+<text x="6" y="190" class="dg-text">ready</text>
+<path d="M60,200 H200 V175 H460" class="dg-line"/>
+<line x1="255" y1="18" x2="255" y2="210" class="dg-amber-line" stroke-width="2"/>
+<line x1="315" y1="18" x2="315" y2="210" class="dg-amber-line" stroke-width="2"/>
+<text x="255" y="14" text-anchor="middle" class="dg-text">T</text>
+<text x="315" y="14" text-anchor="middle" class="dg-text">T</text>
+<text x="135" y="168" text-anchor="middle" class="dg-muted">stall</text>
+</svg>
+<figcaption>D0 is held through two edges while ready is low, then transfers on the first edge where both signals are high (marked T); D1 transfers on the next edge.</figcaption>
+</figure>
+
+<h2 id="the-senders-rules">The sender's rules</h2>
+<p><strong>Once valid is high, it stays high until the transfer.</strong> The sender may not change its mind and withdraw a word because <code>ready</code> was low for a while. A receiver that is about to accept, say because it needed a cycle to free space, would otherwise miss data it was promised.</p>
+<p><strong>While valid is high, the data must not change.</strong> The receiver may sample the data on any edge where it raises <code>ready</code>. If the sender swapped D0 for D1 during a stall, D0 would be lost.</p>
+<p><strong>Valid must not depend on ready.</strong> The sender decides whether it has data based on its own state, never by waiting to see <code>ready</code> first. This is the rule that prevents deadlock. If the sender waits for <code>ready</code> before raising <code>valid</code>, and the receiver waits for <code>valid</code> before raising <code>ready</code>, which many receivers legitimately do, neither will ever move. It also forbids a combinational path from <code>ready</code> to <code>valid</code> in the sender, which could form a loop with a receiver whose <code>ready</code> depends on <code>valid</code>.</p>
+<h2 id="the-receivers-rules">The receiver's rules</h2>
+<p><strong>Ready may depend on valid.</strong> A receiver is allowed to look at <code>valid</code> before deciding to accept. It may also raise <code>ready</code> in advance, with no data present, which is often the simplest design.</p>
+<p><strong>Ready may be withdrawn at any time before the transfer.</strong> Unlike <code>valid</code>, <code>ready</code> carries no promise. A receiver can raise it, lower it again, and raise it later. Only an edge with both high counts.</p>
+<p><strong>Sample on the transfer edge, not before.</strong> A receiver that captures data on edges where <code>valid</code> is high but <code>ready</code> is low will capture the same word several times. Use the condition <code>valid &amp;&amp; ready</code> everywhere a transfer is counted: write enables, counters, last-beat detection.</p>
+<h2 id="a-pipeline-stage-with-backpressure">A pipeline stage with backpressure</h2>
+<p>A pipeline built from handshaking stages must pass backpressure, the "I am full" condition, backwards. Here is the simplest correct register stage:</p>
+<pre><code class="language-systemverilog">module hs_stage #(parameter int W = 16) (
+  input  logic         clk, rst_n,
+  input  logic         in_valid,
+  output logic         in_ready,
+  input  logic [W-1:0] in_data,
+  output logic         out_valid,
+  input  logic         out_ready,
+  output logic [W-1:0] out_data
+);
+  // can accept if empty, or if the held word leaves this cycle
+  assign in_ready = !out_valid || out_ready;
+
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n)        out_valid &lt;= 1'b0;
+    else if (in_ready) out_valid &lt;= in_valid;
+
+  always_ff @(posedge clk)
+    if (in_ready &amp;&amp; in_valid) out_data &lt;= in_data;
+endmodule
+</code></pre>
+<p>Trace a stall. The downstream block drops <code>out_ready</code>. If the stage holds a word, <code>in_ready</code> falls in the same cycle, so the upstream stage holds its word too. When <code>out_ready</code> returns, the held word leaves and a new word enters on the same edge, so throughput stays at one word per cycle.</p>
+<h2 id="how-backpressure-ripples-and-its-cost">How backpressure ripples, and its cost</h2>
+<p>Look at <code>in_ready</code>: it is a combinational function of <code>out_ready</code>. Chain eight of these stages and the <code>ready</code> from the far end passes through eight gates back to the start in one cycle. The forward path, <code>valid</code> and data, is registered at every stage and short; the backward <code>ready</code> path grows with pipeline depth. In a long pipeline, or one spread across a large die, that path becomes the critical timing path.</p>
+<p>You cannot simply add a flop to <code>ready</code>, because the sender would see a stale <code>ready</code> and push a word the receiver cannot take, losing data. The standard fix is a stage that registers <code>ready</code> and adds a second storage slot to catch the word that arrives during the one-cycle delay: a <strong>skid buffer</strong>. That design deserves its own article.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Dropping <code>valid</code>, or changing data, during a stall</li>
+<li>Generating <code>valid</code> from <code>ready</code>, creating deadlock or a combinational loop</li>
+<li>Counting a beat whenever <code>valid</code> is high instead of on <code>valid &amp;&amp; ready</code></li>
+<li>Registering <code>ready</code> with a plain flop and losing the word that arrives in the gap</li>
+<li>Not resetting <code>valid</code>, so the pipeline starts with garbage words in flight</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the waveform above on paper for three words with two stalls, marking every transfer edge, before you simulate anything.</li>
+<li>Chain three <code>hs_stage</code> instances in <strong>Icarus Verilog</strong> or <strong>Verilator</strong>, drive <code>out_ready</code> with a random pattern from a <strong>cocotb</strong> test, and check with a scoreboard that every word arrives once, in order.</li>
+<li>Write SystemVerilog assertions for the sender rules, for example that valid high with ready low implies valid stays high and data is unchanged on the next cycle, and check them with <strong>SymbiYosys</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>handshake</li><li>valid ready</li><li>backpressure</li><li>pipelining</li><li>interfaces</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="async-assert-sync-deassert-reset.html"><span>Previous in Digital &amp; VLSI design</span>Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a><a class="next" href="twos-complement-from-the-hardware-side.html"><span>Next in Digital &amp; VLSI design</span>Two&#x27;s complement from the hardware side: why one adder does signed and unsigned</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="skid-buffer-design.html">Designing a skid buffer to break a ready path without losing throughput</a></h3>
+          <p>A skid buffer registers the ready signal of a valid/ready interface and adds one spare slot to catch the word already in flight. Here is the design, traced cycle by cycle through a stall.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pipelining-a-datapath-step-by-step.html">Pipelining a datapath step by step: latency, throughput and the cost of registers</a></h3>
+          <p>Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

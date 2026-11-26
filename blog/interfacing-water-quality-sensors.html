@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interfacing pH, conductivity and turbidity sensors: the analog side · Ketuna blog</title>
+  <meta name="description" content="Three common water-quality sensors need three different front ends. Learn why a pH electrode needs a near-zero-bias buffer, why conductivity uses AC excitation, and how turbidity sensing rejects ambient light.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Interfacing pH, conductivity and turbidity sensors: the analog side · Ketuna blog">
+  <meta property="og:description" content="Three common water-quality sensors need three different front ends. Learn why a pH electrode needs a near-zero-bias buffer, why conductivity uses AC excitation, and how turbidity sensing rejects ambient light.">
+  <link rel="canonical" href="https://ketuna.online/blog/interfacing-water-quality-sensors.html">
+  <meta property="og:url" content="https://ketuna.online/blog/interfacing-water-quality-sensors.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Interfacing pH, conductivity and turbidity sensors: the analog side",
+  "description": "Three common water-quality sensors need three different front ends. Learn why a pH electrode needs a near-zero-bias buffer, why conductivity uses AC excitation, and how turbidity sensing rejects ambient light.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sensors, ph, conductivity, turbidity, signal conditioning",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1095,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/interfacing-water-quality-sensors.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Interfacing pH, conductivity and turbidity sensors: the analog side</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Three common water-quality sensors need three different front ends. Learn why a pH electrode needs a near-zero-bias buffer, why conductivity uses AC excitation, and how turbidity sensing rejects ambient light.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#ph-a-battery-with-gigantic-internal-resistance">pH: a battery with gigantic internal resistance</a></li><li><a href="#conductivity-measure-resistance-but-never-with-dc">Conductivity: measure resistance, but never with DC</a></li><li><a href="#turbidity-a-photocurrent-in-daylight">Turbidity: a photocurrent in daylight</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A water-quality monitor for a tank, a pond or a treatment plant usually measures at least three things: acidity (pH), dissolved salts (conductivity) and cloudiness (turbidity). On a datasheet they are three numbers. At the analog front end they are three very different problems: a voltage source with an enormous internal resistance, a resistance that must never see DC, and a tiny photocurrent buried in daylight. Getting each interface right matters more than the choice of ADC.</p>
+<h2 id="ph-a-battery-with-gigantic-internal-resistance">pH: a battery with gigantic internal resistance</h2>
+<p>A pH electrode pair, a glass measuring electrode and a reference electrode, produces a voltage that depends on the hydrogen-ion activity of the solution. Ideally the voltage changes by the <strong>Nernst slope</strong> per pH unit:</p>
+<blockquote>
+<p>slope = ln(10) × RT / F  ≈ 59.16 mV per pH at 25 °C</p>
+</blockquote>
+<p>where R is the gas constant, T the absolute temperature and F the Faraday constant. Near pH 7 the output is close to zero; acidic solutions give positive voltages and alkaline ones negative, for the usual electrode convention. Notice the T: the slope is proportional to absolute temperature, about 61.5 mV per pH at 37 °C. A pH meter without temperature compensation is wrong whenever the water is not at its calibration temperature.</p>
+<p>The electrical challenge is the glass membrane. Its resistance is very high, commonly hundreds of megohms, so the electrode is a voltage source with a huge series resistance. Any current drawn from it causes a voltage error. If the amplifier's input bias current is 1 nA and the electrode resistance is 100 MΩ, the error is 1 nA × 100 MΩ = 100 mV, which is about 1.7 pH units. With 1 pA of bias current the error falls to 0.1 mV, about 0.002 pH. These numbers are illustrative, but the lesson is fixed: the input stage must draw picoamperes or less.</p>
+<p>That leads to a standard set of practices:</p>
+<ul>
+<li><strong>A buffer with very low input bias current</strong>, such as an op-amp with a CMOS input stage, as close to the electrode as possible</li>
+<li><strong>Guarding:</strong> a copper ring on the board around the input pin, driven at the same voltage as the input, so that leakage across the board surface has no voltage to drive it</li>
+<li><strong>Short, shielded cable</strong>, because cable movement and leakage at such impedances generate errors and noise</li>
+<li><strong>A mid-supply reference</strong> on a single-supply system, so the negative voltages from alkaline solutions stay in range</li>
+<li><strong>Calibration</strong> with buffer solutions, because real electrodes have an offset at pH 7 and a slope below the ideal that changes as they age</li>
+</ul>
+<p>The conversion from voltage to pH, with a two-point calibration and temperature compensation of the slope, fits in a few lines:</p>
+<pre><code class="language-python">from math import log
+
+R, F = 8.314462618, 96485.33212      # gas constant, Faraday constant
+
+def nernst_slope(temp_c):
+    &quot;&quot;&quot;Ideal electrode slope in volts per pH unit.&quot;&quot;&quot;
+    return log(10) * R * (temp_c + 273.15) / F
+
+def calibrate(v7, v4, temp_c):
+    &quot;&quot;&quot;Two-point calibration with pH 7 and pH 4 buffers at one temperature.&quot;&quot;&quot;
+    efficiency = (v4 - v7) / (3 * nernst_slope(temp_c))
+    return v7, efficiency
+
+def ph_from_voltage(v, cal, temp_c):
+    offset, efficiency = cal
+    return 7 - (v - offset) / (efficiency * nernst_slope(temp_c))
+
+# Illustrative readings: electrode gives +12 mV in pH 7, +180 mV in pH 4.
+cal = calibrate(0.012, 0.180, temp_c=25)
+print(f&quot;slope at 25 C: {nernst_slope(25)*1e3:.2f} mV/pH, &quot;
+      f&quot;efficiency {cal[1]:.3f}&quot;)
+for temp in (25, 35):
+    print(f&quot;-60 mV at {temp} C -&gt; pH {ph_from_voltage(-0.060, cal, temp):.2f}&quot;)
+</code></pre>
+<p>This electrode reaches about 94.7 % of the ideal slope. A reading of −60 mV means pH 8.29 at 25 °C but pH 8.24 at 35 °C. The code only corrects the electrode's slope; the solution's own pH also varies with temperature, which is a chemistry question, not an electronics one.</p>
+<h2 id="conductivity-measure-resistance-but-never-with-dc">Conductivity: measure resistance, but never with DC</h2>
+<p>Conductivity tells you how much dissolved ionic material the water holds. The sensor is a <strong>cell</strong>: two electrodes of fixed geometry. The measured conductance G relates to the water's conductivity κ through the <strong>cell constant</strong> K, which depends on electrode area and spacing: κ = G × K. A cell with a small constant suits clean water; a larger constant suits salty water, keeping the measured resistance in a convenient range.</p>
+<p>The obvious method, pass a DC current and measure the voltage, fails. Current through an electrolyte drives electrochemical reactions at the electrodes. Ions pile up at the surfaces and form a polarisation layer that adds a growing, unstable voltage. Sustained DC also decomposes the water and corrodes the electrodes.</p>
+<p>The solution is <strong>AC excitation</strong> with no DC component: drive the cell with a symmetric square or sine wave, so charge moved in one half-cycle is moved back in the next. The excitation frequency is chosen high enough that polarisation does not build up within a half-cycle, yet low enough that the cable and electrode capacitances do not dominate the measurement. Practical details:</p>
+<ul>
+<li><strong>Block DC</strong> with a series capacitor so that op-amp offset cannot produce a net DC current through the cell</li>
+<li><strong>Measure synchronously:</strong> sample the cell voltage and current at the same points of each half-cycle, or demodulate with the excitation signal, to reject noise and capacitive currents</li>
+<li><strong>Switch ranges</strong> by changing a sense resistor, because conductivity spans several decades between clean and salty water</li>
+<li><strong>Compensate temperature:</strong> conductivity of natural water rises noticeably with temperature, by a few per cent per degree Celsius; instruments report a value corrected to a reference temperature, usually 25 °C</li>
+</ul>
+<h2 id="turbidity-a-photocurrent-in-daylight">Turbidity: a photocurrent in daylight</h2>
+<p>Turbidity measures how much suspended particles scatter light. A common arrangement shines an LED into the sample and places a photodiode at 90° to the beam, so it sees only light scattered by particles, not the direct beam. Clear water scatters little; cloudy water scatters more.</p>
+<p>The photodiode produces a current proportional to the light it receives, often nanoamperes or less. A <strong>transimpedance amplifier</strong> converts it to voltage: the photodiode feeds an op-amp's inverting input, and a feedback resistor R<sub>f</sub> sets the gain, V<sub>out</sub> = I<sub>photo</sub> × R<sub>f</sub>. A 10 nA photocurrent with R<sub>f</sub> = 10 MΩ gives 100 mV. A small capacitor across R<sub>f</sub> keeps the amplifier stable with the photodiode's capacitance at its input.</p>
+<p>Ambient light is the main enemy: daylight or room lighting reaching the photodiode can be far larger than the scattered signal. Mechanical shielding helps, but the electronic fix is <strong>modulation</strong>. Pulse the LED on and off, measure with the LED on and off, and subtract. Ambient light is present in both measurements and cancels; only light from the LED survives. Repeating this many times and averaging rejects noise further, a simple form of lock-in detection.</p>
+<p>Fouling of the optical windows, LED ageing and temperature drift all shift the reading, so turbidity instruments are calibrated against reference suspensions and often monitor the LED's output with a second photodiode.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the pH script, then compute the error from ignoring temperature compensation at 10 °C and 40 °C.</li>
+<li>In <strong>ngspice</strong>, model a pH electrode as a voltage source in series with 100 MΩ, connect it to an op-amp model with 1 nA and then 1 pA of input bias current, and measure the output error.</li>
+<li>Simulate a transimpedance amplifier with a photodiode modelled as a current source in parallel with 50 pF, and find the feedback capacitor that removes ringing in the step response.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sensors</li><li>ph</li><li>conductivity</li><li>turbidity</li><li>signal conditioning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="inside-a-pll.html"><span>Previous in Analog &amp; mixed-signal</span>Inside a PLL: phase detector, charge pump, loop filter and VCO</a><a class="next" href="jitter-and-phase-noise.html"><span>Next in Analog &amp; mixed-signal</span>Jitter and phase noise: what they are and why ADCs and radios care</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-instrumentation-amplifier.html">The instrumentation amplifier: measuring tiny differences on large common-mode signals</a></h3>
+          <p>The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wireless products in India: the approvals to plan for before launch · Ketuna blog</title>
+  <meta name="description" content="Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Wireless products in India: the approvals to plan for before launch · Ketuna blog">
+  <meta property="og:description" content="Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.">
+  <link rel="canonical" href="https://ketuna.online/blog/planning-wireless-approvals.html">
+  <meta property="og:url" content="https://ketuna.online/blog/planning-wireless-approvals.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Wireless products in India: the approvals to plan for before launch",
+  "description": "Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "wireless, regulatory, rf design, compliance, iot",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 1033,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/planning-wireless-approvals.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Wireless products in India: the approvals to plan for before launch</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-radios-are-regulated">Why radios are regulated</a></li><li><a href="#the-kinds-of-approval-to-expect">The kinds of approval to expect</a></li><li><a href="#how-approvals-shape-design-choices">How approvals shape design choices</a></li><li><a href="#a-worked-example-checking-radiated-power">A worked example: checking radiated power</a></li><li><a href="#planning-the-timeline">Planning the timeline</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Adding a radio to a product feels like a firmware and layout problem: pick a module, route the antenna, get the link working. But a radio transmits into a shared resource, the spectrum, and every country controls who may use which frequencies, at what power and with what equipment. In India, a product that transmits needs the right approvals before it can be imported or sold. Teams that discover this late often find that a design decision they made months earlier, such as the antenna, the band or the transmit power, now needs to be undone.</p>
+<h2 id="why-radios-are-regulated">Why radios are regulated</h2>
+<p>Spectrum is finite. If every device transmitted at whatever frequency and power its designer liked, radios would drown each other out, and critical services such as aviation, emergency and broadcast would suffer. Regulators therefore allocate bands to services and set rules for each band: who may transmit, the maximum power, how much energy may spill into neighbouring frequencies and sometimes how often a device may transmit.</p>
+<p>Approvals exist to check that a specific piece of equipment obeys the rules of the band it uses. They answer two questions: may this kind of device use this band at all, and does this particular design stay inside the limits?</p>
+<h2 id="the-kinds-of-approval-to-expect">The kinds of approval to expect</h2>
+<p>In India, radio spectrum is managed under the Department of Telecommunications, through its wireless planning wing. The details change, so treat the following as an outline of what to plan for and confirm the current rules from official sources:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>What it involves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Is the band licence-exempt?</td>
+<td>Some bands are open to low-power devices without an individual licence, subject to power and use conditions</td>
+</tr>
+<tr>
+<td>Does the equipment need type approval?</td>
+<td>Radio equipment generally needs an equipment approval showing it meets the band's technical conditions</td>
+</tr>
+<tr>
+<td>Is it telecom equipment?</td>
+<td>Equipment that connects to telecom networks may also need testing and certification under a separate mandatory scheme</td>
+</tr>
+<tr>
+<td>Does it need other approvals?</td>
+<td>The product as a whole may also need safety and EMC certification from other bodies</td>
+</tr>
+</tbody>
+</table></div>
+<p>Licence-exempt does not mean unregulated. A device in a licence-exempt band still has to meet that band's technical limits, and the equipment usually still needs approval. Cellular devices are different again: they use bands licensed to network operators, and the device must meet the conditions for connecting to those networks.</p>
+<h2 id="how-approvals-shape-design-choices">How approvals shape design choices</h2>
+<p>Several early decisions are really regulatory decisions:</p>
+<ul>
+<li><strong>Band.</strong> A band that is licence-exempt in another country may not be in India, or may have a different frequency range or power limit. Check the Indian rules for your exact frequency before choosing a radio.</li>
+<li><strong>Pre-approved module or chip-down design.</strong> A radio module that already holds approvals for the Indian market can reduce testing, provided you use it as approved. A chip-down design, with the radio IC on your own board, needs the full set of tests.</li>
+<li><strong>Antenna.</strong> Approvals often depend on the antenna type and gain. Switching to a higher-gain antenna to improve range can push radiated power over the limit and invalidate a module's approval.</li>
+<li><strong>Firmware.</strong> Transmit power, channel list and duty cycle are often set in firmware. A regional configuration that is wrong for India can turn a compliant device into a non-compliant one.</li>
+<li><strong>Enclosure.</strong> Metal enclosures and nearby batteries change the radiation pattern. Test the product as it will ship.</li>
+</ul>
+<h2 id="a-worked-example-checking-radiated-power">A worked example: checking radiated power</h2>
+<p>Limits are often stated as effective isotropic radiated power (EIRP): the conducted power at the radio's output, plus antenna gain, minus losses between the radio and the antenna. All figures below are made up for illustration; use the real limit for your band.</p>
+<blockquote>
+<p>EIRP (dBm) = conducted power (dBm) + antenna gain (dBi) − cable and matching loss (dB)</p>
+</blockquote>
+<p>Suppose an illustrative band limit is 30 dBm EIRP. Your radio transmits 20 dBm, the original antenna has 2 dBi gain, and the cable and matching network lose 1 dB:</p>
+<blockquote>
+<p>20 + 2 − 1 = 21 dBm, which leaves 9 dB of margin.</p>
+</blockquote>
+<p>Now a field trial shows poor range, and someone proposes a 12 dBi directional antenna:</p>
+<blockquote>
+<p>20 + 12 − 1 = 31 dBm, which is 1 dB over the illustrative limit.</p>
+</blockquote>
+<p>The fix is not to argue with the test lab. Either reduce conducted power in firmware, for example to 18 dBm (18 + 12 − 1 = 29 dBm), and document that this setting is locked, or keep the original antenna and improve range another way, such as a better antenna position or a more robust data rate. Either way, the change has to go back through approval if it alters what was certified.</p>
+<h2 id="planning-the-timeline">Planning the timeline</h2>
+<p>Approvals take time: preparing samples and documents, booking a test lab, running the tests, fixing anything that fails, and processing the application. Plan them in parallel with development, not after it.</p>
+<p>A practical sequence:</p>
+<ol>
+<li>At the specification stage, list every radio in the product and the band each uses, and check the current Indian rules for each.</li>
+<li>Choose modules and antennas with approvals in mind, and record the exact configuration each approval assumes.</li>
+<li>Run pre-compliance measurements on the bench, such as output power and spurious emissions with a spectrum analyser, before booking formal tests.</li>
+<li>Freeze the radio configuration, antenna and enclosure before formal testing.</li>
+<li>Keep a change log: any later change to the radio path should be checked against what was approved.</li>
+</ol>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Assuming a band or power level allowed elsewhere is allowed in India</li>
+<li>Changing the antenna after the module's approval without checking the conditions</li>
+<li>Leaving transmit power configurable by the end user</li>
+<li>Testing a bare board instead of the product in its enclosure</li>
+<li>Forgetting that a product with a radio still needs its safety and EMC approvals too</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>List every radio in a product you own, such as a phone or a smart speaker, and look up which bands each uses.</li>
+<li>Repeat the EIRP calculation above for your own design with real numbers from the module datasheet and the official limit for your band.</li>
+<li>If you have a software-defined radio, use <strong>GNU Radio</strong> to look at a nearby licence-exempt device's transmissions and observe how often and how long it transmits. Only receive; do not transmit without understanding the rules.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>wireless</li><li>regulatory</li><li>rf design</li><li>compliance</li><li>iot</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="why-design-ip-ownership-matters.html"><span>Previous in India&#x27;s electronics ecosystem</span>Why owning design IP matters for an electronics ecosystem</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="how-smart-energy-meters-work.html">How smart energy meters work and why utilities deploy them</a></h3>
+          <p>How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="planning-compliance-testing-early.html">Planning compliance testing early: EMC, safety and environmental tests</a></h3>
+          <p>Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Advanced</span></div>
+          <h3><a href="reading-a-procurement-specification.html">Reading a public procurement specification as an engineer</a></h3>
+          <p>How to read a public tender&#x27;s technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

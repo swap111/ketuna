@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Linux shell skills every chip and firmware engineer uses · Ketuna blog</title>
+  <meta name="description" content="Chip and firmware tools run from the Linux shell. Learn the daily skills that matter, navigating, searching logs, pipes, small scripts and environment variables, with examples from real tool flows.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The Linux shell skills every chip and firmware engineer uses · Ketuna blog">
+  <meta property="og:description" content="Chip and firmware tools run from the Linux shell. Learn the daily skills that matter, navigating, searching logs, pipes, small scripts and environment variables, with examples from real tool flows.">
+  <link rel="canonical" href="https://ketuna.online/blog/linux-shell-skills-for-engineers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/linux-shell-skills-for-engineers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The Linux shell skills every chip and firmware engineer uses",
+  "description": "Chip and firmware tools run from the Linux shell. Learn the daily skills that matter, navigating, searching logs, pipes, small scripts and environment variables, with examples from real tool flows.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "linux, shell, bash, scripting, tools",
+  "articleSection": "Careers & skills",
+  "wordCount": 895,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/linux-shell-skills-for-engineers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>The Linux shell skills every chip and firmware engineer uses</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Chip and firmware tools run from the Linux shell. Learn the daily skills that matter, navigating, searching logs, pipes, small scripts and environment variables, with examples from real tool flows.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#moving-around-and-finding-files">Moving around and finding files</a></li><li><a href="#searching-logs-with-grep">Searching logs with grep</a></li><li><a href="#pipes-small-tools-joined-together">Pipes: small tools joined together</a></li><li><a href="#small-scripts-for-repeated-work">Small scripts for repeated work</a></li><li><a href="#environment-variables-and-tool-versions">Environment variables and tool versions</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Almost every tool in a chip or firmware flow, simulators, synthesis, place and route, cross-compilers, debuggers, runs from a Linux command line. A regression produces hundreds of log files; a build depends on environment variables pointing at the right tool versions. Engineers who are comfortable in the shell find the failing test in seconds and automate the boring parts. You do not need to know everything; a small set of skills covers most days.</p>
+<h2 id="moving-around-and-finding-files">Moving around and finding files</h2>
+<p>Start with navigation until it is automatic: <code>pwd</code> shows where you are, <code>ls -l</code> lists files with sizes and dates, <code>cd</code> moves, and <code>cd -</code> returns to the previous directory. Tab completion saves typing and catches spelling mistakes, because if Tab does not complete, the file is not there.</p>
+<p>Tool flows create deep directory trees, so finding files is a daily task:</p>
+<pre><code class="language-bash">find . -name &quot;*.vcd&quot;                 # every waveform under here
+find . -name &quot;*.log&quot; -mtime -1       # logs changed in the last day
+ls -lt runs/ | head                  # newest run directories first
+du -sh runs/*                        # how much space each run uses
+</code></pre>
+<p>The last command matters more than it looks. Waveform dumps and place-and-route outputs grow large quickly, and a full disk causes strange tool failures that look like design bugs.</p>
+<h2 id="searching-logs-with-grep">Searching logs with grep</h2>
+<p>A simulation or synthesis log can be thousands of lines long. Reading it top to bottom is slow; searching it is fast. <code>grep</code> prints lines matching a pattern:</p>
+<pre><code class="language-bash">grep -n &quot;ERROR&quot; sim.log              # matching lines with line numbers
+grep -i &quot;warning&quot; synth.log | wc -l  # count warnings, any case
+grep -rl &quot;FAIL&quot; regress/             # which files under regress/ failed
+grep -B2 -A5 &quot;Assertion&quot; sim.log     # context around each assertion
+grep -v &quot;INFO&quot; sim.log               # everything except INFO lines
+</code></pre>
+<p>The <code>-B</code> and <code>-A</code> options show lines before and after a match. The cause of an error is often a few lines above the message itself. For very large files, <code>less</code> lets you scroll and search interactively (type <code>/ERROR</code> and press <code>n</code> for the next match), and <code>tail -f run.log</code> follows a log while a long job is still writing it.</p>
+<h3 id="comparing-outputs-between-runs">Comparing outputs between runs</h3>
+<p>Much debugging comes down to one question: what changed between the run that worked and the run that failed? The shell answers it directly. <code>diff old.log new.log</code> prints the lines that differ, and <code>diff -u</code> shows them with a little surrounding context, in the same format code reviews use. For whole directories, <code>diff -rq good_run/ bad_run/</code> lists which files differ without printing their contents.</p>
+<p>Logs often contain timestamps or run directories that differ every time and hide the real change. Filter them out before comparing:</p>
+<pre><code class="language-bash">grep -v &quot;Time:&quot; good.log &gt; a.txt
+grep -v &quot;Time:&quot; bad.log  &gt; b.txt
+diff -u a.txt b.txt | head -40
+</code></pre>
+<p>The same idea works for netlists, cell counts and register dumps. Keep a copy of the output from a known good run, and comparing against it becomes a quick first step whenever something breaks.</p>
+<h2 id="pipes-small-tools-joined-together">Pipes: small tools joined together</h2>
+<p>The shell's real power is the pipe, <code>|</code>, which sends one command's output into the next. Each tool does one small thing, and you chain them to answer a question.</p>
+<p>Suppose a regression writes one line per test like <code>test_fifo_overflow seed=42 PASS</code>. To list the failing tests and count how often each failed:</p>
+<pre><code class="language-bash">grep FAIL regress.txt | awk '{print $1}' | sort | uniq -c | sort -rn
+</code></pre>
+<p>Read it left to right: keep failing lines, take the first field (the test name), sort so identical names are adjacent, count each group, then sort by count, highest first. The result tells you immediately whether one test fails on many seeds or many tests fail once, which point to very different problems.</p>
+<p>Redirection is the other half: <code>&gt;</code> writes output to a file (overwriting it), <code>&gt;&gt;</code> appends, and <code>2&gt;&amp;1</code> sends error messages to the same place as normal output. Many tools print errors on the error stream, so <code>make sim &gt; sim.log 2&gt;&amp;1</code> captures everything.</p>
+<h2 id="small-scripts-for-repeated-work">Small scripts for repeated work</h2>
+<p>When you type the same sequence of commands a third time, put it in a script. A short Bash script that runs every test and reports a summary:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -u
+pass=0; fail=0
+mkdir -p build
+for t in tests/*.v; do
+    name=$(basename &quot;$t&quot; .v)
+    if iverilog -o &quot;build/$name&quot; rtl/*.v &quot;$t&quot; &amp;&amp;
+       vvp &quot;build/$name&quot; | grep -q &quot;PASS&quot;; then
+        pass=$((pass + 1))
+    else
+        fail=$((fail + 1)); echo &quot;FAIL: $name&quot;
+    fi
+done
+echo &quot;passed=$pass failed=$fail&quot;
+[ &quot;$fail&quot; -eq 0 ]
+</code></pre>
+<p>Save it as <code>run_tests.sh</code>, make it executable with <code>chmod +x run_tests.sh</code>, and run <code>./run_tests.sh</code>. The last line makes the script's exit status non-zero if anything failed, so a CI job or <code>make</code> target can use it directly. Quote variables (<code>"$t"</code>) so file names with spaces do not break the loop.</p>
+<h2 id="environment-variables-and-tool-versions">Environment variables and tool versions</h2>
+<p>Tools find each other and their data through environment variables. <code>PATH</code> lists the directories searched for commands; others point to libraries or process design kits. When a tool is "not found" or the wrong version runs, check these first:</p>
+<pre><code class="language-bash">echo &quot;$PATH&quot;
+which iverilog        # which copy will actually run
+iverilog -V | head -1 # its version
+export PDK_ROOT=&quot;$HOME/pdks&quot;   # set for this shell and its children
+</code></pre>
+<p>A variable set with <code>export</code> lasts only for the current shell session. To make it permanent, add the line to your shell start-up file, usually <code>~/.bashrc</code>. Many teams keep a small <code>env.sh</code> per project and <code>source env.sh</code> before working, so everyone uses the same tool versions.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Running <code>rm -rf</code> with a variable that might be empty.</strong> <code>rm -rf "$DIR/"</code> with an unset <code>DIR</code> targets <code>/</code>. Use <code>set -u</code> in scripts and check paths before deleting.</li>
+<li><strong>Forgetting <code>2&gt;&amp;1</code>.</strong> The error you need was printed on the error stream and never reached the log.</li>
+<li><strong>Spaces in file names without quotes.</strong> The loop splits one name into two arguments.</li>
+<li><strong>Editing <code>PATH</code> permanently with a mistake.</strong> Every new shell then breaks; test with <code>export</code> first.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install <strong>Icarus Verilog</strong> on Linux or WSL2, write two tiny testbenches that print <code>PASS</code> or <code>FAIL</code>, and run the script above on them.</li>
+<li>Create a fake regression file with a few dozen <code>name seed=N PASS/FAIL</code> lines and use the <code>grep | awk | sort | uniq -c</code> pipeline to rank failures.</li>
+<li>Run a <strong>Yosys</strong> synthesis with output captured using <code>&gt; synth.log 2&gt;&amp;1</code>, then use <code>grep -i warning</code> and <code>grep -B2 -A5</code> to read the warnings in context.</li>
+<li>Write an <code>env.sh</code> that sets <code>PATH</code> and one tool variable for a project, <code>source</code> it, and confirm with <code>which</code> that the right tools run.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>linux</li><li>shell</li><li>bash</li><li>scripting</li><li>tools</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="lead-with-the-conclusion.html"><span>Previous in Careers &amp; skills</span>Technical writing for engineers: lead with the conclusion</a><a class="next" href="using-ai-tools-responsibly.html"><span>Next in Careers &amp; skills</span>Using AI tools responsibly in engineering: by hand first, then check</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="python-for-hardware-engineers.html">Python for hardware engineers: the parts you will use every day</a></h3>
+          <p>Hardware engineers use Python to parse tool reports, generate test vectors, plot results and write small reference models. Here are the parts of the language that matter, with working examples.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FPGA prototyping as a verification step: what it finds that simulation misses · Ketuna blog</title>
+  <meta name="description" content="Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="FPGA prototyping as a verification step: what it finds that simulation misses · Ketuna blog">
+  <meta property="og:description" content="Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.">
+  <link rel="canonical" href="https://ketuna.online/blog/fpga-prototyping-as-verification.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fpga-prototyping-as-verification.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FPGA prototyping as a verification step: what it finds that simulation misses",
+  "description": "Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fpga prototyping, verification, bring-up, logic analyser, yosys",
+  "articleSection": "Verification",
+  "wordCount": 932,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fpga-prototyping-as-verification.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>FPGA prototyping as a verification step: what it finds that simulation misses</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-trade-speed-for-visibility">The trade: speed for visibility</a></li><li><a href="#what-prototyping-finds">What prototyping finds</a></li><li><a href="#what-it-cannot-tell-you">What it cannot tell you</a></li><li><a href="#debugging-on-the-board">Debugging on the board</a></li><li><a href="#preparing-rtl-for-the-prototype">Preparing RTL for the prototype</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Simulation lets you see every signal at every moment, but it is slow: a software simulator evaluates the design's logic one event at a time, while hardware evaluates all of it in parallel on every clock. Many bugs only appear after billions of cycles, with a real device on the other end of a cable, or with real firmware doing something nobody scripted. An FPGA prototype maps the RTL onto programmable hardware and runs it at a real clock rate. It is a different kind of verification, with different strengths and blind spots, and it is worth knowing both before you rely on it.</p>
+<h2 id="the-trade-speed-for-visibility">The trade: speed for visibility</h2>
+<p>The numbers below are made up for illustration, but the shape of the comparison holds generally. Suppose your design has a 32-bit free-running counter, and a bug that shows only when it wraps.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Illustrative speed</th>
+<th>Time to 2<sup>32</sup> cycles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTL simulation of a large design</td>
+<td>10,000 cycles per second</td>
+<td>about 429,500 s, roughly 5 days</td>
+</tr>
+<tr>
+<td>FPGA prototype</td>
+<td>50 MHz</td>
+<td>about 86 seconds</td>
+</tr>
+</tbody>
+</table></div>
+<p>The arithmetic is 2<sup>32</sup> = 4,294,967,296 cycles, divided by the rate. A test that is impractical in simulation finishes on the board before your coffee cools.</p>
+<p>What you give up is visibility. In simulation you can dump every signal. On the FPGA you see only the pins you bring out and whatever an on-chip logic analyser captures: a limited number of chosen signals, for a limited window of cycles around a trigger, held in the FPGA's spare memory.</p>
+<h2 id="what-prototyping-finds">What prototyping finds</h2>
+<p><strong>Long-run bugs.</strong> Counter and timer wraparound, slow leaks in credit or token accounting, rare FIFO conditions that need millions of transactions, and performance problems that only show over long workloads.</p>
+<p><strong>Real-interface problems.</strong> A simulation model of a sensor or a flash memory behaves exactly as its author understood the datasheet. The real part may have timing slack in places the model did not, quirks after power-up, or optional behaviour the model never produced. Connecting real devices tests your understanding of the interface, not just your RTL.</p>
+<p><strong>Hardware-software interaction.</strong> Booting real firmware, or a small operating system, exercises register sequences, interrupt timing and driver assumptions in combinations that directed tests do not. Firmware developers also get a platform months before silicon, and their bug reports often point at hardware.</p>
+<p><strong>System-level throughput.</strong> Whether a DMA engine actually keeps up with a peripheral under a realistic software load is easier to measure on a board than to estimate in a simulation of a few milliseconds.</p>
+<h2 id="what-it-cannot-tell-you">What it cannot tell you</h2>
+<p>An FPGA is not the target chip, and several differences matter for verification.</p>
+<ul>
+<li><strong>Timing is different.</strong> FPGA routing and logic delays have nothing to do with the ASIC's. Passing on the FPGA proves nothing about timing closure on silicon, which remains the job of static timing analysis.</li>
+<li><strong>X does not exist.</strong> FPGA flops power up to defined values, often zero, and memories may be initialised by the bitstream. A missing reset that would leave silicon in an unknown state works perfectly on the board.</li>
+<li><strong>Some structures are replaced.</strong> ASIC clock-gating cells, custom memories, analog blocks and pad cells are swapped for FPGA equivalents or behavioural stand-ins. Bugs inside the originals stay hidden.</li>
+<li><strong>Clocks are often slower and simpler.</strong> Ratios between clock domains may differ from the chip's, so clock domain crossing behaviour is only loosely representative.</li>
+</ul>
+<p>These differences are why prototyping complements simulation and formal verification rather than replacing them.</p>
+<h2 id="debugging-on-the-board">Debugging on the board</h2>
+<p>When something fails on the prototype, the aim is to move the failure back into simulation as fast as possible, where you can see everything.</p>
+<ol>
+<li><strong>Make the failure observable.</strong> Add status registers or counters readable by software: error counts, last bad address, FSM state. Cheap to add, and often enough to locate the problem.</li>
+<li><strong>Capture around a trigger.</strong> Use an on-chip logic analyser to record a few relevant signals in the cycles before and after an error flag. Choose the trigger carefully; buffer depth is small.</li>
+<li><strong>Record the inputs.</strong> If the failing scenario can be logged, such as the sequence of bus transactions or the bytes received, replay it in simulation.</li>
+<li><strong>Reproduce in simulation and fix there.</strong> Then add a test, so the bug never comes back, and rerun on the board.</li>
+</ol>
+<p>Building some of this in from the start pays off: a debug register block, a few spare pins and a trigger output cost little and save days.</p>
+<h2 id="preparing-rtl-for-the-prototype">Preparing RTL for the prototype</h2>
+<p>A little discipline makes RTL easier to prototype.</p>
+<ul>
+<li>Keep technology-specific cells, such as memories and clock gates, behind wrapper modules with a behavioural or FPGA version selectable by a define.</li>
+<li>Avoid relying on initial values; reset everything that must start known, so the FPGA and the ASIC behave the same.</li>
+<li>Keep clock generation in one place, so it can be replaced by the FPGA's clock resources.</li>
+<li>Run the same lint and simulation regression on the FPGA configuration as on the ASIC one.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small design with a 24-bit counter that sets an error flag when it wraps, and simulate it in Icarus Verilog; note how long a full wrap takes to simulate.</li>
+<li>Build it for an FPGA board supported by the open-source flow (Yosys for synthesis, nextpnr for place and route) and drive an LED from the flag.</li>
+<li>At your board's clock frequency, calculate how long the wrap should take, and time it.</li>
+<li>Add a readable status register with the counter value and an error count, and read it over a UART to practise board-level observability.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fpga prototyping</li><li>verification</li><li>bring-up</li><li>logic analyser</li><li>yosys</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="equivalence-checking-explained.html"><span>Previous in Verification</span>Equivalence checking: proving synthesis did not change your design</a><a class="next" href="assertion-patterns-that-catch-bugs.html"><span>Next in Verification</span>Five assertion patterns that catch real bugs early</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debugging-a-failing-test-systematically.html">Debugging a failing test systematically: from the first mismatch to root cause</a></h3>
+          <p>A repeatable method for hardware test failures - reproduce, find the first divergence, narrow in time and hierarchy, and write down each hypothesis - with a script that finds where two traces first disagree.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="equivalence-checking-explained.html">Equivalence checking: proving synthesis did not change your design</a></h3>
+          <p>How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

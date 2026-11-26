@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skilling paths into embedded systems in India: from college lab to product team · Ketuna blog</title>
+  <meta name="description" content="A project ladder that takes you from blinking an LED to firmware a product team would accept, with what each rung teaches and how to show it, from register-level drivers to an RTOS, tests and field updates.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Skilling paths into embedded systems in India: from college lab to product team · Ketuna blog">
+  <meta property="og:description" content="A project ladder that takes you from blinking an LED to firmware a product team would accept, with what each rung teaches and how to show it, from register-level drivers to an RTOS, tests and field updates.">
+  <link rel="canonical" href="https://ketuna.online/blog/skilling-paths-into-embedded.html">
+  <meta property="og:url" content="https://ketuna.online/blog/skilling-paths-into-embedded.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Skilling paths into embedded systems in India: from college lab to product team",
+  "description": "A project ladder that takes you from blinking an LED to firmware a product team would accept, with what each rung teaches and how to show it, from register-level drivers to an RTOS, tests and field updates.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "embedded, firmware, careers, projects, rtos",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 867,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/skilling-paths-into-embedded.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Skilling paths into embedded systems in India: from college lab to product team</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A project ladder that takes you from blinking an LED to firmware a product team would accept, with what each rung teaches and how to show it, from register-level drivers to an RTOS, tests and field updates.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-gap-between-a-lab-project-and-product-firmware">The gap between a lab project and product firmware</a></li><li><a href="#rung-1-understand-the-hardware-under-the-library">Rung 1: understand the hardware under the library</a></li><li><a href="#rung-2-interrupts-buffers-and-timing">Rung 2: interrupts, buffers and timing</a></li><li><a href="#rung-3-an-rtos-and-a-real-application">Rung 3: an RTOS and a real application</a></li><li><a href="#rung-4-make-it-robust">Rung 4: make it robust</a></li><li><a href="#rung-5-test-update-and-document-like-a-team">Rung 5: test, update and document like a team</a></li><li><a href="#showing-the-work">Showing the work</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most engineering students have made a microcontroller board blink an LED, read a sensor and print to a serial terminal. Product teams hire people who can write firmware that runs for years in the field, survives brown-outs and bad inputs, can be updated safely and can be understood by the next engineer. The gap between those two is large, but it is crossable with a deliberate sequence of projects. This article describes that sequence and what each step should teach you.</p>
+<h2 id="the-gap-between-a-lab-project-and-product-firmware">The gap between a lab project and product firmware</h2>
+<p>A typical lab project works once, on the bench, when the person who wrote it is watching. Product firmware has to keep working when nobody is watching. The differences are concrete:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Lab project</th>
+<th>Product firmware</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runs on a vendor library you have not read</td>
+<td>You understand what the library does at register level</td>
+</tr>
+<tr>
+<td>Polling loops and <code>delay()</code> calls</td>
+<td>Interrupts, timers, low-power sleep and scheduling</td>
+</tr>
+<tr>
+<td>Crashes are fixed by pressing reset</td>
+<td>A watchdog recovers, and logs say what happened</td>
+</tr>
+<tr>
+<td>Tested by trying it</td>
+<td>Unit tests, hardware-in-the-loop tests, test reports</td>
+</tr>
+<tr>
+<td>Updated by plugging in a programmer</td>
+<td>Secure field updates with rollback</td>
+</tr>
+<tr>
+<td>Code in one file</td>
+<td>Modules with clear interfaces, version control, reviews</td>
+</tr>
+</tbody>
+</table></div>
+<p>None of the right-hand column is exotic. It is learned by building projects that force each skill, one at a time.</p>
+<h2 id="rung-1-understand-the-hardware-under-the-library">Rung 1: understand the hardware under the library</h2>
+<p>Pick one microcontroller and write a GPIO, timer and UART driver yourself, directly against the reference manual's registers, without the vendor's library. Then compare your code with the library's.</p>
+<p>This teaches you to read a reference manual and a datasheet, to understand clocks, memory-mapped registers and reset values, and to use a debugger to inspect registers. Once you have done it for one chip, every other chip is easier.</p>
+<h2 id="rung-2-interrupts-buffers-and-timing">Rung 2: interrupts, buffers and timing</h2>
+<p>Make your UART receive with interrupts into a ring buffer, and drive a periodic task from a timer interrupt. Measure timing with a logic analyser or by toggling a pin and watching it on an oscilloscope.</p>
+<p>Here you learn about shared data between interrupt and main code, the <code>volatile</code> keyword and its limits, critical sections and how long an interrupt handler may take. Most real firmware bugs live in exactly this area, so it is worth getting right before moving on.</p>
+<h2 id="rung-3-an-rtos-and-a-real-application">Rung 3: an RTOS and a real application</h2>
+<p>Port the same application to an RTOS such as Zephyr. Split it into tasks, communicate with queues and add a low-power idle mode. Build something with a purpose, for example a sensor node that samples every few seconds, filters the data, stores it and sends it over a radio.</p>
+<p>This teaches you scheduling, priorities, stack sizing, power modes and the habit of measuring current consumption rather than guessing.</p>
+<h2 id="rung-4-make-it-robust">Rung 4: make it robust</h2>
+<p>Now try to break it. Pull the power during a flash write. Send malformed packets. Disconnect the sensor. Let it run for a week. Then fix what you find:</p>
+<ul>
+<li><strong>Watchdog</strong> that resets the system if the main loop stalls</li>
+<li><strong>Brown-out handling</strong> so a dying supply does not corrupt stored data</li>
+<li><strong>Input validation</strong> on everything that comes from outside</li>
+<li><strong>Fault logging</strong> so a reset leaves a record of why</li>
+</ul>
+<p>A short example of the kind of habit this rung builds: recording the reset cause at boot so field failures leave evidence. The register names below are placeholders; use your chip's reset-cause register.</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define RST_CAUSE_REG   (*(volatile uint32_t *)0x40001000u) /* example */
+#define RST_WDT         (1u &lt;&lt; 0)
+#define RST_BROWNOUT    (1u &lt;&lt; 1)
+
+extern void log_event(const char *msg);
+
+void record_reset_cause(void)
+{
+    uint32_t cause = RST_CAUSE_REG;
+    if (cause &amp; RST_WDT)      log_event(&quot;reset: watchdog&quot;);
+    if (cause &amp; RST_BROWNOUT) log_event(&quot;reset: brown-out&quot;);
+    RST_CAUSE_REG = cause;    /* write-1-to-clear on many chips */
+}
+</code></pre>
+<h2 id="rung-5-test-update-and-document-like-a-team">Rung 5: test, update and document like a team</h2>
+<p>Finally, add what a product team expects around the code:</p>
+<ul>
+<li><strong>Unit tests</strong> for logic that does not touch hardware, run on your PC with GCC</li>
+<li><strong>Simulation or emulation</strong> with QEMU or Renode for parts of the system</li>
+<li><strong>Continuous integration</strong> that builds and tests every commit</li>
+<li><strong>A bootloader with field update and rollback</strong>, so a bad update cannot brick the device</li>
+<li><strong>A README and design notes</strong> a new engineer could follow</li>
+</ul>
+<p>At this point your project looks like real product work, and you can talk about it the way product engineers do.</p>
+<h2 id="showing-the-work">Showing the work</h2>
+<p>Keep each rung in version control with honest commit history. Write a short note for each project: what you built, how you tested it, what broke and what you changed. Record a short video of the device working and include current measurements and test results. An interviewer who can see your interrupt handler, your test report and your notes on a power-loss bug learns more than any certificate can tell them.</p>
+<p>College labs, short focused programs and self-study can all get you up this ladder. What matters is that someone reviews your code at some point. Firmware written alone tends to carry the same blind spots from project to project.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a register-level UART driver for a board you own, and compile it with <strong>GCC</strong> for your target using <code>-Wall -Wextra</code> with no warnings.</li>
+<li>Run the same firmware in <strong>Renode</strong> or <strong>QEMU</strong> if your board is supported, and script a test that sends input and checks output.</li>
+<li>Port the application to <strong>Zephyr</strong> and use its logging subsystem to record the reset cause at boot.</li>
+<li>Pull the power during a flash write fifty times and record what happens, then fix it.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>embedded</li><li>firmware</li><li>careers</li><li>projects</li><li>rtos</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="skilling-paths-into-chip-design.html"><span>Previous in India&#x27;s electronics ecosystem</span>Skilling paths into chip design in India: degrees, short programs and self-study</a><a class="next" href="sourcing-components-for-a-hardware-startup.html"><span>Next in India&#x27;s electronics ecosystem</span>Sourcing components for a hardware startup: from prototypes to production</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="getting-the-most-from-hardware-hackathons.html">Getting the most from hardware hackathons and design contests</a></h3>
+          <p>How to scope a hardware hackathon project small enough to finish, prepare parts and toolchains before the clock starts, divide work across a team and document what you built so it keeps paying off afterwards.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="skilling-paths-into-chip-design.html">Skilling paths into chip design in India: degrees, short programs and self-study</a></h3>
+          <p>What a degree, a short training program and self-study each give you on the way into chip design, what an employer can actually check, and how open-source projects tie the three together into evidence.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The instrumentation amplifier: measuring tiny differences on large common-mode signals · Ketuna blog</title>
+  <meta name="description" content="The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The instrumentation amplifier: measuring tiny differences on large common-mode signals · Ketuna blog">
+  <meta property="og:description" content="The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.">
+  <link rel="canonical" href="https://ketuna.online/blog/the-instrumentation-amplifier.html">
+  <meta property="og:url" content="https://ketuna.online/blog/the-instrumentation-amplifier.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The instrumentation amplifier: measuring tiny differences on large common-mode signals",
+  "description": "The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "instrumentation amplifier, cmrr, op-amp, sensors, resistor matching",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1038,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/the-instrumentation-amplifier.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>The instrumentation amplifier: measuring tiny differences on large common-mode signals</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-with-the-plain-difference-amplifier">Start with the plain difference amplifier</a></li><li><a href="#add-a-front-stage">Add a front stage</a></li><li><a href="#why-the-front-stage-improves-rejection">Why the front stage improves rejection</a></li><li><a href="#how-spread-really-behaves">How spread really behaves</a></li><li><a href="#practical-limits-beyond-resistor-matching">Practical limits beyond resistor matching</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A strain-gauge bridge on a 5 V excitation produces a few millivolts of signal sitting on about 2.5 V. A current-sense resistor in a supply line produces a small voltage drop that may sit near the supply rail. In both cases you want the small <em>difference</em> and nothing of the large <em>common</em> level. A single op-amp difference amplifier can do this in principle, but it loads the source and its rejection depends on four resistors matching perfectly. The three-op-amp instrumentation amplifier fixes both problems, and understanding why tells you exactly what limits its performance.</p>
+<h2 id="start-with-the-plain-difference-amplifier">Start with the plain difference amplifier</h2>
+<p>One op-amp with four resistors makes a difference amplifier. The inverting input connects to input V<sub>1</sub> through R<sub>a</sub> and to the output through R<sub>b</sub>. The non-inverting input connects to input V<sub>2</sub> through R<sub>c</sub> and to a reference (often ground) through R<sub>d</sub>. If R<sub>b</sub>/R<sub>a</sub> = R<sub>d</sub>/R<sub>c</sub> = G<sub>d</sub>, the output is G<sub>d</sub>(V<sub>2</sub> − V<sub>1</sub>), and any voltage common to both inputs cancels.</p>
+<p>Two weaknesses follow from the structure.</p>
+<ul>
+<li><strong>Low input impedance.</strong> Each input sees a resistor of tens of kilohms or less. A sensor with significant source resistance adds to R<sub>a</sub> or R<sub>c</sub>, which changes the ratios and spoils both gain and rejection.</li>
+<li><strong>Rejection depends on matching.</strong> Cancellation relies on the two ratios being <em>exactly</em> equal. Any mismatch lets part of the common-mode voltage through.</li>
+</ul>
+<p>How much? If each resistor can be off by a fraction ε, the worst-case common-mode rejection ratio is approximately:</p>
+<blockquote>
+<p>CMRR ≈ (1 + G<sub>d</sub>) / (4ε)</p>
+</blockquote>
+<p>For a unity-gain difference amplifier with 1 % resistors, that is 2 / 0.04 = 50, or about <strong>34 dB</strong>. A 2.5 V common-mode level would leak through as 50 mV, larger than the bridge signal. With 0.1 % resistors it improves to 500, about <strong>54 dB</strong>. Matched resistor networks or laser-trimmed on-chip resistors do better still.</p>
+<h2 id="add-a-front-stage">Add a front stage</h2>
+<p>The instrumentation amplifier puts two op-amps, A1 and A2, in front of the difference amplifier.</p>
+<ul>
+<li>V<sub>2</sub> drives the non-inverting input of A1, and V<sub>1</sub> drives the non-inverting input of A2. Each source now sees only an op-amp input, so input impedance is very high.</li>
+<li>A1's output connects back to its inverting input through a resistor R<sub>f</sub>; A2's does the same through an equal R<sub>f</sub>. A single gain resistor R<sub>G</sub> connects the two inverting inputs together.</li>
+</ul>
+<p>Each op-amp forces its inverting input to follow its non-inverting input, so the full input difference V<sub>2</sub> − V<sub>1</sub> appears across R<sub>G</sub>. The resulting current flows through both R<sub>f</sub> resistors as well, so the difference between A1's and A2's outputs is (V<sub>2</sub> − V<sub>1</sub>)(1 + 2R<sub>f</sub>/R<sub>G</sub>). The difference amplifier then takes this differential output and adds its own gain:</p>
+<blockquote>
+<p>G = (1 + 2R<sub>f</sub> / R<sub>G</sub>) × G<sub>d</sub></p>
+</blockquote>
+<p>Worked example: with R<sub>f</sub> = 10 kΩ and a unity-gain difference stage, a total gain of 100 needs 1 + 20 kΩ/R<sub>G</sub> = 100, so R<sub>G</sub> = 20 kΩ / 99 ≈ <strong>202 Ω</strong>. Changing one resistor changes the gain, and in integrated instrumentation amplifiers R<sub>G</sub> is often the only external part.</p>
+<h2 id="why-the-front-stage-improves-rejection">Why the front stage improves rejection</h2>
+<p>Here is the key property. Apply a pure common-mode input, V<sub>1</sub> = V<sub>2</sub> = V<sub>cm</sub>. Both inverting inputs sit at V<sub>cm</sub>, so no voltage appears across R<sub>G</sub>, no current flows through it, and no current flows through the R<sub>f</sub> resistors. Both outputs simply equal V<sub>cm</sub>. The front stage passes common mode at <strong>unity gain</strong>, whatever its own gain setting and however well its two R<sub>f</sub> resistors match.</p>
+<p>The differential signal, meanwhile, is amplified by (1 + 2R<sub>f</sub>/R<sub>G</sub>). The difference amplifier then sees a signal that is G<sub>1</sub> times larger relative to the common mode it has to reject. Its resistor-limited rejection is unchanged, but referred back to the input it is multiplied by the front-stage gain. With G<sub>1</sub> = 100 and the 1 % difference stage above, the overall resistor-limited CMRR improves from 34 dB to roughly 74 dB.</p>
+<p>That is why instrumentation amplifiers put most of their gain in the first stage. It is also why their CMRR specification usually rises with gain.</p>
+<h2 id="how-spread-really-behaves">How spread really behaves</h2>
+<p>The worst-case formula assumes every resistor sits at its tolerance limit in the worst direction. A quick Monte Carlo shows the typical case:</p>
+<pre><code class="language-python">import numpy as np
+
+def diff_amp_cmrr(tol, gain=1.0, n=100_000, seed=0):
+    &quot;&quot;&quot;CMRR of a four-resistor difference amplifier with random tolerances.&quot;&quot;&quot;
+    rng = np.random.default_rng(seed)
+    r = 10e3 * (1 + rng.uniform(-tol, tol, size=(4, n)))
+    r_in_n, r_fb = r[0], r[1] * gain      # inverting side
+    r_in_p, r_gnd = r[2], r[3] * gain     # non-inverting side
+    a_cm = r_gnd / (r_in_p + r_gnd) * (1 + r_fb / r_in_n) - r_fb / r_in_n
+    a_dm = gain
+    return 20 * np.log10(a_dm / np.abs(a_cm))
+
+for tol in (0.01, 0.001):
+    cmrr = diff_amp_cmrr(tol)
+    print(f&quot;+/-{tol:.1%} resistors: worst {cmrr.min():.1f} dB, &quot;
+          f&quot;median {np.median(cmrr):.1f} dB&quot;)
+</code></pre>
+<p>With resistors spread uniformly over ±1 %, the worst of 100,000 trials is about 34.5 dB, close to the worst-case bound, while the median is about 47.9 dB. With ±0.1 % resistors the figures are about 54.5 dB and 67.9 dB. Designing to the median would leave a fraction of boards failing; that is why datasheets quote minimum CMRR, and why you should too.</p>
+<h2 id="practical-limits-beyond-resistor-matching">Practical limits beyond resistor matching</h2>
+<ul>
+<li><strong>Op-amp CMRR.</strong> Each op-amp has finite rejection of its own. At high gain the resistor term is suppressed, and op-amp rejection can dominate.</li>
+<li><strong>CMRR falls with frequency.</strong> Stray capacitances on the two sides of the circuit do not match, so rejection degrades as frequency rises. Interference at mains frequency is usually fine; switching-regulator noise at hundreds of kilohertz may not be.</li>
+<li><strong>Input common-mode range.</strong> The front-stage outputs carry V<sub>cm</sub> plus the amplified signal; at high gain, they can hit a rail before the final output does. Check the internal nodes, not just the output.</li>
+<li><strong>Reference pin.</strong> The output is referred to the difference amplifier's reference terminal. Driving it from a resistor divider adds resistance to R<sub>d</sub> and ruins the matching; drive it from a low-impedance buffer.</li>
+<li><strong>Source imbalance.</strong> Even with high input impedance, unbalanced source impedances combined with input capacitance convert common mode to differential at high frequency.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Monte Carlo script with <strong>numpy</strong>, then set <code>gain=10</code> and see how the difference amplifier's own gain changes the CMRR spread.</li>
+<li>In <strong>ngspice</strong>, build the three-op-amp circuit with ideal op-amps (high-gain voltage-controlled sources) and R<sub>G</sub> = 202 Ω. Apply 1 mV differential on a 2.5 V common level and check the output.</li>
+<li>Change one difference-stage resistor by 1 %, drive a pure 1 V common-mode input, and measure the output. Then raise the front-stage gain and confirm that the input-referred common-mode error falls in proportion.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>instrumentation amplifier</li><li>cmrr</li><li>op-amp</li><li>sensors</li><li>resistor matching</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="the-differential-pair.html"><span>Previous in Analog &amp; mixed-signal</span>The differential pair: why analog designers love it</a><a class="next" href="smart-meter-metering-front-end.html"><span>Next in Analog &amp; mixed-signal</span>The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="biopotential-front-end-for-wearables.html">Designing a biopotential front end for a health wearable: gain, CMRR and input protection</a></h3>
+          <p>Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interfacing-water-quality-sensors.html">Interfacing pH, conductivity and turbidity sensors: the analog side</a></h3>
+          <p>Three common water-quality sensors need three different front ends. Learn why a pH electrode needs a near-zero-bias buffer, why conductivity uses AC excitation, and how turbidity sensing rejects ambient light.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

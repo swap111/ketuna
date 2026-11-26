@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running a model with TensorFlow Lite Micro: the interpreter, arena and operators · Ketuna blog</title>
+  <meta name="description" content="What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Running a model with TensorFlow Lite Micro: the interpreter, arena and operators · Ketuna blog">
+  <meta property="og:description" content="What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.">
+  <link rel="canonical" href="https://ketuna.online/blog/tflm-interpreter-arena-operators.html">
+  <meta property="og:url" content="https://ketuna.online/blog/tflm-interpreter-arena-operators.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Running a model with TensorFlow Lite Micro: the interpreter, arena and operators",
+  "description": "What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "tinyml, tflite micro, firmware, tensor arena, operators",
+  "articleSection": "Edge AI",
+  "wordCount": 1031,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/tflm-interpreter-arena-operators.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Running a model with TensorFlow Lite Micro: the interpreter, arena and operators</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-model-is-read-in-place">The model is read in place</a></li><li><a href="#operators-and-the-op-resolver">Operators and the op resolver</a></li><li><a href="#the-arena-and-memory-planning">The arena and memory planning</a></li><li><a href="#invoke-is-a-loop-over-kernels">Invoke is a loop over kernels</a></li><li><a href="#reference-and-optimised-kernels">Reference and optimised kernels</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>TensorFlow Lite Micro (TFLM) is an open-source runtime that runs quantized neural networks on microcontrollers with no operating system, no file system and no heap allocation after start-up. The example code is short enough that it is tempting to copy it and move on. But when something goes wrong, such as an allocation failure, a missing operator or a model that silently gives nonsense, you need a picture of what the runtime is doing underneath. This article walks through that picture in the order the calls happen.</p>
+<h2 id="the-model-is-read-in-place">The model is read in place</h2>
+<p>A trained model is converted to a <code>.tflite</code> file, which is a <strong>FlatBuffer</strong>: a binary format designed so that a program can read fields straight out of the buffer without unpacking or copying it. Inside are a list of tensors (shape, type, quantization scale and zero point), a list of buffers holding the constant data such as weights, and a list of operators in execution order, each naming its input and output tensors and an opcode.</p>
+<p>On a microcontroller there is no file to open, so you turn the file into a C array and compile it in:</p>
+<pre><code class="language-bash">xxd -i model.tflite &gt; model_data.cc
+</code></pre>
+<p>Mark the array <code>const</code> so the linker places it in flash, and align it as the TFLM examples do. At run time, <code>tflite::GetModel(g_model)</code> does not parse anything; it returns a typed view onto the array. The weights stay in flash for the whole life of the program, and the kernels read them from there.</p>
+<h2 id="operators-and-the-op-resolver">Operators and the op resolver</h2>
+<p>Each opcode in the model (for example a 2-D convolution or a fully connected layer) must be matched to a <strong>kernel</strong>: the C++ code that implements it for the given data types. A kernel is registered as a small set of functions, chiefly one to <em>prepare</em> (check shapes, precompute constants such as requantization multipliers, request scratch memory) and one to <em>invoke</em> (do the arithmetic).</p>
+<p>The <strong>op resolver</strong> is the lookup table from opcode to kernel. The usual choice is a mutable resolver sized for exactly the operators your model uses:</p>
+<pre><code class="language-text">static tflite::MicroMutableOpResolver&lt;4&gt; resolver;
+resolver.AddConv2D();
+resolver.AddMaxPool2D();
+resolver.AddReshape();
+resolver.AddFullyConnected();
+</code></pre>
+<p>This is a flash-saving device as much as a lookup table. Only the kernels you register are referenced, so the linker can drop all the others. If you forget one, the program builds fine but allocation fails at start-up and the runtime logs an error naming the operator it could not find. To get the list right the first time, inspect the converted model rather than the training code, because the converter may fuse or insert operators. In Python:</p>
+<pre><code class="language-python">import tensorflow as tf
+tf.lite.experimental.Analyzer.analyze(model_path=&quot;model.tflite&quot;)
+</code></pre>
+<p>The output lists every operator in the graph with its tensors, so you can register exactly that set.</p>
+<h2 id="the-arena-and-memory-planning">The arena and memory planning</h2>
+<p>TFLM never calls <code>malloc</code>. You give it one static array, the <strong>tensor arena</strong>, and everything it needs at run time comes out of that block:</p>
+<pre><code class="language-text">constexpr int kArenaSize = 16 * 1024;
+alignas(16) static uint8_t tensor_arena[kArenaSize];
+
+static tflite::MicroInterpreter interpreter(
+    tflite::GetModel(g_model), resolver, tensor_arena, kArenaSize);
+
+if (interpreter.AllocateTensors() != kTfLiteOk) {
+  // arena too small or an operator missing: check the log
+}
+</code></pre>
+<p><code>AllocateTensors()</code> is where the real set-up work happens, once:</p>
+<ol>
+<li>It runs each kernel's prepare step in graph order, which fixes output shapes and records any scratch buffers the kernel asks for.</li>
+<li>It works out the <strong>lifetime</strong> of every intermediate tensor, from the operator that writes it to the last one that reads it.</li>
+<li>A <strong>memory planner</strong> assigns each tensor an offset in the arena so that tensors whose lifetimes do not overlap reuse the same bytes.</li>
+<li>Data that must survive between inferences, such as per-tensor bookkeeping and constants the kernels computed in prepare, is placed in its own region of the arena that is not reused.</li>
+</ol>
+<p>The planner is why the arena needed is close to the largest set of simultaneously live tensors rather than the sum of all of them. After a successful allocation, <code>interpreter.arena_used_bytes()</code> tells you what was actually used. The practical recipe is to start with a generous arena, read that number on the target build, then shrink the arena to it plus a margin.</p>
+<h2 id="invoke-is-a-loop-over-kernels">Invoke is a loop over kernels</h2>
+<p>Once allocated, running an inference is simple:</p>
+<pre><code class="language-text">TfLiteTensor* in = interpreter.input(0);
+for (int i = 0; i &lt; n; i++) in-&gt;data.int8[i] = features[i];
+
+if (interpreter.Invoke() != kTfLiteOk) { /* handle error */ }
+
+TfLiteTensor* out = interpreter.output(0);
+int8_t score = out-&gt;data.int8[1];
+</code></pre>
+<p><code>Invoke()</code> walks the operator list in order and calls each kernel's invoke function with pointers into the arena for activations and into flash for weights. There is no scheduling, threading or dynamic decision; the same sequence of kernels runs every time. That makes timing very repeatable, so you can measure it once with a cycle counter around <code>Invoke()</code> and trust the result.</p>
+<p>Two details about the input and output tensors trip people up. First, the input is int8 with its own scale and zero point, stored in <code>in-&gt;params</code>. Your features must be quantized with exactly those values; copying raw sensor counts in produces wrong answers without any error. Second, the output scores are int8 too. If you only need the top class, compare the int8 values directly, because the dequantization is monotonic. If you need probabilities or a threshold in real units, apply <code>out-&gt;params.scale</code> and <code>out-&gt;params.zero_point</code>.</p>
+<h2 id="reference-and-optimised-kernels">Reference and optimised kernels</h2>
+<p>TFLM ships portable reference kernels written in plain C++. They are easy to read and correct everywhere, but slow, because they make no use of the target's SIMD or DSP instructions. Optimised kernel libraries exist for several processor families and plug in behind the same operator names. The model, the resolver code and the results stay the same; only the speed changes. When you port to a new core, first get the reference kernels running and bit-exact against your Python reference, then switch to optimised kernels and check that the outputs have not changed.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>copying unquantized features into an int8 input tensor</li>
+<li>registering operators from the training code instead of the converted model</li>
+<li>sizing the arena by guesswork and never reading <code>arena_used_bytes()</code></li>
+<li>placing the model array in RAM by forgetting <code>const</code>, which wastes RAM equal to the model size</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Clone the open-source TFLM repository and build and run the <code>hello_world</code> example's host test with its Makefile, as described in the example's README.</li>
+<li>Convert a small model of your own to int8, run the Analyzer on it, and write a resolver with exactly the operators it lists.</li>
+<li>Deliberately leave one operator out and read the error log, then put it back.</li>
+<li>Print <code>arena_used_bytes()</code> and compare it with a hand estimate of the peak live activation bytes.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>tinyml</li><li>tflite micro</li><li>firmware</li><li>tensor arena</li><li>operators</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="pruning-and-weight-compression.html"><span>Previous in Edge AI</span>Pruning and weight compression for tiny models</a><a class="next" href="sensor-fusion-for-orientation.html"><span>Next in Edge AI</span>Sensor fusion basics: complementary and Kalman filters for orientation</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="will-the-model-fit-flash-and-ram.html">Will the model fit? Estimating flash and RAM for TinyML</a></h3>
+          <p>Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="gesture-recognition-from-an-imu.html">Gesture recognition from an IMU: data, features and a small model</a></h3>
+          <p>From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

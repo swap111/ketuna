@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading a public procurement specification as an engineer · Ketuna blog</title>
+  <meta name="description" content="How to read a public tender&#x27;s technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Reading a public procurement specification as an engineer · Ketuna blog">
+  <meta property="og:description" content="How to read a public tender&#x27;s technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.">
+  <link rel="canonical" href="https://ketuna.online/blog/reading-a-procurement-specification.html">
+  <meta property="og:url" content="https://ketuna.online/blog/reading-a-procurement-specification.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading a public procurement specification as an engineer",
+  "description": "How to read a public tender's technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "procurement, requirements, compliance, specifications, testing",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 950,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/reading-a-procurement-specification.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Reading a public procurement specification as an engineer</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to read a public tender&#x27;s technical specification, turning it into testable requirements, a list of referenced standards, an acceptance test plan and a compliance matrix, and what to ask before bidding.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#how-a-tender-specification-is-structured">How a tender specification is structured</a></li><li><a href="#extracting-testable-requirements">Extracting testable requirements</a></li><li><a href="#following-the-standards-references">Following the standards references</a></li><li><a href="#planning-acceptance-tests">Planning acceptance tests</a></li><li><a href="#the-compliance-matrix">The compliance matrix</a></li><li><a href="#asking-questions-before-bidding">Asking questions before bidding</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Public bodies, such as utilities, municipal corporations, railways and departments, buy electronic equipment through formal tenders. A tender document can run to hundreds of pages, mixing commercial terms, legal conditions and a technical specification. Engineers are often handed the technical section with a question: can we build this, at what cost and with what risk? Answering well means reading the specification the way a test engineer would, turning prose into a structured list of requirements, each with a way to prove it is met. This article shows how.</p>
+<h2 id="how-a-tender-specification-is-structured">How a tender specification is structured</h2>
+<p>Most technical specifications in public procurement follow a recognisable pattern, though headings vary:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Section</th>
+<th>What to extract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scope of supply</td>
+<td>What exactly is being bought: devices, software, installation, training, spares, support</td>
+</tr>
+<tr>
+<td>General and environmental conditions</td>
+<td>Temperature, humidity, ingress protection, power supply range, installation conditions</td>
+</tr>
+<tr>
+<td>Technical requirements</td>
+<td>Functional and performance requirements, interfaces, protocols</td>
+</tr>
+<tr>
+<td>Standards and certifications</td>
+<td>Standards the product must meet, and certificates to submit with the bid or before delivery</td>
+</tr>
+<tr>
+<td>Tests</td>
+<td>Type tests, routine tests, acceptance tests, who witnesses them and where</td>
+</tr>
+<tr>
+<td>Documentation and support</td>
+<td>Manuals, drawings, warranty, maintenance and spares period</td>
+</tr>
+<tr>
+<td>Annexures</td>
+<td>Data formats, drawings, guaranteed technical particulars to fill in</td>
+</tr>
+</tbody>
+</table></div>
+<p>Read the whole document once quickly for shape, then read the technical sections slowly. The commercial and legal parts matter to engineers too: warranty length, penalties for delay, liquidated damages and acceptance criteria all have technical consequences.</p>
+<h2 id="extracting-testable-requirements">Extracting testable requirements</h2>
+<p>The core task is to turn each obligation into a numbered requirement that is atomic (one thing), unambiguous and verifiable. Consider an illustrative clause, invented for this example:</p>
+<pre><code class="language-text">4.3  The device shall operate from a single-phase supply and
+     shall continue to record data during supply variations as
+     per the relevant standard. It shall have a battery backup
+     of adequate capacity and shall communicate with the
+     central system using an open protocol. The enclosure
+     shall be suitable for outdoor installation.
+</code></pre>
+<p>That one paragraph hides at least six requirements, several of them not yet testable:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement as extracted</th>
+<th>Verification</th>
+<th>Open question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R4.3.1</td>
+<td>Operates from single-phase AC supply</td>
+<td>Test</td>
+<td>Voltage and frequency range?</td>
+</tr>
+<tr>
+<td>R4.3.2</td>
+<td>Records data during supply variations</td>
+<td>Test</td>
+<td>Which standard and test levels?</td>
+</tr>
+<tr>
+<td>R4.3.3</td>
+<td>Has battery backup</td>
+<td>Inspection</td>
+<td>What does "adequate" mean in hours or functions?</td>
+</tr>
+<tr>
+<td>R4.3.4</td>
+<td>Communicates with the central system</td>
+<td>Test</td>
+<td>Which open protocol, which profile, which transport?</td>
+</tr>
+<tr>
+<td>R4.3.5</td>
+<td>Uses an open protocol</td>
+<td>Inspection</td>
+<td>Is a specific companion specification required?</td>
+</tr>
+<tr>
+<td>R4.3.6</td>
+<td>Enclosure suitable for outdoor use</td>
+<td>Test</td>
+<td>Which ingress protection rating and UV resistance?</td>
+</tr>
+</tbody>
+</table></div>
+<p>Words like <em>adequate</em>, <em>suitable</em>, <em>robust</em>, <em>as per the relevant standard</em>, <em>state of the art</em> and <em>user friendly</em> are signals: each needs a number or a reference before anyone can test it. Each one becomes a pre-bid question.</p>
+<p>Classify each requirement by how it will be verified: <strong>test</strong> (measure it), <strong>inspection</strong> (look at it or check a document), <strong>analysis</strong> (calculate it) or <strong>demonstration</strong> (show it working). Requirements with no possible verification method are a risk for both buyer and supplier, because acceptance becomes a matter of opinion.</p>
+<h2 id="following-the-standards-references">Following the standards references</h2>
+<p>Tender specifications reference standards heavily, often national standards, international ones and the buyer's own specifications. For each reference:</p>
+<ul>
+<li>identify the exact document, part and edition; if the tender does not say, ask</li>
+<li>read the scope to confirm it applies to this equipment</li>
+<li>note which clauses and test levels are invoked, since a standard often offers several levels or classes</li>
+<li>check whether a certificate from an accredited or recognised lab is needed, and how long that takes</li>
+<li>follow normative references inside the standard, which bring in more requirements</li>
+</ul>
+<p>Build a <strong>standards register</strong> for the bid: identifier, edition, clauses invoked, how compliance will be shown and status. Missing a referenced standard is one of the most common causes of a non-compliant offer.</p>
+<h2 id="planning-acceptance-tests">Planning acceptance tests</h2>
+<p>Tenders usually distinguish:</p>
+<ul>
+<li><strong>Type tests:</strong> performed once on samples to prove the design meets the specification, often at an approved third-party lab</li>
+<li><strong>Routine tests:</strong> performed on every unit in production</li>
+<li><strong>Acceptance tests:</strong> performed on samples from each delivered lot, often witnessed by the buyer's representative</li>
+</ul>
+<p>Map every requirement to the test that will verify it and the stage at which it happens. Look for tests that need equipment you do not have, labs with long queues, or sample quantities that affect cost. A type test that needs six months of lab time decides your schedule before any engineering starts.</p>
+<h2 id="the-compliance-matrix">The compliance matrix</h2>
+<p>Most tenders ask bidders to submit a clause-by-clause compliance statement. Internally, the same document is your engineering plan. For each clause: comply, partly comply or deviate; a short note of how; the evidence (test report, datasheet, certificate, design document); and the owner. Be honest. Marking "complies" against a clause you cannot meet creates a contractual failure later, which is worse than a clearly stated deviation now. If a deviation is acceptable to the buyer, it will be accepted openly; if not, you learn that before committing.</p>
+<h2 id="asking-questions-before-bidding">Asking questions before bidding</h2>
+<p>Tenders normally allow written pre-bid queries within a deadline. Use them. Group your questions by clause, propose a concrete interpretation ("we understand R4.3.6 to mean an ingress protection rating of at least ... ; please confirm"), and keep them technical and neutral. Clarifications issued in response usually become part of the tender, so read every corrigendum and addendum carefully, because they may change requirements late.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Reading only the technical section and missing obligations in the general conditions</li>
+<li>Treating vague words as acceptable instead of raising queries</li>
+<li>Not identifying the edition of each referenced standard</li>
+<li>Overlooking the time needed for type tests and certificates</li>
+<li>Declaring full compliance to look competitive</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Find a publicly available tender for electronic equipment on a government e-procurement portal and extract twenty requirements from its technical section into a table like the one above.</li>
+<li>Mark each requirement test, inspection, analysis or demonstration, and list every vague word you find.</li>
+<li>Build the standards register for that tender, with identifiers, editions and the clauses invoked.</li>
+<li>Write five pre-bid questions that would make the vaguest requirements testable.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>procurement</li><li>requirements</li><li>compliance</li><li>specifications</li><li>testing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="electronics-for-unreliable-grids.html"><span>Previous in India&#x27;s electronics ecosystem</span>Power cuts, surges and voltage swings: designing electronics for real-world grids</a><a class="next" href="reading-and-citing-standards.html"><span>Next in India&#x27;s electronics ecosystem</span>Reading and citing standards: IS, IEC and IEEE documents for engineers</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="planning-compliance-testing-early.html">Planning compliance testing early: EMC, safety and environmental tests</a></h3>
+          <p>Which kinds of compliance tests electronic products typically face, how to run cheap pre-compliance checks on the bench, and the design habits that give a product a good chance of passing the first time.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="planning-wireless-approvals.html">Wireless products in India: the approvals to plan for before launch</a></h3>
+          <p>Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-and-citing-standards.html">Reading and citing standards: IS, IEC and IEEE documents for engineers</a></h3>
+          <p>How standards are numbered, revised and adopted across national and international bodies, how to read one without getting lost, and how to cite one so a reader can find exactly the document you used.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

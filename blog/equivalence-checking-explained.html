@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Equivalence checking: proving synthesis did not change your design · Ketuna blog</title>
+  <meta name="description" content="How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Equivalence checking: proving synthesis did not change your design · Ketuna blog">
+  <meta property="og:description" content="How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.">
+  <link rel="canonical" href="https://ketuna.online/blog/equivalence-checking-explained.html">
+  <meta property="og:url" content="https://ketuna.online/blog/equivalence-checking-explained.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Equivalence checking: proving synthesis did not change your design",
+  "description": "How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "equivalence checking, synthesis, formal verification, yosys, netlist",
+  "articleSection": "Verification",
+  "wordCount": 936,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/equivalence-checking-explained.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Equivalence checking: proving synthesis did not change your design</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#golden-revised-and-the-miter">Golden, revised and the miter</a></li><li><a href="#combinational-equivalence-cut-at-the-flops">Combinational equivalence: cut at the flops</a></li><li><a href="#sequential-equivalence-when-the-flops-do-not-line-up">Sequential equivalence: when the flops do not line up</a></li><li><a href="#a-small-open-source-check">A small open-source check</a></li><li><a href="#where-the-tools-need-help">Where the tools need help</a></li><li><a href="#what-it-does-not-tell-you">What it does not tell you</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>You spent weeks verifying the RTL. Then synthesis rewrote it into thousands of gates, the place-and-route tool added buffers and resized cells, and someone applied a late fix directly to the netlist. Is the netlist still the design you verified? Re-running every simulation on the gate-level netlist would be slow and would still only cover the tests you have. Equivalence checking answers the question directly and completely: it proves, for every possible input, that two representations of the design behave the same.</p>
+<h2 id="golden-revised-and-the-miter">Golden, revised and the miter</h2>
+<p>An equivalence check always compares two designs. The <strong>golden</strong> design is the trusted reference, usually the verified RTL. The <strong>revised</strong> design is the new version: the synthesised netlist, a netlist after a fix, or an RTL refactor that should not change behaviour.</p>
+<p>The idea underneath is the <strong>miter</strong>. Feed both designs the same inputs, XOR each pair of corresponding outputs, and OR all the XORs together. The two designs are equivalent exactly when no input can make the miter output 1. That turns "are these the same?" into a satisfiability question a solver can answer: either it proves the miter is always 0, or it returns an input that makes the outputs differ.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 210" role="img" aria-labelledby="eq-title eq-desc" font-size="14">
+<title id="eq-title">A miter for equivalence checking</title>
+<desc id="eq-desc">Shared inputs drive both a golden design and a revised design. Each pair of matching outputs goes into an XOR gate, and the XOR outputs are combined by an OR gate. The question for the solver is whether the OR output can ever be 1.</desc>
+<line x1="20" y1="105" x2="60" y2="105" class="dg-line"/>
+<text x="20" y="96" class="dg-text">in</text>
+<path d="M60,105 V55 H94 M60,105 V155 H94" class="dg-line" fill="none"/>
+<path d="M94,51 L100,55 L94,59 Z" class="dg-arrow"/>
+<path d="M94,151 L100,155 L94,159 Z" class="dg-arrow"/>
+<rect x="100" y="30" width="110" height="50" rx="6" class="dg-core"/>
+<text x="155" y="60" text-anchor="middle" class="dg-text">golden</text>
+<rect x="100" y="130" width="110" height="50" rx="6" class="dg-box"/>
+<text x="155" y="160" text-anchor="middle" class="dg-text">revised</text>
+<path d="M210,55 H250 V95 H274 M210,155 H250 V115 H274" class="dg-line" fill="none"/>
+<rect x="274" y="85" width="56" height="40" rx="6" class="dg-track"/>
+<text x="302" y="110" text-anchor="middle" class="dg-text">XOR</text>
+<line x1="330" y1="105" x2="354" y2="105" class="dg-line"/>
+<rect x="354" y="85" width="50" height="40" rx="6" class="dg-track"/>
+<text x="379" y="110" text-anchor="middle" class="dg-text">OR</text>
+<line x1="404" y1="105" x2="430" y2="105" class="dg-line"/>
+<path d="M424,101 L430,105 L424,109 Z" class="dg-arrow"/>
+<text x="436" y="102" class="dg-text">= 1</text>
+<text x="436" y="120" class="dg-muted">ever?</text>
+<text x="300" y="160" class="dg-muted">one XOR per</text>
+<text x="300" y="178" class="dg-muted">compare point</text>
+</svg>
+<figcaption>Equivalent means no input can make any compared pair differ, so the miter output is always 0.</figcaption>
+</figure>
+
+<h2 id="combinational-equivalence-cut-at-the-flops">Combinational equivalence: cut at the flops</h2>
+<p>Building one miter over a whole chip and many clock cycles would be hopeless. Combinational equivalence checking avoids time altogether. It assumes that every flip-flop in the golden design has a matching flip-flop in the revised one, and treats each matched pair as both an output (its D input is compared) and an input (its Q output is a shared free variable). The design breaks into many small <strong>logic cones</strong>, each ending at a primary output or a flop's D pin, called <strong>compare points</strong> or key points.</p>
+<p>For each cone, the tool asks whether the golden and revised logic compute the same Boolean function of the cone's inputs. Each question is a small SAT problem. Because cones are checked independently, the method scales to whole chips. If every cone matches, and the flops are matched correctly, the two designs produce identical outputs on every cycle from any matching state.</p>
+<p>Most of the effort goes into <strong>matching</strong>. Synthesis renames registers, adds suffixes for bits of a bus, and sometimes merges duplicate flops or removes constant ones. Tools match by name first, then by structure and function. Every unmatched point must be explained before the result means anything; an unmatched flop is a cone nobody compared.</p>
+<h2 id="sequential-equivalence-when-the-flops-do-not-line-up">Sequential equivalence: when the flops do not line up</h2>
+<p>Some legitimate transformations break the one-to-one flop correspondence:</p>
+<ul>
+<li><strong>Retiming</strong> moves registers across logic to balance paths, so the golden and revised flops hold different intermediate values.</li>
+<li><strong>State re-encoding</strong> turns a binary FSM into a one-hot one; three flops become five.</li>
+<li><strong>Clock gating</strong> replaces an enable mux with a gated clock, so a flop no longer loads on every edge.</li>
+<li><strong>Pipeline changes</strong> add or remove a stage while keeping the interface timing equivalent under some conditions.</li>
+</ul>
+<p>Here no cone-by-cone mapping exists. <strong>Sequential equivalence</strong> compares the designs over time, from matching reset states, using model checking or induction. It is far more expensive and is typically run on the blocks where those transformations happened, not on the whole chip.</p>
+<h2 id="a-small-open-source-check">A small open-source check</h2>
+<p>Yosys includes equivalence commands. This script compares an RTL module against its own synthesised netlist.</p>
+<pre><code class="language-tcl">read_verilog alu.v
+prep -top alu
+rename alu gold
+design -stash gold
+
+read_verilog alu.v
+synth -top alu
+rename alu gate
+design -stash gate
+
+design -copy-from gold -as gold gold
+design -copy-from gate -as gate gate
+equiv_make gold gate equiv
+hierarchy -top equiv
+equiv_simple
+equiv_induct
+equiv_status -assert
+</code></pre>
+<p><code>equiv_make</code> builds the combined circuit and matches signals by name. <code>equiv_simple</code> proves cones combinationally; <code>equiv_induct</code> uses induction for the cases that need a little sequential reasoning. <code>equiv_status -assert</code> exits with an error if anything stays unproven, which makes the script usable in a regression. For larger designs, the <code>eqy</code> front end partitions the problem and runs these steps per partition.</p>
+<h2 id="where-the-tools-need-help">Where the tools need help</h2>
+<p>An equivalence failure is not always a bug, and a pass is not always meaningful. The common trouble spots:</p>
+<ul>
+<li><strong>X assignments in RTL.</strong> <code>default: out = 'x;</code> tells synthesis it may choose any value. The netlist picks one; a strict comparison against the RTL's X then fails or passes depending on how the tool treats don't-cares. Know which mode you are in.</li>
+<li><strong>Test logic.</strong> Scan insertion changes the netlist's behaviour in test mode. Tie scan-enable to its functional value during the check.</li>
+<li><strong>Black boxes.</strong> Memories and analog macros have no gate-level logic to compare; they are black-boxed, and only their pins are checked. Anything inside them needs separate verification.</li>
+<li><strong>Removed or merged flops.</strong> A flop synthesis proved constant has no partner. Confirm that the constant really is constant in your RTL, not a sign of a missing connection.</li>
+<li><strong>Aborted cones.</strong> Large arithmetic, such as multipliers, can be too hard for a plain SAT check. Tools need hints, partitioning or special datapath methods.</li>
+</ul>
+<h2 id="what-it-does-not-tell-you">What it does not tell you</h2>
+<p>Equivalence checking proves the two designs match. If the golden RTL has a bug, the netlist faithfully has the same bug. It also says nothing about timing, power or clock-domain crossings. It replaces "re-simulate everything on the netlist" for functional sameness, and nothing more.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small 8-bit ALU in Verilog, save the script above as <code>eq.ys</code>, and run <code>yosys -s eq.ys</code>; confirm <code>equiv_status</code> reports everything proven.</li>
+<li>Edit one gate in the synthesised netlist by hand (write it out with <code>write_verilog</code>, change an AND to an OR, read it back as the gate design) and rerun; find the unproven signal in the report.</li>
+<li>Add an FSM to the design, run <code>synth</code> with and without <code>-nofsm</code>, and compare how the equivalence check behaves when state encoding changes.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>equivalence checking</li><li>synthesis</li><li>formal verification</li><li>yosys</li><li>netlist</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="directed-or-constrained-random.html"><span>Previous in Verification</span>Directed tests or constrained random? Using each where it pays off</a><a class="next" href="fpga-prototyping-as-verification.html"><span>Next in Verification</span>FPGA prototyping as a verification step: what it finds that simulation misses</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="prove-a-fifo-never-overflows.html">Proving a FIFO never overflows with SymbiYosys</a></h3>
+          <p>Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bounded-proof-vs-k-induction.html">Bounded proof or full proof? Model-checking depth and k-induction explained</a></h3>
+          <p>Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fpga-prototyping-as-verification.html">FPGA prototyping as a verification step: what it finds that simulation misses</a></h3>
+          <p>Running RTL on an FPGA gives you long runs, real interfaces and real software, at the cost of visibility and fidelity. Learn which bugs prototyping finds, what it cannot tell you, and how to debug on the board.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Priority inversion, and how priority inheritance fixes it · Ketuna blog</title>
+  <meta name="description" content="A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Priority inversion, and how priority inheritance fixes it · Ketuna blog">
+  <meta property="og:description" content="A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.">
+  <link rel="canonical" href="https://ketuna.online/blog/priority-inversion-and-inheritance.html">
+  <meta property="og:url" content="https://ketuna.online/blog/priority-inversion-and-inheritance.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Priority inversion, and how priority inheritance fixes it",
+  "description": "A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "rtos, priority inversion, mutex, scheduling, concurrency",
+  "articleSection": "Embedded systems",
+  "wordCount": 968,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/priority-inversion-and-inheritance.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Priority inversion, and how priority inheritance fixes it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-tasks-and-one-lock">Three tasks and one lock</a></li><li><a href="#the-timeline-without-inheritance">The timeline without inheritance</a></li><li><a href="#how-priority-inheritance-fixes-it">How priority inheritance fixes it</a></li><li><a href="#using-it-in-practice">Using it in practice</a></li><li><a href="#rules-that-keep-blocking-short">Rules that keep blocking short</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Priorities in an RTOS promise one thing: the most important ready task runs. Add a shared resource protected by a mutex and that promise quietly breaks. A high-priority task can end up waiting not just for the low-priority task that holds the lock, but for every unrelated medium-priority task that happens to be ready. The effect is called priority inversion. It is easy to create, hard to spot in testing, and fixed by a mutex feature that you should know how to switch on and check.</p>
+<h2 id="three-tasks-and-one-lock">Three tasks and one lock</h2>
+<p>Take three tasks with fixed priorities, made up for illustration:</p>
+<ul>
+<li><strong>H</strong>, high priority: reads a sensor bus that is shared, through a mutex, with L</li>
+<li><strong>M</strong>, medium priority: a 6 ms computation that never touches the bus</li>
+<li><strong>L</strong>, low priority: logs data and uses the shared bus inside a 3 ms critical section</li>
+</ul>
+<p>Blocking on a lock held by a lower-priority task is unavoidable and acceptable if it is short: H waits for L to finish its critical section, at most 3 ms here. That bounded wait is <em>not</em> the problem. The problem is what happens when M becomes ready while H is waiting.</p>
+<h2 id="the-timeline-without-inheritance">The timeline without inheritance</h2>
+<p>Follow it millisecond by millisecond (upper half of the figure):</p>
+<ol>
+<li><strong>t = 0:</strong> only L is ready; it runs. At t = 1 it locks the mutex and enters its 3 ms critical section.</li>
+<li><strong>t = 2:</strong> H is released. It has higher priority, so it preempts L immediately. L has done 1 ms of its critical section.</li>
+<li><strong>t = 3:</strong> H tries to lock the mutex, finds it held, and blocks. L is the only ready task and resumes its critical section.</li>
+<li><strong>t = 4:</strong> M is released. M has higher priority than L, so it preempts L. Nothing stops it: M does not need the mutex, and the scheduler does not know that H is waiting for L.</li>
+<li><strong>t = 10:</strong> M finishes. L resumes and completes its critical section at t = 11, releasing the mutex.</li>
+<li><strong>t = 11:</strong> H finally gets the lock and runs.</li>
+</ol>
+<p>H was blocked from t = 3 to t = 11, for 8 ms. Only 2 ms of that was L's remaining critical section. The other 6 ms was M, a task of <em>lower</em> priority than H, running while H waited. That is the inversion. Worse, it is unbounded: if two or three medium-priority tasks become ready in turn, they all run before L can release the lock, and H's wait grows with each one.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="pi-title pi-desc" font-size="14">
+<title id="pi-title">Priority inversion timeline with and without priority inheritance</title>
+<desc id="pi-desc">Two timelines from 0 to 13 milliseconds with rows for tasks H, M and L. Without inheritance, H blocks at 3 ms, M runs from 4 to 10 ms, L finishes its critical section at 11 ms, and H runs at 11 ms. With inheritance, L is raised to H's priority at 3 ms and finishes its critical section at 5 ms, H runs from 5 to 7 ms, and M runs after H.</desc>
+<text x="70" y="20" class="dg-text">Without inheritance</text>
+<text x="20" y="48" class="dg-text">H</text>
+<text x="20" y="72" class="dg-text">M</text>
+<text x="20" y="96" class="dg-text">L</text>
+<rect x="130" y="36" width="30" height="16" class="dg-core"/>
+<line x1="160" y1="44" x2="400" y2="44" class="dg-dash"/>
+<rect x="400" y="36" width="60" height="16" class="dg-core"/>
+<rect x="190" y="60" width="180" height="16" class="dg-box"/>
+<rect x="70" y="84" width="30" height="16" class="dg-box"/>
+<rect x="100" y="84" width="30" height="16" class="dg-amber" fill-opacity="0.5"/>
+<rect x="160" y="84" width="30" height="16" class="dg-amber" fill-opacity="0.5"/>
+<rect x="370" y="84" width="30" height="16" class="dg-amber" fill-opacity="0.5"/>
+<text x="280" y="34" text-anchor="middle" class="dg-muted">H blocked 8 ms</text>
+<line x1="70" y1="112" x2="460" y2="112" class="dg-line"/>
+<text x="70" y="128" text-anchor="middle" class="dg-muted">0</text>
+<text x="220" y="128" text-anchor="middle" class="dg-muted">5</text>
+<text x="370" y="128" text-anchor="middle" class="dg-muted">10 ms</text>
+<text x="70" y="166" class="dg-text">With inheritance</text>
+<text x="20" y="194" class="dg-text">H</text>
+<text x="20" y="218" class="dg-text">M</text>
+<text x="20" y="242" class="dg-text">L</text>
+<rect x="130" y="182" width="30" height="16" class="dg-core"/>
+<line x1="160" y1="190" x2="220" y2="190" class="dg-dash"/>
+<rect x="220" y="182" width="60" height="16" class="dg-core"/>
+<rect x="280" y="206" width="180" height="16" class="dg-box"/>
+<rect x="70" y="230" width="30" height="16" class="dg-box"/>
+<rect x="100" y="230" width="30" height="16" class="dg-amber" fill-opacity="0.5"/>
+<rect x="160" y="230" width="60" height="16" class="dg-amber" fill-opacity="0.9"/>
+<text x="190" y="270" text-anchor="middle" class="dg-muted">L runs at H's priority</text>
+<line x1="70" y1="256" x2="460" y2="256" class="dg-line"/>
+<text x="70" y="290" text-anchor="middle" class="dg-muted">0</text>
+<text x="220" y="290" text-anchor="middle" class="dg-muted">5</text>
+<text x="370" y="290" text-anchor="middle" class="dg-muted">10 ms</text>
+</svg>
+<figcaption>Shaded blocks are L's critical section; with inheritance, M cannot preempt it, so H waits only 2 ms instead of 8.</figcaption>
+</figure>
+
+<h2 id="how-priority-inheritance-fixes-it">How priority inheritance fixes it</h2>
+<p>With <strong>priority inheritance</strong>, when a task blocks on a mutex, the mutex's current owner temporarily runs at the blocked task's priority. When the owner releases the mutex, its priority drops back.</p>
+<p>Replay the timeline (lower half of the figure). At t = 3, H blocks on the mutex and L is raised to H's priority. At t = 4, M is released but cannot preempt L, which now outranks it. L finishes its critical section at t = 5 and drops back to low priority. H takes the lock and runs from 5 to 7, then M runs. H was blocked for 2 ms, exactly the remaining critical section, and no amount of medium-priority work can extend that.</p>
+<p>The blocking is now <strong>bounded</strong>: H waits at most for the longest critical section of any lower-priority task that shares a lock with it. That bound is a number you can put into a response-time analysis.</p>
+<p>This is why a mutex and a binary semaphore are not interchangeable even though both can protect a resource. A mutex has an <strong>owner</strong>, so the kernel knows whose priority to raise. A semaphore has no owner, so the kernel cannot help.</p>
+<h2 id="using-it-in-practice">Using it in practice</h2>
+<p>Most RTOS mutexes support inheritance, but check rather than assume. In Zephyr, <code>k_mutex</code> objects apply priority inheritance:</p>
+<pre><code class="language-c">#include &lt;zephyr/kernel.h&gt;
+
+K_MUTEX_DEFINE(bus_lock);
+
+int bus_read(uint8_t reg, uint8_t *val)
+{
+    if (k_mutex_lock(&amp;bus_lock, K_MSEC(10)) != 0)
+        return -EBUSY;              /* never wait forever */
+    int ret = do_bus_transfer(reg, val);
+    k_mutex_unlock(&amp;bus_lock);
+    return ret;
+}
+</code></pre>
+<p>On a POSIX system, the same protection is requested explicitly with <code>pthread_mutexattr_setprotocol(&amp;attr, PTHREAD_PRIO_INHERIT)</code> before creating the mutex. In other kernels, look for the word "inheritance" in the mutex documentation and for any configuration option that enables it.</p>
+<p>An alternative is the <strong>priority ceiling</strong> protocol: each mutex is given the priority of the highest task that ever uses it, and any task that locks it runs at that priority immediately. It prevents some chained-blocking and deadlock cases that inheritance does not, at the cost of raising priority even when there is no contention.</p>
+<h2 id="rules-that-keep-blocking-short">Rules that keep blocking short</h2>
+<ul>
+<li><strong>Keep critical sections short.</strong> Inheritance bounds the wait by the longest critical section, so a 3 ms section means up to 3 ms of blocking. Copy data out under the lock and process it afterwards.</li>
+<li><strong>Never block inside a critical section.</strong> Waiting for a bus transfer or a queue while holding a mutex multiplies the bound.</li>
+<li><strong>Use timeouts on locks.</strong> A timeout turns a deadlock into a reported error instead of a silent hang.</li>
+<li><strong>Do not lock mutexes in interrupts.</strong> An ISR cannot block, and inheritance does not apply to it. Hand data to a task instead.</li>
+<li><strong>Avoid nested locks</strong>, or always take them in the same global order.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the timeline above on paper, then add a second medium-priority task released at t = 6 that runs for 4 ms, and work out H's blocking time with and without inheritance.</li>
+<li>Build a Zephyr application for the <code>qemu_x86</code> or <code>qemu_riscv32</code> board with three threads at different priorities that reproduce this scenario, using <code>k_busy_wait()</code> for the computations. Log timestamps with <code>k_uptime_get()</code> and compare H's waiting time with the expected 2 ms. Then replace the mutex with a <code>k_sem</code> and see the inversion return.</li>
+<li>Explain the difference between the two runs to someone else, using your hand-drawn timeline.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>rtos</li><li>priority inversion</li><li>mutex</li><li>scheduling</li><li>concurrency</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="dma-double-buffering-for-adc.html"><span>Previous in Embedded systems</span>Moving ADC samples with DMA and double buffering</a><a class="next" href="race-conditions-between-isrs-and-tasks.html"><span>Next in Embedded systems</span>Race conditions in firmware: shared variables between interrupts and tasks</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="response-time-analysis-by-hand.html">Will every task meet its deadline? Response-time analysis worked by hand</a></h3>
+          <p>The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="superloop-or-rtos.html">Superloop or RTOS? Deciding with timing requirements, not fashion</a></h3>
+          <p>A superloop with interrupts is enough more often than people think. Work out the worst-case loop time against each deadline, and you will see exactly which requirement, if any, calls for a preemptive scheduler.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UART, SPI or I2C: choosing a serial bus for a sensor · Ketuna blog</title>
+  <meta name="description" content="A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="UART, SPI or I2C: choosing a serial bus for a sensor · Ketuna blog">
+  <meta property="og:description" content="A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.">
+  <link rel="canonical" href="https://ketuna.online/blog/uart-spi-or-i2c-for-a-sensor.html">
+  <meta property="og:url" content="https://ketuna.online/blog/uart-spi-or-i2c-for-a-sensor.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "UART, SPI or I2C: choosing a serial bus for a sensor",
+  "description": "A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "uart, spi, i2c, sensors, serial protocols",
+  "articleSection": "Embedded systems",
+  "wordCount": 1124,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/uart-spi-or-i2c-for-a-sensor.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>UART, SPI or I2C: choosing a serial bus for a sensor</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-three-buses-in-one-paragraph-each">The three buses in one paragraph each</a></li><li><a href="#pins-and-addressing">Pins and addressing</a></li><li><a href="#bandwidth-worked-per-sample">Bandwidth, worked per sample</a></li><li><a href="#distance-and-wiring">Distance and wiring</a></li><li><a href="#knowing-when-something-failed">Knowing when something failed</a></li><li><a href="#a-decision-for-a-typical-board">A decision for a typical board</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Many sensors offer more than one interface, and the choice is yours when you draw the schematic. It is tempting to pick whichever bus you have used before. A better habit is to ask five questions: how many pins can you spare, how much data must move, how many devices share the bus, how far apart are they, and how will firmware know when a transfer failed. This article answers those questions for the three common buses, with numbers worked out for a typical sensor board.</p>
+<h2 id="the-three-buses-in-one-paragraph-each">The three buses in one paragraph each</h2>
+<p><strong>UART</strong> is asynchronous: there is no clock wire, so both ends must agree on a baud rate in advance. Each direction has its own wire (TX and RX), and one link connects exactly two devices. A byte is framed by a start bit and a stop bit, so with the common 8N1 format each byte costs 10 bit times. Sensors that use UART are usually self-contained modules, such as satellite navigation receivers or gas sensors, which send complete text or binary messages on their own.</p>
+<p><strong>SPI</strong> is synchronous and controller-driven. The controller drives a clock (SCLK), sends data on one line and receives on another at the same time, and selects each target with its own chip-select (CS) line. It has no addressing and no acknowledgement; it is essentially two shift registers connected in a ring.</p>
+<p><strong>I2C</strong> uses two shared open-drain lines, SCL and SDA, with pull-up resistors. Each transfer starts with a 7-bit address, so many devices can share the same two wires. Every byte is followed by an acknowledge bit driven by the receiver.</p>
+<h2 id="pins-and-addressing">Pins and addressing</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>UART</th>
+<th>SPI</th>
+<th>I2C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Signal pins</td>
+<td>2 per device</td>
+<td>3 shared + 1 CS per device</td>
+<td>2 shared</td>
+</tr>
+<tr>
+<td>Devices per bus</td>
+<td>2</td>
+<td>Limited by CS pins</td>
+<td>Limited by addresses and capacitance</td>
+</tr>
+<tr>
+<td>Clock</td>
+<td>None</td>
+<td>Controller drives</td>
+<td>Controller drives; target may stretch</td>
+</tr>
+<tr>
+<td>Built-in error signal</td>
+<td>Framing, optional parity</td>
+<td>None</td>
+<td>ACK/NACK per byte</td>
+</tr>
+</tbody>
+</table></div>
+<p>I2C wins on pins: five sensors still need only two wires. The catch is addresses. Two identical sensors usually have the same address, and many parts offer only one or two address-select pins. If you need four of the same part on one bus, check the datasheet first; you may need two buses or a multiplexer. SPI has no such problem, since each device simply gets its own CS line, but on a small microcontroller five extra CS pins can be what runs out first.</p>
+<h2 id="bandwidth-worked-per-sample">Bandwidth, worked per sample</h2>
+<p>Take an accelerometer that produces three 16-bit axes at 1000 samples per second. That is 6 bytes per sample and 6000 bytes per second of payload. The interesting question is not "is the bus fast enough" but "how much of the bus does one sensor use".</p>
+<p><strong>I2C at 400 kHz.</strong> A typical register read is: address with write bit, register number, a repeated start, address with read bit, then six data bytes. That is 9 bytes, each 9 clocks long including its acknowledge bit, so 81 clocks plus a few for the start, repeated start and stop conditions. At 400 kHz, 81 clocks take 202.5 µs. At 1000 reads per second, this one sensor occupies about 20 % of the bus, before any time the firmware spends between transfers. Add a magnetometer and a gyroscope on the same bus and you are past half.</p>
+<p><strong>SPI at 8 MHz.</strong> One command byte plus six data bytes is 56 clocks, which take 7 µs. Even with chip-select set-up time and software overhead, the bus is idle almost all the time.</p>
+<p><strong>UART at 115200 baud.</strong> A module that sends 6 bytes plus, say, a 2-byte header and a checksum byte per sample needs 9 bytes × 10 bits × 1000 per second, which is 90,000 bits per second: it fits, but with less than 30 % to spare. UART suits sensors that report a few times a second, not a kilohertz stream.</p>
+<p>The numbers are illustrative; take the real transfer format from your sensor's datasheet and redo the arithmetic, which takes two minutes and is worth putting in your design notes.</p>
+<h2 id="distance-and-wiring">Distance and wiring</h2>
+<p>All three were designed for connections on one board or between nearby boards.</p>
+<ul>
+<li><strong>I2C</strong> edges rise through the pull-up resistor charging the bus capacitance, so long wires slow the edges until the bus fails at speed. The specification limits total bus capacitance (400 pF for standard and fast modes), which in practice means short traces and short cables.</li>
+<li><strong>SPI</strong> uses push-pull drivers and fast edges. At several megahertz over a ribbon cable, reflections and crosstalk on SCLK cause double-clocking. Lower the clock, add series resistors near the drivers, and keep ground next to the clock.</li>
+<li><strong>UART</strong> at logic levels is also a short-distance link, but it is the easiest to extend: add RS-232 or RS-485 transceivers and the same firmware works over metres of cable, which is why off-board sensor modules favour it.</li>
+</ul>
+<h2 id="knowing-when-something-failed">Knowing when something failed</h2>
+<p>This is the question beginners skip and maintainers care about most.</p>
+<ul>
+<li><strong>I2C</strong> tells you when a device does not answer: no acknowledge after the address. That catches a missing sensor, a wrong address or a broken wire. It does not catch corrupted data bits.</li>
+<li><strong>SPI</strong> tells you nothing. A disconnected MISO line floats or is pulled to one level, so reads return all zeros or all ones, which look like valid data. Read an identity register at start-up and periodically, and check that values stay within physical limits. Some sensors offer an optional CRC on SPI; use it if available.</li>
+<li><strong>UART</strong> flags framing and parity errors in a status register, but the robust check is at message level: a header, a length and a checksum or CRC on every frame.</li>
+</ul>
+<h2 id="a-decision-for-a-typical-board">A decision for a typical board</h2>
+<p>For a small board with an MCU, a temperature and humidity sensor, a pressure sensor and an accelerometer sampled at 1 kHz: put the two slow environmental sensors on I2C, where they share two pins and report a few times a second, and give the accelerometer SPI, where its stream uses a tiny fraction of the bus and cannot delay the others. If a navigation module joins later, it gets a UART. Mixing buses by need is normal, and it keeps one fast device from starving the rest.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>For one sensor you plan to use, write out its read transaction from the datasheet and compute the bus time per sample at two clock speeds, as above.</li>
+<li>Capture an I2C and an SPI transfer with a cheap logic analyser and the open-source sigrok PulseView, enable the protocol decoders, and count the clocks per transfer. Compare with your calculation.</li>
+<li>Unplug the sensor during a capture and note how each bus behaves: a NACK on I2C, plausible-looking data on SPI.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>uart</li><li>spi</li><li>i2c</li><li>sensors</li><li>serial protocols</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="timers-pwm-and-input-capture.html"><span>Previous in Embedded systems</span>Timers in practice: PWM output, input capture and the prescaler arithmetic</a><a class="next" href="unit-testing-firmware-on-the-host.html"><span>Next in Embedded systems</span>Unit testing firmware on your laptop: separating logic from hardware</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="recovering-a-stuck-i2c-bus.html">Why an I2C bus gets stuck low, and how firmware recovers it</a></h3>
+          <p>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="writing-a-small-device-driver.html">Writing a small device driver: the layers between a register and an API</a></h3>
+          <p>Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

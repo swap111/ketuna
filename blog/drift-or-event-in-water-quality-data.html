@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telling sensor drift from real events in water quality data · Ketuna blog</title>
+  <meta name="description" content="A water quality reading can change because the water changed or because the sensor did. Moving statistics, reference checks and a few explainable rules separate slow drift from genuine events.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Telling sensor drift from real events in water quality data · Ketuna blog">
+  <meta property="og:description" content="A water quality reading can change because the water changed or because the sensor did. Moving statistics, reference checks and a few explainable rules separate slow drift from genuine events.">
+  <link rel="canonical" href="https://ketuna.online/blog/drift-or-event-in-water-quality-data.html">
+  <meta property="og:url" content="https://ketuna.online/blog/drift-or-event-in-water-quality-data.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Telling sensor drift from real events in water quality data",
+  "description": "A water quality reading can change because the water changed or because the sensor did. Moving statistics, reference checks and a few explainable rules separate slow drift from genuine events.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "water quality, sensor drift, anomaly detection, time series, explainable models",
+  "articleSection": "Edge AI",
+  "wordCount": 929,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/drift-or-event-in-water-quality-data.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Telling sensor drift from real events in water quality data</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A water quality reading can change because the water changed or because the sensor did. Moving statistics, reference checks and a few explainable rules separate slow drift from genuine events.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-different-shapes-of-change">Two different shapes of change</a></li><li><a href="#moving-statistics-short-against-long">Moving statistics: short against long</a></li><li><a href="#reference-checks-expose-drift-directly">Reference checks expose drift directly</a></li><li><a href="#small-explainable-rules-first">Small, explainable rules first</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A sensor node in a tank, canal or treatment plant reports pH, conductivity, dissolved oxygen or turbidity every few minutes. When a reading moves, someone has to decide whether the water changed, which may need action, or whether the sensor changed, which needs maintenance. Electrochemical and optical water sensors drift as their membranes age, their electrodes foul and biofilm grows on their windows. A system that cannot tell the two apart either raises false alarms until people ignore it, or slowly absorbs real problems into a drifting baseline. Simple, explainable methods handle most of this before any neural network is needed.</p>
+<h2 id="two-different-shapes-of-change">Two different shapes of change</h2>
+<p>Drift and events usually differ in <strong>speed</strong>, and that is the most useful clue.</p>
+<ul>
+<li><strong>Sensor drift</strong> is slow and steady: a pH electrode reading creeps upward by a small amount each day, or a turbidity sensor rises as its window fouls. It continues in one direction for days or weeks.</li>
+<li><strong>A real event</strong> is usually fast: a discharge, a dosing fault or a storm runoff changes the water within minutes to hours, and often recovers when the cause passes.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="wq-title wq-desc" font-size="14">
+<title id="wq-title">Slow drift compared with a fast event</title>
+<desc id="wq-desc">A time series of a sensor reading over thirty days. The baseline rises slowly and steadily, which is drift. Around day sixteen the reading drops sharply for a few hours and recovers, which is an event.</desc>
+<line x1="50" y1="180" x2="460" y2="180" class="dg-line"/>
+<line x1="50" y1="30" x2="50" y2="180" class="dg-line"/>
+<text x="255" y="205" text-anchor="middle" class="dg-muted">time (30 days)</text>
+<text x="15" y="110" class="dg-muted">pH</text>
+<path d="M50,120 L262,100 L264,150 L268,150 L270,99 L460,82" class="dg-line" stroke-width="2"/>
+<path d="M50,120 L460,82" class="dg-dash"/>
+<text x="330" y="70" class="dg-text">slow drift</text>
+<path d="M266,152 V168" class="dg-amber-line" stroke-width="2"/>
+<text x="285" y="165" class="dg-text">fast event</text>
+</svg>
+<figcaption>Drift tilts the whole baseline over weeks; an event departs from the baseline within hours and comes back.</figcaption>
+</figure>
+
+<p>Speed alone is not proof. A sensor can fail suddenly (a cracked electrode, an air bubble on an optical window), and real conditions can change slowly (seasonal temperature, gradual contamination). So you combine several clues, each simple enough to explain to the person who will act on the alert.</p>
+<h2 id="moving-statistics-short-against-long">Moving statistics: short against long</h2>
+<p>Compare a <strong>short-window</strong> summary with a <strong>long-window</strong> baseline. The short window, say the mean of the last hour, follows the water quickly. The long window, say the median of the last day, changes slowly and, because it is a median, is barely moved by a few hours of unusual readings. A real event shows up as a large gap between them. Drift moves both together, so the gap stays small.</p>
+<pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(0)
+n = 30 * 24 * 4                               # 30 days, every 15 min
+t_days = np.arange(n) / 96
+ph = 7.2 + 0.02 * rng.standard_normal(n)      # water plus noise
+ph += 0.01 * t_days                           # slow sensor drift
+ph[1500:1524] -= 0.5                          # a 6-hour real event
+
+def rolling(x, w, fn):
+    out = np.full_like(x, np.nan)
+    for i in range(w, len(x)):
+        out[i] = fn(x[i - w:i])
+    return out
+
+short = rolling(ph, 4, np.mean)               # last hour
+long_ = rolling(ph, 96, np.median)            # last day
+event = np.abs(short - long_) &gt; 0.15
+print(&quot;flagged samples:&quot;, np.flatnonzero(event))
+
+slope = np.polyfit(t_days, ph, 1)[0]
+print(f&quot;long-term slope: {slope:.4f} pH per day&quot;)
+</code></pre>
+<p>On this synthetic data, made up for illustration, the rule flags a continuous run of samples starting half an hour into the event and ending shortly after it, with no false alarms over the 30 days, even though the baseline drifted by 0.3 pH over the month. The fitted slope of about 0.01 pH per day recovers the drift that was built in. The numbers you choose (window lengths, the 0.15 threshold) should come from your own site's normal variability, measured over a period you know was quiet.</p>
+<h2 id="reference-checks-expose-drift-directly">Reference checks expose drift directly</h2>
+<p>Statistics can suggest drift; a <strong>reference check</strong> measures it. Common approaches:</p>
+<ul>
+<li><strong>Calibration checks.</strong> At a fixed interval, a technician places the sensor in a standard solution of known value, or an automatic system flushes one past it. The difference between reading and known value is the drift, and it is logged.</li>
+<li><strong>A second sensor.</strong> Two sensors of the same kind side by side, or a portable instrument used during site visits. Water changes affect both; drift usually affects one.</li>
+<li><strong>Physical consistency.</strong> Some parameters are linked. A genuine pollution event often moves several readings together, such as conductivity and turbidity, while drift typically affects one sensor alone. A sudden change in one parameter with no movement in related ones is a hint to suspect the sensor.</li>
+</ul>
+<p>Each check gives the decision a reason a human can verify, which matters when the alert might stop a pump or trigger a report.</p>
+<h2 id="small-explainable-rules-first">Small, explainable rules first</h2>
+<p>Put the clues together as a short set of rules:</p>
+<ol>
+<li>If the short-long gap exceeds its threshold <strong>and</strong> a related parameter also moved: report a probable <strong>event</strong>.</li>
+<li>If the gap exceeds its threshold but no related parameter moved: report a <strong>possible sensor fault</strong>, and ask for a check.</li>
+<li>If the long-term slope since the last calibration exceeds a limit, or the last reference check was off by more than a tolerance: schedule <strong>maintenance</strong> for drift.</li>
+<li>Otherwise: normal.</li>
+</ol>
+<p>Every alert then comes with its reason ("pH dropped 0.5 within an hour while conductivity also rose"), and every threshold can be tuned by someone who understands the site. A small decision tree trained on labelled history can refine the thresholds and stays just as readable. A neural network becomes worth considering only once you have plenty of labelled events and the simple rules demonstrably miss them.</p>
+<p>All of this fits easily on a microcontroller at the sensor node: a few running sums for the short mean, a buffer of a day's readings for the median (or a cheaper running estimate), and some comparisons. Doing it locally means the node can send a short alert immediately and only summary data the rest of the time.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>using a long-window mean instead of a median, so the event itself drags the baseline and hides</li>
+<li>re-zeroing the baseline automatically and absorbing real slow contamination as "drift"</li>
+<li>setting thresholds from a datasheet instead of the site's measured normal variability</li>
+<li>skipping reference checks because the statistics look fine</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script, then make the event slower (spread the drop over two days) and see when the short-long rule stops catching it.</li>
+<li>Add a second, independent synthetic sensor that sees the event but not the drift, and implement rule 2.</li>
+<li>Find a public water quality dataset from a monitoring agency, plot one parameter over a year, and mark where you think calibrations happened from the jumps in the data.</li>
+<li>Port the short-mean and long-median logic to C with fixed-size buffers and compare its flags with the Python version on the same data.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>water quality</li><li>sensor drift</li><li>anomaly detection</li><li>time series</li><li>explainable models</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sensor-fusion-for-orientation.html"><span>Previous in Edge AI</span>Sensor fusion basics: complementary and Kalman filters for orientation</a><a class="next" href="treating-models-like-firmware.html"><span>Next in Edge AI</span>Treating models like firmware: versioning, tests and CI for edge AI</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="vibration-anomaly-detection-on-mcu.html">Detecting machine anomalies from vibration on a microcontroller</a></h3>
+          <p>Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

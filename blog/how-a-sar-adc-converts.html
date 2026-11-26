@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How a SAR ADC converts: binary search with a capacitor DAC · Ketuna blog</title>
+  <meta name="description" content="A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How a SAR ADC converts: binary search with a capacitor DAC · Ketuna blog">
+  <meta property="og:description" content="A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.">
+  <link rel="canonical" href="https://ketuna.online/blog/how-a-sar-adc-converts.html">
+  <meta property="og:url" content="https://ketuna.online/blog/how-a-sar-adc-converts.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How a SAR ADC converts: binary search with a capacitor DAC",
+  "description": "A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sar adc, data converters, capacitor dac, mixed signal",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 960,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/how-a-sar-adc-converts.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>How a SAR ADC converts: binary search with a capacitor DAC</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-algorithm-guess-compare-keep-or-clear">The algorithm: guess, compare, keep or clear</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#the-capacitor-dac-does-two-jobs">The capacitor DAC does two jobs</a></li><li><a href="#why-the-capacitor-array-sets-the-accuracy">Why the capacitor array sets the accuracy</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The successive-approximation register (SAR) ADC is the converter inside most microcontrollers and a large share of sensor interfaces. It hits a useful middle ground: moderate speed, resolutions from 8 to 16 bits, low power and small area, all from one comparator, an array of capacitors and a small block of logic. The way it converts is a binary search, the same algorithm you use to guess a number between 1 and 100 in seven questions. The interesting engineering is in how the capacitors make the "guess" voltages and why their matching decides accuracy.</p>
+<h2 id="the-algorithm-guess-compare-keep-or-clear">The algorithm: guess, compare, keep or clear</h2>
+<p>An N-bit SAR conversion has three phases.</p>
+<ol>
+<li><strong>Sample.</strong> The input voltage is captured onto a capacitor and held. From now on the input may change; the converter works on the held copy.</li>
+<li><strong>Bit trials.</strong> Starting with the most significant bit (MSB), the logic tentatively sets the bit to 1 and asks a digital-to-analog converter (DAC) for the corresponding voltage. A comparator checks whether the held input is above or below it. If above, the bit stays 1; if below, it is cleared to 0. Then the next bit is tried, with all previous decisions kept.</li>
+<li><strong>Done.</strong> After N trials, the register holds the code.</li>
+</ol>
+<p>Each trial halves the uncertainty, so N bits take N comparator decisions. That is why a SAR converter's conversion time grows linearly with resolution and why it needs an internal clock running several times faster than the sample rate.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>A 6-bit SAR with a 3.2 V reference has an LSB of 3.2 / 64 = 50 mV. Convert a held input of 2.13 V:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Trial</th>
+<th>Code tried</th>
+<th>DAC voltage</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bit 5 (MSB)</td>
+<td>100000</td>
+<td>1.600 V</td>
+<td>2.13 ≥ 1.60, keep</td>
+</tr>
+<tr>
+<td>Bit 4</td>
+<td>110000</td>
+<td>2.400 V</td>
+<td>2.13 &lt; 2.40, clear</td>
+</tr>
+<tr>
+<td>Bit 3</td>
+<td>101000</td>
+<td>2.000 V</td>
+<td>keep</td>
+</tr>
+<tr>
+<td>Bit 2</td>
+<td>101100</td>
+<td>2.200 V</td>
+<td>clear</td>
+</tr>
+<tr>
+<td>Bit 1</td>
+<td>101010</td>
+<td>2.100 V</td>
+<td>keep</td>
+</tr>
+<tr>
+<td>Bit 0</td>
+<td>101011</td>
+<td>2.150 V</td>
+<td>clear</td>
+</tr>
+</tbody>
+</table></div>
+<p>The result is 101010, decimal 42, which represents 42 × 50 mV = 2.10 V, the largest code step at or below the input.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 270" role="img" aria-labelledby="sar-title sar-desc" font-size="14">
+<title id="sar-title">DAC voltage converging on the held input during six bit trials</title>
+<desc id="sar-desc">A staircase of six DAC trial voltages: 1.6, 2.4, 2.0, 2.2, 2.1 and 2.15 volts, plotted against trial number. A dashed horizontal line marks the held input at 2.13 volts. Each trial lands closer to the line, alternating above and below it. The decided bits 1, 0, 1, 0, 1, 0 are written under the trials.</desc>
+<line x1="50" y1="230" x2="460" y2="230" class="dg-line"/>
+<line x1="50" y1="230" x2="50" y2="30" class="dg-line"/>
+<line x1="50" y1="103" x2="460" y2="103" class="dg-dash"/>
+<text x="390" y="96" class="dg-text">input 2.13 V</text>
+<path d="M60,172 H120 V68 H185 V120 H250 V94 H315 V107 H380 V100 H445" class="dg-amber-line" stroke-width="2" fill="none"/>
+<text x="72" y="190" class="dg-muted">1.60</text>
+<text x="135" y="60" class="dg-muted">2.40</text>
+<text x="200" y="140" class="dg-muted">2.00</text>
+<text x="265" y="86" class="dg-muted">2.20</text>
+<text x="330" y="127" class="dg-muted">2.10</text>
+<text x="392" y="122" class="dg-muted">2.15</text>
+<text x="85" y="252" class="dg-text">1</text>
+<text x="150" y="252" class="dg-text">0</text>
+<text x="215" y="252" class="dg-text">1</text>
+<text x="280" y="252" class="dg-text">0</text>
+<text x="345" y="252" class="dg-text">1</text>
+<text x="410" y="252" class="dg-text">0</text>
+<text x="8" y="40" class="dg-text">V</text>
+<text x="190" y="268" class="dg-muted">bit decided per trial</text>
+</svg>
+<figcaption>Each trial halves the remaining range; the DAC voltage closes in on the held input from both sides.</figcaption>
+</figure>
+
+<h2 id="the-capacitor-dac-does-two-jobs">The capacitor DAC does two jobs</h2>
+<p>In a CMOS SAR the DAC is usually an array of binary-weighted capacitors: C, 2C, 4C and so on up to 2<sup>N−1</sup>C, plus one extra unit capacitor so the total is exactly 2<sup>N</sup>C. All the top plates connect to the comparator input.</p>
+<p>During sampling, the bottom plates connect to the input voltage, so the array stores a charge proportional to V<sub>in</sub>; the array <em>is</em> the sample-and-hold. During the bit trials, the top plates are left floating, so the stored charge cannot escape, and the bottom plates switch to either the reference or ground according to the trial code. Because charge is conserved, the top-plate voltage becomes:</p>
+<blockquote>
+<p>V<sub>top</sub> = −V<sub>in</sub> + V<sub>ref</sub> × (capacitance switched to V<sub>ref</sub>) / C<sub>total</sub></p>
+</blockquote>
+<p>The comparator only needs to check the sign of V<sub>top</sub>. Switching the 32C capacitor alone gives V<sub>ref</sub> × 32/64, half of full scale: exactly the MSB trial. This is called <strong>charge redistribution</strong>, and it is attractive because capacitors draw no static current and are among the best-matched components on a chip.</p>
+<h2 id="why-the-capacitor-array-sets-the-accuracy">Why the capacitor array sets the accuracy</h2>
+<p>The DAC's voltages are ratios of capacitances, so the converter is only as linear as those ratios are accurate. The worst place is the middle of the range. Going from code 011111 to 100000 switches off every capacitor except the MSB and switches the MSB on. Ideally the MSB equals the sum of all the smaller ones plus one unit. If the MSB is 1 % too large, it carries 0.32 units of extra capacitance, and the step from code 31 to code 32 is 1.32 LSB instead of 1: a DNL error of about +0.32 LSB right at mid-scale. If it is too small by enough, the step shrinks towards zero and a code goes missing.</p>
+<p>The model below makes this concrete; set <code>msb_error=0.01</code> and sweep the input to see the wide mid-scale code.</p>
+<pre><code class="language-python">def sar_convert(vin, vref=3.2, nbits=6, msb_error=0.0, trace=False):
+    &quot;&quot;&quot;Model a SAR ADC with a binary-weighted capacitor DAC.&quot;&quot;&quot;
+    caps = [2 ** i for i in range(nbits)]   # C, 2C, ..., 32C (LSB first)
+    caps[-1] *= 1 + msb_error               # mismatch on the MSB cap
+    c_total = sum(caps) + 1                 # plus the unit dummy cap
+    code = 0
+    for bit in reversed(range(nbits)):      # MSB first
+        trial = code | (1 &lt;&lt; bit)
+        on = sum(c for i, c in enumerate(caps) if trial &gt;&gt; i &amp; 1)
+        v_dac = vref * on / c_total
+        keep = vin &gt;= v_dac                 # the comparator decision
+        if keep:
+            code = trial
+        if trace:
+            print(f&quot;bit {bit}: try {trial:06b}  DAC {v_dac:.3f} V  &quot;
+                  f&quot;{'keep' if keep else 'clear'}&quot;)
+    return code
+
+print(&quot;result:&quot;, sar_convert(2.13, trace=True))
+</code></pre>
+<p>Designers fight mismatch by building every capacitor from identical unit cells placed in a common-centroid pattern, and at high resolution by calibrating the capacitor weights digitally. The array cannot be made arbitrarily small either. Sampling onto a capacitor freezes thermal noise with an rms value of √(kT/C): about 64 µV for 1 pF at room temperature. That is harmless for 12 bits on 3.3 V (LSB about 0.8 mV) but comparable to an LSB at 16 bits, so higher resolution forces a larger array, more area and more power in the drivers.</p>
+<p>Other practical limits:</p>
+<ul>
+<li><strong>Comparator offset and noise</strong> add directly to the decision threshold; offset only shifts the transfer curve, but noise causes wrong decisions on nearby codes.</li>
+<li><strong>Reference settling:</strong> each trial switches capacitors on the reference, drawing charge. If the reference has not settled before the comparator fires, the decision is wrong. Reference buffering is often harder than the comparator.</li>
+<li><strong>Input drive:</strong> the source must charge the whole array within the sampling time, which is why datasheets limit source impedance or recommend a buffer.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python model, then sweep <code>vin</code> from 0 to 3.2 V in fine steps with <code>msb_error=0.01</code> and <code>-0.04</code>. Compute the width of each code and find the mid-scale DNL.</li>
+<li>Write the SAR control logic in <strong>Verilog</strong> (a shift register plus a code register driven by a comparator input), simulate it with <strong>Icarus Verilog</strong> against a behavioural comparator, and check that six clocks give the codes in the table.</li>
+<li>In <strong>ngspice</strong>, build a 4-bit charge-redistribution array with ideal switches and capacitors, and watch the top-plate voltage step through the trials.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sar adc</li><li>data converters</li><li>capacitor dac</li><li>mixed signal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="how-a-cmos-wafer-is-made.html"><span>Previous in Analog &amp; mixed-signal</span>How a CMOS wafer is made: the fabrication steps every designer should picture</a><a class="next" href="bandgap-reference-intuition.html"><span>Next in Analog &amp; mixed-signal</span>How a bandgap reference makes a voltage that ignores temperature</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="analog-and-digital-on-one-die.html">Putting analog and digital on one die: substrate noise, supplies and isolation</a></h3>
+          <p>Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

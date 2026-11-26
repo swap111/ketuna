@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The MOSFET in three regions: an intuition-first guide · Ketuna blog</title>
+  <meta name="description" content="A MOSFET is off, behaves like a resistor, or behaves like a current source, depending on two voltages. Build the picture with water flow first, then the square-law equations and a worked example.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The MOSFET in three regions: an intuition-first guide · Ketuna blog">
+  <meta property="og:description" content="A MOSFET is off, behaves like a resistor, or behaves like a current source, depending on two voltages. Build the picture with water flow first, then the square-law equations and a worked example.">
+  <link rel="canonical" href="https://ketuna.online/blog/mosfet-in-three-regions.html">
+  <meta property="og:url" content="https://ketuna.online/blog/mosfet-in-three-regions.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The MOSFET in three regions: an intuition-first guide",
+  "description": "A MOSFET is off, behaves like a resistor, or behaves like a current source, depending on two voltages. Build the picture with water flow first, then the square-law equations and a worked example.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "mosfet, transistors, square law, analog basics",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1041,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/mosfet-in-three-regions.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>The MOSFET in three regions: an intuition-first guide</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A MOSFET is off, behaves like a resistor, or behaves like a current source, depending on two voltages. Build the picture with water flow first, then the square-law equations and a worked example.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-device-in-one-paragraph">The device in one paragraph</a></li><li><a href="#a-water-flow-picture">A water-flow picture</a></li><li><a href="#the-square-law-equations">The square-law equations</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#where-the-square-law-stops-being-true">Where the square law stops being true</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every chip you will ever design is made of MOSFETs, and almost every confusing simulation result in a first analog circuit comes down to one question: which region is this transistor in? A MOSFET can be off, it can act like a voltage-controlled resistor, or it can act like a current source. Learn to tell these three apart at a glance and the equations stop feeling arbitrary.</p>
+<h2 id="the-device-in-one-paragraph">The device in one paragraph</h2>
+<p>An NMOS transistor has four terminals. The <strong>source</strong> and <strong>drain</strong> are two n-type regions in a p-type <strong>body</strong>. Between them, over a thin insulating oxide, sits the <strong>gate</strong>. With no gate voltage, source and drain are separated by p-type silicon and no current flows. Raise the gate voltage relative to the source (V<sub>GS</sub>) and the gate's electric field pulls electrons to the surface under the oxide. Above a certain <strong>threshold voltage</strong> V<sub>TH</sub>, those electrons form a thin conducting <strong>channel</strong> that joins source to drain. A PMOS device is the mirror image, with holes instead of electrons and all the voltage signs reversed.</p>
+<p>The amount by which V<sub>GS</sub> exceeds the threshold is called the <strong>overdrive voltage</strong>:</p>
+<blockquote>
+<p>V<sub>OV</sub> = V<sub>GS</sub> − V<sub>TH</sub></p>
+</blockquote>
+<p>Overdrive is the single most useful number in hand analysis. It says how strongly the channel is formed.</p>
+<h2 id="a-water-flow-picture">A water-flow picture</h2>
+<p>Picture the source as a water tank and the drain as a lower tank, joined by a channel with a sluice gate. The gate voltage sets how high the sluice gate is lifted, which sets how deep the water in the channel can be. The drain voltage sets how far the downstream tank sits below the source tank.</p>
+<ul>
+<li><strong>Cut-off:</strong> the sluice gate is shut (V<sub>GS</sub> below V<sub>TH</sub>). No channel, almost no flow, whatever the tank heights. A tiny seepage remains; in a real transistor this is subthreshold leakage, which grows exponentially as V<sub>GS</sub> approaches V<sub>TH</sub>.</li>
+<li><strong>Triode:</strong> the gate is open and the downstream tank is only a little lower (small V<sub>DS</sub>). Water depth is nearly even along the channel, and flow is roughly proportional to the height difference. The channel behaves like a resistor whose value the gate controls.</li>
+<li><strong>Saturation:</strong> lower the downstream tank further and the water at the drain end of the channel gets shallower until it "pinches off". Beyond that point, dropping the downstream tank more does not increase the flow much, because the flow is now limited by how much water the gate lets into the channel. The transistor acts like a current source set by V<sub>GS</sub>.</li>
+</ul>
+<p>The boundary between triode and saturation is where the drain end pinches off: V<sub>DS</sub> = V<sub>OV</sub>.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 270" role="img" aria-labelledby="m3-title m3-desc" font-size="14">
+<title id="m3-title">NMOS drain current against drain-source voltage</title>
+<desc id="m3-desc">Three curves of drain current against drain-source voltage for increasing gate voltages. Each curve rises steeply in the triode region on the left, then flattens in the saturation region on the right. A dashed parabola marks the boundary where drain-source voltage equals overdrive.</desc>
+<rect x="60" y="20" width="400" height="210" class="dg-track" fill-opacity="0.15"/>
+<line x1="60" y1="230" x2="460" y2="230" class="dg-line"/>
+<line x1="60" y1="230" x2="60" y2="20" class="dg-line"/>
+<text x="400" y="255" class="dg-text">VDS</text>
+<text x="8" y="35" class="dg-text">ID</text>
+<path d="M60,230 Q90,185 120,180 L450,170" class="dg-line" fill="none"/>
+<path d="M60,230 Q115,130 170,120 L450,105" class="dg-line" fill="none"/>
+<path d="M60,230 Q140,60 220,48 L450,30" class="dg-line" fill="none"/>
+<path d="M60,230 Q140,120 220,48" class="dg-dash" fill="none"/>
+<text x="80" y="80" class="dg-text">triode</text>
+<text x="300" y="150" class="dg-text">saturation</text>
+<text x="70" y="250" class="dg-muted">cut-off: ID ≈ 0 on the axis</text>
+<text x="455" y="185" class="dg-muted" text-anchor="end">low VGS</text>
+<text x="455" y="22" class="dg-muted" text-anchor="end">high VGS</text>
+</svg>
+<figcaption>Left of the dashed boundary (V<sub>DS</sub> &lt; V<sub>OV</sub>) the device is a resistor; right of it, a current source.</figcaption>
+</figure>
+
+<h2 id="the-square-law-equations">The square-law equations</h2>
+<p>For a long-channel NMOS, three regions give three expressions. Here μ<sub>n</sub>C<sub>ox</sub> is a process constant (electron mobility times oxide capacitance per area), W/L is the width-to-length ratio you choose, and λ is a small factor for channel-length modulation.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Region</th>
+<th>Condition</th>
+<th>Drain current I<sub>D</sub></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cut-off</td>
+<td>V<sub>GS</sub> &lt; V<sub>TH</sub></td>
+<td>≈ 0</td>
+</tr>
+<tr>
+<td>Triode</td>
+<td>V<sub>DS</sub> &lt; V<sub>OV</sub></td>
+<td>μ<sub>n</sub>C<sub>ox</sub>(W/L)[V<sub>OV</sub>V<sub>DS</sub> − V<sub>DS</sub><sup>2</sup>/2]</td>
+</tr>
+<tr>
+<td>Saturation</td>
+<td>V<sub>DS</sub> ≥ V<sub>OV</sub></td>
+<td>½μ<sub>n</sub>C<sub>ox</sub>(W/L)V<sub>OV</sub><sup>2</sup>(1 + λV<sub>DS</sub>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two things to notice. First, at V<sub>DS</sub> = V<sub>OV</sub> the triode expression equals the saturation one (with λ = 0), so the curves join smoothly. Second, in saturation V<sub>DS</sub> appears only in the small (1 + λV<sub>DS</sub>) term. That is the mathematical form of "the flow no longer depends much on the downstream tank". The λ term exists because a higher drain voltage shortens the effective channel a little, so current creeps up slowly.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Take an NMOS with μ<sub>n</sub>C<sub>ox</sub> = 200 µA/V<sup>2</sup>, W/L = 5 and V<sub>TH</sub> = 0.5 V. These numbers are made up for illustration and ignore λ. Set V<sub>GS</sub> = 0.8 V, so V<sub>OV</sub> = 0.3 V.</p>
+<ul>
+<li><strong>V<sub>DS</sub> = 1.0 V:</strong> 1.0 ≥ 0.3, so saturation. I<sub>D</sub> = ½ × 200 µA/V<sup>2</sup> × 5 × 0.3<sup>2</sup> = <strong>45 µA</strong>.</li>
+<li><strong>V<sub>DS</sub> = 0.1 V:</strong> 0.1 &lt; 0.3, so triode. I<sub>D</sub> = 200 µA/V<sup>2</sup> × 5 × (0.3 × 0.1 − 0.1<sup>2</sup>/2) = <strong>25 µA</strong>.</li>
+<li><strong>V<sub>DS</sub> = 0.3 V:</strong> right on the boundary. Both formulas give 45 µA.</li>
+</ul>
+<p>Now repeat the first case with the saturation formula applied blindly at V<sub>DS</sub> = 0.1 V: you would predict 45 µA instead of 25 µA, an error of 80 %. Checking the region first is not pedantry.</p>
+<p>A short function makes the decision explicit, and is a good habit to keep beside your simulator:</p>
+<pre><code class="language-python">def nmos_id(vgs, vds, k=200e-6, wl=5, vth=0.5, lam=0.0):
+    &quot;&quot;&quot;Long-channel square-law drain current, in amperes.&quot;&quot;&quot;
+    vov = vgs - vth
+    if vov &lt;= 0:
+        return 0.0, &quot;cut-off&quot;
+    if vds &lt; vov:
+        return k * wl * (vov * vds - vds**2 / 2), &quot;triode&quot;
+    return 0.5 * k * wl * vov**2 * (1 + lam * vds), &quot;saturation&quot;
+
+for vds in (0.1, 1.0):
+    i, region = nmos_id(0.8, vds)
+    print(f&quot;VDS={vds:.1f} V  ID={i*1e6:5.1f} uA  {region}&quot;)
+</code></pre>
+<h2 id="where-the-square-law-stops-being-true">Where the square law stops being true</h2>
+<p>The square law describes long-channel devices. In modern short-channel transistors, carriers hit a speed limit in strong electric fields (<strong>velocity saturation</strong>), so current grows more slowly than V<sub>OV</sub><sup>2</sup>. The threshold also drops as V<sub>DS</sub> rises, an effect called drain-induced barrier lowering. Real design uses detailed compact models such as BSIM inside SPICE.</p>
+<p>So why learn the square law at all? Because it gives you the right <em>shape</em> and roughly the right <em>size</em>, which is what you need to choose a starting bias and to spot a simulation that has gone wrong.</p>
+<p>Common mistakes beginners make:</p>
+<ul>
+<li>Using the saturation formula without checking V<sub>DS</sub> ≥ V<sub>OV</sub></li>
+<li>Forgetting that PMOS equations use V<sub>SG</sub>, V<sub>SD</sub> and |V<sub>TH</sub>|, so every sign flips</li>
+<li>Calling the triode region "linear" and then expecting it to be linear at large V<sub>DS</sub>; the V<sub>DS</sub><sup>2</sup> term bends it</li>
+<li>Confusing MOSFET "saturation" (current is flat) with bipolar "saturation" (the transistor is fully on), which mean nearly opposite things</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install <strong>ngspice</strong> and an open PDK such as sky130. Write a netlist with one <code>sky130_fd_pr__nfet_01v8</code> device and run <code>.dc VDS 0 1.8 0.01 VGS 0.4 1.0 0.2</code> to plot the output curves.</li>
+<li>On each curve, mark the point where V<sub>DS</sub> = V<sub>GS</sub> − V<sub>TH</sub>, using the threshold reported by an <code>op</code> run, and check that the curve flattens there.</li>
+<li>Run the Python function above with your own numbers, then compare its current with the simulator at one bias point. Expect a difference, and write down why.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>mosfet</li><li>transistors</li><li>square law</li><li>analog basics</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="analog-corners-and-monte-carlo.html"><span>Previous in Analog &amp; mixed-signal</span>Simulating an analog block across corners and with Monte Carlo</a><a class="next" href="common-source-amplifier-gain.html"><span>Next in Analog &amp; mixed-signal</span>The common-source amplifier: gain, headroom and the gm-ro trade-off</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="current-mirror-basics.html">Current mirrors: copying a current and why matching matters</a></h3>
+          <p>A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

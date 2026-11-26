@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing the requirements for a BLDC motor controller, from fans to e-mobility · Ketuna blog</title>
+  <meta name="description" content="How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing the requirements for a BLDC motor controller, from fans to e-mobility · Ketuna blog">
+  <meta property="og:description" content="How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.">
+  <link rel="canonical" href="https://ketuna.online/blog/bldc-controller-requirements.html">
+  <meta property="og:url" content="https://ketuna.online/blog/bldc-controller-requirements.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing the requirements for a BLDC motor controller, from fans to e-mobility",
+  "description": "How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bldc, motor control, requirements, power electronics, e-mobility",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1175,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/bldc-controller-requirements.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Writing the requirements for a BLDC motor controller, from fans to e-mobility</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#operating-envelope">Operating envelope</a></li><li><a href="#control-performance">Control performance</a></li><li><a href="#efficiency-at-the-operating-points-that-matter">Efficiency at the operating points that matter</a></li><li><a href="#protection">Protection</a></li><li><a href="#acoustic-noise-and-emc">Acoustic noise and EMC</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A brushless DC (BLDC) motor controller in a ceiling fan and one in an electric scooter share an architecture: a microcontroller, a three-phase inverter, current and position sensing, and a commutation algorithm. Their requirements are very different, and most of the difficulty of a controller project lies in getting those requirements right before the first board. A missed protection case or an efficiency figure quoted at the wrong operating point is far more expensive to fix than a firmware bug. This article walks through the categories of requirement a BLDC controller needs, with examples at both ends of the range.</p>
+<p>Fan controllers run from mains and vehicle controllers handle large stored energy. Both need qualified supervision for testing, and both are subject to safety standards and certification that you must check for your market.</p>
+<h2 id="operating-envelope">Operating envelope</h2>
+<p>Start with the conditions the controller must work across, because every other requirement is stated within them:</p>
+<ul>
+<li><strong>Supply voltage range</strong>, including sag under load and, for vehicles, the rise during regenerative braking. A fan controller sees mains variation and surges; a scooter controller sees a battery voltage that falls with state of charge.</li>
+<li><strong>Speed range</strong> at the motor shaft, and whether reverse is needed.</li>
+<li><strong>Torque or load</strong>: continuous, peak and for how long. A fan's load rises smoothly with speed; a vehicle needs high torque from standstill on a slope.</li>
+<li><strong>Ambient temperature and cooling</strong>: still air inside a fan canopy, or airflow under a vehicle floor with dust and water spray.</li>
+</ul>
+<p>Write each as a number with a condition. "Shall operate from 160 V to 270 V AC" is testable; "shall work on poor supply" is not.</p>
+<h2 id="control-performance">Control performance</h2>
+<p>These describe how well the motor does what it is told:</p>
+<ul>
+<li><strong>Speed regulation:</strong> steady-state error at stated loads, for example within a stated percentage of the set speed from minimum to maximum load.</li>
+<li><strong>Starting:</strong> time to reach set speed, and the ability to start under the worst load. For a vehicle, starting on a slope with a rider; for a fan, starting reliably at low supply voltage.</li>
+<li><strong>Response:</strong> for a vehicle, torque response to the throttle, with limits on jerk for comfort and safety.</li>
+<li><strong>Behaviour at transitions:</strong> reversing, braking, recovery from a supply dip.</li>
+</ul>
+<p>The control method follows from these requirements, not the other way round. Trapezoidal commutation with Hall sensors is simple and robust; sinusoidal or field-oriented control (FOC) gives smoother torque, lower acoustic noise and often better efficiency, at the cost of more computation and better current sensing. Write the performance you need and let the design choose.</p>
+<h2 id="efficiency-at-the-operating-points-that-matter">Efficiency at the operating points that matter</h2>
+<p>Efficiency requirements are often written as a single peak figure, which is close to useless. A fan spends most of its life at medium speeds; a vehicle spends it at part load in traffic. State efficiency at the operating points the product actually uses, and say whether it covers the controller alone or the motor and controller together.</p>
+<p>Efficiency is measured as mechanical output over electrical input. Mechanical power is torque times angular speed. For illustration, a fan motor at 300 rpm delivering 0.8 N·m runs at 300 × 2π / 60 ≈ 31.4 rad/s, so its output is 0.8 × 31.4 ≈ 25.1 W. If the measured input is 30.0 W, system efficiency is 25.1 / 30.0 ≈ 84 %. A requirement might list such points:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement (illustrative values)</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EFF-1</td>
+<td>System efficiency shall be at least 80 % at 300 rpm, 0.8 N·m, 230 V AC</td>
+<td>Test on a dynamometer with a power analyser</td>
+</tr>
+<tr>
+<td>EFF-2</td>
+<td>Standby input power shall not exceed 0.5 W with the motor stopped</td>
+<td>Test</td>
+</tr>
+<tr>
+<td>EFF-3</td>
+<td>Controller losses shall not raise the heatsink above 85 °C at maximum continuous load and 45 °C ambient</td>
+<td>Test in a thermal chamber</td>
+</tr>
+</tbody>
+</table></div>
+<p>Where a national energy labelling scheme applies to the product, its test method and limits become requirements; check the current scheme rather than inventing points.</p>
+<h2 id="protection">Protection</h2>
+<p>Protection requirements are where field failures are prevented. Each needs a detection threshold, a response time and a defined behaviour afterwards:</p>
+<ul>
+<li><strong>Overcurrent:</strong> a fast, cycle-by-cycle current limit in hardware to protect the switches, and a slower thermal-equivalent limit for sustained overload.</li>
+<li><strong>Short circuit</strong> of a phase to another phase or to the supply rails, detected and shut down within the switches' survival time.</li>
+<li><strong>Locked rotor or stall:</strong> detected within a stated time, followed by a defined retry policy and an eventual lock-out, so a jammed fan does not cook its windings.</li>
+<li><strong>Overvoltage</strong>, including regenerative overvoltage when a vehicle brakes or a fan is spun by wind; <strong>undervoltage</strong> with a clean stop rather than erratic running.</li>
+<li><strong>Over-temperature</strong> of switches and motor, with derating before shutdown.</li>
+<li><strong>Phase loss</strong> and sensor faults, such as a failed Hall sensor.</li>
+<li><strong>Reverse polarity</strong> on battery-powered products.</li>
+</ul>
+<p>For vehicles, add the faults that affect safety directly: throttle signal out of range or stuck, loss of communication with the vehicle controller, brake input conflicting with throttle. The required response, such as cutting torque within a stated time, belongs in the requirement. Systems with safety-relevant functions in road vehicles are typically developed against the automotive functional safety standard, ISO 26262, or a standard appropriate to the vehicle class; identify which applies early, because it shapes the whole process.</p>
+<h2 id="acoustic-noise-and-emc">Acoustic noise and EMC</h2>
+<p>Users notice noise long before they notice efficiency. Two sources matter. PWM switching at audible frequencies makes windings whine, so the PWM frequency is usually set above the range of human hearing, around 20 kHz or higher, at the price of more switching loss in the inverter. Torque ripple from commutation produces a hum at multiples of the electrical frequency, which sinusoidal control reduces. Write noise requirements as a sound level at a stated distance and speed, in a stated test environment.</p>
+<p>The inverter's fast switching edges are also an electromagnetic emissions source. A mains fan must meet conducted and radiated emission limits for household appliances; a vehicle controller must meet automotive EMC requirements and must not interfere with other on-board electronics. Include immunity too: surges and fast transients on mains, and load dumps and transients on vehicle supplies.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Efficiency quoted only at its peak.</strong> State it at the points the product uses.</li>
+<li><strong>Protection without response times and recovery behaviour.</strong> "Shall detect stall" is half a requirement.</li>
+<li><strong>Forgetting regeneration.</strong> Braking or a wind-driven fan can push the bus voltage above the switch rating.</li>
+<li><strong>Choosing the control algorithm before the requirements.</strong></li>
+<li><strong>Leaving certification to the end.</strong> EMC and safety findings late in the project force board respins.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a requirements table for a ceiling fan controller and one for a small e-scooter controller, using the categories above, with a verification method for each line.</li>
+<li>Simulate a three-phase inverter driving a simple motor model in <strong>ngspice</strong> or with a Python script, and see how PWM frequency trades switching loss against current ripple.</li>
+<li>Write a stall detector in C for a sensored motor: flag stall when Hall edges stop for a set time while the commanded duty is above a threshold, and test it against recorded or synthetic Hall timings.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bldc</li><li>motor control</li><li>requirements</li><li>power electronics</li><li>e-mobility</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="requirements-that-can-be-tested.html"><span>Previous in Systems &amp; product engineering</span>Writing requirements that can be tested: shall, measurable, one thing each</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bms-system-architecture.html">System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection</a></h3>
+          <p>How to partition a BMS for a small lithium traction pack into cell sensing, current and temperature measurement, balancing, layered protection, precharge and communication, and the trade-offs at each boundary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="requirements-that-can-be-tested.html">Writing requirements that can be tested: shall, measurable, one thing each</a></h3>
+          <p>How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-tamper-and-security.html">Tamper detection and security requirements for an energy meter</a></h3>
+          <p>Turning the threats an electricity meter faces, from opened covers and magnets to neutral tricks, forged data and malicious firmware, into testable requirements for detection, data integrity, secure boot and event logs.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

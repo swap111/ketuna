@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tamper detection and security requirements for an energy meter · Ketuna blog</title>
+  <meta name="description" content="Turning the threats an electricity meter faces, from opened covers and magnets to neutral tricks, forged data and malicious firmware, into testable requirements for detection, data integrity, secure boot and event logs.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Tamper detection and security requirements for an energy meter · Ketuna blog">
+  <meta property="og:description" content="Turning the threats an electricity meter faces, from opened covers and magnets to neutral tricks, forged data and malicious firmware, into testable requirements for detection, data integrity, secure boot and event logs.">
+  <link rel="canonical" href="https://ketuna.online/blog/smart-meter-tamper-and-security.html">
+  <meta property="og:url" content="https://ketuna.online/blog/smart-meter-tamper-and-security.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Tamper detection and security requirements for an energy meter",
+  "description": "Turning the threats an electricity meter faces, from opened covers and magnets to neutral tricks, forged data and malicious firmware, into testable requirements for detection, data integrity, secure boot and event logs.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "smart meter, security, tamper detection, secure boot, requirements",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1104,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/smart-meter-tamper-and-security.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Tamper detection and security requirements for an energy meter</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Turning the threats an electricity meter faces, from opened covers and magnets to neutral tricks, forged data and malicious firmware, into testable requirements for detection, data integrity, secure boot and event logs.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-from-a-threat-list">Start from a threat list</a></li><li><a href="#physical-and-magnetic-tamper">Physical and magnetic tamper</a></li><li><a href="#electrical-tamper">Electrical tamper</a></li><li><a href="#data-integrity-and-authenticity">Data integrity and authenticity</a></li><li><a href="#firmware-authenticity-and-the-event-log">Firmware authenticity and the event log</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An energy meter is a measuring instrument that sits in the home or shop of the person it bills, sometimes for many years, often with nobody watching. Some of the people around it have a financial reason to make it read low, and a connected smart meter adds remote attackers to the list. Its requirements therefore have to cover not just accuracy but tamper detection, the integrity and authenticity of its data and firmware, and a trustworthy record of what happened. This article shows how to turn those threats into requirements an engineer can design to and a lab can test.</p>
+<p>Meters in India are built to the relevant Indian Standards for static energy meters and for smart metering, and utilities add their own specifications; check the current editions for the exact tamper conditions and tests required. Work on mains-connected equipment needs qualified supervision.</p>
+<h2 id="start-from-a-threat-list">Start from a threat list</h2>
+<p>Write the threats down before the requirements, grouped by how the attacker acts:</p>
+<ul>
+<li><strong>Physical:</strong> opening the meter cover or terminal cover, drilling, inserting objects, damaging the display.</li>
+<li><strong>Magnetic:</strong> placing a strong magnet near the meter to saturate a current transformer or disturb the power supply or other magnetic parts.</li>
+<li><strong>Electrical:</strong> bypassing current around the meter, reversing connections, removing or disturbing the neutral, returning current through earth instead of neutral, injecting high voltage or high-frequency noise.</li>
+<li><strong>Data:</strong> altering readings in transit, replaying old messages, impersonating the head-end system to send commands such as disconnect.</li>
+<li><strong>Firmware:</strong> installing modified firmware that under-reports, or rolling back to an older version with a known flaw.</li>
+</ul>
+<p>For each threat, decide whether the meter must <strong>resist</strong> it (keep measuring correctly), <strong>detect</strong> it (record and report), or both. Resisting is better where feasible; detecting is the fallback.</p>
+<h2 id="physical-and-magnetic-tamper">Physical and magnetic tamper</h2>
+<p>Cover-open detection is usually a switch or optical sensor that changes state when the cover moves. The important requirements are about when it works:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TMP-1</td>
+<td>The meter shall detect removal of the main cover and record a timestamped event, including when mains is disconnected</td>
+</tr>
+<tr>
+<td>TMP-2</td>
+<td>A cover-open event shall be latched and remain indicated until cleared by an authorised command</td>
+</tr>
+<tr>
+<td>TMP-3</td>
+<td>The meter shall detect a magnetic field above a defined threshold at any face of the enclosure and record start and end events</td>
+</tr>
+</tbody>
+</table></div>
+<p>The phrase "including when mains is disconnected" in TMP-1 is the one that drives architecture. Attackers open meters with power removed, so detection needs a battery or energy store and a low-power circuit that can log the event, or at least latch it in a way that survives until power returns. That is a power budget and a component choice, decided at concept stage.</p>
+<p>For magnetic tamper, the first defence is resisting it through design: a shunt for current sensing is not affected by external magnets the way a current transformer can be, and switch-mode supplies avoid transformer cores that a magnet could saturate. Hall-effect sensors on the board then detect a strong field so the event is logged even if measurement is unaffected.</p>
+<h2 id="electrical-tamper">Electrical tamper</h2>
+<p>Many electrical tampering methods try to make current flow through the load without flowing through the meter's measuring path. The standard countermeasure is to <strong>measure current in both phase and neutral</strong> on a single-phase meter and compare them. In a healthy installation they are nearly equal. If they differ substantially, some current is returning by another path, or one path is bypassed, and the meter should bill on the larger of the two and record an event.</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+#include &lt;stdbool.h&gt;
+
+#define IMB_PERCENT    10u    /* illustrative: 10 % difference      */
+#define IMB_MIN_mA    500u    /* ignore imbalance at very low load  */
+#define IMB_PERSIST_S  60u    /* must persist this long to log      */
+
+typedef struct { uint32_t secs; bool active; } imb_t;
+
+/* Called once a second with RMS currents in milliamps.
+   Returns the current to use for energy accumulation. */
+uint32_t imbalance_check(imb_t *s, uint32_t i_ph, uint32_t i_n)
+{
+    uint32_t hi = i_ph &gt; i_n ? i_ph : i_n;
+    uint32_t lo = i_ph &gt; i_n ? i_n : i_ph;
+    bool imb = hi &gt;= IMB_MIN_mA &amp;&amp;
+               (uint64_t)(hi - lo) * 100u &gt; (uint64_t)hi * IMB_PERCENT;
+
+    if (imb) {
+        if (s-&gt;secs &lt; IMB_PERSIST_S) s-&gt;secs++;
+        if (s-&gt;secs &gt;= IMB_PERSIST_S &amp;&amp; !s-&gt;active) {
+            s-&gt;active = true;
+            /* log_event(EVT_CURRENT_IMBALANCE_START); */
+        }
+    } else if (s-&gt;active) {
+        s-&gt;active = false;
+        s-&gt;secs = 0;
+        /* log_event(EVT_CURRENT_IMBALANCE_END); */
+    } else {
+        s-&gt;secs = 0;
+    }
+    return hi;   /* bill on the larger current */
+}
+</code></pre>
+<p>The thresholds and persistence time are illustrative; real values come from the applicable standard and utility specification. The persistence counter stops brief, legitimate imbalances, such as a leakage path during a fault, from flooding the log. Similar logic covers a missing neutral (the meter must keep running and measuring from the phase-to-earth path), reverse current, and abnormal voltage.</p>
+<h2 id="data-integrity-and-authenticity">Data integrity and authenticity</h2>
+<p>A checksum such as a CRC detects accidental corruption, but anyone who can change the data can recompute the CRC. Protecting against deliberate changes needs cryptography: a <strong>message authentication code</strong> or authenticated encryption, with keys unique to each meter. Requirements to write include:</p>
+<ul>
+<li>Readings and events sent to the head-end shall be authenticated and encrypted with per-meter keys.</li>
+<li>Commands that change the meter's state, such as disconnect, tariff change or firmware update, shall be accepted only when authenticated, and shall be logged.</li>
+<li>Messages shall carry a counter or timestamp so that replayed old messages are rejected.</li>
+<li>Keys shall be stored so they cannot be read out through the debug port or external memory.</li>
+</ul>
+<p>The IEC 62056 series, widely known as DLMS/COSEM, defines a data model and communication protocols for meters, including security suites, and many utility specifications build on it. Use its mechanisms rather than inventing your own cryptography.</p>
+<h2 id="firmware-authenticity-and-the-event-log">Firmware authenticity and the event log</h2>
+<p>Firmware decides what the meter measures, so modified firmware defeats every other control. <strong>Secure boot</strong> means an immutable first-stage loader verifies a digital signature on the application before running it, using a public key the attacker cannot replace. Add <strong>anti-rollback</strong>: a monotonic version counter in protected storage, so an older, validly signed but flawed image is refused. Firmware updates over the network use the same verification, with a fallback image so that a failed update does not leave the meter dead. Lock the debug port in production.</p>
+<p>The <strong>event log</strong> is what makes detection useful. Requirements should state what is logged (each tamper type, power failures, cover openings, firmware updates, configuration changes, clock changes), what each entry contains (event code, timestamp, relevant values, a monotonic sequence number), how many entries are kept per category and what happens on overflow, and that entries cannot be deleted or altered except by an authenticated, logged command. The sequence number lets the head-end spot missing entries.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Tamper detection that works only when powered.</strong> Attackers remove power first.</li>
+<li><strong>CRC used as security.</strong> It catches noise, not attackers.</li>
+<li><strong>Shared keys across all meters.</strong> One extracted key compromises the fleet.</li>
+<li><strong>Signed firmware without anti-rollback.</strong></li>
+<li><strong>Logs that overwrite tamper events with routine ones.</strong> Keep separate, bounded logs by category.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a threat list for a single-phase meter and, for each threat, a resist or detect requirement with a verification method.</li>
+<li>Compile the imbalance function with <strong>GCC</strong> and write a test harness that feeds it current traces: balanced load, a sustained 30 % imbalance, a short 5-second spike. Check when events would be logged.</li>
+<li>Use Python's <strong>cryptography</strong> library to sign a firmware image with an Ed25519 key, then write the verifier with a version counter and confirm that it rejects a tampered image and an older version.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>smart meter</li><li>security</li><li>tamper detection</li><li>secure boot</li><li>requirements</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="bms-system-architecture.html"><span>Previous in Systems &amp; product engineering</span>System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection</a><a class="next" href="hardware-product-lifecycle.html"><span>Next in Systems &amp; product engineering</span>The hardware product lifecycle from concept to end-of-life</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="requirements-that-can-be-tested.html">Writing requirements that can be tested: shall, measurable, one thing each</a></h3>
+          <p>How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="traceability-from-requirement-to-test.html">Traceability from requirement to test: why it saves projects</a></h3>
+          <p>Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

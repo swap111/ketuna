@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Directed tests or constrained random? Using each where it pays off · Ketuna blog</title>
+  <meta name="description" content="Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Directed tests or constrained random? Using each where it pays off · Ketuna blog">
+  <meta property="og:description" content="Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.">
+  <link rel="canonical" href="https://ketuna.online/blog/directed-or-constrained-random.html">
+  <meta property="og:url" content="https://ketuna.online/blog/directed-or-constrained-random.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Directed tests or constrained random? Using each where it pays off",
+  "description": "Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "constrained random, directed tests, stimulus, seeds, cocotb",
+  "articleSection": "Verification",
+  "wordCount": 984,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/directed-or-constrained-random.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Directed tests or constrained random? Using each where it pays off</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Directed tests pin down the corners you know about; constrained random stimulus explores the ones you did not imagine. Learn when to use each, how to bias random towards corners, and why seeds matter.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-directed-tests-are-good-at">What directed tests are good at</a></li><li><a href="#what-random-stimulus-is-good-at">What random stimulus is good at</a></li><li><a href="#the-arithmetic-of-rare-corners">The arithmetic of rare corners</a></li><li><a href="#biasing-random-towards-corners">Biasing random towards corners</a></li><li><a href="#seeds-make-random-reproducible">Seeds make random reproducible</a></li><li><a href="#a-practical-split">A practical split</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every testbench has to answer one question before it checks anything: what inputs do we send? There are two broad answers. A <strong>directed test</strong> sends a sequence you chose by hand to provoke a specific behaviour. A <strong>constrained random test</strong> lets the computer pick inputs from a set of legal values you describe. Students often treat these as rival schools. In practice every serious verification effort uses both, because each is strong exactly where the other is weak.</p>
+<h2 id="what-directed-tests-are-good-at">What directed tests are good at</h2>
+<p>A directed test encodes a known concern. "Reset in the middle of a transfer." "Write to the FIFO on the same cycle it becomes full." "Add 0x7F and 0x01 and check the overflow flag." You know the exact corner, so you write the exact stimulus and the exact expected result.</p>
+<p>Directed tests are:</p>
+<ul>
+<li><strong>Cheap to understand.</strong> A reviewer reads the test and sees what it proves.</li>
+<li><strong>Fast to hit rare cases.</strong> One test gets you straight to a corner that might take random stimulus a very long time to reach.</li>
+<li><strong>Good as regression anchors.</strong> Once a bug is found, a directed test that reproduces it guarantees it never returns.</li>
+</ul>
+<p>Their weakness is that they test only what you thought of. Bugs, by definition, often live where nobody thought to look: two features interacting, an event on an unusual cycle, an odd ordering of operations.</p>
+<h2 id="what-random-stimulus-is-good-at">What random stimulus is good at</h2>
+<p>Constrained random stimulus explores combinations you did not list. You describe the legal input space ("address is one of four registers, data is any 32-bit value, a write is followed by a read about half the time") and the generator samples from it. Run enough samples and you reach interleavings no one wrote down.</p>
+<p>Random stimulus needs two partners to be useful:</p>
+<ol>
+<li><strong>A self-checking reference.</strong> You cannot hand-write the expected output for a random input, so a model or scoreboard must compute it.</li>
+<li><strong>Coverage.</strong> Random tests do not tell you what they exercised. Coverage counters tell you whether the interesting cases actually happened.</li>
+</ol>
+<h2 id="the-arithmetic-of-rare-corners">The arithmetic of rare corners</h2>
+<p>Consider an 8-bit ALU with two operands, so 65,536 operand pairs. Suppose one bug only shows when both operands are 0xFF. Uniform random stimulus hits that pair with probability 1/65,536 per vector. The chance of hitting it at least once in N vectors is 1 − (1 − 1/65,536)<sup>N</sup>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Vectors N</th>
+<th>Chance of hitting 0xFF, 0xFF at least once</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,000</td>
+<td>about 1.5%</td>
+</tr>
+<tr>
+<td>10,000</td>
+<td>about 14%</td>
+</tr>
+<tr>
+<td>65,536</td>
+<td>about 63%</td>
+</tr>
+<tr>
+<td>200,000</td>
+<td>about 95%</td>
+</tr>
+</tbody>
+</table></div>
+<p>For an 8-bit ALU the honest answer is to test all 65,536 pairs exhaustively. But widen the operands to 32 bits and exhaustive testing is impossible, while uniform random almost never lands on all-ones or on the boundary values that matter. That is why random stimulus must be <strong>constrained and biased</strong>, not uniform.</p>
+<h2 id="biasing-random-towards-corners">Biasing random towards corners</h2>
+<p>A good generator spends a share of its samples on values you suspect are special and the rest on the whole range. Here is a sketch in Python, as you would use in a cocotb test.</p>
+<pre><code class="language-python">import random
+
+CORNERS = [0x00, 0x01, 0x7F, 0x80, 0xFE, 0xFF]
+
+def operand(rng):
+    &quot;&quot;&quot;Mostly corner values, sometimes anything.&quot;&quot;&quot;
+    if rng.random() &lt; 0.3:
+        return rng.choice(CORNERS)
+    return rng.getrandbits(8)
+
+def make_vectors(seed, n):
+    rng = random.Random(seed)       # private generator, fixed seed
+    return [(operand(rng), operand(rng)) for _ in range(n)]
+
+print(make_vectors(seed=1234, n=3))
+</code></pre>
+<p>With 30% of each operand drawn from six corner values, the chance that both operands are 0xFF on one vector is (0.3 × 1/6)<sup>2</sup> = 0.0025, plus a tiny contribution from the uniform part. That is about 1 in 400 instead of 1 in 65,536, and the remaining 70% of samples still roam the full range. The weights here are illustrative; you choose them from your plan and adjust them when coverage shows a hole.</p>
+<p>Constraints also keep stimulus legal. If the protocol forbids a read while a write is pending, the generator must never produce one; otherwise every "failure" it finds is a testbench bug, and the team stops trusting the results.</p>
+<h2 id="seeds-make-random-reproducible">Seeds make random reproducible</h2>
+<p>Random does not have to mean unrepeatable. A pseudo-random generator started from the same seed produces the same sequence every time. That gives you two habits:</p>
+<ul>
+<li><strong>Print the seed at the start of every run.</strong> cocotb prints the seed it gives Python's global <code>random</code> module and lets you set it through an environment variable (<code>COCOTB_RANDOM_SEED</code> in cocotb 2.x, <code>RANDOM_SEED</code> in older releases); if you create your own generator, as in the sketch above, print its seed too.</li>
+<li><strong>Rerun a failure with its seed.</strong> A failing nightly run is useless if you cannot reproduce it. With the seed you get the same stimulus and the same failure on your own machine.</li>
+</ul>
+<p>Use a private <code>random.Random(seed)</code> object instead of the module-level functions when several components draw random numbers. Then adding a new random call in one component does not shift the sequence seen by another, and old seeds keep reproducing old failures for longer.</p>
+<h2 id="a-practical-split">A practical split</h2>
+<p>A sensible small project ends up with roughly this shape:</p>
+<ul>
+<li><strong>Directed tests</strong> for reset values, each documented corner in the plan, and every bug ever fixed</li>
+<li><strong>Constrained random tests</strong> with a self-checking model, run with many seeds, for the bulk of the state space</li>
+<li><strong>Coverage</strong> to decide when the random runs have done enough, and to point at holes that a new directed test or a new constraint should close</li>
+</ul>
+<p>The order matters too. Write a directed smoke test first: it proves that the clock, reset and basic path work, so that random failures later mean something.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write an 8-bit adder with a carry output and a cocotb test that checks it exhaustively over all 65,536 pairs on Icarus Verilog.</li>
+<li>Widen it to 32 bits, replace the exhaustive loop with the biased generator above, and count how often each corner value appears in 10,000 vectors.</li>
+<li>Seed a deliberate bug that only triggers when both operands are all-ones, and compare how many vectors uniform and biased stimulus need to find it.</li>
+<li>Rerun the failing case with the printed seed and confirm the same vector fails.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>constrained random</li><li>directed tests</li><li>stimulus</li><li>seeds</li><li>cocotb</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="debugging-a-failing-test-systematically.html"><span>Previous in Verification</span>Debugging a failing test systematically: from the first mismatch to root cause</a><a class="next" href="equivalence-checking-explained.html"><span>Next in Verification</span>Equivalence checking: proving synthesis did not change your design</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="hardware-regression-in-ci.html">Setting up a hardware regression in CI: seeds, triage and flaky tests</a></h3>
+          <p>Structure a hardware regression as fast per-commit smoke runs and broad nightly random runs, record every seed, group failures by signature, and treat a flaky simulation as a bug in its own right.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

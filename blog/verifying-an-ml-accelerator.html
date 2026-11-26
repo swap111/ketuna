@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verifying an ML accelerator against a numpy golden model · Ketuna blog</title>
+  <meta name="description" content="An ML accelerator is verified like any datapath, against a bit-exact integer reference. Writing that numpy golden model, choosing random and corner tensors, and comparing layer by layer to localise bugs.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Verifying an ML accelerator against a numpy golden model · Ketuna blog">
+  <meta property="og:description" content="An ML accelerator is verified like any datapath, against a bit-exact integer reference. Writing that numpy golden model, choosing random and corner tensors, and comparing layer by layer to localise bugs.">
+  <link rel="canonical" href="https://ketuna.online/blog/verifying-an-ml-accelerator.html">
+  <meta property="og:url" content="https://ketuna.online/blog/verifying-an-ml-accelerator.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Verifying an ML accelerator against a numpy golden model",
+  "description": "An ML accelerator is verified like any datapath, against a bit-exact integer reference. Writing that numpy golden model, choosing random and corner tensors, and comparing layer by layer to localise bugs.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "verification, golden model, cocotb, ml accelerators, scoreboard",
+  "articleSection": "Edge AI",
+  "wordCount": 939,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/verifying-an-ml-accelerator.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Verifying an ML accelerator against a numpy golden model</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An ML accelerator is verified like any datapath, against a bit-exact integer reference. Writing that numpy golden model, choosing random and corner tensors, and comparing layer by layer to localise bugs.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-golden-model-must-be-integer-and-bit-exact">The golden model must be integer and bit-exact</a></li><li><a href="#random-tensors-then-corners">Random tensors, then corners</a></li><li><a href="#compare-layer-by-layer-and-inside-the-layer">Compare layer by layer, and inside the layer</a></li><li><a href="#a-cocotb-test-skeleton">A cocotb test skeleton</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An ML accelerator has an unusual property for a piece of hardware: small arithmetic bugs barely show at the system level. A requantization that rounds the wrong way, or an accumulator that wraps on one rare tile, may cost a fraction of a percent of model accuracy, which looks like noise. Teams that verify by "the model still classifies the test images" ship those bugs. The fix is to treat the accelerator as the integer datapath it is and verify it the way any datapath is verified: against a reference model that defines every bit of every output, with stimulus designed to reach the corners.</p>
+<h2 id="the-golden-model-must-be-integer-and-bit-exact">The golden model must be integer and bit-exact</h2>
+<p>A float model of the network is the wrong reference. Quantized hardware is <em>supposed</em> to differ from float, so a float comparison needs a tolerance, and any tolerance large enough to accept correct rounding also accepts many bugs. The reference has to compute the same integer arithmetic the hardware computes, and agree exactly.</p>
+<p>That forces you to write down the arithmetic precisely, which is valuable in itself: operand widths, how zero points are applied, accumulator width and what happens on overflow, the rounding mode of requantization, the clamp limits with and without a fused ReLU. In numpy, with 64-bit intermediates so the model itself cannot overflow:</p>
+<pre><code class="language-python">import numpy as np
+
+def dense_ref(x, w, b, zx, m0, shift, zy, relu):
+    &quot;&quot;&quot;Bit-exact integer reference for one dense layer.&quot;&quot;&quot;
+    acc = (b.astype(np.int64)
+           + (x.astype(np.int64) - zx) @ w.T.astype(np.int64))
+    assert np.all(np.abs(acc) &lt; 2**31), &quot;accumulator overflow&quot;
+    y = (acc * m0 + (1 &lt;&lt; (shift - 1))) &gt;&gt; shift
+    lo = zy if relu else -128
+    return acc.astype(np.int32), np.clip(y + zy, lo, 127).astype(np.int8)
+</code></pre>
+<p>Two choices here pay off later. The function returns the accumulator as well as the output, so a mismatch can be located before or after requantization. And the overflow check makes the reference <em>refuse</em> inputs the specification does not cover, instead of silently agreeing with hardware that wraps.</p>
+<p>Use one reference for everyone. The same Python model generates expected values for the RTL testbench, checks the firmware driver, and is compared against the training framework's own integer export. If the RTL team and the firmware team each write their own reference, they will eventually disagree and the bug will hide in the gap.</p>
+<h2 id="random-tensors-then-corners">Random tensors, then corners</h2>
+<p><strong>Constrained-random stimulus</strong> is the workhorse: random layer shapes within the supported range, random int8 inputs and weights, random biases, and random quantization parameters (zero points, multipliers and shifts) within their legal ranges. Fix the seed per run and log it, so a failure can be replayed exactly.</p>
+<p>Random data rarely reaches extremes, though. Sums of random products cluster near zero, so accumulators almost never approach their limits, and outputs almost never saturate. Add directed corner cases:</p>
+<ul>
+<li>inputs and weights at their extremes, chosen so that every product has the same sign and the sum is as large as possible</li>
+<li>outputs pushed to both clamp limits, with and without ReLU</li>
+<li>accumulator values that land exactly on a rounding half, to pin down the rounding mode</li>
+<li>shapes that are not multiples of the array or tile size, including a single row, a single column and the largest legal layer</li>
+<li>zero points at both ends of their range</li>
+</ul>
+<p>The zero point deserves special attention. The hardware multiplies (x − z<sub>x</sub>), which spans −255 to 255 and needs <strong>9 bits</strong>, not 8. A classic bug is a subtractor that truncates the difference to 8 bits. It passes every test with z<sub>x</sub> = 0, which is exactly what a lazy test uses. Choose corners in the (x − z<sub>x</sub>) domain: with z<sub>x</sub> = −128, an input of −128 contributes nothing, and the stressful input is 127.</p>
+<h2 id="compare-layer-by-layer-and-inside-the-layer">Compare layer by layer, and inside the layer</h2>
+<p>A whole network is a poor unit for debugging: if the final logits differ, the bug could be in any layer, and errors propagate and mix. Verify in stages:</p>
+<ol>
+<li><strong>Single operations</strong> (one dense layer, one convolution, one pooling) against the reference, with all the stimulus above.</li>
+<li><strong>Internal taps:</strong> compare the accumulator values before requantization as well as the final int8 outputs. A mismatch in accumulators points at the MAC array, operand fetch or tiling; matching accumulators with mismatched outputs point at requantization.</li>
+<li><strong>Whole models layer by layer:</strong> run a real quantized network, dump every intermediate tensor from hardware and reference, and report the first layer and first element that differ.</li>
+</ol>
+<p>A scoreboard that prints "layer 3, output channel 7, position (2, 5): got 41, expected 42, accumulator matched" turns an afternoon of waveform staring into a five-minute fix.</p>
+<h2 id="a-cocotb-test-skeleton">A cocotb test skeleton</h2>
+<p>With cocotb, the testbench is Python, so the golden model plugs in directly. The two helpers that load tensors and read results back depend on your accelerator's interface (registers, memory model or a bus driver), so they are named here but not shown:</p>
+<pre><code class="language-python">import cocotb
+import numpy as np
+from cocotb.clock import Clock
+
+@cocotb.test()
+async def dense_random(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, units=&quot;ns&quot;).start())
+    seed = int(cocotb.RANDOM_SEED)
+    rng = np.random.default_rng(seed)
+    for trial in range(200):
+        n_in = int(rng.integers(1, 257))
+        n_out = int(rng.integers(1, 65))
+        x = rng.integers(-128, 128, n_in, dtype=np.int8)
+        w = rng.integers(-127, 128, (n_out, n_in), dtype=np.int8)
+        b = rng.integers(-2**15, 2**15, n_out, dtype=np.int32)
+        zx = int(rng.integers(-128, 128))
+        m0 = int(rng.integers(2**30, 2**31))
+        shift = int(rng.integers(32, 48))
+        exp_acc, exp_y = dense_ref(x, w, b, zx, m0, shift, 0, False)
+        await load_layer(dut, x, w, b, zx, m0, shift)   # design-specific
+        got_acc, got_y = await read_results(dut, n_out) # design-specific
+        bad = np.flatnonzero(got_y != exp_y)
+        assert bad.size == 0, (
+            f&quot;seed {seed} trial {trial}: first mismatch at {bad[0]}, &quot;
+            f&quot;acc got {got_acc[bad[0]]} exp {exp_acc[bad[0]]}&quot;)
+</code></pre>
+<p>Run it in a regression with many seeds, add the corner-case tests beside it, and collect functional coverage on what matters: shapes at and around tile boundaries, saturation hit at both limits, ReLU on and off, every legal shift.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>comparing against the float model with a tolerance</li>
+<li>testing only with zero points of zero</li>
+<li>verifying only whole-network accuracy, so rare arithmetic bugs average out</li>
+<li>separate reference models for RTL and firmware that drift apart</li>
+<li>random stimulus without directed corners, so accumulators never approach overflow</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write <code>dense_ref</code> and a matching <code>conv2d_ref</code> in numpy, and check both against a float computation on data where the quantization parameters make the result exactly representable.</li>
+<li>Build a small MAC-lane engine in Verilog, simulate it with Icarus Verilog or Verilator under cocotb, and run the random test above with your own <code>load_layer</code> and <code>read_results</code>.</li>
+<li>Introduce the 8-bit zero-point subtraction bug on purpose and confirm which of your tests catch it.</li>
+<li>Export a small int8 model, run it layer by layer through your reference, and compare every intermediate tensor with the inference framework's output.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>verification</li><li>golden model</li><li>cocotb</li><li>ml accelerators</li><li>scoreboard</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="treating-models-like-firmware.html"><span>Previous in Edge AI</span>Treating models like firmware: versioning, tests and CI for edge AI</a><a class="next" href="accelerator-dataflows-compared.html"><span>Next in Edge AI</span>Weight-stationary, output-stationary and row-stationary dataflows compared</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mac-units-and-systolic-arrays.html">MAC units and systolic arrays: how ML accelerators reuse data</a></h3>
+          <p>A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

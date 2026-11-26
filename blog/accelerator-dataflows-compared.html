@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weight-stationary, output-stationary and row-stationary dataflows compared · Ketuna blog</title>
+  <meta name="description" content="An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Weight-stationary, output-stationary and row-stationary dataflows compared · Ketuna blog">
+  <meta property="og:description" content="An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.">
+  <link rel="canonical" href="https://ketuna.online/blog/accelerator-dataflows-compared.html">
+  <meta property="og:url" content="https://ketuna.online/blog/accelerator-dataflows-compared.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Weight-stationary, output-stationary and row-stationary dataflows compared",
+  "description": "An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ml accelerators, dataflow, memory traffic, energy, architecture",
+  "articleSection": "Edge AI",
+  "wordCount": 1198,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/accelerator-dataflows-compared.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Weight-stationary, output-stationary and row-stationary dataflows compared</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-three-tensors-and-their-reuse">The three tensors and their reuse</a></li><li><a href="#weight-stationary-and-output-stationary">Weight-stationary and output-stationary</a></li><li><a href="#counting-buffer-accesses">Counting buffer accesses</a></li><li><a href="#row-stationary-for-convolutions">Row-stationary for convolutions</a></li><li><a href="#choosing-for-a-real-product">Choosing for a real product</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Two accelerators with the same number of MAC units and the same clock can differ several-fold in energy per inference. The difference is rarely in the multipliers. It is in how often each operand is fetched from a large memory versus reused from a register next to the multiplier. The design choice that controls this is the <strong>dataflow</strong>: which of the three tensors, weights, inputs or partial sums, each processing element (PE) holds still while the others move past. Getting it right for your target layers is one of the first architecture decisions on an accelerator, and it is hard to change later.</p>
+<h2 id="the-three-tensors-and-their-reuse">The three tensors and their reuse</h2>
+<p>Write a layer as C = A · W, with A of size M × K (inputs), W of size K × N (weights) and C of size M × N (outputs). For a convolution, M is the number of output positions, K is kernel height × width × input channels and N is the number of output channels. Every MAC touches one element of each tensor, and each tensor has its own natural reuse:</p>
+<ul>
+<li>each <strong>weight</strong> is used M times, once per output position</li>
+<li>each <strong>input</strong> is used N times, once per output channel</li>
+<li>each <strong>output</strong> accumulates K products, so its partial sum is read and written K times</li>
+</ul>
+<p>Off-chip memory, the global on-chip buffer, small local buffers and PE registers form a hierarchy in which each level is far cheaper per access than the one above it. The goal of a dataflow is to serve as many of those uses as possible from the bottom of the hierarchy. No dataflow can keep all three tensors stationary at once, so each one picks.</p>
+<h2 id="weight-stationary-and-output-stationary">Weight-stationary and output-stationary</h2>
+<p><strong>Weight-stationary (WS):</strong> a P × P block of W is loaded into a P × P array, one weight per PE, and stays there while all M input rows stream through. Each weight is fetched from the buffer once and used M times. Partial sums flow through the array and leave at the edge, but because each PE only sees a P-element slice of the K dimension, the partial sums leaving one weight tile are incomplete. They must be stored and added to the results of the next K tile.</p>
+<p><strong>Output-stationary (OS):</strong> each PE owns one output element and keeps its accumulator in place for the whole K reduction. Inputs and weights both stream through, and the finished output leaves once, already complete, ready for requantization at the array edge.</p>
+<h2 id="counting-buffer-accesses">Counting buffer accesses</h2>
+<p>Take M = K = N = 64 on a 16 × 16 array and count accesses to the global buffer, assuming the simplest loop order for each dataflow and that the buffer holds the whole layer. This is a model, not a measurement, but it shows the shape of the trade-off.</p>
+<pre><code class="language-python">def traffic(M, K, N, P):
+    ws = dict(A=M * K * (N // P),          # inputs re-streamed per N tile
+              W=K * N,                     # each weight loaded once
+              psum_wr=M * N * (K // P),    # partial sums out per K tile
+              psum_rd=M * N * (K // P - 1))
+    os_ = dict(A=M * K * (N // P),
+               W=K * N * (M // P),         # weights re-streamed per M tile
+               psum_wr=M * N,              # each output written once
+               psum_rd=0)
+    return ws, os_
+
+print(traffic(64, 64, 64, 16))
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Accesses</th>
+<th>Weight-stationary</th>
+<th>Output-stationary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inputs (int8)</td>
+<td>16,384</td>
+<td>16,384</td>
+</tr>
+<tr>
+<td>Weights (int8)</td>
+<td>4,096</td>
+<td>16,384</td>
+</tr>
+<tr>
+<td>Partial-sum writes (int32)</td>
+<td>16,384</td>
+<td>4,096</td>
+</tr>
+<tr>
+<td>Partial-sum reads (int32)</td>
+<td>12,288</td>
+<td>0</td>
+</tr>
+</tbody>
+</table></div>
+<p>Weight-stationary wins on weights, as its name promises, by a factor of M / P = 4. But it pays with 28,672 partial-sum accesses, and partial sums are 32-bit, so in bytes that is 114,688 bytes against output-stationary's extra 12,288 bytes of weights. Counting every access as bytes, WS moves 135,168 bytes and OS 49,152 bytes for this layer.</p>
+<p>That does not make output-stationary the universal answer. It makes <strong>where the partial sums live</strong> the deciding detail. Real weight-stationary designs place a dedicated accumulator memory right beside the array, sized for M × P partial sums, and loop over K tiles innermost. Then the partial-sum traffic goes to a small, cheap memory next to the adders instead of the global buffer, and the weight saving is kept. The dataflow name tells you what sits in the PE; the loop order and the buffer next to the array tell you the rest.</p>
+<p>Some patterns that follow from the counts:</p>
+<ul>
+<li><strong>Large M</strong> (many output positions, as in early convolution layers on big feature maps) gives each weight many uses, so weight-stationary pays off well.</li>
+<li><strong>Large K</strong> (long reductions, as in deep layers with many input channels) multiplies partial-sum traffic unless outputs are held stationary or accumulated locally.</li>
+<li><strong>M = 1</strong> (a batch-1 dense layer) leaves nothing to reuse weights across. Weight-stationary loads a full tile of weights to use each once; output-stationary uses one row of PEs. Either way the layer is limited by weight bandwidth, which is why small edge accelerators often run dense layers on a separate 1-D lane array.</li>
+</ul>
+<h2 id="row-stationary-for-convolutions">Row-stationary for convolutions</h2>
+<p>Matrix-multiply dataflows treat a convolution after flattening it, which throws away its sliding-window structure: neighbouring outputs share most of their inputs. <strong>Row-stationary</strong> dataflow, introduced in research on energy-efficient convolution accelerators, keeps that structure. Each PE computes a 1-D convolution: it holds one row of filter weights in a small register file, slides along one row of the input feature map, and produces one row of partial sums. The PEs are arranged so that:</p>
+<ul>
+<li>filter rows are reused horizontally across PEs working on different output rows</li>
+<li>input rows are reused diagonally, because input row r contributes to several output rows</li>
+<li>partial sums are accumulated vertically, so a column of PEs adds up the rows of one 2-D convolution</li>
+</ul>
+<p>Instead of maximising the reuse of one tensor, row-stationary balances all three at the register-file level, which is why it does well on convolutions of many shapes. The cost is complexity: a PE needs a register file and control for its sliding window, the mapping of a layer onto the array is a search problem for the compiler, and dense layers fit it poorly.</p>
+<h2 id="choosing-for-a-real-product">Choosing for a real product</h2>
+<p>A dataflow is judged on the actual model, not on one layer. The process is the same each time:</p>
+<ol>
+<li>List every layer's M, K, N (or the full convolution shape) and its MAC share.</li>
+<li>For each candidate dataflow and loop order, count accesses at each memory level, as above, and weight them by relative access cost for your memory sizes and process.</li>
+<li>Add utilisation: a dataflow that saves traffic but leaves half the PEs idle on common shapes loses in latency and leakage.</li>
+<li>Check what the compiler can map. A dataflow that needs a hand-tuned schedule per layer is a maintenance cost.</li>
+</ol>
+<p>Common mistakes:</p>
+<ul>
+<li>comparing dataflows by their names without fixing the loop order and buffer sizes</li>
+<li>forgetting that partial sums are wider than operands, so they cost more bytes per access</li>
+<li>optimising for the largest layer and ignoring the dense layers that dominate latency at batch 1</li>
+<li>counting MACs and ignoring accesses, which is where most of the energy goes</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Extend the <code>traffic</code> function with a weight-stationary variant whose partial sums go to a local accumulator, and report global-buffer and local traffic separately.</li>
+<li>Run it over the layer shapes of a small convolutional network you have trained and plot bytes moved per layer for each dataflow.</li>
+<li>Write a cycle-accurate Python model of a 4 × 4 weight-stationary array and check its output against numpy, as you would for any golden model.</li>
+<li>Explore the open-source Timeloop and Accelergy tools, which model dataflows and energy across mappings, and compare their counts with yours.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ml accelerators</li><li>dataflow</li><li>memory traffic</li><li>energy</li><li>architecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="verifying-an-ml-accelerator.html"><span>Previous in Edge AI</span>Verifying an ML accelerator against a numpy golden model</a><a class="next" href="what-a-tiny-vision-sensor-can-classify.html"><span>Next in Edge AI</span>What a low-cost vision sensor can classify on-chip</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mac-units-and-systolic-arrays.html">MAC units and systolic arrays: how ML accelerators reuse data</a></h3>
+          <p>A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="prototyping-an-ml-accelerator-on-fpga.html">Prototyping a small ML accelerator on an FPGA</a></h3>
+          <p>Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

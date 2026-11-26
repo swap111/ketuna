@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Array, Booth and Wallace: how hardware multipliers trade area for speed · Ketuna blog</title>
+  <meta name="description" content="A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Array, Booth and Wallace: how hardware multipliers trade area for speed · Ketuna blog">
+  <meta property="og:description" content="A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.">
+  <link rel="canonical" href="https://ketuna.online/blog/hardware-multiplier-architectures.html">
+  <meta property="og:url" content="https://ketuna.online/blog/hardware-multiplier-architectures.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Array, Booth and Wallace: how hardware multipliers trade area for speed",
+  "description": "A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "multipliers, booth encoding, wallace tree, datapath",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 1036,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/hardware-multiplier-architectures.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Array, Booth and Wallace: how hardware multipliers trade area for speed</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A multiplier generates partial products, reduces them to two rows and adds those. Compare array reduction, radix-4 Booth recoding and carry-save Wallace and Dadda trees, and where each spends area and delay.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#partial-products-and-the-array-multiplier">Partial products and the array multiplier</a></li><li><a href="#carry-save-reduction-trees">Carry-save reduction trees</a></li><li><a href="#radix-4-booth-recoding">Radix-4 Booth recoding</a></li><li><a href="#comparing-the-three">Comparing the three</a></li><li><a href="#what-this-means-when-you-write-a-b">What this means when you write a * b</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every hardware multiplier, however it is drawn, does three things: it generates partial products, it reduces them to two rows, and it adds those two rows with a fast carry-propagate adder. The named architectures differ in how they handle the first two steps. Booth recoding attacks the number of partial products; Wallace and Dadda trees attack the depth of the reduction. Knowing where each spends area and delay lets you read a synthesis report intelligently and decide when a custom structure is worth the effort.</p>
+<h2 id="partial-products-and-the-array-multiplier">Partial products and the array multiplier</h2>
+<p>For an N × N unsigned multiply, partial product i is the multiplicand ANDed with bit i of the multiplier and shifted left by i. That is N rows of N bits, an N<sup>2</sup> array of AND gates.</p>
+<p>The <strong>array multiplier</strong> reduces the rows one at a time: row 0 plus row 1, then that sum plus row 2, and so on, using a grid of full adders. Its layout is beautifully regular, which mattered for hand-drawn layouts, and its wiring is local. Its weakness is delay. With ripple carries inside each row the critical path runs diagonally across the array, and even with carry-save rows (passing carries down instead of along) the reduction still takes about N adder levels. Delay grows linearly with width.</p>
+<p>Signed (two's complement) operands add a complication: the top partial product carries negative weight. Schemes such as Baugh-Wooley rearrange the sign bits so the array still uses only positive additions plus a few constant correction bits.</p>
+<h2 id="carry-save-reduction-trees">Carry-save reduction trees</h2>
+<p>The key observation is that a full adder is a <strong>3:2 compressor</strong>: it takes three bits of the same weight and outputs two bits, a sum of the same weight and a carry of the next weight, without propagating anything sideways. A layer of full adders applied across all columns therefore turns every three rows into two, in one full-adder delay, regardless of width.</p>
+<p>Applying layers repeatedly shrinks the row count by about a factor of 1.5 per layer:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rows of partial products</th>
+<th>Reduction layers to reach 2 rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>2</td>
+</tr>
+<tr>
+<td>8</td>
+<td>4</td>
+</tr>
+<tr>
+<td>16</td>
+<td>6</td>
+</tr>
+</tbody>
+</table></div>
+<p>(The sequence of row counts is 8 → 6 → 4 → 3 → 2 for 8 rows.) That is logarithmic growth instead of linear. A <strong>Wallace tree</strong> compresses as aggressively as possible at every layer; a <strong>Dadda tree</strong> compresses only as much as needed to hit the next target height in the sequence 2, 3, 4, 6, 9, 13 …, which uses fewer half adders and a slightly cheaper final adder for the same number of layers. Both end with two rows that a fast carry-propagate adder, often a prefix adder, combines into the product.</p>
+<p>The price is irregularity. Wires from one layer to the next cross columns, and the tree is much harder to lay out by hand than an array. Modern place-and-route handles this, which is why trees are the usual choice in synthesised multipliers. Compressors larger than 3:2, such as 4:2 cells, are sometimes used to make the tree more regular.</p>
+<h2 id="radix-4-booth-recoding">Radix-4 Booth recoding</h2>
+<p>The tree shortens the reduction; <strong>Booth recoding</strong> shrinks what needs reducing. Instead of one partial product per multiplier bit, radix-4 Booth takes the multiplier two bits at a time, looking at one overlapping bit from the pair below, and maps each group to a digit in {−2, −1, 0, +1, +2}:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bits y<sub>2i+1</sub> y<sub>2i</sub> y<sub>2i−1</sub></th>
+<th>Digit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>000, 111</td>
+<td>0</td>
+</tr>
+<tr>
+<td>001, 010</td>
+<td>+1</td>
+</tr>
+<tr>
+<td>011</td>
+<td>+2</td>
+</tr>
+<tr>
+<td>100</td>
+<td>−2</td>
+</tr>
+<tr>
+<td>101, 110</td>
+<td>−1</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each digit selects 0, ±M or ±2M, where M is the multiplicand. All of these are cheap: 2M is a one-bit shift, and −M is the inverted bits plus a 1 that is added as an extra bit in the reduction tree. An N-bit multiplier produces about N/2 partial products instead of N.</p>
+<p>Work it on a small case. Take the 8-bit multiplier 115, binary <code>0111_0011</code>, with an implied 0 below bit 0. The groups, from the least significant end, are <code>110</code>, <code>001</code>, <code>110</code>, <code>011</code>, giving digits −1, +1, −1, +2. Check: −1 + 1 × 4 − 1 × 16 + 2 × 64 = 115. So M × 115 becomes four partial products: −M, +4M, −16M and +128M.</p>
+<pre><code class="language-python">def booth_digits(y, n):
+    &quot;&quot;&quot;Radix-4 Booth digits of an n-bit two's complement y, LSB first.&quot;&quot;&quot;
+    y &amp;= (1 &lt;&lt; n) - 1
+    digits, prev = [], 0               # prev is bit y[2i-1]
+    for i in range(0, n, 2):
+        b0 = (y &gt;&gt; i) &amp; 1
+        b1 = (y &gt;&gt; (i + 1)) &amp; 1
+        digits.append(-2 * b1 + b0 + prev)
+        prev = b1
+    return digits
+
+d = booth_digits(115, 8)
+print(d, sum(v * 4**i for i, v in enumerate(d)))   # [-1, 1, -1, 2] 115
+</code></pre>
+<p>Booth recoding also handles two's complement multipliers naturally: the top group carries the sign. For 8-bit operands, the tree now reduces about four rows (plus the extra negation bits, which can add one short row) instead of eight, saving one or two layers and roughly half the partial-product adders. The cost is the recoder and a 5-way selection mux per partial-product bit, which is more complex than an AND gate.</p>
+<h2 id="comparing-the-three">Comparing the three</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Architecture</th>
+<th>Reduction delay</th>
+<th>Area and wiring</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Array</td>
+<td>Grows linearly with N</td>
+<td>Regular, local wires</td>
+</tr>
+<tr>
+<td>Wallace / Dadda tree</td>
+<td>Grows with log N</td>
+<td>Irregular wiring</td>
+</tr>
+<tr>
+<td>Booth + tree</td>
+<td>Tree on about N/2 rows</td>
+<td>Recoders and muxes added</td>
+</tr>
+</tbody>
+</table></div>
+<p>For wide multipliers, such as 16 bits and up, Booth plus a tree is the common choice where speed matters, because the halved row count saves more than the recoding costs. For narrow multipliers, a plain tree is often enough, and Booth's mux overhead may not pay for itself. For low-power designs, the choice is less clear: trees can glitch heavily because paths through them are unbalanced, and those glitches cost dynamic power.</p>
+<h2 id="what-this-means-when-you-write-a-b">What this means when you write a * b</h2>
+<p>Synthesis tools generate multipliers from a <code>*</code> operator, choosing the structure from the timing constraint and the operand widths. A hand-built multiplier is rarely worth it unless you have measured that the tool's result misses timing or area, or you need a property the tool will not give you, such as a pipeline register in the middle of the tree. Even then, compare your design against the tool's result on the same constraints before keeping it.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Recode three multipliers of your choice by hand, including a negative one, then check them with the <code>booth_digits</code> function above.</li>
+<li>Write an 8 × 8 array multiplier and a Dadda-tree multiplier in Verilog, and check both against <code>a * b</code> exhaustively (all 65,536 input pairs) in <strong>Icarus Verilog</strong> or <strong>Verilator</strong>.</li>
+<li>Synthesise both and a plain <code>a * b</code> with <strong>Yosys</strong> against a sky130 library, then compare cell counts with <code>stat</code> and critical paths in <strong>OpenSTA</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>multipliers</li><li>booth encoding</li><li>wallace tree</li><li>datapath</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="fsm-state-encoding-choices.html"><span>Next in Digital &amp; VLSI design</span>Binary, one-hot or Gray: how state encoding changes area, speed and safety</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pipelining-a-datapath-step-by-step.html">Pipelining a datapath step by step: latency, throughput and the cost of registers</a></h3>
+          <p>Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

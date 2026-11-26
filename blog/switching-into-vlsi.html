@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Switching into VLSI from software or another branch: what transfers and what to learn · Ketuna blog</title>
+  <meta name="description" content="Moving into chip design from software, mechanical, civil or another branch. Which of your skills carry over, which fundamentals you must rebuild, and one project that shows a reviewer the switch is real.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Switching into VLSI from software or another branch: what transfers and what to learn · Ketuna blog">
+  <meta property="og:description" content="Moving into chip design from software, mechanical, civil or another branch. Which of your skills carry over, which fundamentals you must rebuild, and one project that shows a reviewer the switch is real.">
+  <link rel="canonical" href="https://ketuna.online/blog/switching-into-vlsi.html">
+  <meta property="og:url" content="https://ketuna.online/blog/switching-into-vlsi.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Switching into VLSI from software or another branch: what transfers and what to learn",
+  "description": "Moving into chip design from software, mechanical, civil or another branch. Which of your skills carry over, which fundamentals you must rebuild, and one project that shows a reviewer the switch is real.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "career change, vlsi, rtl, verification, fundamentals",
+  "articleSection": "Careers & skills",
+  "wordCount": 975,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/switching-into-vlsi.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Switching into VLSI from software or another branch: what transfers and what to learn</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Moving into chip design from software, mechanical, civil or another branch. Which of your skills carry over, which fundamentals you must rebuild, and one project that shows a reviewer the switch is real.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-carries-over-from-software">What carries over from software</a></li><li><a href="#what-does-not-carry-over">What does not carry over</a></li><li><a href="#what-carries-over-from-other-engineering-branches">What carries over from other engineering branches</a></li><li><a href="#the-fundamentals-to-rebuild-whichever-way-you-come">The fundamentals to rebuild, whichever way you come</a></li><li><a href="#one-project-that-proves-the-switch">One project that proves the switch</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>People arrive at chip design from many directions: software developers drawn to hardware, electrical engineers who spent years in power or controls, mechanical or civil graduates who found digital logic more interesting than their own branch. The switch is possible, but it is easy to spend months on the wrong things. The useful question is not "where do I start?" but "what do I already have, what is genuinely missing, and how will I prove the gap is closed?"</p>
+<h2 id="what-carries-over-from-software">What carries over from software</h2>
+<p>Software engineers usually underestimate how much transfers, and then overestimate how much of their programming instinct applies to RTL.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Software skill</th>
+<th>Where it helps in VLSI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Version control, code review, CI</td>
+<td>Directly. RTL, testbenches and flow scripts live in Git with the same workflows</td>
+</tr>
+<tr>
+<td>Python and scripting</td>
+<td>Testbenches with cocotb, report parsing, flow automation, reference models</td>
+</tr>
+<tr>
+<td>Testing mindset</td>
+<td>Verification is mostly testing: stimulus, checkers, coverage, regressions</td>
+</tr>
+<tr>
+<td>Object-oriented design</td>
+<td>SystemVerilog testbench classes and UVM-style frameworks reuse these ideas</td>
+</tr>
+<tr>
+<td>Debugging discipline</td>
+<td>Reproduce, localise, change one thing at a time; it is the same craft</td>
+</tr>
+<tr>
+<td>Linux and the shell</td>
+<td>Every EDA flow runs there</td>
+</tr>
+</tbody>
+</table></div>
+<p>This is why many people from software enter through <strong>verification</strong>: the language of testbenches, randomisation and coverage is close to what they know.</p>
+<h2 id="what-does-not-carry-over">What does not carry over</h2>
+<p>The biggest trap is reading Verilog as a programming language. It looks like C, but RTL describes hardware that all exists at once. Every <code>always</code> block runs in parallel, every signal is a wire or a register, and a <code>for</code> loop in synthesizable code builds copies of logic rather than repeating work in time.</p>
+<pre><code class="language-verilog">// Software reading: &quot;add the four values one by one&quot;.
+// Hardware reality: a chain of adders, all present at
+// once, producing the result in the same clock cycle.
+module sum4 (
+  input  wire [31:0] data,   // four 8-bit values
+  output reg  [9:0]  sum
+);
+  integer i;
+  always @(*) begin
+    sum = 0;
+    for (i = 0; i &lt; 4; i = i + 1)
+      sum = sum + data[8*i +: 8];
+  end
+endmodule
+</code></pre>
+<p>Other instincts that need rebuilding:</p>
+<ul>
+<li><strong>Time is physical.</strong> A path that is too long fails timing; there is no "it just runs slower".</li>
+<li><strong>Resources are fixed after tape-out.</strong> You cannot patch a missing gate with an update, so verification before tape-out matters far more than testing after release does in software.</li>
+<li><strong>Clocks and resets are design decisions</strong>, and crossing between clock domains is a whole category of bugs with no software equivalent.</li>
+</ul>
+<h2 id="what-carries-over-from-other-engineering-branches">What carries over from other engineering branches</h2>
+<p>Engineers from electrical, mechanical, civil or instrumentation backgrounds bring different strengths. Circuit theory, signals and control carry over strongly to analog and mixed-signal work. A habit of tolerances, safety margins and design reviews carries over to every part of chip design: timing margin and corner analysis are the same idea as a structural safety factor. Experience with requirements, documentation and sign-off processes is valued everywhere, because chips are built by large teams with hard gates.</p>
+<p>What these engineers usually need to rebuild is <strong>digital fundamentals</strong> and <strong>programming</strong>. If you have not written code daily, budget real time for C or Python and the Linux shell, because every flow assumes them.</p>
+<h2 id="the-fundamentals-to-rebuild-whichever-way-you-come">The fundamentals to rebuild, whichever way you come</h2>
+<p>Whatever your starting point, a short list of topics comes up in every digital design and verification role, and you need to be able to work them by hand, not just recognise them:</p>
+<ol>
+<li>Combinational and sequential logic, and how synthesis turns RTL into gates</li>
+<li>Finite state machines: drawing, coding and testing them</li>
+<li>Setup and hold time, and finding the maximum clock frequency of a path</li>
+<li>Clock domain crossing: synchronizers, handshakes and asynchronous FIFOs</li>
+<li>A bus protocol, such as a simple APB-style register interface</li>
+<li>Self-checking testbenches with a reference model, and what coverage tells you</li>
+</ol>
+<p>For the physical design path, add floorplanning, placement, clock tree synthesis, routing, static timing analysis and DRC/LVS. For analog, add transistor-level circuit analysis and SPICE simulation. Pick one direction first. Trying to cover all of them at once is the most common reason a switch stalls.</p>
+<h2 id="one-project-that-proves-the-switch">One project that proves the switch</h2>
+<p>A reviewer looking at someone switching fields has one question: can this person actually do the work, or have they only watched lectures? Certificates and course lists answer that weakly. A finished project in public answers it strongly.</p>
+<p>A good switching project is small enough to finish and complete enough to show the whole loop. One option for front-end design or verification:</p>
+<ul>
+<li><strong>Design:</strong> a UART receiver with a small FIFO and an APB-style register interface, written in synthesizable Verilog</li>
+<li><strong>Verify:</strong> a cocotb testbench with a Python reference model, random stimulus, and at least one deliberately planted bug that the bench catches</li>
+<li><strong>Check:</strong> clean Verilator lint and a Yosys synthesis run with the cell count recorded</li>
+<li><strong>Optionally harden it:</strong> take it through an open flow such as LibreLane on the sky130 PDK and report timing at one corner</li>
+<li><strong>Document:</strong> a README that states what works, what does not, and what you would do next</li>
+</ul>
+<p>Make the reasoning visible. Explain in the README why you chose a particular synchronizer, how you decided the FIFO depth, and what the planted bug taught you. If you used an AI assistant for parts of it, say which parts and how you checked them. A reviewer can then judge your thinking, which is what they are really hiring.</p>
+<p>Lean on your background in the write-up, too. A former software developer can show a clean CI pipeline; an electrical engineer can show a careful timing analysis. The switch is more convincing when the old skills visibly strengthen the new work.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write down your existing skills in two columns: "transfers directly" and "needs rebuilding", using the tables above as a starting point. Be honest about the second column.</li>
+<li>Take the four-input adder loop above, synthesise it with Yosys (<code>yosys -p "read_verilog sum4.v; synth; stat"</code>) and look at the cell count. Confirm for yourself that the loop became parallel hardware.</li>
+<li>Work one setup-time calculation and one FSM by hand on paper, then check them in Icarus Verilog or OpenSTA.</li>
+<li>Scope the switching project above into three milestones, and finish the first one, a passing self-checking test, before adding anything else.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>career change</li><li>vlsi</li><li>rtl</li><li>verification</li><li>fundamentals</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reading-a-technical-paper-in-three-passes.html"><span>Previous in Careers &amp; skills</span>Reading a technical paper efficiently in three passes</a><a class="next" href="lead-with-the-conclusion.html"><span>Next in Careers &amp; skills</span>Technical writing for engineers: lead with the conclusion</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="chip-design-career-paths.html">Career paths in chip design: what each role does day to day</a></h3>
+          <p>Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="experienced-verification-interviews.html">Preparing for experienced verification interviews: methodology questions and how to answer them</a></h3>
+          <p>Experienced verification interviews probe judgement, not syntax. Learn to explain your test plans, coverage decisions and debugging stories with concrete evidence from your own work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="git-for-hardware-engineers.html">Git for hardware engineers: branches, reviews and generated files</a></h3>
+          <p>How to branch for RTL and firmware work, what belongs in the repository and what does not, how to handle large tool outputs, and how to review a hardware change so it lands safely on main.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

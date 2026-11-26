@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Measuring model accuracy honestly: test sets, leakage and confusion matrices · Ketuna blog</title>
+  <meta name="description" content="One accuracy number can hide a model that misses the class you care about. How to keep test data truly separate, spot leakage, and report per-class results from a confusion matrix.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Measuring model accuracy honestly: test sets, leakage and confusion matrices · Ketuna blog">
+  <meta property="og:description" content="One accuracy number can hide a model that misses the class you care about. How to keep test data truly separate, spot leakage, and report per-class results from a confusion matrix.">
+  <link rel="canonical" href="https://ketuna.online/blog/measuring-model-accuracy-honestly.html">
+  <meta property="og:url" content="https://ketuna.online/blog/measuring-model-accuracy-honestly.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Measuring model accuracy honestly: test sets, leakage and confusion matrices",
+  "description": "One accuracy number can hide a model that misses the class you care about. How to keep test data truly separate, spot leakage, and report per-class results from a confusion matrix.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "model evaluation, confusion matrix, data leakage, test set, machine learning",
+  "articleSection": "Edge AI",
+  "wordCount": 1017,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/measuring-model-accuracy-honestly.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Measuring model accuracy honestly: test sets, leakage and confusion matrices</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">One accuracy number can hide a model that misses the class you care about. How to keep test data truly separate, spot leakage, and report per-class results from a confusion matrix.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#three-sets-three-jobs">Three sets, three jobs</a></li><li><a href="#how-leakage-sneaks-in">How leakage sneaks in</a></li><li><a href="#reading-a-confusion-matrix">Reading a confusion matrix</a></li><li><a href="#what-an-honest-report-contains">What an honest report contains</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first number most people report for a model is its accuracy: the fraction of test examples it got right. It is easy to compute and easy to fool yourself with. A model can score well because the test data secretly overlaps the training data, or because one class is so common that guessing it every time looks good. On an edge device, where the model will meet a different sensor, different users and different conditions, an over-optimistic number becomes a product that disappoints in the field. Measuring honestly takes a little discipline and no special tools.</p>
+<h2 id="three-sets-three-jobs">Three sets, three jobs</h2>
+<p>Split your labelled data into three parts before you train anything:</p>
+<ul>
+<li><strong>Training set:</strong> the model learns its weights from this.</li>
+<li><strong>Validation set:</strong> you use this to make choices, such as the network size, the learning rate, the number of training epochs or a decision threshold.</li>
+<li><strong>Test set:</strong> you look at this once, at the end, to report how the finished model performs.</li>
+</ul>
+<p>The validation set exists so that the test set stays untouched. Every time you change something because of a result, that data has influenced the model. If you tune on the test set, its score stops being an estimate of performance on new data and becomes a measure of how well you tuned to those particular examples. Keep the test set locked away until the end; if you have to change the model after looking at it, admit that the test set has become a validation set and collect a fresh one.</p>
+<h2 id="how-leakage-sneaks-in">How leakage sneaks in</h2>
+<p><strong>Leakage</strong> means information from the test set reaches training, so the score is better than the model deserves. In sensor projects it usually comes from one of these:</p>
+<ul>
+<li><strong>Overlapping windows.</strong> Motion or audio data is cut into windows that overlap, for example 1 s windows every 0.5 s. If you split the windows randomly, a test window shares half its samples with a training window. The model has effectively seen the test data. Split recordings first, then cut each recording into windows.</li>
+<li><strong>The same person, device or session on both sides.</strong> A model can learn the quirks of one person's walk, one microphone or one afternoon's background noise. If the same person appears in training and test, the score measures recognition of familiar people. Split by person (or device, or day): everyone in the test set should be someone the model has never seen.</li>
+<li><strong>Preprocessing fitted on all the data.</strong> Normalising features with a mean and standard deviation computed over the whole dataset lets test statistics leak into training. Compute them on the training set only and apply the same numbers everywhere else.</li>
+<li><strong>Duplicates.</strong> Copied files, or the same event recorded by two sensors, end up on both sides of a random split.</li>
+</ul>
+<p>A useful smell test: if the score is surprisingly high for a small model on a hard task, look for leakage before celebrating.</p>
+<h2 id="reading-a-confusion-matrix">Reading a confusion matrix</h2>
+<p>Suppose an activity model classifies windows from a wrist sensor as <em>idle</em>, <em>walk</em> or <em>fall</em>, and the test set has 600 windows. The numbers are made up for illustration. A <strong>confusion matrix</strong> counts, for each true class (row), how often each class was predicted (column):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>True \ predicted</th>
+<th>idle</th>
+<th>walk</th>
+<th>fall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>idle</strong> (400)</td>
+<td>390</td>
+<td>8</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>walk</strong> (150)</td>
+<td>12</td>
+<td>130</td>
+<td>8</td>
+</tr>
+<tr>
+<td><strong>fall</strong> (50)</td>
+<td>10</td>
+<td>15</td>
+<td>25</td>
+</tr>
+</tbody>
+</table></div>
+<p>Accuracy is the diagonal over the total: (390 + 130 + 25) / 600 = 545 / 600 ≈ 90.8 %. That sounds good until you look at the fall row. Of 50 real falls, the model found 25. Half of the events that matter most were missed.</p>
+<p>Two per-class numbers make this visible:</p>
+<ul>
+<li><strong>Recall</strong> (also called sensitivity): of the true examples of a class, the fraction the model found. Fall recall = 25 / 50 = 0.50.</li>
+<li><strong>Precision:</strong> of the times the model predicted a class, the fraction that were right. Fall precision = 25 / (2 + 8 + 25) = 25 / 35 ≈ 0.71.</li>
+</ul>
+<p>Also compare with a trivial baseline. A "model" that always says <em>idle</em> scores 400 / 600 ≈ 66.7 % on this test set without learning anything. Accuracy should always be read against that number, especially when classes are unbalanced.</p>
+<pre><code class="language-python">import numpy as np
+
+labels = [&quot;idle&quot;, &quot;walk&quot;, &quot;fall&quot;]
+cm = np.array([[390,   8,  2],      # rows: true class
+               [ 12, 130,  8],      # columns: predicted class
+               [ 10,  15, 25]])
+
+accuracy = np.trace(cm) / cm.sum()
+recall = np.diag(cm) / cm.sum(axis=1)      # of each true class, found
+precision = np.diag(cm) / cm.sum(axis=0)   # of each prediction, right
+print(f&quot;accuracy {accuracy:.3f}&quot;)
+for name, r, p in zip(labels, recall, precision):
+    print(f&quot;{name:5s} recall {r:.2f} precision {p:.2f}&quot;)
+</code></pre>
+<p>Which number matters depends on the product. For a fall alarm, a miss may be far worse than a false alarm, so you would tune for high fall recall and accept lower precision. For a wake word, false triggers annoy users, so precision matters more. Write down which errors are costly <em>before</em> tuning, so the choice is driven by the product and not by whichever number looks best.</p>
+<h2 id="what-an-honest-report-contains">What an honest report contains</h2>
+<p>A report another engineer can trust has:</p>
+<ol>
+<li>how the data was split, and by what (person, device, day, location)</li>
+<li>the size of each set and the count of each class</li>
+<li>the confusion matrix, plus recall and precision per class</li>
+<li>the trivial baseline for comparison</li>
+<li>the result of the <strong>quantized model running the deployed code</strong>, not just the float model in training</li>
+<li>the conditions the test data does not cover, such as untested users, temperatures or mounting positions</li>
+</ol>
+<p>For small test sets, also remember that each example moves the percentage a lot: with 50 falls, one more or one fewer detection changes fall recall by two percentage points. Do not read meaning into small differences between models evaluated on a small test set.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>splitting overlapping windows randomly instead of splitting recordings</li>
+<li>tuning thresholds or architecture on the test set</li>
+<li>reporting accuracy alone on unbalanced classes</li>
+<li>evaluating the float model and shipping the int8 one without re-measuring</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then change the fall row to [2, 3, 45] and see how accuracy and fall recall change differently.</li>
+<li>Take a dataset of sensor recordings and split it twice: randomly by window, and by recording or person. Train the same small model on each and compare test scores; a large gap points to leakage.</li>
+<li>Use <code>sklearn.metrics.confusion_matrix</code> and <code>classification_report</code> from scikit-learn on your own model's predictions and check them against the numpy version.</li>
+<li>Write the six-point report above for your last model and see which items you cannot yet fill in.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>model evaluation</li><li>confusion matrix</li><li>data leakage</li><li>test set</li><li>machine learning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="thresholds-rules-or-a-model.html"><span>Previous in Edge AI</span>Making decisions on a soil sensor node: thresholds, rules or a model?</a><a class="next" href="neural-networks-for-hardware-engineers.html"><span>Next in Edge AI</span>Neural networks for hardware engineers: layers as multiply-accumulates</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="collecting-your-own-sensor-dataset.html">Collecting your own sensor dataset: labels, balance and the boring parts that matter</a></h3>
+          <p>A small edge model is only as good as the data recorded with the real sensor. How to plan recordings, write a labelling guide, cover conditions, balance classes and document the dataset so it stays usable.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accumulator-width-in-quantized-inference.html">Accumulator width in quantized inference: avoiding overflow</a></h3>
+          <p>How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

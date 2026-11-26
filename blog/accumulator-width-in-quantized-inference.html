@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accumulator width in quantized inference: avoiding overflow · Ketuna blog</title>
+  <meta name="description" content="How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Accumulator width in quantized inference: avoiding overflow · Ketuna blog">
+  <meta property="og:description" content="How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.">
+  <link rel="canonical" href="https://ketuna.online/blog/accumulator-width-in-quantized-inference.html">
+  <meta property="og:url" content="https://ketuna.online/blog/accumulator-width-in-quantized-inference.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Accumulator width in quantized inference: avoiding overflow",
+  "description": "How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "quantization, accumulator, overflow, fixed point, hardware design",
+  "articleSection": "Edge AI",
+  "wordCount": 1147,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/accumulator-width-in-quantized-inference.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Accumulator width in quantized inference: avoiding overflow</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How many int8 products a 32-bit accumulator can safely sum, how to bound the real requirement per layer from its weights, why wrapping beats saturating mid-sum, and what hardware does when the bits run out.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-worst-case-for-raw-int8-products">The worst case for raw int8 products</a></li><li><a href="#zero-points-change-the-operand-range">Zero points change the operand range</a></li><li><a href="#bounding-the-real-requirement-per-layer">Bounding the real requirement per layer</a></li><li><a href="#wrapping-is-harmless-saturating-mid-sum-is-not">Wrapping is harmless; saturating mid-sum is not</a></li><li><a href="#what-hardware-does-when-the-bits-run-out">What hardware does when the bits run out</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An int8 multiply produces a 16-bit result, and a dot product adds hundreds or thousands of them. The accumulator that holds the running sum therefore needs many more bits than the operands, and every extra bit costs area and energy in each of the hundreds of MAC units an accelerator might have. Too few bits and the sum wraps or clips on some inputs, usually rare ones that the test set never exercised. Too many and you waste silicon in every lane. Sizing the accumulator is a short calculation, but it has subtleties that are easy to get wrong.</p>
+<h2 id="the-worst-case-for-raw-int8-products">The worst case for raw int8 products</h2>
+<p>For signed int8 operands in [−128, 127], the extreme products are (−128) × (−128) = 16,384 = 2<sup>14</sup> and (−128) × 127 = −16,256. So every product fits in [−16,256, 16,384], and a sum of N products lies in [−16,256 N, 16,384 N].</p>
+<p>The signed bits needed for the sum are the bits for the largest magnitude plus a sign bit. For N = 64, the largest possible sum is 64 × 2<sup>14</sup> = 2<sup>20</sup> = 1,048,576. A 21-bit signed number tops out at 2<sup>20</sup> − 1, one short, so the accumulator needs <strong>22 bits</strong>. In general, about 16 + log<sub>2</sub>(N) bits, rounded up, with care at exact powers of two.</p>
+<p>For a 32-bit accumulator, the number of worst-case products that always fit is ⌊(2<sup>31</sup> − 1) / 16,384⌋ = <strong>131,071</strong>.</p>
+<h2 id="zero-points-change-the-operand-range">Zero points change the operand range</h2>
+<p>The usual int8 scheme does not multiply raw inputs. It multiplies (x − z<sub>x</sub>) by the weight, where z<sub>x</sub> is the input zero point. With z<sub>x</sub> anywhere in [−128, 127], the difference ranges over [−255, 255]: a 9-bit quantity. Weights are usually symmetric, often restricted to [−127, 127].</p>
+<p>Now the largest product magnitude is 255 × 127 = 32,385, or 255 × 128 = 32,640 if −128 weights are allowed, roughly twice the raw case. The safe count for int32 halves to ⌊(2<sup>31</sup> − 1) / 32,640⌋ = <strong>65,793</strong> products, before leaving room for the bias.</p>
+<p>That is still large. A 3 × 3 convolution over 256 input channels sums 2,304 products, and even at the absolute worst case, 2,304 × 255 × 127 = 74,615,040, which needs 28 signed bits. So for int8 networks of ordinary size, <strong>int32 accumulation does not overflow</strong>, which is why software kernels simply use <code>int32_t</code>. The question becomes real in two situations: hardware that wants a narrower accumulator to save area, and wider operands. With 16-bit activations and 8-bit weights, each product can reach 2<sup>22</sup> in magnitude, and int32 is guaranteed safe for only ⌊(2<sup>31</sup> − 1) / (32,768 × 128)⌋ = 511 products. That is why 16-bit activation schemes commonly use wider accumulators.</p>
+<h2 id="bounding-the-real-requirement-per-layer">Bounding the real requirement per layer</h2>
+<p>The worst case above assumes every weight is at its extreme with the same sign, which never happens in a trained model. Since the weights are known constants after training, you can compute the exact worst case for each output channel: for each weight, pick the input extreme that maximises (or minimises) its product, and sum.</p>
+<pre><code class="language-python">import numpy as np
+
+def acc_bits_needed(w, b, zx):
+    &quot;&quot;&quot;Worst-case signed accumulator bits for each output row of int8 w.&quot;&quot;&quot;
+    w = w.astype(np.int64)
+    hi_in, lo_in = 127 - zx, -128 - zx          # range of x - zx
+    hi = np.maximum(w * hi_in, w * lo_in).sum(axis=1) + b
+    lo = np.minimum(w * hi_in, w * lo_in).sum(axis=1) + b
+    bits = lambda v: int(v).bit_length() + 1    # including sign
+    return [max(bits(h), bits(-l - 1) if l &lt; 0 else 1)
+            for h, l in zip(hi, lo)]
+
+rng = np.random.default_rng(0)
+w = rng.integers(-127, 128, (4, 2304), dtype=np.int8)  # 3x3x256 conv
+print(acc_bits_needed(w, np.zeros(4, np.int64), zx=-128))
+# [26, 26, 26, 26]
+</code></pre>
+<p>With uniformly random weights, roughly half positive and half negative, the bound for this layer is 26 bits instead of 28. Trained weights, which cluster near zero, usually give tighter bounds still. This bound is a <strong>guarantee</strong>, not a statistical estimate: no input can exceed it. Run it over every layer of the model you plan to deploy, and you know whether a 24-bit accumulator is safe for that model. The catch is that the answer belongs to that model; a retrained or different model must be checked again, so a design that relies on it needs the check built into the deployment flow and a defined behaviour when it fails.</p>
+<h2 id="wrapping-is-harmless-saturating-mid-sum-is-not">Wrapping is harmless; saturating mid-sum is not</h2>
+<p>Here is the subtle part. Two's-complement addition is arithmetic modulo 2<sup>n</sup>. If the <em>final</em> sum fits in n bits, it comes out correct even if intermediate partial sums overflowed and wrapped along the way, because modular addition does not care about order. For example, in 32 bits, 2<sup>30</sup> + 2<sup>30</sup> wraps to −2<sup>31</sup>, but adding −2<sup>30</sup> and then −2<sup>30</sup> + 5 brings it back to exactly 5.</p>
+<p>A <strong>saturating</strong> accumulator breaks this. Once it clips at its maximum, the information is lost, and later negative products pull it down from the wrong place. So:</p>
+<ul>
+<li>if the final-sum bound fits, a plain wrapping accumulator gives exact results regardless of the order of products</li>
+<li>saturation belongs at the end, in the requantization and clamp to int8, not inside the MAC loop</li>
+<li>the bound to check is on the final sum (plus bias), not on every partial sum</li>
+</ul>
+<p>In C, signed integer overflow is undefined behaviour, so do not rely on wrapping with <code>int32_t</code>; either prove no overflow, as above, or accumulate in <code>uint32_t</code> and convert at the end. In RTL, a plain adder of the chosen width wraps naturally.</p>
+<h2 id="what-hardware-does-when-the-bits-run-out">What hardware does when the bits run out</h2>
+<p>When the bound says a layer needs more bits than the lanes have, there are a few standard options:</p>
+<ul>
+<li><strong>Size for the worst case</strong> of the layers you must support. Simple and safe; costs area in every lane.</li>
+<li><strong>Split the reduction.</strong> Accumulate chunks of K in the narrow lane accumulator, each chunk short enough to be safe, and add the chunk results in a wider accumulator shared at the array edge or in a wider memory. This is natural for tiled accelerators anyway.</li>
+<li><strong>Detect and flag.</strong> Keep a sticky overflow bit per lane that firmware checks after each layer. It does not fix the result, but it turns a silent error into a visible one during bring-up and testing.</li>
+<li><strong>Constrain training.</strong> Some flows limit weight ranges so that a narrower accumulator is provably safe for every model the training produces. The bound computation above is still how you prove it.</li>
+</ul>
+<p>Common mistakes:</p>
+<ul>
+<li>sizing the accumulator for 8-bit operands and forgetting that (x − z<sub>x</sub>) is 9 bits</li>
+<li>testing overflow with random data, which almost never approaches the bound</li>
+<li>saturating inside the accumulation loop</li>
+<li>relying on signed overflow wrapping in C</li>
+<li>checking one model's bound and assuming it holds for the next version</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run <code>acc_bits_needed</code> on the weights of every layer of a small trained int8 model and find the layer that needs the most bits.</li>
+<li>Construct the input that achieves the bound for one output channel (each input at whichever extreme matches its weight's sign) and confirm the sum equals the computed maximum.</li>
+<li>Simulate a 20-bit wrapping accumulator and a 20-bit saturating one in numpy on a sum whose partial values exceed the range but whose final value fits, and compare.</li>
+<li>Write a Verilog MAC lane with a parameterized accumulator width and a sticky overflow flag, and test it with the worst-case input from step 2.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>quantization</li><li>accumulator</li><li>overflow</li><li>fixed point</li><li>hardware design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="keyword-spotting-pipeline.html"><span>Previous in Edge AI</span>A keyword-spotting pipeline from microphone to decision</a><a class="next" href="audio-features-for-edge-ai.html"><span>Next in Edge AI</span>Audio features for edge AI: from samples to a spectrogram</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-activation-functions.html">Implementing activation functions in fixed point: ReLU, sigmoid and lookup tables</a></h3>
+          <p>ReLU is an exact clamp, any function of an int8 input is an exact 256-entry table, and wider inputs need interpolation. How to build each in fixed point and size its error against the output step.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-dense-layer-in-plain-c.html">Writing int8 inference for one dense layer in plain C</a></h3>
+          <p>A complete int8 dense layer in portable C - integer multiply-accumulate, 32-bit accumulators, requantization with a fixed-point multiplier and shift - and a numpy-generated test that proves it bit-exact.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From board to FPGA to chip: when a product earns a custom chip · Ketuna blog</title>
+  <meta name="description" content="How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="From board to FPGA to chip: when a product earns a custom chip · Ketuna blog">
+  <meta property="og:description" content="How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.">
+  <link rel="canonical" href="https://ketuna.online/blog/board-to-fpga-to-chip.html">
+  <meta property="og:url" content="https://ketuna.online/blog/board-to-fpga-to-chip.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "From board to FPGA to chip: when a product earns a custom chip",
+  "description": "How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "asic, fpga, product strategy, cost, nre",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1084,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/board-to-fpga-to-chip.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>From board to FPGA to chip: when a product earns a custom chip</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How one-time engineering cost, unit cost, volume, power, size and risk decide whether a function should stay on a board, move into an FPGA or become a custom chip, with a break-even calculation and its caveats.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-ladder-and-what-each-rung-buys">The ladder and what each rung buys</a></li><li><a href="#a-break-even-calculation">A break-even calculation</a></li><li><a href="#what-the-simple-model-leaves-out">What the simple model leaves out</a></li><li><a href="#reasons-that-are-not-about-cost">Reasons that are not about cost</a></li><li><a href="#lowering-the-first-step">Lowering the first step</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Engineers who love chips tend to see every product as a future custom chip. Engineers who have paid for one tend to be more careful. Moving a function from a microcontroller and discrete parts, to an FPGA, to an application-specific integrated circuit (ASIC) is a ladder, and each rung trades higher one-time cost and risk for lower unit cost, lower power or smaller size. A product should climb only when it has earned it. This article shows how to tell, with a break-even calculation and the factors the calculation leaves out.</p>
+<h2 id="the-ladder-and-what-each-rung-buys">The ladder and what each rung buys</h2>
+<ul>
+<li><strong>Board with standard parts.</strong> A microcontroller, perhaps a small accelerator or analogue parts. Lowest one-time cost, fastest to change, available from many suppliers. Limited by what off-the-shelf parts can do in performance, power and size.</li>
+<li><strong>FPGA.</strong> Custom digital logic without fabricating silicon: parallel datapaths, precise timing, custom interfaces. Changeable after shipping. Higher unit cost and higher power than an equivalent ASIC, because programmable routing and lookup tables cost area and energy compared with fixed gates.</li>
+<li><strong>ASIC.</strong> Logic, and possibly analogue, fixed in silicon. Lowest unit cost at volume, lowest power and smallest size for the function, the ability to integrate several board parts into one. Highest one-time cost, longest cycle, and a mistake can mean another fabrication run.</li>
+</ul>
+<p>The one-time costs are called <strong>non-recurring engineering (NRE)</strong>: design and verification effort, tools, masks or shuttle fees, packaging and test development, qualification. For an ASIC they dominate; for a board they are small.</p>
+<h2 id="a-break-even-calculation">A break-even calculation</h2>
+<p>The simplest model treats total cost as NRE plus unit cost times volume:</p>
+<blockquote>
+<p>Total(N) = NRE + c × N</p>
+</blockquote>
+<p>For two options, the break-even volume is where their totals are equal:</p>
+<blockquote>
+<p>N<sub>break-even</sub> = (NRE<sub>ASIC</sub> − NRE<sub>FPGA</sub>) / (c<sub>FPGA</sub> − c<sub>ASIC</sub>)</p>
+</blockquote>
+<p>Take illustrative values in arbitrary cost units, made up for this example: the FPGA option has NRE of 20 and a unit cost of 1.0; the ASIC has NRE of 10,000 and a unit cost of 0.1. Then</p>
+<blockquote>
+<p>N = (10,000 − 20) / (1.0 − 0.1) ≈ 11,100 units</p>
+</blockquote>
+<p>Below that volume the FPGA is cheaper over the product's life; above it the ASIC is. At 5,000 units the average cost per unit is about 1.0 for the FPGA and 2.1 for the ASIC; at 50,000 units it is about 1.0 against 0.3.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="be-title be-desc" font-size="14">
+<title id="be-title">Total cost against volume for FPGA and ASIC options</title>
+<desc id="be-desc">A graph of total cost on the vertical axis against volume up to 20,000 units on the horizontal axis. The FPGA line starts near zero and rises steeply. The ASIC line starts high, at the cost of its one-time engineering, and rises slowly. They cross at about 11,100 units, marked as the break-even point.</desc>
+<line x1="60" y1="20" x2="60" y2="190" class="dg-line"/>
+<line x1="60" y1="190" x2="450" y2="190" class="dg-line"/>
+<text x="20" y="105" class="dg-muted" transform="rotate(-90 20 105)" text-anchor="middle">total cost</text>
+<text x="440" y="212" text-anchor="end" class="dg-muted">volume (units)</text>
+<text x="60" y="208" text-anchor="middle" class="dg-text">0</text>
+<text x="250" y="208" text-anchor="middle" class="dg-text">10k</text>
+<text x="440" y="208" text-anchor="middle" class="dg-text">20k</text>
+<line x1="60" y1="190" x2="440" y2="35" class="dg-line" stroke-width="2.5"/>
+<text x="400" y="40" text-anchor="end" class="dg-text">FPGA</text>
+<line x1="60" y1="113" x2="440" y2="97" class="dg-amber-line" stroke-width="2.5"/>
+<text x="440" y="118" text-anchor="end" class="dg-text">ASIC</text>
+<line x1="271" y1="104" x2="271" y2="190" class="dg-dash"/>
+<circle cx="271" cy="104" r="5" class="dg-amber"/>
+<text x="278" y="160" class="dg-muted">break-even</text>
+<text x="278" y="177" class="dg-muted">≈ 11,100</text>
+<text x="66" y="106" class="dg-muted">ASIC NRE</text>
+</svg>
+<figcaption>The ASIC's high starting point is its one-time cost; its shallow slope is its low unit cost. Volume decides which line ends lower.</figcaption>
+</figure>
+
+<h2 id="what-the-simple-model-leaves-out">What the simple model leaves out</h2>
+<p>The calculation is a starting point. Several factors move the break-even, usually upwards.</p>
+<p><strong>Respin risk.</strong> If there is a real chance the first silicon needs a correction, the expected NRE is higher. With an illustrative 30 % chance of a respin costing half the original NRE again, the expected ASIC NRE becomes 10,000 × (1 + 0.3 × 0.5) = 11,500, and the break-even moves to about 12,800 units. Strong verification lowers this risk, which is one reason chip teams invest so heavily in it.</p>
+<p><strong>Time.</strong> An ASIC adds months of design, fabrication and qualification before revenue. If the market window is short, an FPGA product shipping now may earn more than a cheaper ASIC product shipping later. A common path is to launch on an FPGA and move to an ASIC once volume is proven.</p>
+<p><strong>Volume uncertainty.</strong> Break-even uses the volume you <em>will</em> sell, which you do not know. If the ASIC only pays off at the optimistic forecast, that is a business bet, and it should be presented as one.</p>
+<p><strong>Board-level savings.</strong> An ASIC can absorb other parts: a microcontroller, an ADC, glue logic, a regulator. Count the board cost, area and assembly saved, not just the FPGA it replaces. This can lower the break-even substantially.</p>
+<p><strong>Flexibility.</strong> An FPGA can be updated in the field when a standard changes or a bug is found. An ASIC cannot, except for whatever programmability you design in, such as a small processor core running firmware.</p>
+<h2 id="reasons-that-are-not-about-cost">Reasons that are not about cost</h2>
+<p>Some products move to custom silicon at volumes where the arithmetic alone says no:</p>
+<ul>
+<li><strong>Power.</strong> A battery wearable may simply not be possible with an FPGA's static and dynamic power; a dedicated low-power chip makes the product exist.</li>
+<li><strong>Size.</strong> Hearing aids, implants and small sensors may have no room for a board of standard parts.</li>
+<li><strong>Performance per watt.</strong> Dedicated datapaths, such as a neural network accelerator or a signal processing pipeline, can do far more work per joule than general-purpose parts.</li>
+<li><strong>Security and control of the design.</strong> A custom chip can hold keys and logic that are hard to extract, and reduces dependence on specific off-the-shelf parts.</li>
+<li><strong>Integration of analogue and digital.</strong> Sensor interfaces, radios and power management combined on one die.</li>
+</ul>
+<p>These are legitimate reasons, but each should be written as a requirement with a number, such as an energy per inference or a board area, so the decision can be checked rather than asserted.</p>
+<h2 id="lowering-the-first-step">Lowering the first step</h2>
+<p>The NRE barrier for a first chip has come down for learning and prototyping. Open process design kits such as sky130, gf180 and IHP SG13G2, open-source flows such as LibreLane and OpenROAD, and multi-project wafer shuttles, where many designs share one mask set, let a small team build a test chip at a fraction of a full mask set's cost. That does not change the economics of volume production, but it means you can retire technical risk, such as a custom analogue block or an accelerator architecture, on real silicon before betting on a production chip.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Comparing unit costs and ignoring NRE.</strong> The cheapest unit is not the cheapest product.</li>
+<li><strong>Using the optimistic volume only.</strong> Show the break-even against a range of forecasts.</li>
+<li><strong>Forgetting the time to market.</strong> Months of delay have a cost the model does not show.</li>
+<li><strong>Skipping the FPGA step for a new design.</strong> Proving the logic on an FPGA first retires risk before the expensive step.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python function for total cost against volume for three options (board, FPGA, ASIC) and plot them with <strong>matplotlib</strong> over a range of volumes, then add respin risk to the ASIC.</li>
+<li>Take a small RTL design, such as a UART or a filter, synthesise it with <strong>Yosys</strong> for an FPGA target and run it through <strong>LibreLane</strong> on sky130, and compare the reported resources and area.</li>
+<li>For a product idea of your own, list which non-cost reasons, if any, would justify a custom chip, and write each as a requirement with a number.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>asic</li><li>fpga</li><li>product strategy</li><li>cost</li><li>nre</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="fmea-step-by-step.html"><span>Previous in Systems &amp; product engineering</span>FMEA step by step: severity, occurrence, detection and what to do next</a><a class="next" href="first-board-in-kicad.html"><span>Next in Systems &amp; product engineering</span>From schematic to Gerbers: designing a first board in KiCad</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="costing-a-bill-of-materials.html">Costing a bill of materials: what changes from prototype to volume</a></h3>
+          <p>Why the same board costs several times more as a prototype than in production, and how to build a cost roll-up that includes price breaks, attrition, setup charges, assembly, test and yield loss.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

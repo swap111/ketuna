@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agile for hardware teams: what works when you cannot ship every week · Ketuna blog</title>
+  <meta name="description" content="Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Agile for hardware teams: what works when you cannot ship every week · Ketuna blog">
+  <meta property="og:description" content="Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.">
+  <link rel="canonical" href="https://ketuna.online/blog/agile-for-hardware-teams.html">
+  <meta property="og:url" content="https://ketuna.online/blog/agile-for-hardware-teams.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Agile for hardware teams: what works when you cannot ship every week",
+  "description": "Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "agile, project management, hardware development, sprints, planning",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 964,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/agile-for-hardware-teams.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Agile for hardware teams: what works when you cannot ship every week</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-does-not-transfer-and-why">What does not transfer, and why</a></li><li><a href="#what-transfers-very-well">What transfers very well</a></li><li><a href="#demos-without-a-product">Demos without a product</a></li><li><a href="#a-definition-of-done-for-hardware-tasks">A definition of done for hardware tasks</a></li><li><a href="#an-example-cycle-before-a-board-order">An example cycle before a board order</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Agile methods grew up in software, where a team can build, test and release a working increment every week or two. Hardware teams who try to copy that rhythm hit a wall: a circuit board takes weeks to fabricate, a chip takes months, and you cannot release half a board. Some teams conclude that agile does not apply to them. That throws away the parts that work very well in hardware. The trick is to separate the habits that depend on frequent releases from the ones that depend only on frequent feedback.</p>
+<h2 id="what-does-not-transfer-and-why">What does not transfer, and why</h2>
+<p>Two assumptions behind software agile break in hardware:</p>
+<ul>
+<li><strong>Cheap, fast iteration.</strong> Rebuilding software costs minutes. A board revision costs money and weeks; a chip revision costs far more. You cannot treat every build as disposable.</li>
+<li><strong>Incremental delivery to users.</strong> A board is either assembled or not. You cannot ship the power section this sprint and the radio next sprint.</li>
+</ul>
+<p>So hardware projects keep <strong>milestones and gates</strong> for irreversible steps: specification freeze, board order, tape-out, production release. These have fixed dates, entry criteria and a review. Pretending they are just another sprint is how teams order boards with known open questions.</p>
+<h2 id="what-transfers-very-well">What transfers very well</h2>
+<p>Most agile habits are about making progress visible and getting feedback early. Neither requires shipping a product.</p>
+<p><strong>Short planning cycles.</strong> Plan in one- or two-week cycles, each with a goal stated in a sentence ("all schematic pages reviewed and power budget closed"). A short cycle forces the team to break big tasks into pieces small enough to finish, and it exposes slips within days rather than at the milestone.</p>
+<p><strong>A visible board.</strong> A shared board with columns such as <em>to do</em>, <em>in progress</em>, <em>in review</em> and <em>done</em> shows everyone where work is stuck. Adding a limit on how many items can be <em>in progress</em> at once, a work-in-progress limit, stops people starting new tasks while reviews pile up. In hardware the review column is often the bottleneck, and a board makes that obvious.</p>
+<p><strong>A daily stand-up</strong> of fifteen minutes: what I finished, what I am doing, what is blocking me. Problems are noted and solved afterwards by the people involved, not in the meeting.</p>
+<p><strong>Retrospectives.</strong> At the end of each cycle, half an hour on what to keep doing and what to change. Hardware teams benefit especially, because the lessons from a bring-up are easy to forget by the next board.</p>
+<h2 id="demos-without-a-product">Demos without a product</h2>
+<p>The heart of agile is showing working results regularly to someone who can react. Hardware teams can demo a lot before any custom board exists, if they plan for it:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What can be demonstrated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Architecture</td>
+<td>A trade study result, a power and latency budget, a block diagram reviewed against requirements</td>
+</tr>
+<tr>
+<td>Before boards</td>
+<td>Firmware running on a development board with the same microcontroller; RTL passing tests in simulation; the design on an FPGA board</td>
+</tr>
+<tr>
+<td>Layout</td>
+<td>A 3D view of the board in its enclosure model; a 3D-printed enclosure with a dummy board</td>
+</tr>
+<tr>
+<td>Boards back</td>
+<td>Each subsystem brought up and measured against its requirement, one by one</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Field trial data, test results against the plan</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each demo answers a real question for someone: does the firmware architecture work, does the board fit, does the sensor give useful data. The habit of building a demonstrable result every cycle also keeps work integrated. A team that shows firmware on a development board every two weeks has far less integration pain when the custom board arrives.</p>
+<h2 id="a-definition-of-done-for-hardware-tasks">A definition of done for hardware tasks</h2>
+<p>"Done" causes more slips than any other word in a project. Agree what it means for each kind of task, and put it on the board:</p>
+<ul>
+<li><strong>Schematic page:</strong> drawn, electrical rules check clean, reviewed by one other engineer, findings closed.</li>
+<li><strong>RTL block:</strong> lint clean, unit tests pass in continuous integration, coverage reviewed, code reviewed.</li>
+<li><strong>Firmware driver:</strong> runs on the development board, unit tests pass, reviewed, documented against the interface control document.</li>
+<li><strong>Bring-up of a subsystem:</strong> measured against its requirement, results logged, issues filed.</li>
+</ul>
+<p>With a clear definition, "90 % done" stops being a status. A task is done or it is not.</p>
+<h2 id="an-example-cycle-before-a-board-order">An example cycle before a board order</h2>
+<p>Here is what a two-week cycle might look like for a team approaching a board order, with the order date as a fixed gate at the end of the following cycle.</p>
+<pre><code class="language-text">Cycle goal: schematic complete and reviewed; layout placement agreed
+
+Board                     Owner      Done means
+------------------------  ---------  --------------------------------
+Power page                hw-lead    ERC clean, reviewed, budget closed
+Sensor + ADC page         hw-2       ERC clean, reviewed
+MCU + debug page          hw-2       ERC clean, reviewed, pinout frozen
+Pinout in ICD             fw-lead    ICD rev B approved by hw and fw
+Drivers on dev board      fw-lead    ADC and radio read on dev board
+Enclosure fit check       mech       placement exported, fit confirmed
+Demo at end of cycle      all        schematic walk-through, dev-board
+                                     readings, enclosure model
+</code></pre>
+<p>Every item has an owner and a done condition, and the demo shows results to the people who will approve the board order. If a page is not done by the end of the cycle, the team knows two weeks before the gate, with time to cut scope or move the date deliberately rather than by accident.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating milestones as optional.</strong> Irreversible steps need gates with entry criteria.</li>
+<li><strong>Sprints with no demonstrable result.</strong> Without a demo, a cycle is just a status meeting with a deadline.</li>
+<li><strong>"Done" meaning drawn or written.</strong> Review and test are part of done.</li>
+<li><strong>Adding people to a late task near a gate.</strong> New people need time to learn the design and slow the team at first; cut scope or move the date instead.</li>
+<li><strong>Stand-ups that become design meetings.</strong> Note the problem, solve it after with the people involved.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Set up a board with <em>to do</em>, <em>in progress</em>, <em>in review</em> and <em>done</em> columns for your next project, with a work-in-progress limit of two per person, and use it for a month.</li>
+<li>Write a definition of done for each type of task in your project and display it on the board.</li>
+<li>Plan your next two-week cycle around one demonstrable result, for example firmware running on a development board under <strong>Zephyr</strong>, or RTL passing a <strong>cocotb</strong> test, and show it to someone outside the team at the end.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>agile</li><li>project management</li><li>hardware development</li><li>sprints</li><li>planning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="a-risk-register-people-use.html"><span>Previous in Systems &amp; product engineering</span>A risk register that people actually use</a><a class="next" href="budgets-as-a-design-tool.html"><span>Next in Systems &amp; product engineering</span>Budgets as a design tool: allocating mass, cost and margin across subsystems</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="estimating-hardware-work.html">Estimating hardware work: ranges, assumptions and the cone of uncertainty</a></h3>
+          <p>Why a single-number estimate for hardware work is almost always late, how to give ranges with stated assumptions, how a short simulation shows the real odds, and how estimates should narrow as the design matures.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

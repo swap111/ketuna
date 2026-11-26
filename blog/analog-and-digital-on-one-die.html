@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Putting analog and digital on one die: substrate noise, supplies and isolation · Ketuna blog</title>
+  <meta name="description" content="Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Putting analog and digital on one die: substrate noise, supplies and isolation · Ketuna blog">
+  <meta property="og:description" content="Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.">
+  <link rel="canonical" href="https://ketuna.online/blog/analog-and-digital-on-one-die.html">
+  <meta property="og:url" content="https://ketuna.online/blog/analog-and-digital-on-one-die.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Putting analog and digital on one die: substrate noise, supplies and isolation",
+  "description": "Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "mixed signal, substrate noise, guard rings, floorplanning, power integrity",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1134,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/analog-and-digital-on-one-die.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Putting analog and digital on one die: substrate noise, supplies and isolation</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#four-coupling-paths">Four coupling paths</a></li><li><a href="#separate-the-supplies">Separate the supplies</a></li><li><a href="#isolate-through-the-substrate">Isolate through the substrate</a></li><li><a href="#floorplan-and-timing-choices">Floorplan and timing choices</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A mixed-signal chip puts a processor, memories and thousands of switching flip-flops on the same piece of silicon as an ADC, a bandgap and a PLL. Every clock edge in the digital logic dumps current pulses into shared resources: the substrate, the supply rails, the package. The analog blocks, which care about microvolts, sit on the same resources. Whether the ADC delivers its rated resolution on the finished chip depends less on the ADC design than on how well these coupling paths were managed. The work is mostly done at floorplan and layout time, which is why it has to be planned early.</p>
+<h2 id="four-coupling-paths">Four coupling paths</h2>
+<p>Noise from digital to analog travels by four main routes.</p>
+<ul>
+<li><strong>Shared supply and ground.</strong> Digital gates draw sharp current spikes from the supply when they switch. Through the resistance and inductance of the on-chip grid, bond wires and package, those spikes become voltage noise on the rails. If an analog block shares any part of that path, the noise appears in its supply or, worse, its ground reference.</li>
+<li><strong>The substrate.</strong> Every transistor and well sits on a common silicon substrate. Switching drains and wells couple into it through their junction capacitances, and substrate contacts tied to a noisy ground inject that ground's noise directly. The substrate is a resistive network, so the disturbance spreads and reaches analog transistors, where it modulates their body voltage and therefore their threshold (the body effect), and couples into capacitors and resistors built over it.</li>
+<li><strong>Capacitive coupling between wires.</strong> A digital line running beside or across a high-impedance analog net couples its edges through the wire-to-wire capacitance.</li>
+<li><strong>The package and board.</strong> Bond wires next to each other couple magnetically, and shared package pins or board planes carry digital return currents under analog parts.</li>
+</ul>
+<p>The supply path often dominates and is the easiest to underestimate. A worked example, illustrative: a bond wire with 1 nH of inductance carries a digital current that changes by 50 mA in 0.5 ns. The induced voltage is L × di/dt = 1 nH × (50 mA / 0.5 ns) = <strong>100 mV</strong>. An analog block sharing that ground pin sees a 100 mV disturbance on its reference at every such edge, which is enormous compared with the LSB of a 12-bit converter.</p>
+<h2 id="separate-the-supplies">Separate the supplies</h2>
+<p>The first and most effective measure is never to share a current path that carries digital switching current.</p>
+<ul>
+<li><strong>Separate supply domains.</strong> Give analog and digital their own supply and ground nets on chip, their own pads and their own bond wires. Where they must connect, typically at ground, connect them at one deliberate point, often off chip on the board, so digital return current does not flow through the analog ground.</li>
+<li><strong>Multiple pads.</strong> Parallel bond wires reduce inductance, so a noisy digital domain gets several ground pins.</li>
+<li><strong>On-chip decoupling.</strong> Capacitance between supply and ground close to the digital logic supplies the fast current locally, so less of it flows through the package inductance. Fill empty space in digital areas with decoupling cells.</li>
+<li><strong>Local regulation.</strong> A sensitive block such as a PLL or ADC reference often gets its own on-chip regulator, whose supply rejection suppresses what noise remains.</li>
+</ul>
+<p>Interfaces between domains need care. A digital signal crossing into the analog domain should pass through a level shifter or buffer powered appropriately, and its return current must have a path that does not cross the gap between ground nets.</p>
+<h2 id="isolate-through-the-substrate">Isolate through the substrate</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="mx-title mx-desc" font-size="14">
+<title id="mx-title">Mixed-signal floorplan with isolation</title>
+<desc id="mx-desc">A die outline. The digital core occupies the left side with its own supply pads. The analog block sits in the far right corner, surrounded by a guard ring and separated by a gap. Analog has separate supply pads on its side. Sensitive inputs enter on the analog side, away from digital input and output pads.</desc>
+<rect x="20" y="20" width="440" height="220" class="dg-track" fill-opacity="0.2"/>
+<rect x="40" y="45" width="220" height="170" class="dg-box"/>
+<text x="90" y="125" class="dg-text">digital core</text>
+<text x="70" y="148" class="dg-muted">clocks, CPU, SRAM</text>
+<rect x="320" y="70" width="120" height="120" class="dg-amber" fill-opacity="0.15"/>
+<rect x="320" y="70" width="120" height="120" class="dg-amber-line" fill="none" stroke-width="5"/>
+<rect x="335" y="85" width="90" height="90" class="dg-core"/>
+<text x="350" y="125" class="dg-text">ADC,</text>
+<text x="350" y="145" class="dg-text">PLL</text>
+<text x="322" y="62" class="dg-muted">guard ring</text>
+<line x1="275" y1="40" x2="275" y2="225" class="dg-dash"/>
+<text x="268" y="250" class="dg-muted">gap</text>
+<rect x="60" y="22" width="16" height="16" class="dg-box"/>
+<rect x="110" y="22" width="16" height="16" class="dg-box"/>
+<rect x="160" y="22" width="16" height="16" class="dg-box"/>
+<text x="185" y="35" class="dg-muted">digital pads</text>
+<rect x="440" y="100" width="16" height="16" class="dg-box"/>
+<rect x="440" y="150" width="16" height="16" class="dg-box"/>
+<text x="345" y="210" class="dg-muted">analog pads</text>
+</svg>
+<figcaption>Distance, a guard ring and dedicated pads on the far edge keep the analog block away from digital noise paths.</figcaption>
+</figure>
+
+<p>Supply separation does not stop noise injected into the shared substrate. For that, designers use several layers of defence.</p>
+<ul>
+<li><strong>Guard rings.</strong> A ring of substrate contacts (p+ in a p-type substrate) around the analog block, tied to a <em>quiet</em> ground with its own path off chip, collects substrate currents heading for the block and sinks them before they arrive. An n-well ring tied to a quiet supply adds a second barrier for minority carriers. A guard ring tied to the noisy digital ground does the opposite of what you want: it injects noise right next to the circuit.</li>
+<li><strong>Deep n-well.</strong> Where the process offers it, NMOS devices in sensitive circuits sit in an isolated p-well inside a deep n-well, separating their bodies from the common substrate.</li>
+<li><strong>Distance.</strong> In a lightly doped substrate, the substrate resistance between blocks rises with separation, so distance helps. In processes with a heavily doped bulk under a thin epitaxial layer, noise spreads through the low-resistance bulk almost regardless of distance, and guard rings and backside contacts matter more. Know which kind of substrate your process uses.</li>
+<li><strong>Separate substrate contacts for digital.</strong> Tie the digital block's substrate contacts to their own ground rather than the analog one, so digital noise is not driven into the substrate through a shared connection.</li>
+</ul>
+<h2 id="floorplan-and-timing-choices">Floorplan and timing choices</h2>
+<p>Before any layout detail, the floorplan sets most of the outcome.</p>
+<ul>
+<li>Put sensitive analog blocks at the die edge or a corner, with their pads nearby, so their signals do not cross digital areas.</li>
+<li>Keep clock trees and high-activity digital blocks, such as the processor core and memory interfaces, far from the ADC inputs and the PLL's loop filter.</li>
+<li>Route sensitive analog nets short, with shielding (grounded lines alongside) where they must pass near digital wiring, and never route digital buses over analog blocks.</li>
+<li>Use differential analog circuits where possible: noise that couples equally into both halves is rejected.</li>
+<li>Coordinate timing. If the ADC samples at a moment when the digital logic is quiet, or digital clocks are synchronised so their edges fall between sampling instants, much of the coupling never reaches the result. Choosing clock frequencies so their harmonics fall outside the signal band helps too.</li>
+</ul>
+<p>Common mistakes:</p>
+<ul>
+<li>Treating a mixed-signal chip as two designs glued together, and only thinking about noise after layout</li>
+<li>Joining analog and digital grounds in several places on chip, creating loops that carry digital current through analog ground</li>
+<li>Simulating the analog block with ideal supplies and never with a model of the package and digital noise</li>
+<li>Assuming a guard ring is always helpful, without checking what it is tied to</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong>, model a bond wire as 1 nH in series with 0.1 Ω, drive it with a pulsed current source representing digital switching, and look at the resulting ground bounce. Add a decoupling capacitor on the chip side and compare.</li>
+<li>Add a simple resistive substrate model between a digital injector and an analog transistor's body, and simulate how the transistor's drain current is modulated. Then add a guard-ring node tied to a quiet ground and repeat.</li>
+<li>In <strong>Magic</strong> with the sky130 technology, draw a small transistor surrounded by a p+ substrate-contact guard ring and an n-well ring, and run DRC to learn the spacing rules involved.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>mixed signal</li><li>substrate noise</li><li>guard rings</li><li>floorplanning</li><li>power integrity</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="packaging-basics-and-chiplets.html"><span>Previous in Analog &amp; mixed-signal</span>Packaging basics: wire bond, flip chip and where chiplets fit</a><a class="next" href="reading-an-inverter-transfer-curve.html"><span>Next in Analog &amp; mixed-signal</span>Reading a CMOS inverter&#x27;s transfer curve: noise margins and switching point</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="comparator-design-tradeoffs.html">Comparators: speed, offset, hysteresis and kickback</a></h3>
+          <p>A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="how-a-sar-adc-converts.html">How a SAR ADC converts: binary search with a capacitor DAC</a></h3>
+          <p>A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-a-pll.html">Inside a PLL: phase detector, charge pump, loop filter and VCO</a></h3>
+          <p>A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

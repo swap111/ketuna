@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rural IoT node trade-offs: range, battery life, cost and maintenance · Ketuna blog</title>
+  <meta name="description" content="How radio choice, reporting interval, battery and enclosure decisions pull against each other in a sensor node for farms and villages, with a battery-life model that shows which decisions matter most.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Rural IoT node trade-offs: range, battery life, cost and maintenance · Ketuna blog">
+  <meta property="og:description" content="How radio choice, reporting interval, battery and enclosure decisions pull against each other in a sensor node for farms and villages, with a battery-life model that shows which decisions matter most.">
+  <link rel="canonical" href="https://ketuna.online/blog/rural-iot-node-tradeoffs.html">
+  <meta property="og:url" content="https://ketuna.online/blog/rural-iot-node-tradeoffs.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Rural IoT node trade-offs: range, battery life, cost and maintenance",
+  "description": "How radio choice, reporting interval, battery and enclosure decisions pull against each other in a sensor node for farms and villages, with a battery-life model that shows which decisions matter most.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "iot, battery life, radio, low power, trade-offs",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 988,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/rural-iot-node-tradeoffs.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Rural IoT node trade-offs: range, battery life, cost and maintenance</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How radio choice, reporting interval, battery and enclosure decisions pull against each other in a sensor node for farms and villages, with a battery-life model that shows which decisions matter most.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-four-forces">The four forces</a></li><li><a href="#radio-choice-sets-the-frame">Radio choice sets the frame</a></li><li><a href="#a-battery-life-model">A battery-life model</a></li><li><a href="#enclosure-and-installation-decisions">Enclosure and installation decisions</a></li><li><a href="#write-the-trade-offs-into-requirements">Write the trade-offs into requirements</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A sensor node on a farm, a village water tank or a rural roadside has to do four things at once: reach a gateway or network from far away, run for a long time on a battery, cost little enough to deploy in numbers, and need almost no maintenance, because a site visit may mean hours of travel. These goals pull against each other. Every decision that improves one hurts another, and the hard part of the design is seeing how they connect before you commit to a radio or an enclosure.</p>
+<h2 id="the-four-forces">The four forces</h2>
+<ul>
+<li><strong>Range.</strong> Rural sites are far from infrastructure. Longer range comes from lower radio frequencies, higher transmit power, better antennas mounted higher, and slower data rates that let the receiver pick out weaker signals.</li>
+<li><strong>Battery life.</strong> Energy is spent mostly while the radio is on and while sensors warm up. Slower data rates and higher transmit power, both good for range, keep the radio on longer or drawing more current.</li>
+<li><strong>Cost.</strong> Per-node hardware, gateways or network subscriptions, and installation. A cheap node that needs its own gateway may cost more overall than a dearer node using an existing network.</li>
+<li><strong>Maintenance.</strong> Battery replacement, cleaning sensors, fixing damage. In rural deployments the cost of a visit can exceed the cost of the node.</li>
+</ul>
+<h2 id="radio-choice-sets-the-frame">Radio choice sets the frame</h2>
+<p>The radio decision constrains everything else, so make it with a trade study rather than by habit. Broadly, the options are:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Strengths</th>
+<th>Weaknesses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sub-GHz long-range low-power radio to your own gateway</td>
+<td>Long range at low power; no subscription; works where there is no cellular coverage</td>
+<td>You install and maintain gateways; low data rates; duty-cycle limits in unlicensed bands</td>
+</tr>
+<tr>
+<td>Cellular low-power standards (NB-IoT, LTE-M)</td>
+<td>No gateway to maintain; wide-area coverage where the network supports it</td>
+<td>Depends on local coverage and operator support; SIM and subscription cost; higher energy per message</td>
+</tr>
+<tr>
+<td>2.4 GHz short-range (IEEE 802.15.4 mesh, Bluetooth Low Energy)</td>
+<td>Low cost, low energy per bit, mesh can extend coverage</td>
+<td>Short range per hop; mesh routers need power; vegetation absorbs 2.4 GHz</td>
+</tr>
+</tbody>
+</table></div>
+<p>Frequency matters for range because free-space path loss grows with frequency: moving from about 866 MHz to 2.4 GHz adds 20 log<sub>10</sub>(2400 / 866) ≈ 8.9 dB of loss at the same distance, before counting the extra absorption by crops and trees at higher frequencies. Unlicensed sub-GHz bands and the power and duty-cycle limits that apply to them are set by national rules; check the current regulations for India before choosing a band and transmit power.</p>
+<h2 id="a-battery-life-model">A battery-life model</h2>
+<p>Battery life is where the trade-offs become numbers. The model below takes a sleep current, a sensor reading and a radio transmission per report, and computes life for different reporting intervals. All values are made up for illustration, and it ignores retransmissions and receive windows, which a real model must include.</p>
+<pre><code class="language-python">CAP_MAH = 2600 * 0.8        # usable after derating for temperature, age
+SLEEP_UA = 8.0 + 3.0        # sleep current plus self-discharge equivalent
+SENSE_MA, SENSE_S = 5.0, 0.5   # sensor warm-up and read
+radios = {                     # (current mA, on-time s) per message
+    &quot;sub-GHz LPWAN&quot;: (40.0, 0.4),
+    &quot;cellular LPWAN&quot;: (120.0, 3.0),
+}
+
+def life_years(interval_min, tx_ma, tx_s):
+    n = 24 * 60 / interval_min                # messages per day
+    active_mas = n * (SENSE_MA * SENSE_S + tx_ma * tx_s)
+    sleep_mas = SLEEP_UA / 1000 * 86400
+    avg_ma = (active_mas + sleep_mas) / 86400
+    return CAP_MAH / avg_ma / 24 / 365
+
+for name, (ma, s) in radios.items():
+    row = [f&quot;{life_years(t, ma, s):4.1f}&quot; for t in (5, 15, 60)]
+    print(f&quot;{name:15s} 5/15/60 min: &quot; + &quot;  &quot;.join(row) + &quot; years&quot;)
+</code></pre>
+<p>The output:</p>
+<pre><code class="language-text">sub-GHz LPWAN   5/15/60 min:  3.3   7.5  14.7 years
+cellular LPWAN  5/15/60 min:  0.2   0.6   2.1 years
+</code></pre>
+<p>Several lessons fall out of the table:</p>
+<ol>
+<li><strong>Reporting interval dominates.</strong> Going from 5 to 60 minutes multiplies life by more than four for the sub-GHz case and about ten for the cellular case. Before arguing about batteries, ask how often the user truly needs a reading. Soil moisture changes over hours; a flood-level alarm may need minutes, but only when the level is rising, which suggests reporting on change rather than on a fixed timer.</li>
+<li><strong>Energy per message matters more than sleep current at short intervals</strong>, and sleep current plus self-discharge matters more at long intervals. At 60 minutes the sub-GHz node's life is set mostly by the 11 µA floor.</li>
+<li><strong>Long calculated lives are a warning, not a result.</strong> A model that says 14.7 years is telling you that the battery's shelf life, the enclosure seals and the electronics will fail before the charge runs out. Cap your design life at what the weakest part can actually deliver.</li>
+</ol>
+<h2 id="enclosure-and-installation-decisions">Enclosure and installation decisions</h2>
+<p>The enclosure pulls on range, cost and maintenance at once. A metal box shields the radio, so the antenna must be outside it, which adds a cable, a connector and a seal. Mounting the antenna higher improves range considerably, because it clears crops, walls and the ground, but it costs a pole and makes the node more visible to curious hands. A bigger box fits a bigger battery and longer life but costs more and is harder to mount.</p>
+<p>Design for the maintenance visit you cannot avoid. If batteries will need replacing, make it a tool-light, one-person, few-minute job with no recalibration, and schedule it with other site work. If sensors need cleaning, make the probe removable without opening the electronics compartment.</p>
+<h2 id="write-the-trade-offs-into-requirements">Write the trade-offs into requirements</h2>
+<p>Each force becomes a requirement with a number, and the numbers must be consistent: a reporting interval, a range at a stated antenna height and terrain, a battery life at a stated temperature, a unit cost at a stated volume and a maximum maintenance time per visit. Then check them together with a model like the one above. If the requirements cannot all be met, that is a conversation to have with the user now, about which one gives way.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Choosing the radio first and the reporting interval later.</strong> The interval often matters more.</li>
+<li><strong>Leaving out retransmissions, receive windows and network join energy.</strong> Real radios rarely send once and sleep.</li>
+<li><strong>Ignoring temperature.</strong> Battery capacity falls in cold weather and self-discharge rises in heat.</li>
+<li><strong>Designing for the bench.</strong> Range measured across a lab says nothing about a field of tall crops.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the model, then add a retransmission probability and a receive window after each message, and see how life changes.</li>
+<li>Measure the real sleep and active current of a development board running <strong>Zephyr</strong> with a simple current-sense setup, and replace the illustrative values with yours.</li>
+<li>Write a one-page trade study for a node at a site you know, with criteria for range, life, cost and maintenance, and run a sensitivity check on the weights.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>iot</li><li>battery life</li><li>radio</li><li>low power</li><li>trade-offs</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="running-a-trade-study.html"><span>Previous in Systems &amp; product engineering</span>Running a trade study: criteria, weights and honest scoring</a><a class="next" href="drone-controller-safety-analysis.html"><span>Next in Systems &amp; product engineering</span>Safety analysis for a drone controller: failure modes and fail-safe behaviour</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="water-quality-system-end-to-end.html">Designing a water quality monitoring system end to end</a></h3>
+          <p>A water quality monitor is sensors, calibration, enclosure, power, connectivity and maintenance working as one system. How to write requirements that tie them together, with a pH calibration worked through in code.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="agile-for-hardware-teams.html">Agile for hardware teams: what works when you cannot ship every week</a></h3>
+          <p>Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

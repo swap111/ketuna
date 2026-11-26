@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparators: speed, offset, hysteresis and kickback · Ketuna blog</title>
+  <meta name="description" content="A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Comparators: speed, offset, hysteresis and kickback · Ketuna blog">
+  <meta property="og:description" content="A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.">
+  <link rel="canonical" href="https://ketuna.online/blog/comparator-design-tradeoffs.html">
+  <meta property="og:url" content="https://ketuna.online/blog/comparator-design-tradeoffs.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Comparators: speed, offset, hysteresis and kickback",
+  "description": "A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "comparator, hysteresis, offset, latch, mixed signal",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1111,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/comparator-design-tradeoffs.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Comparators: speed, offset, hysteresis and kickback</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A comparator turns a tiny voltage difference into a clean digital decision. Compare static and latched designs, see where input offset and kickback come from, and size hysteresis that stops chattering.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#static-and-latched-comparators">Static and latched comparators</a></li><li><a href="#offset-the-error-you-cannot-average-away">Offset: the error you cannot average away</a></li><li><a href="#hysteresis-against-chattering">Hysteresis against chattering</a></li><li><a href="#kickback-the-comparator-disturbs-its-input">Kickback: the comparator disturbs its input</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A comparator answers one question: is input A higher than input B? Every ADC, every brown-out detector, every zero-crossing detector and many sensor wake-up circuits rely on it. It looks like an op-amp without feedback, but its design goals are different: it must make a decision quickly, make it correctly for inputs of a millivolt or less, and not disturb the signal it is measuring. Four properties capture those goals, and they pull against each other.</p>
+<h2 id="static-and-latched-comparators">Static and latched comparators</h2>
+<p>A <strong>static</strong> (continuous-time) comparator is a chain of high-gain amplifier stages running open loop. Its output follows the input continuously, and the decision is reached when the input difference, multiplied by the total gain, is large enough to drive the output to a rail. It needs no clock and suits slowly varying signals such as a battery voltage. Its weakness is speed for small inputs: a stage with large gain has limited bandwidth, so a tiny difference takes a long time to grow.</p>
+<p>A <strong>latched</strong> (dynamic) comparator uses positive feedback. A common form is the StrongARM latch: a differential input pair sits under two cross-coupled inverters. In the reset phase of the clock, the internal nodes are precharged and no static current flows. When the clock edge arrives, the input pair starts to unbalance the two sides, and the cross-coupled inverters amplify whatever imbalance exists. Positive feedback makes the difference grow exponentially with a time constant τ set by the inverters' transconductance and capacitance:</p>
+<blockquote>
+<p>v(t) ≈ v<sub>0</sub> × e<sup>t/τ</sup>,  so the decision time is t ≈ τ × ln(V<sub>logic</sub> / v<sub>0</sub>)</p>
+</blockquote>
+<p>The logarithm is the reason latches are fast. With an illustrative τ of 20 ps, resolving an initial 1 mV imbalance to 1 V takes 20 ps × ln(1000) ≈ <strong>138 ps</strong>. A thousand times smaller input, 1 µV, takes only twice as long, about <strong>276 ps</strong>. A latched comparator draws current only while deciding, which is why SAR ADCs use them almost universally.</p>
+<p>The logarithm also hides a trap. As the input approaches zero, the decision time grows without bound. If the clock period ends before the latch has resolved, the output is neither 0 nor 1. That is <strong>metastability</strong>, the same phenomenon that troubles flip-flops, and designers budget for it with enough time per decision and a small error probability.</p>
+<h2 id="offset-the-error-you-cannot-average-away">Offset: the error you cannot average away</h2>
+<p>Two input transistors drawn identically still differ slightly in threshold voltage and current factor. The comparator then switches not at zero difference but at some <strong>input offset voltage</strong> V<sub>os</sub>, which is different on every die. In a latch, mismatch in the cross-coupled pair adds more offset, although its effect is divided by the gain of the input pair in front of it.</p>
+<p>Three standard remedies:</p>
+<ul>
+<li><strong>Larger devices.</strong> Threshold mismatch falls roughly as one over the square root of gate area, so four times the area halves the offset. The cost is capacitance, which slows the comparator and increases kickback.</li>
+<li><strong>A preamplifier.</strong> A modest-gain differential stage before the latch makes the latch's own offset look smaller when referred to the input.</li>
+<li><strong>Offset cancellation.</strong> In an auto-zero scheme, the comparator periodically shorts its inputs, stores the resulting offset on a capacitor and subtracts it during the measurement phase. Digital calibration does the same by trimming a small current or capacitor until the output toggles at zero input.</li>
+</ul>
+<p>Offset matters relative to the application. For an ADC, it should be well below half an LSB of the converter, or calibrated out. For a battery-low detector, a few millivolts may be acceptable.</p>
+<h2 id="hysteresis-against-chattering">Hysteresis against chattering</h2>
+<p>A slow, noisy signal crossing a threshold causes trouble. Near the crossing, noise carries the input back and forth across the threshold, and a fast comparator faithfully reports every crossing as a burst of transitions. Downstream logic sees many edges where one was meant.</p>
+<p>The fix is <strong>hysteresis</strong>: two thresholds instead of one. Once the output goes high, the threshold for going low again is set lower, and vice versa. Noise smaller than the gap between thresholds can no longer cause a second transition.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 260" role="img" aria-labelledby="hy-title hy-desc" font-size="14">
+<title id="hy-title">Comparator transfer characteristic with hysteresis</title>
+<desc id="hy-desc">Output against input for an inverting comparator with hysteresis. The output is high until the input rises past the upper threshold of 1.8 volts, then switches low. It stays low until the input falls below the lower threshold of 1.5 volts, then switches high. The two thresholds form a rectangular loop.</desc>
+<line x1="50" y1="220" x2="460" y2="220" class="dg-line"/>
+<line x1="50" y1="220" x2="50" y2="20" class="dg-line"/>
+<text x="400" y="245" class="dg-text">input</text>
+<text x="10" y="30" class="dg-text">out</text>
+<rect x="210" y="50" width="90" height="150" class="dg-amber" fill-opacity="0.18"/>
+<path d="M60,50 L300,50 L300,200 L450,200" class="dg-line" stroke-width="2" fill="none"/>
+<path d="M450,200 L210,200 L210,50" class="dg-amber-line" stroke-width="2" fill="none"/>
+<path d="M294,110 L300,122 L306,110 Z" class="dg-arrow"/>
+<path d="M204,140 L210,128 L216,140 Z" class="dg-arrow"/>
+<text x="285" y="240" class="dg-text">1.8 V</text>
+<text x="190" y="240" class="dg-text">1.5 V</text>
+<text x="80" y="42" class="dg-muted">3.3 V</text>
+<text x="380" y="192" class="dg-muted">0 V</text>
+<text x="215" y="130" class="dg-muted">gap</text>
+</svg>
+<figcaption>Rising inputs switch at the upper threshold, falling inputs at the lower one; noise smaller than the gap cannot cause a second transition.</figcaption>
+</figure>
+
+<p>Here is a worked example of the classic way to add hysteresis around a comparator with a rail-to-rail push-pull output (0 V to 3.3 V). The signal drives the inverting input. The non-inverting input connects to a 1.65 V reference through R<sub>1</sub> = 10 kΩ and to the output through R<sub>2</sub> = 100 kΩ. By superposition, the non-inverting input sits at:</p>
+<blockquote>
+<p>V<sub>+</sub> = V<sub>ref</sub> × R<sub>2</sub>/(R<sub>1</sub> + R<sub>2</sub>) + V<sub>out</sub> × R<sub>1</sub>/(R<sub>1</sub> + R<sub>2</sub>) = 1.5 V + 0.0909 × V<sub>out</sub></p>
+</blockquote>
+<p>With the output high (3.3 V), the threshold is 1.5 + 0.30 = <strong>1.8 V</strong>. With the output low, it is <strong>1.5 V</strong>. The hysteresis is 0.3 V, centred at 1.65 V. Choose the gap larger than the peak-to-peak noise you expect, but small enough that the shifted thresholds still meet your accuracy needs. Inside a chip, the same effect is often built into the circuit itself, for example by a small positive-feedback pair in the preamplifier.</p>
+<h2 id="kickback-the-comparator-disturbs-its-input">Kickback: the comparator disturbs its input</h2>
+<p>When a latch fires, its internal nodes swing by the full supply in tens of picoseconds. That swing couples back through the gate-drain capacitance of the input transistors onto the inputs. This <strong>kickback</strong> injects a small charge into whatever drives the comparator. If the source has low impedance, it absorbs the charge harmlessly. If the source is a high-impedance node, such as the capacitor array of a SAR ADC or a resistor ladder in a flash ADC, the voltage on it is disturbed, possibly enough to corrupt the next decision.</p>
+<p>Remedies include a preamplifier that isolates the latch from the input, switches that disconnect the latch at the decision instant, and smaller input devices. That last one conflicts with low offset, which needs larger devices. This tension sits at the heart of comparator design: low offset wants big transistors, speed and low kickback want small ones.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong>, model the external hysteresis circuit above using an ideal comparator made from a behavioural source (a <code>B</code> source with a <code>tanh</code> of large gain works), feed it a slow ramp plus noise, and confirm the 1.5 V and 1.8 V thresholds.</li>
+<li>Remove R<sub>2</sub> and watch the output chatter on the same noisy ramp.</li>
+<li>Build a StrongARM latch with sky130 devices, apply input differences of 10 mV, 1 mV and 0.1 mV, and plot the decision time against the logarithm of the input. Check that the points fall on a straight line, and estimate τ from its slope.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>comparator</li><li>hysteresis</li><li>offset</li><li>latch</li><li>mixed signal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="adc-architecture-for-sensor-fusion.html"><span>Previous in Analog &amp; mixed-signal</span>Choosing an ADC architecture for a multi-channel sensor-fusion array</a><a class="next" href="current-mirror-basics.html"><span>Next in Analog &amp; mixed-signal</span>Current mirrors: copying a current and why matching matters</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="analog-and-digital-on-one-die.html">Putting analog and digital on one die: substrate noise, supplies and isolation</a></h3>
+          <p>Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="how-a-sar-adc-converts.html">How a SAR ADC converts: binary search with a capacitor DAC</a></h3>
+          <p>A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-a-pll.html">Inside a PLL: phase detector, charge pump, loop filter and VCO</a></h3>
+          <p>A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

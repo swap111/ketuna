@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debugging an LVS mismatch without losing a day · Ketuna blog</title>
+  <meta name="description" content="An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Debugging an LVS mismatch without losing a day · Ketuna blog">
+  <meta property="og:description" content="An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.">
+  <link rel="canonical" href="https://ketuna.online/blog/debugging-lvs-mismatches.html">
+  <meta property="og:url" content="https://ketuna.online/blog/debugging-lvs-mismatches.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Debugging an LVS mismatch without losing a day",
+  "description": "An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "lvs, netgen, physical verification, debugging, sign-off",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 1047,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/debugging-lvs-mismatches.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Debugging an LVS mismatch without losing a day</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#how-the-comparison-actually-works">How the comparison actually works</a></li><li><a href="#triage-order">Triage order</a></li><li><a href="#isolating-a-short">Isolating a short</a></li><li><a href="#isolating-an-open">Isolating an open</a></li><li><a href="#the-usual-suspects">The usual suspects</a></li><li><a href="#habits-that-save-the-day">Habits that save the day</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An LVS failure rarely looks like one problem. The report may list dozens of unmatched nets, hundreds of devices in mismatched classes, and pin errors on top. The temptation is to start at the top of the list and work down. That is how a day disappears. Most LVS failures come from one or two root causes whose effects ripple through the matching algorithm, and the skill is in finding those causes first.</p>
+<h2 id="how-the-comparison-actually-works">How the comparison actually works</h2>
+<p>Knowing the algorithm explains why one error creates many symptoms. A tool like Netgen does not compare names line by line. It builds a graph for each netlist, with devices and nets as nodes, and partitions both graphs iteratively by local structure: how many devices of which type connect to each net, how many nets of which degree touch each device. Nodes whose structure is unique on both sides are matched. Then their neighbours are refined, and so on.</p>
+<p>A single short merges two nets into one net with a much larger connection count. That net no longer matches anything, so its neighbours' signatures change, and they fail to match, and so on outwards. One misplaced shape can leave a large region of the design "unresolved". The first lesson is therefore: <strong>the length of the report says nothing about the number of errors.</strong></p>
+<h2 id="triage-order">Triage order</h2>
+<p>Work from the cheapest, broadest checks towards specific nets.</p>
+<ol>
+<li><strong>Check the run setup before the result.</strong> Is the source netlist the right one (the final post-route netlist with physical cells, not the synthesis netlist)? Is the layout extract from the final GDS? Do both use the same top cell name? A surprising share of "LVS failures" are comparisons of the wrong files.</li>
+<li><strong>Read the summary counts.</strong> Compare device counts per type and net counts on each side. If the layout has one fewer net than the source, look for a short. If it has one more, look for an open. If device counts differ, look for a missing or extra cell.</li>
+<li><strong>Look at pin and port errors next.</strong> Top-level ports that do not match usually mean a missing or misplaced label, or a port connected to the wrong net. These are cheap to fix and they unblock matching for everything connected to them.</li>
+<li><strong>Then the power nets.</strong> Errors involving VDD and ground are both the most common and the most disruptive, because power nets touch nearly every device.</li>
+<li><strong>Only then individual signal nets,</strong> starting with the ones that have the most connections.</li>
+</ol>
+<p>An illustrative summary, made up to show the pattern:</p>
+<pre><code class="language-text">Circuit 1 (layout):  4112 devices, 1873 nets
+Circuit 2 (source):  4112 devices, 1874 nets
+Netlists do not match.
+</code></pre>
+<p>Same device count, one net fewer in the layout: a short is the leading suspect. Two source nets became one layout net.</p>
+<h2 id="isolating-a-short">Isolating a short</h2>
+<p>Shorts between signals and power are the classic case. To find one:</p>
+<ul>
+<li><strong>Look for an unusually large net</strong> on the layout side, or a signal net reported as connected to a power net. Netgen lists the unmatched nets and the devices on them; a "signal" net with hundreds of connections is a strong hint.</li>
+<li><strong>Use a short-finding view in the layout tool.</strong> Highlighting a net in Magic or KLayout and following its geometry shows where it touches something it should not. A signal shape overlapping a power strap, or a via dropped onto the wrong layer, is typical.</li>
+<li><strong>Bisect by layer</strong> if the net is large: check connectivity layer by layer to find the level where the two nets join.</li>
+</ul>
+<h2 id="isolating-an-open">Isolating an open</h2>
+<p>An open splits one source net into two layout nets. Symptoms are a layout net count one higher, and two partial nets that each match part of a source net.</p>
+<ul>
+<li><strong>Find the source net that is matched to nothing,</strong> then list devices on each partial layout net. The break lies between the two groups.</li>
+<li><strong>Check pin access</strong> for those devices: a wire that ends near but not on a pin shape, or a missing via stack between layers.</li>
+<li><strong>Check labels:</strong> a label on the wrong layer, or offset from the shape it names, can make two pieces of one net look unconnected to the extractor, or leave a port unconnected.</li>
+</ul>
+<h2 id="the-usual-suspects">The usual suspects</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Suspect</th>
+<th>How it shows up</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Well taps and substrate ties</td>
+<td>Bulk or well nets unmatched, power nets split</td>
+<td>Tap cells present at the required spacing; well nets connected to the right supply</td>
+</tr>
+<tr>
+<td>Physical-only cells</td>
+<td>Device count differences in filler, decap, tap or diode cells</td>
+<td>The source netlist includes them, or both sides exclude them consistently</td>
+</tr>
+<tr>
+<td>Power pin names</td>
+<td>VDD in one netlist, VPWR in the other</td>
+<td>Consistent power net names and global net handling</td>
+</tr>
+<tr>
+<td>Top-level labels</td>
+<td>Port errors, renamed nets</td>
+<td>Every port has one label, on the correct layer, on its shape</td>
+</tr>
+<tr>
+<td>Black-boxed macros</td>
+<td>Pin count or order mismatches</td>
+<td>The macro is treated the same way on both sides</td>
+</tr>
+<tr>
+<td>Permutable pins</td>
+<td>Spurious mismatches on gates with swappable inputs</td>
+<td>The tool knows which pins of a cell are logically equivalent</td>
+</tr>
+</tbody>
+</table></div>
+<p>Well ties deserve a special mention. In standard-cell designs, the n-wells and substrate connect to supplies through tap cells rather than inside every cell. If taps are missing in a region, or the well is connected to the wrong supply in a multi-voltage design, LVS reports errors that look like power-net problems everywhere.</p>
+<h2 id="habits-that-save-the-day">Habits that save the day</h2>
+<ul>
+<li><strong>Fix one root cause, rerun, reread.</strong> Many symptoms vanish together. Do not try to fix every listed error in one pass.</li>
+<li><strong>Keep a known-good run.</strong> Comparing a failing run's report with the last passing run usually shows exactly which change introduced the error.</li>
+<li><strong>Write down each hypothesis before testing it.</strong> It stops you going in circles.</li>
+<li><strong>Do not suppress errors to get a match.</strong> Every waiver must be understood and reviewed by someone else.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 and confirm LVS is clean with <strong>Netgen</strong>.</li>
+<li>In <strong>Magic</strong> or <strong>KLayout</strong>, add a metal shape that shorts a signal to a power strap. Re-extract and rerun Netgen. Note how many errors one short produces and compare the net counts.</li>
+<li>Undo it, then delete a single via on a signal net. Rerun and observe the open's signature.</li>
+<li>Move one top-level port label off its shape and see how the report describes a port error, compared with a short or an open.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>lvs</li><li>netgen</li><li>physical verification</li><li>debugging</li><li>sign-off</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="drc-lvs-antenna-explained.html"><span>Previous in Physical design &amp; tape-out</span>DRC, LVS and antenna checks: what each one protects you from</a><a class="next" href="power-grid-rings-and-straps.html"><span>Next in Physical design &amp; tape-out</span>Designing a power grid: rings, straps and why IR drop starts at the floorplan</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tape-out-checklist.html">The tape-out checklist: what to confirm before you send GDS</a></h3>
+          <p>Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="ir-drop-and-electromigration.html">IR drop and electromigration in plain terms</a></h3>
+          <p>IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

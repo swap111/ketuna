@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADC datasheet terms decoded: ENOB, INL, DNL and SNR · Ketuna blog</title>
+  <meta name="description" content="An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="ADC datasheet terms decoded: ENOB, INL, DNL and SNR · Ketuna blog">
+  <meta property="og:description" content="An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.">
+  <link rel="canonical" href="https://ketuna.online/blog/adc-datasheet-terms-decoded.html">
+  <meta property="og:url" content="https://ketuna.online/blog/adc-datasheet-terms-decoded.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ADC datasheet terms decoded: ENOB, INL, DNL and SNR",
+  "description": "An ADC's bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "adc, enob, dnl, inl, data converters",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1042,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/adc-datasheet-terms-decoded.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>ADC datasheet terms decoded: ENOB, INL, DNL and SNR</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-families-of-specifications">Two families of specifications</a></li><li><a href="#the-ideal-staircase-and-its-errors">The ideal staircase and its errors</a></li><li><a href="#computing-dnl-and-inl-from-measurements">Computing DNL and INL from measurements</a></li><li><a href="#noise-distortion-and-the-effective-number-of-bits">Noise, distortion and the effective number of bits</a></li><li><a href="#which-specification-matters-for-your-application">Which specification matters for your application</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A converter advertised as "12-bit" produces 12-bit numbers, but that does not mean all 12 bits carry information. Noise, distortion and uneven steps eat into the useful resolution, and an ADC datasheet describes each of those losses with its own specification. Once you know what each term measures, you can pick a converter for your application, or judge your own design, without being misled by the bit count.</p>
+<h2 id="two-families-of-specifications">Two families of specifications</h2>
+<p>ADC specifications fall into two groups, measured in different ways.</p>
+<ul>
+<li><strong>Static (DC) specifications</strong> describe the staircase that maps input voltage to output code: offset, gain error, DNL and INL. They are measured with slow inputs, often a slow ramp or a histogram of codes.</li>
+<li><strong>Dynamic (AC) specifications</strong> describe how faithfully the converter digitises a changing signal: SNR, THD, SINAD, ENOB and SFDR. They are measured by feeding a pure sine wave, capturing thousands of samples and taking an FFT.</li>
+</ul>
+<p>A precision weighing scale lives or dies by the first group. An audio or vibration recorder lives or dies by the second.</p>
+<h2 id="the-ideal-staircase-and-its-errors">The ideal staircase and its errors</h2>
+<p>An ideal N-bit ADC with full-scale range V<sub>FS</sub> divides the range into 2<sup>N</sup> equal steps. The step size is one <strong>LSB</strong> (least significant bit):</p>
+<blockquote>
+<p>1 LSB = V<sub>FS</sub> / 2<sup>N</sup></p>
+</blockquote>
+<p>For a 12-bit converter on 3.3 V, that is 3.3 / 4096 ≈ 0.806 mV. A real converter's staircase deviates from the ideal in four ways:</p>
+<ul>
+<li><strong>Offset error:</strong> the whole staircase is shifted left or right. Easy to calibrate away by measuring a known zero input.</li>
+<li><strong>Gain error:</strong> the staircase is stretched or squeezed, so the last transition is in the wrong place. Also easy to calibrate with a known full-scale input.</li>
+<li><strong>DNL (differential non-linearity):</strong> individual steps are wider or narrower than 1 LSB. DNL for a code is its actual width divided by the ideal width, minus 1. A code of width zero has DNL = −1 LSB and is a <strong>missing code</strong>: no input voltage ever produces it.</li>
+<li><strong>INL (integral non-linearity):</strong> after removing offset and gain error, how far each transition sits from a straight line. INL is the running sum of the DNL errors, so small step errors that lean the same way accumulate into a bowed curve.</li>
+</ul>
+<p>Offset and gain can be trimmed with two calibration points. DNL and INL cannot, because they vary along the range. That makes them the real limit for accurate DC measurement.</p>
+<h2 id="computing-dnl-and-inl-from-measurements">Computing DNL and INL from measurements</h2>
+<p>The test is simple in principle: sweep the input slowly and record the voltage at which each code transition happens. This short script computes both errors for a 3-bit converter with made-up transition voltages:</p>
+<pre><code class="language-python"># Input voltages (V) at which a 3-bit ADC steps to the next code:
+# T[0] is the 0-&gt;1 transition, T[6] the 6-&gt;7. Made up for illustration.
+T = [0.130, 0.360, 0.640, 0.800, 1.120, 1.400, 1.600]
+
+lsb = (T[-1] - T[0]) / (len(T) - 1)  # end-point fit: average step
+print(f&quot;average step = {lsb*1e3:.0f} mV&quot;)
+
+for k in range(1, len(T)):           # codes 1..6 have a width
+    width = T[k] - T[k - 1]
+    print(f&quot;code {k}: width {width*1e3:4.0f} mV  &quot;
+          f&quot;DNL {width/lsb - 1:+.2f} LSB&quot;)
+
+for k, t in enumerate(T):            # deviation from the straight line
+    inl = (t - (T[0] + k * lsb)) / lsb
+    print(f&quot;transition {k}-&gt;{k+1}: INL {inl:+.2f} LSB&quot;)
+</code></pre>
+<p>The average step is 245 mV. Code 3 is only 160 mV wide (DNL −0.35 LSB) and code 4 is 320 mV wide (DNL +0.31 LSB). The 3→4 transition sits 0.27 LSB early, the worst INL. Using the first and last transitions to define the straight line, called an end-point fit, removes offset and gain error automatically; some datasheets use a best-fit line instead, which gives smaller INL numbers for the same converter, so check which one is quoted.</p>
+<p>A guarantee of "no missing codes" means DNL stays above −1 LSB everywhere. It matters in control loops: if a code is missing, a feedback loop trying to hold the input there will hunt between neighbours.</p>
+<h2 id="noise-distortion-and-the-effective-number-of-bits">Noise, distortion and the effective number of bits</h2>
+<p>Feed a full-scale sine wave and take an FFT of the output. You see one tall spike at the input frequency, smaller spikes at its harmonics (distortion), and a floor of noise.</p>
+<ul>
+<li><strong>SNR (signal-to-noise ratio):</strong> signal power over noise power, harmonics excluded. Even a perfect converter has quantization noise, because rounding to the nearest step adds an error spread uniformly over ±½ LSB. For a full-scale sine this gives the ideal limit <strong>SNR = 6.02N + 1.76 dB</strong>, about 74.0 dB for 12 bits and 98.1 dB for 16 bits.</li>
+<li><strong>THD (total harmonic distortion):</strong> power in the harmonics relative to the signal. It comes from the curvature of the transfer function, so INL and THD are two views of the same non-linearity.</li>
+<li><strong>SINAD (signal to noise and distortion):</strong> signal over everything else. Always the worst of the three.</li>
+<li><strong>ENOB (effective number of bits):</strong> SINAD turned back into bits by inverting the ideal formula:</li>
+</ul>
+<blockquote>
+<p>ENOB = (SINAD − 1.76) / 6.02</p>
+</blockquote>
+<p>A 16-bit converter with a measured SINAD of 86 dB has ENOB = (86 − 1.76) / 6.02 ≈ <strong>14.0 bits</strong>. The bottom two bits are, on average, noise and distortion. These numbers are illustrative; real values depend on the part, the input frequency and the board.</p>
+<ul>
+<li><strong>SFDR (spurious-free dynamic range):</strong> the gap between the signal and the single tallest unwanted spike, whether harmonic or not. It matters when you look for a weak tone next to a strong one, as in radio receivers and vibration analysis.</li>
+</ul>
+<p>Dynamic specifications change with conditions. ENOB usually falls as input frequency rises, because sampling-clock jitter and the front end's bandwidth start to dominate. A datasheet that quotes ENOB at a low input frequency tells you little about performance at a high one.</p>
+<h2 id="which-specification-matters-for-your-application">Which specification matters for your application</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Application</th>
+<th>Specifications to read first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DC measurement: temperature, weighing, battery voltage</td>
+<td>INL, offset and gain drift, noise in LSB rms</td>
+</tr>
+<tr>
+<td>Control loops: motor current, regulators</td>
+<td>DNL (no missing codes), conversion latency</td>
+</tr>
+<tr>
+<td>Audio and vibration</td>
+<td>SNR, THD, SINAD or ENOB at the relevant input frequencies</td>
+</tr>
+<tr>
+<td>Radio and wideband signals</td>
+<td>SFDR, ENOB at high input frequency, jitter sensitivity</td>
+</tr>
+</tbody>
+</table></div>
+<p>Common mistakes:</p>
+<ul>
+<li>Choosing by bit count alone and then discovering that ENOB is two or three bits lower</li>
+<li>Comparing INL figures measured with different fitting methods</li>
+<li>Reading ENOB at a 1 kHz test tone and applying it at 1 MHz</li>
+<li>Forgetting that a noisy reference or poor layout lowers the ENOB you get on your own board</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the DNL/INL script above, then change one transition so that a code width becomes zero, and confirm DNL reaches −1 LSB.</li>
+<li>With <strong>numpy</strong>, generate a sine wave, quantize it to 10 bits with <code>np.round</code>, take an FFT with a window, and compute SNR. Compare with 6.02 × 10 + 1.76 ≈ 62 dB.</li>
+<li>Add a small cubic term to the sine before quantizing and watch harmonics appear. Measure THD and SINAD, and convert SINAD to ENOB.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>adc</li><li>enob</li><li>dnl</li><li>inl</li><li>data converters</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="analog-layout-for-matching.html"><span>Next in Analog &amp; mixed-signal</span>Analog layout for matching: common centroid, interdigitation and dummies</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="cell-voltage-measurement-in-a-bms.html">Measuring cell voltages in a battery pack: the analog front end of a BMS</a></h3>
+          <p>Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="how-a-sar-adc-converts.html">How a SAR ADC converts: binary search with a capacitor DAC</a></h3>
+          <p>A successive-approximation ADC finds a digital code by binary search, one comparator decision per bit. Follow the sample, compare and bit-trial sequence, and see why the capacitor array sets the accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How smart energy meters work and why utilities deploy them · Ketuna blog</title>
+  <meta name="description" content="How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How smart energy meters work and why utilities deploy them · Ketuna blog">
+  <meta property="og:description" content="How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.">
+  <link rel="canonical" href="https://ketuna.online/blog/how-smart-energy-meters-work.html">
+  <meta property="og:url" content="https://ketuna.online/blog/how-smart-energy-meters-work.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How smart energy meters work and why utilities deploy them",
+  "description": "How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "smart meter, energy measurement, adc, metering, iot",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 900,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/how-smart-energy-meters-work.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>How smart energy meters work and why utilities deploy them</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a smart meter measures energy from voltage and current samples, stores readings, talks to the utility and detects tampering, with a short Python example that computes real power the way a metering chip does.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-smart-meter-does">What a smart meter does</a></li><li><a href="#measuring-energy-from-samples">Measuring energy from samples</a></li><li><a href="#storing-readings-safely">Storing readings safely</a></li><li><a href="#talking-to-the-utility">Talking to the utility</a></li><li><a href="#detecting-tamper">Detecting tamper</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The electricity meter on the wall used to be a spinning disc that someone came to read once a month. A smart meter does the same basic job, counting how much energy flows into a home or shop, but it does it electronically, keeps a detailed record and sends readings to the utility by itself. Inside it is a small, carefully designed electronic system: an analog front end, data converters, a processor, memory, a radio or wired link and security. This article explains how each part works and why utilities want them.</p>
+<h2 id="what-a-smart-meter-does">What a smart meter does</h2>
+<p>A smart meter has four jobs:</p>
+<ol>
+<li><strong>Measure</strong> energy accurately over years, across a wide range of loads and temperatures</li>
+<li><strong>Store</strong> readings and events in memory that survives power cuts</li>
+<li><strong>Communicate</strong> with the utility, both sending data and receiving commands</li>
+<li><strong>Protect</strong> itself and its data against tampering and attack</li>
+</ol>
+<p>Utilities deploy them because these jobs remove manual meter reading, give billing data at fine time intervals, reveal where energy is being lost in the network, support prepaid billing and allow tariffs that vary by time of day. Each of those uses depends on the measurement being trustworthy.</p>
+<h2 id="measuring-energy-from-samples">Measuring energy from samples</h2>
+<p>The meter senses <strong>voltage</strong> through a resistor divider that scales the mains down to a small signal, and <strong>current</strong> through a sensor such as a low-value shunt resistor, a current transformer or a Rogowski coil. Two analog-to-digital converters sample both signals at the same instant, thousands of times a second. Metering front ends commonly use high-resolution sigma-delta ADCs, because the current can range from a few milliamps for a phone charger to tens of amps for a heater, and the meter must be accurate across that whole range.</p>
+<p>From the samples, the meter computes:</p>
+<ul>
+<li><strong>RMS voltage and current:</strong> the square root of the mean of the squared samples</li>
+<li><strong>Real power:</strong> the mean of voltage times current, sample by sample</li>
+<li><strong>Apparent power:</strong> RMS voltage times RMS current</li>
+<li><strong>Power factor:</strong> real power divided by apparent power</li>
+</ul>
+<p>Real power is what you are billed for. When current lags voltage, as in a motor or a fan, some current flows back and forth without delivering energy. Multiplying the samples before averaging handles this automatically: the parts that cancel out over a cycle do not count.</p>
+<p>Here is the calculation in Python, on made-up, perfectly clean waveforms with the current lagging by 30 degrees:</p>
+<pre><code class="language-python">import numpy as np
+
+fs, f = 4000, 50                      # sample rate and mains frequency, Hz
+t = np.arange(0, 0.2, 1 / fs)         # 10 mains cycles
+v = 230 * np.sqrt(2) * np.sin(2 * np.pi * f * t)
+i = 5 * np.sqrt(2) * np.sin(2 * np.pi * f * t - np.pi / 6)  # lags 30 deg
+
+v_rms = np.sqrt(np.mean(v ** 2))
+i_rms = np.sqrt(np.mean(i ** 2))
+p = np.mean(v * i)                    # real power, W
+s = v_rms * i_rms                     # apparent power, VA
+print(f&quot;{v_rms:.1f} V  {i_rms:.2f} A  {p:.0f} W  {s:.0f} VA  pf {p/s:.3f}&quot;)
+print(f&quot;energy in one hour: {p / 1000:.3f} kWh&quot;)
+</code></pre>
+<p>It prints <code>230.0 V  5.00 A  996 W  1150 VA  pf 0.866</code>. The apparent power is 1150 VA, but only 996 W is real power, because cos 30° ≈ 0.866. <strong>Energy</strong> is power accumulated over time; a metering chip adds up power continuously and increments a counter each time a small fixed quantum of energy has passed. At this load, an hour adds about 0.996 kWh.</p>
+<p>Real meters have more work to do: removing DC offsets, correcting the small phase shift that a current transformer introduces, compensating for temperature, and measuring both line and neutral currents. They are <strong>calibrated</strong> at the factory against a reference meter, and the calibration constants are stored in protected memory.</p>
+<h2 id="storing-readings-safely">Storing readings safely</h2>
+<p>The meter keeps cumulative energy registers, readings at fixed intervals, maximum demand and an event log. All of this must survive power loss, which, given that power loss is exactly what the meter sees most often, is a real design concern. Meters detect a falling supply and write critical registers to non-volatile memory in the moments before the supply dies, and they store data with checksums so a corrupted record is detected rather than trusted. A real-time clock with a backup source keeps timestamps correct through outages.</p>
+<h2 id="talking-to-the-utility">Talking to the utility</h2>
+<p>Readings travel to the utility's head-end system over a communication module. Depending on the area, that may be a cellular link, a radio mesh in which meters relay each other's data, or communication over the power line itself. Data is structured with open metering protocols, such as the DLMS/COSEM family standardised by the IEC, so equipment from different makers can work with the same utility systems; national companion specifications add local requirements.</p>
+<p>Communication runs both ways. The utility can read meters on demand, update tariffs, update firmware and, in prepaid or disconnect-capable meters, operate a relay that switches the supply. Because a command can cut someone's power, these links are protected with authentication and encryption, and keys must be managed carefully across many devices.</p>
+<h2 id="detecting-tamper">Detecting tamper</h2>
+<p>Some people try to slow or bypass meters, so meters watch for tell-tale signs and record them:</p>
+<ul>
+<li><strong>Cover opening,</strong> detected by a switch</li>
+<li><strong>Strong magnetic fields,</strong> which can saturate current transformers, detected by a magnetic sensor</li>
+<li><strong>Current imbalance</strong> between line and neutral, suggesting a bypass or earth path</li>
+<li><strong>Missing neutral or reversed connections,</strong> detected from the voltage and current patterns</li>
+</ul>
+<p>Each event is time-stamped and reported. The design goal is to keep measuring correctly where possible and, where not, to leave clear evidence.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python example, then add a third-harmonic component to the current and see how real power, RMS current and power factor change.</li>
+<li>Add a small DC offset to the current samples and confirm that real power is barely affected while RMS current changes; then remove the offset with a high-pass filter.</li>
+<li>Simulate a resistor divider and a burden resistor for a current transformer in <strong>ngspice</strong>, and check the signal levels against an ADC's input range.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>smart meter</li><li>energy measurement</li><li>adc</li><li>metering</li><li>iot</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="how-a-chip-goes-from-idea-to-market.html"><span>Previous in India&#x27;s electronics ecosystem</span>How a chip goes from idea to market, step by step, from an Indian team&#x27;s point of view</a><a class="next" href="open-shuttles-for-students.html"><span>Next in India&#x27;s electronics ecosystem</span>Open shuttles and shared tape-outs: how students can get a design onto real silicon</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="planning-wireless-approvals.html">Wireless products in India: the approvals to plan for before launch</a></h3>
+          <p>Why products with radios need equipment and frequency approvals, how licence-exempt bands, power limits and antenna choices shape the design, and why the approval plan belongs in the first design review.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-field-pilot.html">Running a field pilot for sensing hardware: from a handful of prototypes to real users</a></h3>
+          <p>How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

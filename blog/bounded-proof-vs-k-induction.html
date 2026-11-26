@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bounded proof or full proof? Model-checking depth and k-induction explained · Ketuna blog</title>
+  <meta name="description" content="Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Bounded proof or full proof? Model-checking depth and k-induction explained · Ketuna blog">
+  <meta property="og:description" content="Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.">
+  <link rel="canonical" href="https://ketuna.online/blog/bounded-proof-vs-k-induction.html">
+  <meta property="og:url" content="https://ketuna.online/blog/bounded-proof-vs-k-induction.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Bounded proof or full proof? Model-checking depth and k-induction explained",
+  "description": "Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "formal verification, k-induction, bounded model checking, invariants, symbiyosys",
+  "articleSection": "Verification",
+  "wordCount": 1062,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/bounded-proof-vs-k-induction.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>Bounded proof or full proof? Model-checking depth and k-induction explained</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-bounded-check-actually-establishes">What a bounded check actually establishes</a></li><li><a href="#the-induction-step-and-unreachable-states">The induction step and unreachable states</a></li><li><a href="#a-small-example-that-fails-induction">A small example that fails induction</a></li><li><a href="#the-fix-is-an-invariant">The fix is an invariant</a></li><li><a href="#when-raising-k-is-the-right-answer">When raising k is the right answer</a></li><li><a href="#reading-an-induction-trace">Reading an induction trace</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first surprise in formal verification usually arrives like this: the bounded check passes at depth 20, you switch to prove mode, and the induction step fails with a trace that starts from a state your design can never reach. Nothing is wrong with the RTL. The tool is telling you that your properties are true but not yet <em>inductive</em>. Understanding why separates people who use formal tools from people who fight them.</p>
+<h2 id="what-a-bounded-check-actually-establishes">What a bounded check actually establishes</h2>
+<p>Bounded model checking (BMC) unrolls the design from its reset state for k cycles, with every input free, and asks a solver whether any assertion can fail within those cycles. If the answer is no, you have learned something precise: no input sequence of length k or less, starting from reset, violates the property.</p>
+<p>That is a strong statement about short behaviour and no statement at all about cycle k+1. For a design whose interesting behaviour takes longer to reach than k cycles, such as a 16-bit timeout, a deep FIFO or a counter that must reach a high value, a BMC pass may never have exercised the logic you care about. Bounded results are excellent for finding bugs quickly. They are not proofs.</p>
+<h2 id="the-induction-step-and-unreachable-states">The induction step and unreachable states</h2>
+<p>k-induction adds a second question to make the result unbounded. The <strong>base case</strong> is BMC to depth k. The <strong>induction step</strong> asks: starting from <em>any</em> state at all, if the assertions hold for k consecutive cycles, can they fail on the next one? If the base case passes and the step cannot fail, the property holds forever: from reset it holds for k cycles, and every window of k good cycles is followed by another good one.</p>
+<p>The catch is in "any state at all". The step does not start from reset. It may start from states the design can never reach, and if some unreachable state satisfies your assertions for k cycles and then breaks one, the step fails.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="ki-title ki-desc" font-size="14">
+<title id="ki-title">Reachable, unreachable and bad states</title>
+<desc id="ki-desc">A large box represents all states. Inside it, a region of reachable states contains the reset state and never touches the bad states. A separate region of unreachable states that still satisfy the assertions has an arrow leading into the bad states. The induction step can start in that unreachable region.</desc>
+<rect x="10" y="10" width="460" height="210" rx="8" class="dg-track"/>
+<text x="22" y="32" class="dg-muted">all states</text>
+<ellipse cx="130" cy="125" rx="95" ry="65" class="dg-core"/>
+<text x="130" y="105" text-anchor="middle" class="dg-text">reachable</text>
+<circle cx="130" cy="140" r="6" class="dg-amber"/>
+<text x="130" y="168" text-anchor="middle" class="dg-muted">reset</text>
+<ellipse cx="300" cy="75" rx="80" ry="40" class="dg-box"/>
+<text x="300" y="70" text-anchor="middle" class="dg-text">unreachable,</text>
+<text x="300" y="88" text-anchor="middle" class="dg-text">asserts hold</text>
+<rect x="320" y="150" width="130" height="50" rx="6" class="dg-amber" fill-opacity="0.35"/>
+<text x="385" y="180" text-anchor="middle" class="dg-text">bad states</text>
+<path d="M330,112 L370,144" class="dg-line"/>
+<path d="M364,146 L373,147 L369,139 Z" class="dg-arrow"/>
+</svg>
+<figcaption>BMC explores only from reset; the induction step may start anywhere the assertions hold, including unreachable states that lead to failure.</figcaption>
+</figure>
+
+<h2 id="a-small-example-that-fails-induction">A small example that fails induction</h2>
+<p>Two 32-bit counters reset to zero and always increment together. An assertion claims they never show the pair (3, 5).</p>
+<pre><code class="language-verilog">reg [31:0] a, b;
+always @(posedge clk)
+  if (rst) begin a &lt;= 0; b &lt;= 0; end
+  else     begin a &lt;= a + 1; b &lt;= b + 1; end
+
+`ifdef FORMAL
+  always @(*) if (!f_init) assert (!(a == 3 &amp;&amp; b == 5));
+`endif
+</code></pre>
+<p>The property is obviously true: from reset, <code>a == b</code> on every cycle, so the pair (3, 5) is unreachable. BMC passes at any depth you try.</p>
+<p>The induction step fails. The solver picks a start state with <code>a = b − 2</code>, for example (1, 3), which satisfies the assertion. One cycle later it is (2, 4), still fine, and the next cycle is (3, 5), which fails. For k = 1 the counterexample is (2, 4) → (3, 5). Raising k does not help much: in the unreachable family where <code>a − b</code> is fixed at −2, the counters cycle with a period of 2<sup>32</sup> and pass through (3, 5) once per period. So the solver can always find a run of good states of any length below 2<sup>32</sup> that ends at the bad state, and the step keeps failing until k reaches 2<sup>32</sup>, about 4.3 billion. No solver will unroll that far.</p>
+<h2 id="the-fix-is-an-invariant">The fix is an invariant</h2>
+<p>The real reason the property holds is a fact you did not state: <code>a == b</code>. Add it as an assertion.</p>
+<pre><code class="language-verilog">always @(*) if (!f_init) begin
+  assert (a == b);                     // helper invariant
+  assert (!(a == 3 &amp;&amp; b == 5));
+end
+</code></pre>
+<p>Now the step must start from a state where <em>both</em> assertions hold, which rules out every state with <code>a != b</code>. From any state with <code>a == b</code>, the next state also has <code>a == b</code>, so the invariant is inductive by itself at k = 1, and the original property follows from it. The proof completes immediately.</p>
+<p>This is the general pattern. An induction failure on a correct design means some relationship between registers is true in every reachable state but not written down. Your job is to find it and assert it. Typical helper invariants:</p>
+<ul>
+<li>a counter equals the difference of two pointers</li>
+<li>a one-hot state register is one-hot</li>
+<li>a shadow model in the formal block matches the design's state</li>
+<li>a "busy" flag is set exactly when a transaction counter is non-zero</li>
+</ul>
+<p>Each helper is itself proven, so a wrong one fails rather than silently weakening the result.</p>
+<h2 id="when-raising-k-is-the-right-answer">When raising k is the right answer</h2>
+<p>Sometimes the gap is short, and raising k is cheaper than finding an invariant. Consider a three-stage shift register whose input is tied to zero, with an assertion that the last stage is always zero.</p>
+<pre><code class="language-verilog">always @(posedge clk)
+  if (rst) {s0, s1, s2} &lt;= 3'b000;
+  else begin s0 &lt;= 1'b0;  s1 &lt;= s0;  s2 &lt;= s1; end
+
+`ifdef FORMAL
+  always @(*) if (!f_init) assert (!s2);
+`endif
+</code></pre>
+<p>With k = 1 the step starts with <code>s2 = 0</code> but <code>s1 = 1</code>, and fails a cycle later. With k = 2 it can still start with <code>s0 = 1</code>. With k = 3 the three good cycles force <code>s1</code> and <code>s0</code> to have been flushed to zero, and the step passes. The required depth equals the pipeline depth, which is small and known.</p>
+<p>A rule of thumb follows. If the unreachable states are flushed out after a bounded number of cycles, as in a pipeline, raise k. If they can persist indefinitely, as with counters that drift apart or pointers that disagree, no practical k will do and you need an invariant.</p>
+<h2 id="reading-an-induction-trace">Reading an induction trace</h2>
+<p>When the step fails, open the trace and ask, at the <em>first</em> cycle:</p>
+<ol>
+<li>Is this state reachable from reset? If it is, you have a real bug the base case has not reached yet; increase the BMC depth to confirm.</li>
+<li>If not, which registers are inconsistent with each other? That inconsistency is the invariant you are missing.</li>
+<li>After adding it, rerun. Repeat until the step passes. Each round usually teaches you something true about the design.</li>
+</ol>
+<p>Engines based on IC3/PDR, such as <code>abc pdr</code> in SymbiYosys, construct inductive invariants automatically and often succeed where plain k-induction stalls. They are worth trying, but writing the invariant yourself also documents why the design is correct.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Put the two-counter example in a module with a reset assumption and run SymbiYosys in <code>mode prove</code> with the <code>smtbmc</code> engine; read the induction trace and confirm <code>a != b</code> in its first state.</li>
+<li>Add the <code>a == b</code> invariant and rerun; note how quickly it completes.</li>
+<li>Shrink the counters to 4 bits, remove the invariant, and find the smallest depth at which induction passes; explain the number from the cycle length.</li>
+<li>Try the same job with the <code>abc pdr</code> engine and compare the result.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>formal verification</li><li>k-induction</li><li>bounded model checking</li><li>invariants</li><li>symbiyosys</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="debugging-a-failing-test-systematically.html"><span>Next in Verification</span>Debugging a failing test systematically: from the first mismatch to root cause</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="over-constrained-formal-proofs.html">How over-constrained assumptions make formal proofs lie</a></h3>
+          <p>An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="prove-a-fifo-never-overflows.html">Proving a FIFO never overflows with SymbiYosys</a></h3>
+          <p>Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="equivalence-checking-explained.html">Equivalence checking: proving synthesis did not change your design</a></h3>
+          <p>How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

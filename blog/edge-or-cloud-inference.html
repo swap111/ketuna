@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edge or cloud inference? Latency, power, privacy and cost · Ketuna blog</title>
+  <meta name="description" content="Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Edge or cloud inference? Latency, power, privacy and cost · Ketuna blog">
+  <meta property="og:description" content="Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.">
+  <link rel="canonical" href="https://ketuna.online/blog/edge-or-cloud-inference.html">
+  <meta property="og:url" content="https://ketuna.online/blog/edge-or-cloud-inference.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Edge or cloud inference? Latency, power, privacy and cost",
+  "description": "Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "edge ai, cloud, latency, privacy, system design",
+  "articleSection": "Edge AI",
+  "wordCount": 1084,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/edge-or-cloud-inference.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Edge or cloud inference? Latency, power, privacy and cost</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Whether a model runs on the device or on a server is decided by a handful of questions about latency, connectivity, energy, privacy, cost and updates. Here they are, worked through for sensing products.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-actually-moves-in-each-design">What actually moves in each design</a></li><li><a href="#the-questions-that-decide">The questions that decide</a></li><li><a href="#examples-from-sensing-products">Examples from sensing products</a></li><li><a href="#hybrid-designs-are-normal">Hybrid designs are normal</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every product that uses machine learning has to decide where the model runs. It can run on the device itself, on the edge, or the device can send its data to a server, the cloud, and get an answer back. Neither is better in general. The right choice falls out of a few plain questions about the product, and answering them early prevents expensive changes later, such as discovering after the board is made that the radio cannot carry the data, or that the processor cannot fit the model.</p>
+<h2 id="what-actually-moves-in-each-design">What actually moves in each design</h2>
+<p>In <strong>cloud inference</strong>, the device is mostly a sensor with a radio. It sends raw data or lightly processed features to a server, a large model runs there, and the result comes back if the device needs it.</p>
+<p>In <strong>edge inference</strong>, the device runs a small model itself and sends only the result, such as "pump vibration abnormal" or "keyword heard", or nothing at all.</p>
+<p>The difference in data volume is often the first thing that decides the matter. Some quick arithmetic:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Rate</th>
+<th>Per day</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Audio, 16 kHz, 16-bit</td>
+<td>256,000 bit/s</td>
+<td>about 2.76 GB</td>
+</tr>
+<tr>
+<td>3-axis accelerometer, 100 Hz, 16-bit</td>
+<td>4,800 bit/s</td>
+<td>about 51.8 MB</td>
+</tr>
+<tr>
+<td>One 20-byte event message, 100 times a day</td>
+<td>tiny</td>
+<td>about 2 kB</td>
+</tr>
+</tbody>
+</table></div>
+<p>A battery-powered sensor on a low-power radio cannot stream audio all day; a mains-powered camera on a home network might stream video happily. The table turns a vague "should we use the cloud?" into a concrete question about whether your link and your energy budget can carry the bytes.</p>
+<h2 id="the-questions-that-decide">The questions that decide</h2>
+<p>Work through these for your product. Most products have one or two that dominate.</p>
+<ol>
+<li><strong>How fast must the answer be?</strong> A wake word, a motor shutdown or a drone's obstacle check needs a response in tens of milliseconds, every time. A round trip to a server adds network delay that varies and occasionally fails. If a late answer is a wrong answer, run on the edge.</li>
+<li><strong>Is the connection always there?</strong> Farms, factories, basements, moving vehicles and remote water sites lose connectivity. A cloud-only design does nothing during an outage. Ask what the product must do when offline, and whether "nothing" is acceptable.</li>
+<li><strong>Where does the energy go?</strong> On a small battery device, the radio is usually the hungriest part. Transmitting raw data costs energy roughly in proportion to the number of bytes sent, while a small model on the processor costs a fixed amount per inference. When the data is large and the result is small, local inference usually saves energy, because the radio stays asleep. When data is tiny and inferences are rare, sending it may be cheaper than a processor big enough to run the model. Measure both on your hardware rather than assuming.</li>
+<li><strong>Whose data is it?</strong> Audio from a home, images of people or health signals are personal. Processing on the device and sending only a result means the raw data never leaves, which is a strong privacy property you can explain to users, and it reduces what you have to secure on the server side. Privacy rules also apply to data you store and transmit, so check the current regulations for your product and market.</li>
+<li><strong>What does it cost, and who pays?</strong> Edge inference raises the cost of each device (a more capable processor, more memory) once. Cloud inference adds an ongoing cost for connectivity, servers and operations for as long as the product is in use. For a product sold in large numbers and used for years, that running cost is a serious line item.</li>
+<li><strong>How big is the model, and how often will it change?</strong> Large models simply do not fit on a microcontroller, and some tasks, such as open-ended speech recognition, need them. Models that change weekly are easier to update on a server. Edge models can be updated too, but that needs a secure firmware update path designed in from the start.</li>
+</ol>
+<h2 id="examples-from-sensing-products">Examples from sensing products</h2>
+<p>These are typical patterns, not rules:</p>
+<ul>
+<li><strong>Wake-word detection</strong> runs on the edge: it needs a fast response, it listens all the time, and streaming a home's audio would be costly and intrusive. What follows the wake word may then go to a server.</li>
+<li><strong>Vibration monitoring on a remote pump</strong> runs on the edge: connectivity is poor, the raw data is large, and the useful output is a short alert or a daily summary.</li>
+<li><strong>A soil sensor node</strong> reading moisture every few minutes may not need a model at all; a threshold on the device plus occasional uploads for long-term analysis on a server is a sensible split.</li>
+<li><strong>A doorbell camera</strong> often uses a hybrid: a small on-device model decides whether a person is present, and only then are clips uploaded for heavier processing, if the user has agreed to that.</li>
+<li><strong>A wearable</strong> that flags possible irregularities in a body signal runs a small screening model on the device for continuous coverage, while any decision about health is made by a clinician with proper tests, never by the model.</li>
+</ul>
+<h2 id="hybrid-designs-are-normal">Hybrid designs are normal</h2>
+<p>The choice is rarely all or nothing. A common shape is a <strong>cascade</strong>: a cheap filter on the device (a threshold, a motion detector) wakes a small edge model, which decides whether something is worth sending, and the server handles the rare hard cases, long-term trends and model retraining. The edge saves energy, bandwidth and privacy; the server provides capacity and a place to learn from fleet-wide data. Design the split so that the device still does something useful when the server is unreachable.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>deciding "cloud" before checking the radio's real throughput and energy per byte</li>
+<li>deciding "edge" before checking that the model fits in the device's flash and RAM</li>
+<li>forgetting the offline case until the first field trial</li>
+<li>planning edge models without a secure way to update them</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>For a product idea of your own, fill in the data-rate table: raw bytes per day versus result bytes per day.</li>
+<li>Write one sentence answering each of the six questions above, and mark which one decides the design.</li>
+<li>If you have a development board with a radio, measure the current while transmitting a packet and while running a loop of multiply-accumulates, with a multimeter or a current-sense resistor and an oscilloscope, and compare energy per byte sent with energy per inference.</li>
+<li>Sketch the offline behaviour of your design in a short state diagram.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>edge ai</li><li>cloud</li><li>latency</li><li>privacy</li><li>system design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="vibration-anomaly-detection-on-mcu.html"><span>Previous in Edge AI</span>Detecting machine anomalies from vibration on a microcontroller</a><a class="next" href="energy-per-inference.html"><span>Next in Edge AI</span>Energy per inference: why memory access dominates</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="image-preprocessing-in-hardware.html">Image preprocessing in hardware: downscaling, normalisation and windowing</a></h3>
+          <p>A streaming pixel pipeline crops, downscales and normalises camera data for a small network without ever storing a frame. Line buffers, a verified 2x2 downscaler in Verilog, and the rounding details that matter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="treating-models-like-firmware.html">Treating models like firmware: versioning, tests and CI for edge AI</a></h3>
+          <p>A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

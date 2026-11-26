@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moore or Mealy? Choosing an FSM style by timing, not by textbook · Ketuna blog</title>
+  <meta name="description" content="A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Moore or Mealy? Choosing an FSM style by timing, not by textbook · Ketuna blog">
+  <meta property="og:description" content="A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.">
+  <link rel="canonical" href="https://ketuna.online/blog/moore-or-mealy-by-timing.html">
+  <meta property="og:url" content="https://ketuna.online/blog/moore-or-mealy-by-timing.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Moore or Mealy? Choosing an FSM style by timing, not by textbook",
+  "description": "A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fsm, moore, mealy, sequence detector, timing",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 822,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/moore-or-mealy-by-timing.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Moore or Mealy? Choosing an FSM style by timing, not by textbook</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-problem-two-machines">One problem, two machines</a></li><li><a href="#when-the-output-appears">When the output appears</a></li><li><a href="#glitches-and-where-the-path-goes">Glitches and where the path goes</a></li><li><a href="#the-registered-output-option">The registered-output option</a></li><li><a href="#how-to-choose">How to choose</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Textbooks define Moore and Mealy machines by where the output comes from: Moore outputs depend only on the state, Mealy outputs depend on the state and the current inputs. That definition is correct, but it does not tell you which one to choose. In practice the choice is a timing decision: how soon the output must react, and whether it may be driven by combinational logic from an input you do not control.</p>
+<h2 id="one-problem-two-machines">One problem, two machines</h2>
+<p>Take a detector that watches a serial bit <code>din</code>, one bit per clock, and raises <code>hit</code> when the last three bits were <code>1 0 1</code>, allowing overlaps (so <code>10101</code> gives two hits).</p>
+<p>The <strong>Moore</strong> version needs a state that means "I have just seen 101", because the output can only depend on the state. It has four states: <code>S0</code> (nothing useful), <code>S1</code> (seen 1), <code>S10</code> (seen 10) and <code>S101</code> (seen 101, output high).</p>
+<p>The <strong>Mealy</strong> version needs only three states, <code>S0</code>, <code>S1</code> and <code>S10</code>. When it is in <code>S10</code> and <code>din</code> is 1, it raises <code>hit</code> immediately, during the same clock cycle, and moves to <code>S1</code>.</p>
+<pre><code class="language-systemverilog">module det101_moore (
+  input  logic clk, rst_n, din,
+  output logic hit
+);
+  typedef enum logic [1:0] {S0, S1, S10, S101} st_t;
+  st_t st, nx;
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) st &lt;= S0; else st &lt;= nx;
+  always_comb begin
+    case (st)
+      S0:   nx = din ? S1   : S0;
+      S1:   nx = din ? S1   : S10;
+      S10:  nx = din ? S101 : S0;
+      S101: nx = din ? S1   : S10;
+      default: nx = S0;
+    endcase
+  end
+  assign hit = (st == S101);      // state only
+endmodule
+
+module det101_mealy (
+  input  logic clk, rst_n, din,
+  output logic hit
+);
+  typedef enum logic [1:0] {S0, S1, S10} st_t;
+  st_t st, nx;
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) st &lt;= S0; else st &lt;= nx;
+  always_comb begin
+    case (st)
+      S0:  nx = din ? S1 : S0;
+      S1:  nx = din ? S1 : S10;
+      S10: nx = din ? S1 : S0;
+      default: nx = S0;
+    endcase
+  end
+  assign hit = (st == S10) &amp;&amp; din; // state and input
+endmodule
+</code></pre>
+<h2 id="when-the-output-appears">When the output appears</h2>
+<p>Feed both machines the bits 1, 0, 1, with <code>din</code> changing just after each rising edge. The third bit, the final 1, is present on <code>din</code> during clock cycle 3.</p>
+<ul>
+<li>The <strong>Mealy</strong> output goes high <em>during</em> cycle 3, as soon as <code>din</code> becomes 1 while the state is <code>S10</code>. It is valid at the edge that ends cycle 3.</li>
+<li>The <strong>Moore</strong> output goes high only <em>after</em> that edge, when the state register becomes <code>S101</code>. It is high during cycle 4.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="mm-title mm-desc" font-size="14">
+<title id="mm-title">Moore and Mealy output timing for the input 1, 0, 1</title>
+<desc id="mm-desc">A clock, a din waveform showing 1, 0, 1 across three cycles, a Mealy output that rises during the third cycle while din is high, and a Moore output that rises one clock edge later and stays high for the whole fourth cycle.</desc>
+<text x="6" y="40" class="dg-text">clk</text>
+<path d="M70,50 H100 V25 H140 V50 H180 V25 H220 V50 H260 V25 H300 V50 H340 V25 H380 V50 H420 V25 H460" class="dg-line"/>
+<line x1="180" y1="20" x2="180" y2="210" class="dg-dash"/>
+<line x1="260" y1="20" x2="260" y2="210" class="dg-dash"/>
+<line x1="340" y1="20" x2="340" y2="210" class="dg-dash"/>
+<line x1="420" y1="20" x2="420" y2="210" class="dg-dash"/>
+<text x="6" y="95" class="dg-text">din</text>
+<path d="M70,105 H185 V80 H265 V105 H345 V80 H425 V105 H460" class="dg-line"/>
+<text x="220" y="75" text-anchor="middle" class="dg-muted">1</text>
+<text x="300" y="75" text-anchor="middle" class="dg-muted">0</text>
+<text x="380" y="75" text-anchor="middle" class="dg-muted">1</text>
+<text x="6" y="150" class="dg-text">Mealy</text>
+<rect x="345" y="125" width="80" height="35" class="dg-amber" fill-opacity="0.3"/>
+<path d="M70,160 H345 V125 H425 V160 H460" class="dg-line"/>
+<text x="6" y="200" class="dg-text">Moore</text>
+<rect x="422" y="175" width="38" height="35" class="dg-amber" fill-opacity="0.3"/>
+<path d="M70,210 H422 V175 H460" class="dg-line"/>
+</svg>
+<figcaption>The Mealy output reacts within the cycle that completes the pattern; the Moore output follows one clock later and lasts a full cycle.</figcaption>
+</figure>
+
+<p>That one-cycle difference is the whole speed argument for Mealy. If the next block must act on the very cycle the pattern completes, Mealy delivers it. If one cycle of latency is acceptable, the argument disappears.</p>
+<h2 id="glitches-and-where-the-path-goes">Glitches and where the path goes</h2>
+<p>The Mealy output is a combinational function of <code>din</code>. That has two consequences:</p>
+<ul>
+<li><strong>Glitches.</strong> If <code>din</code> comes through logic, or changes near the state transition, <code>hit</code> can pulse briefly at the wrong time. A downstream flip-flop sampling <code>hit</code> on the clock edge will usually not care. A downstream block that uses <code>hit</code> as an asynchronous signal, a clock enable for a gated clock, or an output pin that drives another chip will care a lot.</li>
+<li><strong>Long combinational paths.</strong> The path now runs from wherever <code>din</code> was launched, through the Mealy output logic, into whatever consumes <code>hit</code>. In a bigger design, chaining several Mealy machines can create a long path across module boundaries, or even a combinational loop if two machines feed each other.</li>
+</ul>
+<p>A Moore output, by contrast, comes from state flops through a small decoder. Its timing is local and easy to reason about. It can still glitch while the decoder settles, if several state bits change at once, but it does not depend on an input changing mid-cycle.</p>
+<h2 id="the-registered-output-option">The registered-output option</h2>
+<p>The most robust choice for an output that leaves your module is often neither textbook style: compute the Mealy condition and register it.</p>
+<pre><code class="language-systemverilog">always_ff @(posedge clk or negedge rst_n)
+  if (!rst_n) hit_q &lt;= 1'b0;
+  else        hit_q &lt;= (st == S10) &amp;&amp; din;
+</code></pre>
+<p><code>hit_q</code> rises at exactly the same moment as the Moore output, comes straight from a flip-flop so it cannot glitch, and the machine keeps the smaller Mealy state count. For a signal that crosses a module boundary or goes off chip, this is the usual default.</p>
+<h2 id="how-to-choose">How to choose</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Choose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Output used in the same cycle by local logic</td>
+<td>Mealy</td>
+</tr>
+<tr>
+<td>Output leaves the module or chip</td>
+<td>Registered output</td>
+</tr>
+<tr>
+<td>Output must never glitch, latency is fine</td>
+<td>Moore or registered</td>
+</tr>
+<tr>
+<td>Fewest states, inputs are clean and registered</td>
+<td>Mealy</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Comparing waveforms without lining up the edges.</strong> A Moore output that is "one cycle late" is not a bug; check which edge the consumer samples on before you call it one.</li>
+<li><strong>Feeding a Mealy output straight into another Mealy machine.</strong> The two output functions chain into one long combinational path, and if the second machine's output feeds back to the first you have built a loop.</li>
+<li><strong>Assuming fewer states means less hardware.</strong> The Mealy detector saves a state, but with a 2-bit state register both versions here use two flops. The savings show up in larger machines, and only sometimes.</li>
+<li><strong>Drawing the state diagram after the code.</strong> Draw it first, with the output written on the states (Moore) or on the arrows (Mealy). The drawing makes the timing visible before any simulation does.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate both modules side by side with <strong>Icarus Verilog</strong> (<code>iverilog -g2012</code>) on the input <code>0101011010</code> and mark every hit on paper before you run it. Count the cycles between each Mealy and Moore pulse.</li>
+<li>Synthesise both with <strong>Yosys</strong> (<code>synth -top det101_mealy</code>, then <code>stat</code>) and compare flip-flop and logic counts.</li>
+<li>Add the registered-output version and confirm in <strong>GTKWave</strong> that <code>hit_q</code> matches the Moore output cycle for cycle.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fsm</li><li>moore</li><li>mealy</li><li>sequence detector</li><li>timing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="lint-warnings-that-point-at-bugs.html"><span>Previous in Digital &amp; VLSI design</span>Lint warnings that point at real RTL bugs</a><a class="next" href="pipelining-a-datapath-step-by-step.html"><span>Next in Digital &amp; VLSI design</span>Pipelining a datapath step by step: latency, throughput and the cost of registers</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fsm-state-encoding-choices.html">Binary, one-hot or Gray: how state encoding changes area, speed and safety</a></h3>
+          <p>State encoding decides how many flops an FSM uses, how deep its next-state logic is and what happens after an upset. Compare binary, one-hot and Gray, and learn to recover from illegal states.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pipelining-a-datapath-step-by-step.html">Pipelining a datapath step by step: latency, throughput and the cost of registers</a></h3>
+          <p>Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

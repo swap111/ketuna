@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What a low-cost vision sensor can classify on-chip · Ketuna blog</title>
+  <meta name="description" content="Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What a low-cost vision sensor can classify on-chip · Ketuna blog">
+  <meta property="og:description" content="Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-a-tiny-vision-sensor-can-classify.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-a-tiny-vision-sensor-can-classify.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What a low-cost vision sensor can classify on-chip",
+  "description": "Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "computer vision, tinyml, image sensor, memory, low power",
+  "articleSection": "Edge AI",
+  "wordCount": 1132,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-a-tiny-vision-sensor-can-classify.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>What a low-cost vision sensor can classify on-chip</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Resolution, memory and compute set hard limits on an always-on camera node. Working through pixels on target, frame buffers and MACs per frame shows which vision tasks fit and which do not.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#pixels-on-target-come-first">Pixels on target come first</a></li><li><a href="#memory-the-frame-and-the-activations">Memory: the frame and the activations</a></li><li><a href="#compute-per-frame">Compute per frame</a></li><li><a href="#cascades-keep-the-node-asleep">Cascades keep the node asleep</a></li><li><a href="#tasks-that-fit-and-tasks-that-do-not">Tasks that fit, and tasks that do not</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A small camera module and a microcontroller can now run a neural network on every frame, and it is tempting to promise the full range of computer vision on that hardware. The physics and arithmetic do not allow it. An always-on vision node has a fixed number of pixels, a few hundred kilobytes of RAM and a small compute and energy budget per frame, and those three limits decide which questions it can answer. Working them out before choosing a task saves a project from a demo that works on the bench and fails on the wall.</p>
+<h2 id="pixels-on-target-come-first">Pixels on target come first</h2>
+<p>The first limit is not compute; it is how many pixels the object of interest covers. A network cannot recognise detail that the sensor never captured.</p>
+<p>Take a 96 × 96 grayscale image, a common input size for small vision models, looking at a scene 3 m wide. Each pixel covers 300 / 96 ≈ 3.1 cm of the scene. Then:</p>
+<ul>
+<li>a standing person about 50 cm wide covers roughly 16 pixels across: enough to say "a person is there"</li>
+<li>a face about 15 cm wide covers about 5 pixels: not enough to tell one person from another</li>
+<li>printed text 1 cm high covers a third of a pixel: invisible</li>
+</ul>
+<p>Using a higher-resolution sensor and cropping a region of interest helps when you know where to look, such as a gauge mounted in a fixed place. Moving the camera closer helps too. But when you need both a wide view and fine detail, a tiny vision node is the wrong tool.</p>
+<p>Lighting is part of the same budget. A small sensor in dim light produces noisy images, and if the scene changes from daylight to a single bulb, the model must have seen both during training. Many always-on designs add infrared illumination or restrict the task to times with enough light.</p>
+<h2 id="memory-the-frame-and-the-activations">Memory: the frame and the activations</h2>
+<p>The image itself has to sit somewhere. Sizes add up quickly:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Bytes per frame</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>96 × 96 grayscale</td>
+<td>9,216</td>
+</tr>
+<tr>
+<td>160 × 120 grayscale</td>
+<td>19,200</td>
+</tr>
+<tr>
+<td>320 × 240 grayscale</td>
+<td>76,800</td>
+</tr>
+<tr>
+<td>320 × 240 colour, 16 bits per pixel</td>
+<td>153,600</td>
+</tr>
+</tbody>
+</table></div>
+<p>A microcontroller with 256 kB of RAM can hold a full 320 × 240 colour frame, but then little remains for the network's activations, which for images are usually the larger RAM cost. A first convolution with 8 output channels at stride 2 on a 96 × 96 input produces a 48 × 48 × 8 tensor: 18,432 bytes in int8, twice the input image.</p>
+<p>Practical designs avoid holding big frames. The sensor is configured to output a small window or a downscaled image directly, or the frame is streamed in line by line and downscaled on the fly, so the full-resolution image never exists in RAM.</p>
+<h2 id="compute-per-frame">Compute per frame</h2>
+<p>The second budget is arithmetic. For that first layer, 3 × 3 kernels, one input channel, 8 output channels and a 48 × 48 output:</p>
+<blockquote>
+<p>MACs = 48 × 48 × 8 × 3 × 3 = 165,888</p>
+</blockquote>
+<p>The same layer on a 160 × 120 input at stride 2 has an 80 × 60 output and needs 80 × 60 × 8 × 9 = 345,600 MACs, about twice as many, and deeper layers scale the same way. Total network cost for small image classifiers runs from a few million MACs upwards. On a microcontroller doing roughly one MAC per cycle that is on the order of tens to hundreds of milliseconds per frame at typical clock speeds; a small accelerator brings it down sharply.</p>
+<p>What matters for an always-on product is the duty cycle. If one classification takes 100 ms of active compute and you need an answer once per second, the processor is active 10 % of the time. If you need ten answers a second, it never sleeps. Decide the frame rate from the application, not from what the demo shows.</p>
+<h2 id="cascades-keep-the-node-asleep">Cascades keep the node asleep</h2>
+<p>The cheapest classification is the one you do not run. Many vision nodes use a cascade:</p>
+<ol>
+<li>The sensor or a tiny hardware block computes a frame difference at low resolution. For a 96 × 96 frame that is 9,216 subtractions and a sum, trivial next to a neural network.</li>
+<li>Only when enough pixels change does the processor wake and run the classifier.</li>
+<li>Only when the classifier is confident does the radio send a short result.</li>
+</ol>
+<p>Each stage filters out most of the work for the next. The result is that energy is spent roughly in proportion to how often something interesting happens, not to how long the device is switched on.</p>
+<h2 id="tasks-that-fit-and-tasks-that-do-not">Tasks that fit, and tasks that do not</h2>
+<p>Putting the limits together, tasks that tend to fit a low-cost always-on vision node share a few traits: few classes, a large or close object, a fixed camera position and controllable lighting.</p>
+<ul>
+<li><strong>Presence or occupancy:</strong> is a person, vehicle or animal in the scene</li>
+<li><strong>State of a fixed object:</strong> a door open or closed, a lid on or off, a light on or off, a tray full or empty</li>
+<li><strong>Reading a fixed display:</strong> an analog gauge needle or a seven-segment display at a known position, cropped and enlarged</li>
+<li><strong>Coarse gestures:</strong> a hand raised or a wave, close to the camera</li>
+<li><strong>Simple inspection:</strong> a part present or missing, roughly aligned, on a line with fixed lighting</li>
+</ul>
+<p>Tasks that tend not to fit: identifying individuals, reading free text, finding small objects in wide scenes, detecting many object types in uncontrolled environments, or anything where the cost of a wrong answer is high and the conditions vary.</p>
+<p>Two further points apply to any camera product. Images of people are personal data, so processing on the device and sending only a result ("occupied: yes") is a real privacy benefit, and it should be designed in: no stored frames unless the user knows and agrees. And accuracy must be measured on images from the installed position, with real lighting over a day and a season, not on a public dataset.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>choosing the model before checking how many pixels the object covers</li>
+<li>holding full frames in RAM when the sensor can crop or downscale</li>
+<li>quoting frames per second without the energy cost of sustaining it</li>
+<li>testing only in daylight on a bench</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>For your scene width and sensor resolution, compute centimetres per pixel and the pixels across your target object.</li>
+<li>Take photos with a phone from the intended mounting point, downscale them to 96 × 96 grayscale with Pillow or numpy, and check by eye whether you can still answer the question. If you cannot, a small model will not either.</li>
+<li>Count MACs and peak activation bytes for a small convolutional network at 96 × 96 using a short Python script.</li>
+<li>Implement a frame-difference trigger in numpy on a recorded video and measure how often it would wake the classifier.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>computer vision</li><li>tinyml</li><li>image sensor</li><li>memory</li><li>low power</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="accelerator-dataflows-compared.html"><span>Previous in Edge AI</span>Weight-stationary, output-stationary and row-stationary dataflows compared</a><a class="next" href="will-the-model-fit-flash-and-ram.html"><span>Next in Edge AI</span>Will the model fit? Estimating flash and RAM for TinyML</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="will-the-model-fit-flash-and-ram.html">Will the model fit? Estimating flash and RAM for TinyML</a></h3>
+          <p>Weights go in flash, activations go in RAM, and the tensor arena holds the live ones. A worked estimate for a small audio network shows how to size both before you write any firmware.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

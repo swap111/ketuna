@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs · Ketuna blog</title>
+  <meta name="description" content="Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs · Ketuna blog">
+  <meta property="og:description" content="Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.">
+  <link rel="canonical" href="https://ketuna.online/blog/draw-the-circuit-before-the-code.html">
+  <meta property="og:url" content="https://ketuna.online/blog/draw-the-circuit-before-the-code.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs",
+  "description": "Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "rtl design, verilog, design habits, yosys, code review",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 938,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/draw-the-circuit-before-the-code.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-the-drawing-comes-first">Why the drawing comes first</a></li><li><a href="#the-example-a-4-sample-moving-average">The example: a 4-sample moving average</a></li><li><a href="#write-the-code-to-match-the-drawing">Write the code to match the drawing</a></li><li><a href="#then-check-it-with-ai-and-with-the-tools">Then check it with AI and with the tools</a></li><li><a href="#common-mistakes-the-drawing-catches">Common mistakes the drawing catches</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Verilog looks like software, so beginners write it like software: start typing, add an <code>if</code> here, a variable there, simulate, patch. The result usually simulates and often synthesises into something nobody intended: an extra register, a missing one, a latch, a mux chain three times longer than needed. Experienced designers do something that looks slower and is much faster: they draw the hardware first, then write code that describes the drawing. This article walks through that habit on a small example, and shows where AI assistance fits.</p>
+<h2 id="why-the-drawing-comes-first">Why the drawing comes first</h2>
+<p>RTL stands for register-transfer level. The code describes registers and the combinational logic that moves data between them on each clock. If you cannot say where every register is, you do not yet know what circuit you are describing, and the synthesis tool will decide for you.</p>
+<p>A drawing forces the decisions that matter:</p>
+<ul>
+<li><strong>How many registers, and how wide.</strong> Every flop costs area and power, and every one adds a cycle of latency.</li>
+<li><strong>What is combinational between them.</strong> That sets the critical path and the clock speed.</li>
+<li><strong>Where the muxes are.</strong> Every <code>if</code> and <code>case</code> becomes a mux; seeing them makes priority and defaults explicit.</li>
+<li><strong>What happens on reset and when the block is idle.</strong></li>
+</ul>
+<p>Ten minutes with a pencil answers these. Discovering them later in a waveform takes hours.</p>
+<h2 id="the-example-a-4-sample-moving-average">The example: a 4-sample moving average</h2>
+<p>The task: an 8-bit sensor sample arrives with an <code>en</code> strobe. Output the average of the last four samples, updated on each new sample. The output may lag by one clock.</p>
+<p><strong>Step 1: list the storage.</strong> The average needs the current sample and the three before it, so three 8-bit delay registers hold the older samples, <code>x1</code>, <code>x2</code> and <code>x3</code>. The output is registered, as the specification allows a cycle of lag and a registered output is clean for whoever uses it. That is four registers in total.</p>
+<p><strong>Step 2: draw the logic between them.</strong> Four values are summed. As a tree, that is two adders in parallel and one after them: <code>x0 + x1</code> and <code>x2 + x3</code>, then the sum of those. Each addition can grow by one bit, so the first adders are 9 bits wide and the final one 10 bits.</p>
+<p><strong>Step 3: draw the divide.</strong> Dividing by four is a right shift by two: just wiring, taking bits [9:2] of the sum. No divider is needed, which is one reason designers like powers of two.</p>
+<p><strong>Step 4: mark the enable and reset.</strong> All four registers load only when <code>en</code> is high. On reset they clear to zero, so the output ramps up over the first four samples, which you should note in the documentation.</p>
+<p>On paper this is a row of three boxes for the delay line, two adders feeding a third, a label "[9:2]" on the final wire, and one more box for the output register. Count the flops on the drawing: 3 × 8 + 8 = 32.</p>
+<h2 id="write-the-code-to-match-the-drawing">Write the code to match the drawing</h2>
+<p>Now each part of the drawing becomes a few lines, and nothing else gets written:</p>
+<pre><code class="language-verilog">module mavg4 (
+  input  wire       clk, rst_n, en,
+  input  wire [7:0] x0,          // new sample
+  output reg  [7:0] avg
+);
+  // drawing: three delay registers
+  reg [7:0] x1, x2, x3;
+  // drawing: adder tree, widths grow by one bit per level
+  wire [8:0] s01 = x0 + x1;
+  wire [8:0] s23 = x2 + x3;
+  wire [9:0] sum = s01 + s23;
+
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      x1 &lt;= 8'd0; x2 &lt;= 8'd0; x3 &lt;= 8'd0; avg &lt;= 8'd0;
+    end else if (en) begin
+      x1  &lt;= x0;
+      x2  &lt;= x1;
+      x3  &lt;= x2;
+      avg &lt;= sum[9:2];           // drawing: divide by 4 is wiring
+    end
+endmodule
+</code></pre>
+<p>Read it against the drawing: four registers in one clocked block, three adders as continuous assignments with the widths from the sketch, the shift as a part-select. If the code has something the drawing does not, or the drawing has something the code does not, one of them is wrong.</p>
+<h2 id="then-check-it-with-ai-and-with-the-tools">Then check it with AI and with the tools</h2>
+<p>Once the drawing and the code exist, an AI assistant is a useful second reviewer, not a replacement for the first two steps. Describe the circuit in words, paste the code, and ask specific questions: "How many flip-flops will this infer? Are the adder widths enough to avoid overflow? What does the output do in the first four samples after reset?" Compare its answers with your drawing. Where they disagree, find out who is right by checking the tools, not by trusting either side.</p>
+<p>The tools give you ground truth:</p>
+<ul>
+<li><strong>Lint</strong> with Verilator flags width mismatches and unused signals.</li>
+<li><strong>Synthesis</strong> with Yosys reports the flop count. If it says 32, the drawing and the code agree. If it says 40, something is registered that you did not draw.</li>
+<li><strong>A schematic view</strong> of the synthesised design shows the structure, which you can hold next to your sketch.</li>
+<li><strong>Simulation</strong> against a Python model of a moving average confirms the numbers.</li>
+</ul>
+<p>The order matters. Drawing first means you have an independent expectation to check the AI and the tools against. Starting from an AI-generated module and then trying to understand it reverses that, and you lose the ability to tell whether it is right.</p>
+<h2 id="common-mistakes-the-drawing-catches">Common mistakes the drawing catches</h2>
+<ul>
+<li><strong>Accidental extra registers,</strong> from assigning an intermediate value inside a clocked block when you meant a wire</li>
+<li><strong>Missing width growth,</strong> such as an 8-bit sum that overflows</li>
+<li><strong>Latches,</strong> from a combinational block that does not assign an output on every path</li>
+<li><strong>A long chain of adders</strong> where a tree was intended, because the code was written as <code>x0 + x1 + x2 + x3</code> without thinking about structure (synthesis may rebalance it, but you should know what you asked for)</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw <code>mavg4</code> yourself before reading the code again, including every width, and count the flops.</li>
+<li>Run <code>yosys -p "read_verilog mavg4.v; synth -top mavg4; stat"</code> and check the flip-flop count against your drawing. Then run <code>show</code> after <code>proc</code> to see the structure as a diagram (it needs Graphviz installed).</li>
+<li>Simulate it in <strong>Icarus Verilog</strong> with a short sequence of samples, compare against a three-line Python moving average, and explain the first four outputs after reset from your drawing.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>rtl design</li><li>verilog</li><li>design habits</li><li>yosys</li><li>code review</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="skid-buffer-design.html"><span>Previous in Digital &amp; VLSI design</span>Designing a skid buffer to break a ready path without losing throughput</a><a class="next" href="systemverilog-design-features-day-one.html"><span>Next in Digital &amp; VLSI design</span>Five SystemVerilog design features worth using from day one</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="debouncing-a-button-in-rtl.html">Debouncing a push button in RTL, and why a counter beats a delay chain</a></h3>
+          <p>A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="parameterized-verilog-modules.html">Writing reusable Verilog with parameters and generate blocks</a></h3>
+          <p>Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

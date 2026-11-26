@@ -44,7 +44,7 @@
         <div>
           <p class="crumbs"><a href="index.html">Blog</a> › Embedded systems</p>
           <h1>Embedded systems</h1>
-          <p class="lede">1 article, newest first.</p>
+          <p class="lede">30 articles, newest first.</p>
         </div>
       </div>
     </section>
@@ -54,16 +54,197 @@
         <nav aria-label="Categories" class="blog-tools">
         <ul class="catchips">
           <li><a href="index.html" data-cat="">All</a></li>
-          <li><a href="category-vlsi-design.html">Digital &amp; VLSI design <span class="sr-only">(1)</span></a></li>
-          <li><a href="category-embedded.html" aria-current="page">Embedded systems <span class="sr-only">(1)</span></a></li>
-          <li><a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem <span class="sr-only">(1)</span></a></li>
+          <li><a href="category-vlsi-design.html">Digital &amp; VLSI design <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-verification.html">Verification <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-physical-design.html">Physical design &amp; tape-out <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-analog.html">Analog &amp; mixed-signal <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-architecture.html">Computer architecture &amp; RISC-V <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-embedded.html" aria-current="page">Embedded systems <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-edge-ai.html">Edge AI <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-systems-product.html">Systems &amp; product engineering <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-careers.html">Careers &amp; skills <span class="sr-only">(30)</span></a></li>
+          <li><a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem <span class="sr-only">(30)</span></a></li>
         </ul>
         </nav>
         <ul class="postgrid">
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="zephyr-devicetree-first-look.html">Zephyr devicetree for beginners: describing hardware so drivers can find it</a></h3>
+          <p>How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
           <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="writing-a-small-device-driver.html">Writing a small device driver: the layers between a register and an API</a></h3>
+          <p>Build an I2C sensor driver in four layers: a register map, a replaceable bus interface, a checked initialisation sequence and an interrupt-backed API with clear units that you can test on a laptop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="response-time-analysis-by-hand.html">Will every task meet its deadline? Response-time analysis worked by hand</a></h3>
+          <p>The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="recovering-a-stuck-i2c-bus.html">Why an I2C bus gets stuck low, and how firmware recovers it</a></h3>
+          <p>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-volatile-really-does.html">What volatile really does in embedded C, and what it does not</a></h3>
+          <p>volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="what-happens-before-main.html">What happens before main(): startup code on a microcontroller</a></h3>
+          <p>Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="using-a-watchdog-properly.html">Using a watchdog properly: what to kick, where, and when not to</a></h3>
+          <p>A watchdog only helps if it is refreshed when the whole system is healthy. How to collect check-ins from every task, size the timeout, use a windowed watchdog, and record why the last reset happened.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="unit-testing-firmware-on-the-host.html">Unit testing firmware on your laptop: separating logic from hardware</a></h3>
+          <p>Most firmware bugs are in ordinary logic, not in register writes. Split the two, swap registers for a fake array on the host, and a plain gcc build can test your code in seconds with sanitizers switched on.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="uart-spi-or-i2c-for-a-sensor.html">UART, SPI or I2C: choosing a serial bus for a sensor</a></h3>
+          <p>A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="timers-pwm-and-input-capture.html">Timers in practice: PWM output, input capture and the prescaler arithmetic</a></h3>
+          <p>How a hardware timer turns a clock into PWM and pulse measurements, how to pick prescaler and period values for a target frequency and resolution, and how to measure a pulse that spans a counter wrap.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="superloop-or-rtos.html">Superloop or RTOS? Deciding with timing requirements, not fashion</a></h3>
+          <p>A superloop with interrupts is enough more often than people think. Work out the worst-case loop time against each deadline, and you will see exactly which requirement, if any, calls for a preemptive scheduler.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="six-step-bldc-commutation.html">Six-step BLDC commutation in firmware: Hall sensors, PWM and timing</a></h3>
+          <p>How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="register-bit-manipulation-in-c.html">Setting, clearing and testing register bits safely in C</a></h3>
+          <p>Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="firmware-ci-with-qemu-and-renode.html">Running firmware without a board: QEMU and Renode in CI</a></h3>
+          <p>Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-a-microcontroller-datasheet.html">Reading a microcontroller datasheet and reference manual efficiently</a></h3>
+          <p>A microcontroller&#x27;s documents run to thousands of pages. Which document answers which question, the order to read the sections in, and how a two-minute baud-rate check against the clock tree saves a day of debugging.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="reading-a-linker-script.html">Reading a linker script: sections, memory regions and the map file</a></h3>
+          <p>How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
+          <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="priority-inversion-and-inheritance.html">Priority inversion, and how priority inheritance fixes it</a></h3>
+          <p>A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="dma-double-buffering-for-adc.html">Moving ADC samples with DMA and double buffering</a></h3>
+          <p>Let DMA fill a circular buffer from the ADC while the CPU processes the half that is already full. How half-transfer and transfer-complete interrupts divide the work, how to budget time, and how to detect an overrun.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="low-power-sleep-and-wake.html">Low-power firmware: sleep modes, wake sources and measuring the current you saved</a></h3>
+          <p>How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="zephyr-kconfig-basics.html">Kconfig in Zephyr: turning features on without editing source</a></h3>
+          <p>How Zephyr&#x27;s Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="fixed-point-filters-without-an-fpu.html">Fixed-point filters on a microcontroller without an FPU</a></h3>
+          <p>A second-order IIR filter in integer C with Q15 samples and Q14 coefficients, checked bit-exactly against a Python model, plus the accumulator, rounding and limit-cycle problems that floating point hides.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-firmware-architecture.html">Firmware architecture for a smart energy meter: metering, events and logs</a></h3>
+          <p>How to structure smart meter firmware so metering is never disturbed by communication, tamper events are recorded reliably, and energy totals survive sudden power loss, with the hold-up and flash-wear arithmetic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="finding-the-cause-of-a-firmware-crash.html">Finding the cause of a firmware crash from the trap state</a></h3>
+          <p>When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="safe-firmware-updates-ab-slots.html">Bootloaders and safe firmware updates: A/B slots, verification and rollback</a></h3>
+          <p>A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="rural-iot-node-power-budget.html">A power budget for a battery-powered rural IoT node</a></h3>
+          <p>Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.</p>
           <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
         </li>
         </ul>

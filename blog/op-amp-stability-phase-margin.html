@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Op-amp stability and phase margin without the heavy maths · Ketuna blog</title>
+  <meta name="description" content="Why an op-amp in feedback can ring or oscillate, explained with poles, loop gain and a Bode plot. Learn to read phase margin, why unity gain is the hardest case, and how compensation trades speed for stability.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Op-amp stability and phase margin without the heavy maths · Ketuna blog">
+  <meta property="og:description" content="Why an op-amp in feedback can ring or oscillate, explained with poles, loop gain and a Bode plot. Learn to read phase margin, why unity gain is the hardest case, and how compensation trades speed for stability.">
+  <link rel="canonical" href="https://ketuna.online/blog/op-amp-stability-phase-margin.html">
+  <meta property="og:url" content="https://ketuna.online/blog/op-amp-stability-phase-margin.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Op-amp stability and phase margin without the heavy maths",
+  "description": "Why an op-amp in feedback can ring or oscillate, explained with poles, loop gain and a Bode plot. Learn to read phase margin, why unity gain is the hardest case, and how compensation trades speed for stability.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "op-amp, stability, phase margin, compensation, feedback",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 966,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/op-amp-stability-phase-margin.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Op-amp stability and phase margin without the heavy maths</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why an op-amp in feedback can ring or oscillate, explained with poles, loop gain and a Bode plot. Learn to read phase margin, why unity gain is the hardest case, and how compensation trades speed for stability.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-loop-and-the-condition-for-trouble">The loop and the condition for trouble</a></li><li><a href="#poles-on-a-bode-plot">Poles on a Bode plot</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#why-unity-gain-is-the-hardest-case">Why unity gain is the hardest case</a></li><li><a href="#compensation-buying-margin-with-speed">Compensation: buying margin with speed</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Negative feedback is what makes op-amp circuits precise: the gain is set by two resistors instead of by transistors that vary with process and temperature. But feedback has a dark side. If the signal coming back around the loop is delayed enough, negative feedback turns into positive feedback and the circuit rings or oscillates. Phase margin is the number that tells you how far you are from that edge. You can understand it fully with a sketch and a little arithmetic.</p>
+<h2 id="the-loop-and-the-condition-for-trouble">The loop and the condition for trouble</h2>
+<p>An op-amp with open-loop gain A(f) drives a feedback network that returns a fraction β of the output to the inverting input. For a non-inverting amplifier with resistors R<sub>1</sub> to ground and R<sub>2</sub> to the output, β = R<sub>1</sub> / (R<sub>1</sub> + R<sub>2</sub>). A unity-gain buffer has β = 1.</p>
+<p>The quantity that matters is the <strong>loop gain</strong> T = A·β: what a signal experiences going once around the loop. While |T| is large, the closed-loop gain is close to 1/β, which is why feedback works.</p>
+<p>Trouble comes from <strong>phase shift</strong>. Negative feedback means the returned signal is inverted, a phase of 180°. Each pole in the amplifier adds up to another 90° of lag at high frequency. If the extra lag reaches 180° at a frequency where |T| is still 1 or more, the returned signal arrives in phase with the input, adds to it, and sustains itself. That is an oscillator.</p>
+<p>So check one frequency: the <strong>crossover frequency</strong> f<sub>c</sub>, where |T| = 1. Look at the phase of T there.</p>
+<blockquote>
+<p>Phase margin = 180° + phase of T at f<sub>c</sub></p>
+</blockquote>
+<p>A phase margin of 0° is an oscillator. A small positive margin is a circuit that rings badly on every step. Around 60° gives a clean step response with little overshoot, which is why it is a common design target.</p>
+<h2 id="poles-on-a-bode-plot">Poles on a Bode plot</h2>
+<p>A <strong>pole</strong> at frequency p does two things to the gain beyond it: it bends the magnitude down by 20 dB per decade and it adds a lag that grows to 90°, reaching 45° exactly at p. Op-amps have several poles. The first, or <strong>dominant</strong>, pole p<sub>1</sub> sits at a low frequency; the second p<sub>2</sub> sits much higher.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="pm-title pm-desc" font-size="14">
+<title id="pm-title">Bode plot of loop gain showing phase margin</title>
+<desc id="pm-desc">Top: loop gain magnitude in decibels against log frequency. It is flat, falls at 20 dB per decade after the first pole, crosses 0 dB at the crossover frequency, then falls at 40 dB per decade after the second pole. Bottom: phase falls from 0 to minus 90 degrees after the first pole and heads towards minus 180 after the second. At crossover the phase is above minus 180 by the phase margin.</desc>
+<line x1="60" y1="20" x2="60" y2="135" class="dg-line"/>
+<line x1="60" y1="100" x2="460" y2="100" class="dg-dash"/>
+<text x="20" y="104" class="dg-text">0 dB</text>
+<text x="10" y="30" class="dg-text">|T|</text>
+<path d="M60,30 L120,30 L330,115 L440,135" class="dg-line" stroke-width="2" fill="none"/>
+<text x="110" y="22" class="dg-muted">p1</text>
+<text x="330" y="22" class="dg-muted">p2</text>
+<line x1="120" y1="25" x2="120" y2="290" class="dg-dash"/>
+<line x1="330" y1="25" x2="330" y2="290" class="dg-dash"/>
+<line x1="293" y1="95" x2="293" y2="290" class="dg-amber-line"/>
+<text x="240" y="90" class="dg-text">crossover</text>
+<line x1="60" y1="160" x2="60" y2="290" class="dg-line"/>
+<text x="10" y="175" class="dg-text">0°</text>
+<text x="2" y="225" class="dg-text">−90°</text>
+<text x="2" y="280" class="dg-text">−180°</text>
+<line x1="60" y1="275" x2="460" y2="275" class="dg-dash"/>
+<path d="M60,170 C110,172 120,200 150,220 L230,222 C270,225 300,238 330,248 L440,272" class="dg-line" stroke-width="2" fill="none"/>
+<rect x="288" y="241" width="10" height="34" class="dg-amber" fill-opacity="0.5"/>
+<text x="304" y="262" class="dg-text">phase margin</text>
+<text x="400" y="296" class="dg-muted">log f</text>
+</svg>
+<figcaption>Read the phase where the magnitude crosses 0 dB; its distance above −180° is the phase margin.</figcaption>
+</figure>
+
+<p>With only the dominant pole, the phase settles at −90° and the margin is a comfortable 90°. The second pole causes the danger. If p<sub>2</sub> sits well above the crossover, it adds only a little lag at f<sub>c</sub>. If it sits near or below f<sub>c</sub>, it adds 45° or more and the margin collapses.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Take an amplifier with DC gain A<sub>0</sub> = 10,000 (80 dB), a dominant pole at 1 kHz, and connect it as a unity-gain buffer, β = 1. These numbers are illustrative. With one pole, the gain would cross 1 at about A<sub>0</sub> × p<sub>1</sub> = 10 MHz, the <strong>unity-gain frequency</strong>. Now vary the second pole and compute the actual crossover and margin:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Second pole p<sub>2</sub></th>
+<th>Crossover f<sub>c</sub></th>
+<th>Phase margin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3 MHz</td>
+<td>5.1 MHz</td>
+<td>30.6°</td>
+</tr>
+<tr>
+<td>10 MHz</td>
+<td>7.9 MHz</td>
+<td>51.8°</td>
+</tr>
+<tr>
+<td>22 MHz</td>
+<td>9.2 MHz</td>
+<td>67.3°</td>
+</tr>
+<tr>
+<td>30 MHz</td>
+<td>9.5 MHz</td>
+<td>72.4°</td>
+</tr>
+</tbody>
+</table></div>
+<p>The rule that falls out: keep the second pole comfortably above the unity-gain frequency, by a factor of about two or more for a healthy margin. The table comes from a few lines of Python that you can extend with more poles:</p>
+<pre><code class="language-python">from math import atan, degrees, hypot, sqrt
+
+def loop_gain_mag(f, a0, beta, p1, p2):
+    return a0 * beta / (hypot(1, f / p1) * hypot(1, f / p2))
+
+def phase_margin(a0, beta, p1, p2):
+    lo, hi = 1.0, 1e12             # bisection for |A*beta| = 1
+    for _ in range(200):
+        f = sqrt(lo * hi)
+        if loop_gain_mag(f, a0, beta, p1, p2) &gt; 1:
+            lo = f
+        else:
+            hi = f
+    phase = -degrees(atan(f / p1)) - degrees(atan(f / p2))
+    return f, 180 + phase
+
+for p2 in (3e6, 10e6, 22e6, 30e6):
+    fc, pm = phase_margin(a0=1e4, beta=1.0, p1=1e3, p2=p2)
+    print(f&quot;p2 = {p2/1e6:4.0f} MHz: crossover {fc/1e6:4.1f} MHz, &quot;
+          f&quot;PM {pm:4.1f} deg&quot;)
+</code></pre>
+<h2 id="why-unity-gain-is-the-hardest-case">Why unity gain is the hardest case</h2>
+<p>Feedback with β = 0.1 (a gain-of-10 amplifier) lowers the loop gain by 20 dB, so the magnitude line crosses 0 dB a decade earlier. Run the code with β = 0.1 and p<sub>2</sub> = 10 MHz: crossover drops to about 1 MHz and the margin rises to about 84°. A unity-gain buffer has the largest loop gain of all and therefore the highest crossover. That is why an op-amp is usually specified as "unity-gain stable" or not, and why a design must be checked in the feedback configuration it will actually be used in.</p>
+<h2 id="compensation-buying-margin-with-speed">Compensation: buying margin with speed</h2>
+<p>If the second pole is fixed by the circuit, the remaining lever is the dominant pole. Moving p<sub>1</sub> lower pulls the whole magnitude line down, so crossover happens earlier, further below p<sub>2</sub>. In the example with p<sub>2</sub> = 10 MHz, lowering p<sub>1</sub> from 1 kHz to 700 Hz moves crossover to about 6.0 MHz and lifts the margin to about 59°.</p>
+<p>That is <strong>compensation</strong>, and its price is visible in the numbers: the amplifier now has less bandwidth. In a two-stage op-amp the standard technique is <strong>Miller compensation</strong>, a capacitor across the second stage. It pushes the dominant pole down and, as a bonus, pushes the second pole up, so you lose less speed than by lowering p<sub>1</sub> alone. It also creates a right-half-plane zero that adds lag, which designers tame with a resistor in series with the capacitor.</p>
+<p>Pitfalls to avoid:</p>
+<ul>
+<li>Checking stability with no load capacitance; a capacitive load lowers the output pole and can erase the margin</li>
+<li>Simulating closed-loop gain only; a peaky frequency response is a symptom, but phase margin is measured on the open loop</li>
+<li>Testing at one corner; poles move with bias current, temperature and process</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python above and add a third pole. Find how high it must be before it stops mattering.</li>
+<li>In <strong>ngspice</strong>, model a two-pole amplifier with two voltage-controlled sources and RC sections, run <code>ac dec 50 1 1G</code>, and find the frequency where the magnitude crosses 0 dB with <code>meas ac</code> and its phase there.</li>
+<li>Close the loop as a unity-gain buffer, run a <code>tran</code> with a small step, and compare the overshoot for margins near 30° and near 60°.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>op-amp</li><li>stability</li><li>phase margin</li><li>compensation</li><li>feedback</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="cell-voltage-measurement-in-a-bms.html"><span>Previous in Analog &amp; mixed-signal</span>Measuring cell voltages in a battery pack: the analog front end of a BMS</a><a class="next" href="packaging-basics-and-chiplets.html"><span>Next in Analog &amp; mixed-signal</span>Packaging basics: wire bond, flip chip and where chiplets fit</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="ldo-regulators-inside-chips.html">Low-dropout regulators inside chips: the loop, stability and dropout</a></h3>
+          <p>An LDO is an op-amp driving a large pass transistor inside a feedback loop. Learn where dropout comes from, why the output pole moves with load current, and how the capacitor choice decides stability.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-instrumentation-amplifier.html">The instrumentation amplifier: measuring tiny differences on large common-mode signals</a></h3>
+          <p>The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

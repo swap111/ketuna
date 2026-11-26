@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Will every task meet its deadline? Response-time analysis worked by hand · Ketuna blog</title>
+  <meta name="description" content="The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Will every task meet its deadline? Response-time analysis worked by hand · Ketuna blog">
+  <meta property="og:description" content="The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.">
+  <link rel="canonical" href="https://ketuna.online/blog/response-time-analysis-by-hand.html">
+  <meta property="og:url" content="https://ketuna.online/blog/response-time-analysis-by-hand.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Will every task meet its deadline? Response-time analysis worked by hand",
+  "description": "The utilisation bound only says yes or don't know. Response-time analysis gives each task's exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "rtos, scheduling, real time, response time analysis, rate monotonic",
+  "articleSection": "Embedded systems",
+  "wordCount": 1041,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/response-time-analysis-by-hand.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Will every task meet its deadline? Response-time analysis worked by hand</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The utilisation bound only says yes or don&#x27;t know. Response-time analysis gives each task&#x27;s exact worst case under fixed-priority preemption: the equation, a worked example and what real systems add.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-model-and-its-assumptions">The model and its assumptions</a></li><li><a href="#why-the-utilisation-test-is-not-enough">Why the utilisation test is not enough</a></li><li><a href="#the-response-time-equation">The response-time equation</a></li><li><a href="#a-three-task-example-by-hand">A three-task example by hand</a></li><li><a href="#checking-it-with-a-few-lines-of-python">Checking it with a few lines of Python</a></li><li><a href="#what-real-systems-add-to-the-equation">What real systems add to the equation</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Testing a real-time system tells you that no deadline was missed in the runs you made. It cannot tell you that the worst alignment of task releases, interrupts and lock contention never happens, because that alignment may be rare. For fixed-priority preemptive scheduling, the model behind most RTOS configurations, there is a calculation that answers the question for every possible alignment, and it fits on half a page. Every firmware engineer who sets task priorities should be able to do it by hand.</p>
+<h2 id="the-model-and-its-assumptions">The model and its assumptions</h2>
+<p>Each task <em>i</em> is periodic with period T<sub>i</sub>, a worst-case execution time C<sub>i</sub> and a deadline D<sub>i</sub>; here D<sub>i</sub> = T<sub>i</sub>. Each task has a fixed, unique priority, and the scheduler always runs the highest-priority ready task, preempting lower ones immediately. For now, assume tasks do not share locks, do not suspend themselves mid-job, and that switching costs nothing. We will add those back later, and they matter.</p>
+<p>Under these assumptions the worst case for task <em>i</em> happens at the <strong>critical instant</strong>: when it is released at the same moment as every higher-priority task. Anything else gives higher-priority tasks fewer chances to interfere.</p>
+<h2 id="why-the-utilisation-test-is-not-enough">Why the utilisation test is not enough</h2>
+<p>The well-known Liu and Layland result says that with rate-monotonic priorities (shorter period, higher priority), <em>n</em> tasks are schedulable if total utilisation U = Σ C<sub>i</sub>/T<sub>i</sub> is at most n(2<sup>1/n</sup> − 1). For three tasks that is about 0.780. The test is <strong>sufficient but not necessary</strong>: a task set above the bound may still be fine. It answers "yes" or "don't know", never "no" (except when U exceeds 1). Response-time analysis gives the exact answer for this model.</p>
+<h2 id="the-response-time-equation">The response-time equation</h2>
+<p>Task <em>i</em>'s worst-case response time R<sub>i</sub> is its own execution time plus the time stolen by higher-priority tasks while it is waiting or running. A higher-priority task <em>j</em> is released ⌈R<sub>i</sub>/T<sub>j</sub>⌉ times within a window of length R<sub>i</sub> starting at the critical instant, and each release costs C<sub>j</sub>:</p>
+<blockquote>
+<p>R<sub>i</sub> = C<sub>i</sub> + Σ<sub>j ∈ hp(i)</sub> ⌈R<sub>i</sub> / T<sub>j</sub>⌉ · C<sub>j</sub></p>
+</blockquote>
+<p>R<sub>i</sub> appears on both sides, so solve it by iteration: start with R = C<sub>i</sub>, evaluate the right-hand side, and repeat until the value stops changing (the task is schedulable if that fixed point is at most D<sub>i</sub>) or exceeds D<sub>i</sub> (it is not). The iteration always increases or stays the same, so it terminates.</p>
+<h2 id="a-three-task-example-by-hand">A three-task example by hand</h2>
+<p>All times in milliseconds; the task set is made up for illustration.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>C</th>
+<th>T = D</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>τ1</td>
+<td>1</td>
+<td>4</td>
+<td>high</td>
+</tr>
+<tr>
+<td>τ2</td>
+<td>2</td>
+<td>6</td>
+<td>medium</td>
+</tr>
+<tr>
+<td>τ3</td>
+<td>3</td>
+<td>12</td>
+<td>low</td>
+</tr>
+</tbody>
+</table></div>
+<p>U = 1/4 + 2/6 + 3/12 ≈ 0.833, above the three-task bound of 0.780. The simple test is inconclusive, so we compute.</p>
+<p><strong>τ1</strong> has no higher-priority tasks: R<sub>1</sub> = 1 ≤ 4.</p>
+<p><strong>τ2</strong> suffers interference from τ1:</p>
+<ul>
+<li>R = 2 → 2 + ⌈2/4⌉·1 = 3</li>
+<li>R = 3 → 2 + ⌈3/4⌉·1 = 3, fixed point. R<sub>2</sub> = 3 ≤ 6.</li>
+</ul>
+<p><strong>τ3</strong> suffers interference from both:</p>
+<ul>
+<li>R = 3 → 3 + ⌈3/4⌉·1 + ⌈3/6⌉·2 = 3 + 1 + 2 = 6</li>
+<li>R = 6 → 3 + ⌈6/4⌉·1 + ⌈6/6⌉·2 = 3 + 2 + 2 = 7</li>
+<li>R = 7 → 3 + ⌈7/4⌉·1 + ⌈7/6⌉·2 = 3 + 2 + 4 = 9</li>
+<li>R = 9 → 3 + ⌈9/4⌉·1 + ⌈9/6⌉·2 = 3 + 3 + 4 = 10</li>
+<li>R = 10 → 3 + ⌈10/4⌉·1 + ⌈10/6⌉·2 = 3 + 3 + 4 = 10, fixed point.</li>
+</ul>
+<p>R<sub>3</sub> = 10 ≤ 12. Every task meets its deadline in the worst case, despite failing the utilisation test. Each step of the iteration has a physical meaning: "if τ3 has not finished by time R, how many times have the others been released by then?"</p>
+<p>Now change the set slightly: τ2's period becomes 5 and τ3 needs 4. U ≈ 0.983. For τ3 the iteration runs 4, 7, 10, 11, 13: at R = 11, ⌈11/5⌉ = 3 releases of τ2 push the window to 13, past τ3's deadline of 12. The set is unschedulable, although utilisation is below 1. The difference between "the CPU has enough capacity on average" and "every deadline holds" is exactly what this analysis captures.</p>
+<h2 id="checking-it-with-a-few-lines-of-python">Checking it with a few lines of Python</h2>
+<pre><code class="language-python">def response_times(tasks):
+    &quot;&quot;&quot;tasks: (C, T) pairs, highest priority first, D = T, integers.
+    Returns R for each task, or None if it can miss its deadline.&quot;&quot;&quot;
+    out = []
+    for i, (c, t) in enumerate(tasks):
+        r = c
+        while True:
+            nxt = c + sum(-(-r // tj) * cj for cj, tj in tasks[:i])
+            if nxt &gt; t:
+                out.append(None)
+                break
+            if nxt == r:
+                out.append(r)
+                break
+            r = nxt
+    return out
+
+print(response_times([(1, 4), (2, 6), (3, 12)]))   # [1, 3, 10]
+print(response_times([(1, 4), (2, 5), (4, 12)]))   # [1, 3, None]
+</code></pre>
+<p><code>-(-r // tj)</code> is an integer ceiling. Keep the times in integer units, such as microseconds; a floating-point <code>ceil</code> of 2.0000000001 gives 3 and can make a schedulable set look unschedulable.</p>
+<h2 id="what-real-systems-add-to-the-equation">What real systems add to the equation</h2>
+<p>The clean model leaves out several costs. A defensible analysis adds each one explicitly:</p>
+<ul>
+<li><strong>Blocking, B<sub>i</sub>.</strong> If a lower-priority task holds a mutex that τ<sub>i</sub> needs, τ<sub>i</sub> waits. With a priority inheritance or priority ceiling protocol, the wait is bounded, and you add the longest such critical section to the equation as B<sub>i</sub>. Without such a protocol the wait is unbounded and no analysis helps.</li>
+<li><strong>Interrupts.</strong> Every ISR behaves like a very high-priority task. Add each one as a term with its minimum inter-arrival time and worst-case duration.</li>
+<li><strong>Kernel overhead.</strong> Each preemption costs a context switch in and out. A common approximation adds two switch times to every C<sub>j</sub>.</li>
+<li><strong>Release jitter.</strong> If a task is released by a tick, it may become ready up to one tick late. Jitter J<sub>j</sub> on a higher-priority task increases its interference to ⌈(R<sub>i</sub> + J<sub>j</sub>)/T<sub>j</sub>⌉·C<sub>j</sub>, and the task's own jitter adds to its response time.</li>
+<li><strong>Execution-time estimates.</strong> The analysis is only as good as C. Measured maxima from tests are optimistic; leave margin, and record how each C was obtained.</li>
+</ul>
+<p>Treat results that land exactly on a deadline or on another task's release time with suspicion: a tick of jitter or one extra cache miss turns "exactly meets" into "misses".</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Redo the τ3 iteration on paper without looking, then run the Python function and compare.</li>
+<li>Add a blocking term B<sub>i</sub> to the function and find the largest critical section in τ3 that still lets τ2 meet its deadline.</li>
+<li>In the Ketuna track D lab D5, a small preemptive kernel runs three tasks on QEMU and compares measured response times with your RTA. Make one task's work land exactly on a release boundary and explain the difference you see between prediction and measurement.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>rtos</li><li>scheduling</li><li>real time</li><li>response time analysis</li><li>rate monotonic</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="recovering-a-stuck-i2c-bus.html"><span>Previous in Embedded systems</span>Why an I2C bus gets stuck low, and how firmware recovers it</a><a class="next" href="writing-a-small-device-driver.html"><span>Next in Embedded systems</span>Writing a small device driver: the layers between a register and an API</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="superloop-or-rtos.html">Superloop or RTOS? Deciding with timing requirements, not fashion</a></h3>
+          <p>A superloop with interrupts is enough more often than people think. Work out the worst-case loop time against each deadline, and you will see exactly which requirement, if any, calls for a preemptive scheduler.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="priority-inversion-and-inheritance.html">Priority inversion, and how priority inheritance fixes it</a></h3>
+          <p>A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

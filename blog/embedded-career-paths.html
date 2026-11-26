@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Career paths in embedded systems: firmware, drivers, board support and test · Ketuna blog</title>
+  <meta name="description" content="What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Career paths in embedded systems: firmware, drivers, board support and test · Ketuna blog">
+  <meta property="og:description" content="What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.">
+  <link rel="canonical" href="https://ketuna.online/blog/embedded-career-paths.html">
+  <meta property="og:url" content="https://ketuna.online/blog/embedded-career-paths.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Career paths in embedded systems: firmware, drivers, board support and test",
+  "description": "What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "careers, embedded, firmware, drivers, testing",
+  "articleSection": "Careers & skills",
+  "wordCount": 1066,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/embedded-career-paths.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Career paths in embedded systems: firmware, drivers, board support and test</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-layers-of-an-embedded-product">The layers of an embedded product</a></li><li><a href="#application-firmware">Application firmware</a></li><li><a href="#device-drivers">Device drivers</a></li><li><a href="#board-support-and-bring-up">Board support and bring-up</a></li><li><a href="#embedded-test-and-validation">Embedded test and validation</a></li><li><a href="#comparing-the-roles">Comparing the roles</a></li><li><a href="#how-people-move-between-roles">How people move between roles</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>"Embedded engineer" covers a wide range of jobs. One person writes the logic that decides when a motor turns on; another makes a new sensor talk over I²C; a third gets a brand-new board to boot for the first time; a fourth builds the rig that tests a thousand units. All of them write C, read datasheets and use a debugger, but their days look quite different. Knowing the differences helps you choose a first role and plan the next one.</p>
+<h2 id="the-layers-of-an-embedded-product">The layers of an embedded product</h2>
+<p>Most embedded software sits in layers. At the bottom is the hardware: a microcontroller or processor, memory, peripherals and the board that connects them. Above it sits <strong>board support</strong>, the code that starts the chip, sets up clocks and memory and describes what is on the board. Next come <strong>drivers</strong>, which give each peripheral a clean interface. On top is <strong>application firmware</strong>, the product behaviour, often running on a real-time operating system such as Zephyr. <strong>Test</strong> cuts across all layers and checks that each one does its job.</p>
+<p>The roles below map onto these layers. Small teams merge them, and one engineer may do all four. Larger teams separate them.</p>
+<h2 id="application-firmware">Application firmware</h2>
+<p>Application firmware engineers implement what the product does: read sensors, run control loops or state machines, handle user input, manage power modes, talk to a phone or a server. A typical day involves writing C (sometimes C++ or Rust), structuring work into tasks and interrupts, and testing behaviour on a development board.</p>
+<p>The hard parts are timing and resources. A task that must respond within 2 ms, a buffer that must fit in a few kilobytes of RAM, a battery that must last months: these constraints shape every design decision. Good firmware engineers think in terms of state machines, worst-case response time and what happens when two events arrive at once.</p>
+<p>Daily tools: an editor, GCC or Clang for the target, a debug probe with GDB, a serial terminal, an RTOS, and a unit-test framework that runs on the host computer.</p>
+<h2 id="device-drivers">Device drivers</h2>
+<p>Driver engineers make hardware usable. Given a peripheral, such as a UART, an SPI flash chip, an analog-to-digital converter or a display controller, they read its datasheet, write the register-level code, handle interrupts and direct memory access, and expose a simple interface to the layers above.</p>
+<p>A typical day is spent with the datasheet in one window, the code in another and a logic analyser on the bench. Most bugs are a mismatch between what the code believes and what the hardware does: a bit set in the wrong order, a missing delay after reset, a status flag that clears on read. Drivers reward careful reading and a habit of checking every assumption with a measurement.</p>
+<h2 id="board-support-and-bring-up">Board support and bring-up</h2>
+<p>Board support engineers own the boundary between a new board and the software. They write or adapt startup code and linker scripts, configure clocks and memory, write device tree or board configuration files, port a bootloader or an RTOS to new hardware, and lead <strong>bring-up</strong>: the first days when a fresh board is powered on and nothing works yet.</p>
+<p>Bring-up is detective work. The board may not boot because of a firmware bug, a wrong strap resistor, a power rail that comes up in the wrong order or a solder fault. Board support engineers work closely with hardware designers, read schematics fluently and use an oscilloscope as often as a debugger. This role gives you the widest view of the whole system.</p>
+<h2 id="embedded-test-and-validation">Embedded test and validation</h2>
+<p>Test engineers make sure firmware and hardware work together, repeatably. They write unit tests that run on a host, integration tests that run on real boards, and hardware-in-the-loop setups where a computer drives inputs and measures outputs. They also maintain continuous integration so every change is tested before it merges, and they write test plans that trace back to requirements.</p>
+<p>A good test engineer thinks like an attacker: what happens on a brown-out, a full buffer, a corrupted packet, a sensor that returns garbage? Python is the main language, alongside C for test firmware, plus emulators such as QEMU and Renode that run firmware without hardware.</p>
+<h2 id="comparing-the-roles">Comparing the roles</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Main question</th>
+<th>Daily tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Application firmware</td>
+<td>Does the product behave correctly under its timing and memory limits?</td>
+<td>C, RTOS, GDB, host unit tests</td>
+</tr>
+<tr>
+<td>Device drivers</td>
+<td>Does the code match what the hardware actually does?</td>
+<td>Datasheets, C, logic analyser</td>
+</tr>
+<tr>
+<td>Board support</td>
+<td>Does this new board boot and run the software stack?</td>
+<td>Linker scripts, schematics, oscilloscope</td>
+</tr>
+<tr>
+<td>Test and validation</td>
+<td>Can we prove it works and keeps working after every change?</td>
+<td>Python, QEMU, Renode, CI, test rigs</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="how-people-move-between-roles">How people move between roles</h2>
+<p>The roles share a base: C, the memory model of a microcontroller, interrupts, a debugger and the ability to read a datasheet. Because of that base, moves between them are common.</p>
+<ul>
+<li><strong>Test to firmware.</strong> Writing tests teaches you the product's behaviour in detail and where it breaks. Many engineers move from test into feature work with that knowledge.</li>
+<li><strong>Firmware to drivers.</strong> When the application needs a peripheral that has no driver yet, the firmware engineer often writes it, and discovers a taste for register-level work.</li>
+<li><strong>Drivers to board support.</strong> Driver experience plus schematic reading is most of what board bring-up needs.</li>
+<li><strong>Any role to embedded Linux or systems roles.</strong> Experience with drivers and board support transfers to kernel drivers and boot flows on larger processors, though that is a deeper area with its own learning curve.</li>
+</ul>
+<p>The common mistake is staying only at the top layer. An application engineer who has never looked at a driver struggles when the bug is underneath. Spending some time one layer below your job makes you better at your job.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a bare-metal "hello" over UART for an RV32 target, build it with a RISC-V GCC toolchain and run it on QEMU's <code>virt</code> machine. You have just done board support: startup code, a linker script and a minimal driver.</li>
+<li>Add an interrupt-driven receive path with a ring buffer and test it under load. That is driver work.</li>
+<li>Port the same behaviour to a Zephyr sample application and run it in QEMU or Renode. That is application firmware on an RTOS.</li>
+<li>Write a Python script that sends input to the emulated UART and checks the output automatically. That is test, and it ties the other three together.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>careers</li><li>embedded</li><li>firmware</li><li>drivers</li><li>testing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="chip-design-career-paths.html"><span>Previous in Careers &amp; skills</span>Career paths in chip design: what each role does day to day</a><a class="next" href="choosing-depth-or-breadth.html"><span>Next in Careers &amp; skills</span>Choosing a specialisation after a few years: depth, breadth or both</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="chip-design-career-paths.html">Career paths in chip design: what each role does day to day</a></h3>
+          <p>Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Advanced</span></div>
+          <h3><a href="contributing-to-open-source-eda.html">Contributing to open-source hardware and EDA projects</a></h3>
+          <p>How to make a first useful contribution to an open-source EDA tool or hardware project: pick a suitable issue, reproduce it, write a focused change with a test, and work with maintainers patiently.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="engineering-portfolio-on-github.html">Building an engineering portfolio on GitHub that reviewers will read</a></h3>
+          <p>A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

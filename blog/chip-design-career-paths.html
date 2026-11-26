@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Career paths in chip design: what each role does day to day · Ketuna blog</title>
+  <meta name="description" content="Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Career paths in chip design: what each role does day to day · Ketuna blog">
+  <meta property="og:description" content="Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.">
+  <link rel="canonical" href="https://ketuna.online/blog/chip-design-career-paths.html">
+  <meta property="og:url" content="https://ketuna.online/blog/chip-design-career-paths.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Career paths in chip design: what each role does day to day",
+  "description": "Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "careers, vlsi, roles, verification, physical design",
+  "articleSection": "Careers & skills",
+  "wordCount": 944,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/chip-design-career-paths.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Career paths in chip design: what each role does day to day</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Front-end design, verification, physical design, DFT, analog, CAD and post-silicon validation, described by the work each role actually does in a normal week, the tools it lives in and the skills it rewards.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-chip-many-hands">One chip, many hands</a></li><li><a href="#the-digital-flow-role-by-role">The digital flow, role by role</a></li><li><a href="#analog-cad-and-validation">Analog, CAD and validation</a></li><li><a href="#what-each-role-rewards">What each role rewards</a></li><li><a href="#common-mistakes-when-choosing">Common mistakes when choosing</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Job titles in chip design are short and often confusing: "DV engineer", "PD engineer", "DFT", "CAD". Students pick a direction from the title, then discover that the daily work is very different from what they imagined. A better way to choose is to ask what each role does on an ordinary Tuesday: what is open on the screen, what question is being answered, and what counts as a good day.</p>
+<h2 id="one-chip-many-hands">One chip, many hands</h2>
+<p>Every digital or mixed-signal chip moves through the same broad stages: a specification, a register-transfer level (RTL) description, verification, synthesis to gates, physical layout, signoff checks, fabrication and then testing of real silicon. Each role owns one or two of these stages and hands its output to the next. Knowing where a role sits in this chain tells you what it receives, what it produces and who complains when it goes wrong.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="cp-title cp-desc" font-size="14">
+<title id="cp-title">Chip design stages and the roles that own them</title>
+<desc id="cp-desc">A left-to-right chain of stages: spec and RTL, verification, synthesis and DFT, layout, then silicon. Role labels sit under each stage: front-end design, verification, DFT, physical design and post-silicon validation. Analog design runs in parallel along the bottom, and CAD supports every stage along the top.</desc>
+<rect x="20" y="20" width="440" height="30" class="dg-track"/>
+<text x="240" y="40" text-anchor="middle" class="dg-text">CAD: flows, scripts and tool support for every stage</text>
+<rect x="20" y="75" width="72" height="50" class="dg-box"/>
+<text x="56" y="105" text-anchor="middle" class="dg-text">RTL</text>
+<rect x="112" y="75" width="72" height="50" class="dg-box"/>
+<text x="148" y="105" text-anchor="middle" class="dg-text">Verify</text>
+<rect x="204" y="75" width="72" height="50" class="dg-box"/>
+<text x="240" y="105" text-anchor="middle" class="dg-text">Synth</text>
+<rect x="296" y="75" width="72" height="50" class="dg-box"/>
+<text x="332" y="105" text-anchor="middle" class="dg-text">Layout</text>
+<rect x="388" y="75" width="72" height="50" class="dg-core"/>
+<text x="424" y="105" text-anchor="middle" class="dg-text">Silicon</text>
+<path d="M92,100 H108 M184,100 H200 M276,100 H292 M368,100 H384" class="dg-line"/>
+<text x="56" y="148" text-anchor="middle" class="dg-muted">front-end</text>
+<text x="148" y="148" text-anchor="middle" class="dg-muted">DV</text>
+<text x="240" y="148" text-anchor="middle" class="dg-muted">DFT</text>
+<text x="332" y="148" text-anchor="middle" class="dg-muted">PD</text>
+<text x="424" y="148" text-anchor="middle" class="dg-muted">validation</text>
+<rect x="20" y="180" width="348" height="30" class="dg-amber" fill-opacity="0.3"/>
+<text x="194" y="200" text-anchor="middle" class="dg-text">Analog: circuits, simulation, custom layout</text>
+<path d="M368,195 H384 V125" class="dg-amber-line"/>
+<text x="240" y="238" text-anchor="middle" class="dg-muted">Every stage hands its output to the next</text>
+</svg>
+<figcaption>Digital roles follow the flow from RTL to silicon; analog runs alongside it and CAD supports all of it.</figcaption>
+</figure>
+
+<h2 id="the-digital-flow-role-by-role">The digital flow, role by role</h2>
+<p><strong>Front-end (RTL) design.</strong> You turn a block specification into synthesizable Verilog or SystemVerilog: state machines, datapaths, register interfaces, clock and reset handling. A typical day mixes writing RTL, reading lint and clock-domain-crossing reports, answering questions from verification about intended behaviour, and updating the spec when something was ambiguous. Good front-end engineers think about timing and area while they write, not after synthesis complains.</p>
+<p><strong>Design verification (DV).</strong> You prove the RTL does what the spec says before it is too late to change. The work is writing a verification plan, building testbenches with stimulus, checkers and coverage, running regressions overnight and debugging failures in the morning. Most of the day is debugging: is this a design bug, a testbench bug or a spec misunderstanding? Verification is often the larger share of a project's effort, because showing that logic is correct in every situation is harder than writing it.</p>
+<p><strong>Design for test (DFT).</strong> A fabricated chip must be testable in seconds on a tester. DFT engineers insert scan chains, memory built-in self-test and test compression, generate test patterns and check how many manufacturing faults those patterns can detect. The daily work is reading coverage reports, fixing logic that cannot be scanned, and coordinating with physical design because scan chains add wires.</p>
+<p><strong>Physical design (PD).</strong> You take the gate-level netlist and produce a layout that meets timing, power and area: floorplanning, placement, clock tree synthesis, routing, then fixing static timing violations, design-rule violations and IR drop. A typical day is a loop of running a flow step, reading a timing or congestion report, changing constraints or placement, and running again. Scripting matters here, because flows are long and must be repeatable.</p>
+<h2 id="analog-cad-and-validation">Analog, CAD and validation</h2>
+<p><strong>Analog and mixed-signal design.</strong> Analog engineers design the circuits that do not reduce to gates: amplifiers, data converters, voltage references, regulators, phase-locked loops and input/output circuits. The day is spent in a schematic editor and a circuit simulator, sweeping process, voltage and temperature corners, then working with layout engineers on matching and parasitics. Progress is slower and more mathematical than in digital work, and intuition built from many simulations is the main asset.</p>
+<p><strong>CAD and flow engineering.</strong> CAD engineers keep everyone else productive. They build and maintain the scripts that run synthesis, layout and signoff, set up regression infrastructure, debug tool issues and write utilities that parse reports. If you enjoy both programming and hardware, this role uses both every day. Python, Tcl and shell are the working languages.</p>
+<p><strong>Post-silicon validation.</strong> When chips return from the foundry, validation engineers bring them up on boards, run tests across voltage and temperature, and find the bugs that escaped pre-silicon verification. The day involves lab equipment, firmware or test scripts, and careful debugging of a system you cannot look inside. It rewards patience and a methodical habit of changing one thing at a time.</p>
+<h2 id="what-each-role-rewards">What each role rewards</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Core skill</th>
+<th>Main tools (open-source examples)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Front-end design</td>
+<td>Clean RTL, timing awareness</td>
+<td>Verilator lint, Yosys</td>
+</tr>
+<tr>
+<td>Verification</td>
+<td>Debugging, test planning</td>
+<td>Icarus Verilog, cocotb, SymbiYosys</td>
+</tr>
+<tr>
+<td>DFT</td>
+<td>Fault models, test logic</td>
+<td>Yosys netlists, scripting</td>
+</tr>
+<tr>
+<td>Physical design</td>
+<td>Timing closure, scripting</td>
+<td>OpenROAD, OpenSTA, KLayout</td>
+</tr>
+<tr>
+<td>Analog</td>
+<td>Circuit theory, simulation</td>
+<td>Xschem, ngspice, Magic</td>
+</tr>
+<tr>
+<td>CAD</td>
+<td>Programming, flow design</td>
+<td>Python, Tcl, LibreLane</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Lab debugging, firmware</td>
+<td>GCC, Python, oscilloscopes</td>
+</tr>
+</tbody>
+</table></div>
+<p>The open-source tools are not identical to what industry teams use, but the concepts and reports transfer. A slack value in OpenSTA means the same thing as a slack value anywhere else.</p>
+<h2 id="common-mistakes-when-choosing">Common mistakes when choosing</h2>
+<ul>
+<li><strong>Choosing by perceived prestige.</strong> Every stage can stop a chip. Pick the work you can happily do for hours, because that is what you will be doing.</li>
+<li><strong>Assuming verification is a lesser role.</strong> It is a full discipline with its own depth, and it needs strong design knowledge to do well.</li>
+<li><strong>Ignoring scripting.</strong> Every role above automates. An engineer who can write a small parser saves a team hours each week.</li>
+<li><strong>Deciding from a course alone.</strong> A semester of theory does not show you the daily loop. A small project in each area does.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a tiny block, such as an 8-bit counter with enable, and lint it with <code>verilator --lint-only</code>. That is a front-end task.</li>
+<li>Write a self-checking testbench for it with Icarus Verilog or cocotb, and plant a bug to confirm the test fails. That is verification.</li>
+<li>Synthesise it with Yosys (<code>synth -top &lt;name&gt;</code>, then <code>stat</code>) and run it through a LibreLane flow on sky130 to see a layout in KLayout. That is physical design in miniature.</li>
+<li>Note which of the three steps you enjoyed debugging most. That reaction is better evidence for a career choice than any job title.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>careers</li><li>vlsi</li><li>roles</li><li>verification</li><li>physical design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="your-own-12-week-learning-plan.html"><span>Previous in Careers &amp; skills</span>Building your own 12-week learning plan for VLSI or embedded</a><a class="next" href="embedded-career-paths.html"><span>Next in Careers &amp; skills</span>Career paths in embedded systems: firmware, drivers, board support and test</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="switching-into-vlsi.html">Switching into VLSI from software or another branch: what transfers and what to learn</a></h3>
+          <p>Moving into chip design from software, mechanical, civil or another branch. Which of your skills carry over, which fundamentals you must rebuild, and one project that shows a reviewer the switch is real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="embedded-career-paths.html">Career paths in embedded systems: firmware, drivers, board support and test</a></h3>
+          <p>What application firmware, device driver, board support and embedded test engineers work on, the tools each one uses every day, and how people move from one role to another as their skills grow.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="engineering-portfolio-on-github.html">Building an engineering portfolio on GitHub that reviewers will read</a></h3>
+          <p>A reviewer gives your profile a few minutes. Show fewer, finished projects, each with a clear README, tests that pass, checked results and an honest note on which parts you did yourself.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

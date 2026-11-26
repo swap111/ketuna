@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running a trade study: criteria, weights and honest scoring · Ketuna blog</title>
+  <meta name="description" content="A weighted trade study picks between architectures with criteria and weights agreed before scoring, a sensitivity check on the weights, and a written rationale that says what would change the answer.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Running a trade study: criteria, weights and honest scoring · Ketuna blog">
+  <meta property="og:description" content="A weighted trade study picks between architectures with criteria and weights agreed before scoring, a sensitivity check on the weights, and a written rationale that says what would change the answer.">
+  <link rel="canonical" href="https://ketuna.online/blog/running-a-trade-study.html">
+  <meta property="og:url" content="https://ketuna.online/blog/running-a-trade-study.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Running a trade study: criteria, weights and honest scoring",
+  "description": "A weighted trade study picks between architectures with criteria and weights agreed before scoring, a sensitivity check on the weights, and a written rationale that says what would change the answer.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "trade study, architecture, decision making, systems engineering",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 962,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/running-a-trade-study.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Running a trade study: criteria, weights and honest scoring</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A weighted trade study picks between architectures with criteria and weights agreed before scoring, a sensitivity check on the weights, and a written rationale that says what would change the answer.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-parts-of-a-trade-study">The parts of a trade study</a></li><li><a href="#anchors-make-scores-comparable">Anchors make scores comparable</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#sensitivity-what-would-flip-the-decision">Sensitivity: what would flip the decision</a></li><li><a href="#writing-the-rationale">Writing the rationale</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most architecture arguments are not really about the options. They are about criteria nobody has written down: one engineer is optimising for cost, another for power, a third for the schedule, and each is right by their own measure. A trade study makes those measures explicit, scores the options against them in the open and records why the team chose what it chose. Done honestly, it ends the argument; done carelessly, it dresses up a favourite in a spreadsheet.</p>
+<h2 id="the-parts-of-a-trade-study">The parts of a trade study</h2>
+<p>A trade study has five ingredients, and the order in which you prepare them matters more than the arithmetic:</p>
+<ol>
+<li><strong>The decision</strong>, stated narrowly: "how to power the field sensor node", not "the architecture".</li>
+<li><strong>The options</strong>, each described well enough that someone else could estimate its cost and behaviour. Include the boring option; it often wins.</li>
+<li><strong>The criteria</strong>, each tied to a requirement or a project constraint, with a direction (higher is better or lower is better).</li>
+<li><strong>The weights</strong>, agreed with the people who own those requirements, <em>before</em> anyone scores.</li>
+<li><strong>Scoring anchors</strong>: a short description of what a 1, a 3 and a 5 mean for each criterion.</li>
+</ol>
+<p>Fixing weights before scoring is the single most important rule. If you score first, it is very hard not to nudge the weights until your preferred option comes out on top, and the result says more about your preference than about the options.</p>
+<h2 id="anchors-make-scores-comparable">Anchors make scores comparable</h2>
+<p>A score of "4 for maintenance" means nothing unless everyone agrees what 4 is. Write anchors using real quantities wherever you can. For a field sensor, the maintenance criterion might be anchored on site visits per year for battery work:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Score</th>
+<th>Maintenance anchor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5</td>
+<td>No planned battery visits over the product life</td>
+</tr>
+<tr>
+<td>4</td>
+<td>One visit every two years or less often</td>
+</tr>
+<tr>
+<td>3</td>
+<td>One visit a year</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Two visits a year</td>
+</tr>
+<tr>
+<td>1</td>
+<td>More than two visits a year</td>
+</tr>
+</tbody>
+</table></div>
+<p>With anchors, two people scoring independently usually land within a point of each other, and when they do not, the disagreement points at a real question ("what discharge rate did you assume?") rather than taste. Where you can, score from a calculation, not an impression: the battery-life estimate behind the maintenance score should be attached to the study.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Suppose a team must choose how to power a soil sensor node and has agreed four criteria with weights summing to 1. The options and scores below are made up for illustration.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+<th>A: primary cell</th>
+<th>B: solar + rechargeable</th>
+<th>C: larger primary pack</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Maintenance</td>
+<td>0.35</td>
+<td>2</td>
+<td>5</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Unit cost</td>
+<td>0.25</td>
+<td>4</td>
+<td>2</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Reliability</td>
+<td>0.25</td>
+<td>5</td>
+<td>3</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Size</td>
+<td>0.15</td>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>Weighted total</strong></td>
+<td></td>
+<td><strong>3.55</strong></td>
+<td><strong>3.30</strong></td>
+<td><strong>3.45</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Each total is the sum of weight times score. For option A: 0.35 × 2 + 0.25 × 4 + 0.25 × 5 + 0.15 × 4 = 0.70 + 1.00 + 1.25 + 0.60 = 3.55. Option A wins, but by 0.10 over C and 0.25 over B. On a 1-to-5 scale with judgement in every score, that margin is small. Before anyone celebrates, check how fragile it is.</p>
+<h2 id="sensitivity-what-would-flip-the-decision">Sensitivity: what would flip the decision</h2>
+<p>A sensitivity check varies one weight at a time, rescales the others so they still sum to 1, and watches the winner. This script does it for the maintenance weight.</p>
+<pre><code class="language-python">weights = {&quot;maint&quot;: 0.35, &quot;cost&quot;: 0.25, &quot;rel&quot;: 0.25, &quot;size&quot;: 0.15}
+scores = {
+    &quot;A primary&quot;:     {&quot;maint&quot;: 2, &quot;cost&quot;: 4, &quot;rel&quot;: 5, &quot;size&quot;: 4},
+    &quot;B solar&quot;:       {&quot;maint&quot;: 5, &quot;cost&quot;: 2, &quot;rel&quot;: 3, &quot;size&quot;: 2},
+    &quot;C big primary&quot;: {&quot;maint&quot;: 4, &quot;cost&quot;: 3, &quot;rel&quot;: 4, &quot;size&quot;: 2},
+}
+
+def totals(w):
+    return {o: sum(w[c] * s[c] for c in w) for o, s in scores.items()}
+
+others = {c: v for c, v in weights.items() if c != &quot;maint&quot;}
+rest_sum = sum(others.values())
+for step in range(3, 12):
+    wm = step * 0.05
+    w = {&quot;maint&quot;: wm}
+    w.update({c: v * (1 - wm) / rest_sum for c, v in others.items()})
+    t = totals(w)
+    best = max(t, key=t.get)
+    print(f&quot;maint={wm:.2f}  &quot; +
+          &quot;  &quot;.join(f&quot;{o[0]}={v:.2f}&quot; for o, v in t.items()) +
+          f&quot;  -&gt; {best}&quot;)
+</code></pre>
+<p>The output shows A winning up to a maintenance weight of 0.35, C taking over at 0.40, and B winning from 0.45 upwards. That is the real finding of the study: <strong>the answer depends on how much the customer values avoiding site visits.</strong> It turns an argument about power supplies into a question you can put to the customer, ideally with the cost of a field visit in hand. If they say visits to remote farms are expensive and slow, weight maintenance higher, and B becomes the right answer for a reason everyone can see.</p>
+<p>Run the same sweep for each weight. If no reasonable weight changes the winner, the decision is robust and you can say so. If a small change flips it, say that too, and say which fact you would need to settle it.</p>
+<h2 id="writing-the-rationale">Writing the rationale</h2>
+<p>The record of a trade study is worth more than the table. A good one fits on a page:</p>
+<ul>
+<li>the decision, options and criteria, with links to the requirements behind each criterion</li>
+<li>the weights and who agreed them, with the date of the meeting</li>
+<li>the scores, with the calculation or evidence behind each one</li>
+<li>the result and the sensitivity findings</li>
+<li><strong>what would reopen the decision</strong>, for example "if field visit cost exceeds the price difference of the solar kit, revisit"</li>
+</ul>
+<p>Months later, when someone asks why the product uses a primary cell, the answer is in writing, and so is the condition under which the team agreed to change it.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Weights chosen after scoring.</strong> The study then confirms a favourite. Fix weights first, with the stakeholders.</li>
+<li><strong>Too many criteria.</strong> Twelve criteria with small weights dilute the ones that matter. Keep four to six and fold the rest into must-pass constraints.</li>
+<li><strong>Mixing constraints with criteria.</strong> If an option fails a hard requirement, such as a safety limit, it is out, not scored low.</li>
+<li><strong>False precision.</strong> Reporting 3.547 against 3.452 implies a confidence the scores cannot support.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a real choice from a project, such as two microcontrollers or two radio options, write anchors for four criteria and score it alone, then compare scores with a teammate who scored independently.</li>
+<li>Run the script with Python 3 on your numbers and sweep each weight in turn. Note the weight at which the winner changes.</li>
+<li>Keep the table in LibreOffice Calc or a CSV under version control, and write the one-page rationale next to it, including what would reopen the decision.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>trade study</li><li>architecture</li><li>decision making</li><li>systems engineering</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="reliability-basics-mtbf.html"><span>Previous in Systems &amp; product engineering</span>Reliability basics: failure rates, MTBF and the bathtub curve</a><a class="next" href="rural-iot-node-tradeoffs.html"><span>Next in Systems &amp; product engineering</span>Rural IoT node trade-offs: range, battery life, cost and maintenance</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="mbse-without-the-jargon.html">Model-based systems engineering without the jargon</a></h3>
+          <p>Model-based systems engineering keeps what a system must do, how it is split up and how the parts connect in one linked model instead of scattered documents. Here is the idea in plain words, with an example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="budgets-as-a-design-tool.html">Budgets as a design tool: allocating mass, cost and margin across subsystems</a></h3>
+          <p>A technical budget splits one system limit, such as mass or unit cost, into allowances for each subsystem, compares them with bottom-up estimates and holds back margin for the surprises every project has.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interface-control-documents.html">Interface control documents: agreeing on the boundary before building</a></h3>
+          <p>An interface control document writes down the signals, protocol, timing, connectors and ownership at a boundary between two teams, so each can build its side in parallel and integration holds no surprises.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

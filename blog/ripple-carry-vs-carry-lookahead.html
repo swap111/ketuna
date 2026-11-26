@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ripple-carry vs carry-lookahead: where the delay goes in an adder · Ketuna blog</title>
+  <meta name="description" content="An adder&#x27;s delay is the time for a carry to travel. See why ripple-carry grows linearly with width, how generate and propagate signals let lookahead and prefix adders grow logarithmically, and when ripple is still right.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Ripple-carry vs carry-lookahead: where the delay goes in an adder · Ketuna blog">
+  <meta property="og:description" content="An adder&#x27;s delay is the time for a carry to travel. See why ripple-carry grows linearly with width, how generate and propagate signals let lookahead and prefix adders grow logarithmically, and when ripple is still right.">
+  <link rel="canonical" href="https://ketuna.online/blog/ripple-carry-vs-carry-lookahead.html">
+  <meta property="og:url" content="https://ketuna.online/blog/ripple-carry-vs-carry-lookahead.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Ripple-carry vs carry-lookahead: where the delay goes in an adder",
+  "description": "An adder's delay is the time for a carry to travel. See why ripple-carry grows linearly with width, how generate and propagate signals let lookahead and prefix adders grow logarithmically, and when ripple is still right.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "adders, carry lookahead, prefix adder, timing",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 958,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/ripple-carry-vs-carry-lookahead.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Ripple-carry vs carry-lookahead: where the delay goes in an adder</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An adder&#x27;s delay is the time for a carry to travel. See why ripple-carry grows linearly with width, how generate and propagate signals let lookahead and prefix adders grow logarithmically, and when ripple is still right.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-ripple-carry-adder">The ripple-carry adder</a></li><li><a href="#generate-and-propagate">Generate and propagate</a></li><li><a href="#why-lookahead-does-not-scale-directly">Why lookahead does not scale directly</a></li><li><a href="#prefix-adders">Prefix adders</a></li><li><a href="#when-ripple-is-the-right-answer">When ripple is the right answer</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Adding two numbers looks instantaneous in a Verilog <code>+</code>, but in gates it has a clear critical path: the carry. The sum bit at the top of a word cannot be known until the carry into it is known, and that carry depends on every bit below it. Every fast adder architecture is a different answer to one question: how do you find the carries without waiting for them to ripple?</p>
+<h2 id="the-ripple-carry-adder">The ripple-carry adder</h2>
+<p>Chain N full adders, connecting each carry-out to the next carry-in. Each full adder computes:</p>
+<blockquote>
+<p>s<sub>i</sub> = a<sub>i</sub> ⊕ b<sub>i</sub> ⊕ c<sub>i</sub>, c<sub>i+1</sub> = a<sub>i</sub>b<sub>i</sub> + c<sub>i</sub>(a<sub>i</sub> ⊕ b<sub>i</sub>)</p>
+</blockquote>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="rc-title rc-desc" font-size="14">
+<title id="rc-title">Four-bit ripple-carry adder</title>
+<desc id="rc-desc">Four full adder boxes in a row, bit 0 on the right and bit 3 on the left. Each box takes a and b from above and produces a sum below. The carry passes from each box to the one on its left, and this carry chain is highlighted as the critical path.</desc>
+<rect x="30" y="50" width="80" height="60" class="dg-box"/>
+<rect x="140" y="50" width="80" height="60" class="dg-box"/>
+<rect x="250" y="50" width="80" height="60" class="dg-box"/>
+<rect x="360" y="50" width="80" height="60" class="dg-box"/>
+<text x="70" y="85" text-anchor="middle" class="dg-text">FA 3</text>
+<text x="180" y="85" text-anchor="middle" class="dg-text">FA 2</text>
+<text x="290" y="85" text-anchor="middle" class="dg-text">FA 1</text>
+<text x="400" y="85" text-anchor="middle" class="dg-text">FA 0</text>
+<text x="70" y="30" text-anchor="middle" class="dg-muted">a3 b3</text>
+<text x="180" y="30" text-anchor="middle" class="dg-muted">a2 b2</text>
+<text x="290" y="30" text-anchor="middle" class="dg-muted">a1 b1</text>
+<text x="400" y="30" text-anchor="middle" class="dg-muted">a0 b0</text>
+<path d="M70,36 V50 M180,36 V50 M290,36 V50 M400,36 V50" class="dg-line"/>
+<path d="M70,110 V130 M180,110 V130 M290,110 V130 M400,110 V130" class="dg-line"/>
+<text x="70" y="148" text-anchor="middle" class="dg-muted">s3</text>
+<text x="180" y="148" text-anchor="middle" class="dg-muted">s2</text>
+<text x="290" y="148" text-anchor="middle" class="dg-muted">s1</text>
+<text x="400" y="148" text-anchor="middle" class="dg-muted">s0</text>
+<path d="M470,80 H440 M360,80 H330 M250,80 H220 M140,80 H110 M30,80 H8" class="dg-amber-line" stroke-width="3"/>
+<path d="M14,76 L8,80 L14,84 Z" class="dg-arrow"/>
+<text x="462" y="70" text-anchor="end" class="dg-muted">c0</text>
+<text x="10" y="70" class="dg-muted">c4</text>
+</svg>
+<figcaption>The carry must pass through every full adder in turn, so the worst-case delay grows with the number of bits.</figcaption>
+</figure>
+
+<p>The worst case is a carry that starts at bit 0 and travels all the way up, for example adding 1 to <code>0111…1</code>. If one carry stage takes t<sub>c</sub>, an N-bit ripple adder takes about N × t<sub>c</sub>. With an illustrative t<sub>c</sub> of 0.1 ns, a 32-bit ripple adder needs about 3.2 ns just for the carry chain, and a 64-bit one about 6.4 ns. Doubling the width doubles the delay.</p>
+<p>Its strength is that it is tiny: N full adders and nothing else, with short local wires.</p>
+<h2 id="generate-and-propagate">Generate and propagate</h2>
+<p>The trick behind every faster adder is to ask, for each bit position, two questions that do not depend on the incoming carry:</p>
+<ul>
+<li><strong>Generate</strong> g<sub>i</sub> = a<sub>i</sub> · b<sub>i</sub>: this bit creates a carry on its own (both inputs 1).</li>
+<li><strong>Propagate</strong> p<sub>i</sub> = a<sub>i</sub> ⊕ b<sub>i</sub>: this bit passes an incoming carry through (exactly one input 1).</li>
+</ul>
+<p>Both are computed for all bits in parallel, in one gate delay. Then the carry recurrence becomes c<sub>i+1</sub> = g<sub>i</sub> + p<sub>i</sub> · c<sub>i</sub>, and you can expand it:</p>
+<blockquote>
+<p>c<sub>2</sub> = g<sub>1</sub> + p<sub>1</sub>g<sub>0</sub> + p<sub>1</sub>p<sub>0</sub>c<sub>0</sub></p>
+<p>c<sub>4</sub> = g<sub>3</sub> + p<sub>3</sub>g<sub>2</sub> + p<sub>3</sub>p<sub>2</sub>g<sub>1</sub> + p<sub>3</sub>p<sub>2</sub>p<sub>1</sub>g<sub>0</sub> + p<sub>3</sub>p<sub>2</sub>p<sub>1</sub>p<sub>0</sub>c<sub>0</sub></p>
+</blockquote>
+<p>Read c<sub>4</sub> aloud: "a carry comes out of bit 3 if bit 3 generates one, or bit 2 generates one and bit 3 propagates it, or…". Each term is an AND, the whole is an OR, so c<sub>4</sub> takes a fixed two levels of logic regardless of the data. That is a <strong>carry-lookahead</strong> block.</p>
+<h2 id="why-lookahead-does-not-scale-directly">Why lookahead does not scale directly</h2>
+<p>The expansion for c<sub>32</sub> would have 33 terms, the largest an AND of 32 inputs. Gates with that many inputs are slow and large, so flattening the whole carry is not practical. Instead, designs group bits. A 4-bit lookahead block produces a <em>group</em> generate and propagate:</p>
+<blockquote>
+<p>G = g<sub>3</sub> + p<sub>3</sub>g<sub>2</sub> + p<sub>3</sub>p<sub>2</sub>g<sub>1</sub> + p<sub>3</sub>p<sub>2</sub>p<sub>1</sub>g<sub>0</sub>, P = p<sub>3</sub>p<sub>2</sub>p<sub>1</sub>p<sub>0</sub></p>
+</blockquote>
+<p>A second level of lookahead then works on those group signals exactly as the first level worked on bits. Each level multiplies the reach by four, so a 64-bit adder needs three levels of lookahead instead of 64 ripple stages.</p>
+<h2 id="prefix-adders">Prefix adders</h2>
+<p>The cleanest way to see this is as a <strong>prefix</strong> computation. Define an operator ∘ that combines two (g, p) pairs, a higher span (g<sub>h</sub>, p<sub>h</sub>) and a lower span (g<sub>l</sub>, p<sub>l</sub>):</p>
+<blockquote>
+<p>(g<sub>h</sub>, p<sub>h</sub>) ∘ (g<sub>l</sub>, p<sub>l</sub>) = (g<sub>h</sub> + p<sub>h</sub>g<sub>l</sub>, p<sub>h</sub>p<sub>l</sub>)</p>
+</blockquote>
+<p>The operator is associative, so the carry into every bit is a prefix "sum" of all the (g, p) pairs below it, and any parallel-prefix tree can compute all of them. With a tree, the number of ∘ levels is log<sub>2</sub> N: 5 for 32 bits, 6 for 64 bits. Named prefix structures, such as Kogge-Stone, Brent-Kung and Sklansky, are different trees that trade the number of ∘ cells, the wiring and the fan-out against each other. Kogge-Stone has minimum depth and many long wires; Brent-Kung has far fewer cells but roughly twice the depth.</p>
+<h2 id="when-ripple-is-the-right-answer">When ripple is the right answer</h2>
+<p>Logarithmic delay sounds strictly better, but you pay in area, power and wiring. Ripple is often the right choice when:</p>
+<ul>
+<li><strong>The adder is narrow.</strong> For 8 bits, the carry chain is short, and the extra logic of a prefix tree buys little.</li>
+<li><strong>The path has slack.</strong> If the adder sits in a path with plenty of timing margin, a smaller adder saves area and switching power.</li>
+<li><strong>Synthesis decides anyway.</strong> When you write <code>a + b</code>, synthesis tools pick an adder architecture from the timing constraint. Tight constraints push them to faster structures; relaxed ones give you something close to ripple. Writing a hand-built prefix adder in RTL is usually only worth it when you have measured that the tool's choice does not meet timing.</li>
+<li><strong>FPGAs.</strong> FPGA fabrics provide dedicated fast carry chains, which make ripple-style adders quick in that technology.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Assuming a <code>+</code> in RTL is always a ripple adder; the netlist depends on the constraint</li>
+<li>Counting only gate levels and ignoring the long wires and high fan-out in wide prefix trees</li>
+<li>Forgetting the final XOR: s<sub>i</sub> = p<sub>i</sub> ⊕ c<sub>i</sub> still has to be computed after the carries</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a 16-bit ripple adder in Verilog with a <code>generate</code> loop of full adders, and a prefix version that computes (g, p) and combines them in four levels. Check both against <code>a + b</code> for random inputs in <strong>Icarus Verilog</strong>.</li>
+<li>Synthesise both with <strong>Yosys</strong> against a sky130 library and compare cell counts with <code>stat</code>.</li>
+<li>Time both in <strong>OpenSTA</strong> and compare the critical path delays. Predict the ratio before you look.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>adders</li><li>carry lookahead</li><li>prefix adder</li><li>timing</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="pipelining-a-datapath-step-by-step.html"><span>Previous in Digital &amp; VLSI design</span>Pipelining a datapath step by step: latency, throughput and the cost of registers</a><a class="next" href="sequencing-an-adc-array-from-rtl.html"><span>Next in Digital &amp; VLSI design</span>Sequencing an ADC array from RTL: sample scheduling, channel muxing and buffering</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="moore-or-mealy-by-timing.html">Moore or Mealy? Choosing an FSM style by timing, not by textbook</a></h3>
+          <p>A 101 sequence detector written as Moore and as Mealy shows the real difference: when the output appears, whether it can glitch, and how a registered output gives you the best of both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="pipelining-a-datapath-step-by-step.html">Pipelining a datapath step by step: latency, throughput and the cost of registers</a></h3>
+          <p>Cut a multiply-accumulate path into balanced stages, see how the clock period, latency and register count change, and carry a valid bit alongside the data so the pipeline knows which results are real.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hardware/software co-design: deciding what to accelerate · Ketuna blog</title>
+  <meta name="description" content="Profile the software first, use Amdahl&#x27;s law to bound the gain, then move a hot loop into hardware only when the cost of starting it and moving its data is small next to the work it saves.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Hardware/software co-design: deciding what to accelerate · Ketuna blog">
+  <meta property="og:description" content="Profile the software first, use Amdahl&#x27;s law to bound the gain, then move a hot loop into hardware only when the cost of starting it and moving its data is small next to the work it saves.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-to-accelerate-codesign.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-to-accelerate-codesign.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Hardware/software co-design: deciding what to accelerate",
+  "description": "Profile the software first, use Amdahl's law to bound the gain, then move a hot loop into hardware only when the cost of starting it and moving its data is small next to the work it saves.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "co-design, profiling, amdahl's law, accelerators, firmware",
+  "articleSection": "Edge AI",
+  "wordCount": 1012,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-to-accelerate-codesign.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Hardware/software co-design: deciding what to accelerate</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Profile the software first, use Amdahl&#x27;s law to bound the gain, then move a hot loop into hardware only when the cost of starting it and moving its data is small next to the work it saves.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#profile-before-you-partition">Profile before you partition</a></li><li><a href="#bound-the-gain-with-amdahls-law">Bound the gain with Amdahl's law</a></li><li><a href="#count-the-interface-cost">Count the interface cost</a></li><li><a href="#choose-the-granularity">Choose the granularity</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When a sensing product is too slow or drains its battery too fast, the hardware engineer's instinct is to design an accelerator. Sometimes that is right. Often the accelerator speeds up something that was never the bottleneck, or it is so awkward to start and feed that the processor spends as long talking to it as it would have spent doing the work. Co-design is the discipline of deciding, with measurements, which parts of a system become hardware and which stay as software, and how the two talk. The order matters: measure first, then partition, then design the interface.</p>
+<h2 id="profile-before-you-partition">Profile before you partition</h2>
+<p>Start with a complete software version running on the target processor, or on an instruction-set simulator with a cycle model. It is the reference for correctness and the baseline for every speed-up claim. Then measure where the cycles go. On a bare-metal RISC-V core the simplest tool is the cycle counter:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+static inline uint32_t cycles(void)
+{
+    uint32_t c;
+    __asm__ volatile (&quot;csrr %0, mcycle&quot; : &quot;=r&quot;(c));
+    return c;
+}
+
+/* usage */
+uint32_t t0 = cycles();
+fft_1024(buf);
+uint32_t t_fft = cycles() - t0;   /* unsigned subtraction handles wrap */
+</code></pre>
+<p>Wrap each stage of the processing chain, run it over realistic input many times, and record the cycles per stage. Measure energy too if you can, because a stage that is short but keeps a large memory busy may still matter for battery life.</p>
+<p>Here is a profile for a vibration-monitoring node that processes one frame of accelerometer data per period. The numbers are made up for illustration, but the shape is typical of signal-processing firmware.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Share of cycles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sample handling and filtering</td>
+<td>30 %</td>
+</tr>
+<tr>
+<td>1,024-point FFT</td>
+<td>45 %</td>
+</tr>
+<tr>
+<td>Spectral features</td>
+<td>10 %</td>
+</tr>
+<tr>
+<td>Small classifier</td>
+<td>5 %</td>
+</tr>
+<tr>
+<td>Radio, logging, control</td>
+<td>10 %</td>
+</tr>
+</tbody>
+</table></div>
+<p>Before any design, notice what is <em>not</em> in the top two: the classifier. If the team had started from "it is an AI product, so build a neural network accelerator", they would be accelerating 5 % of the work.</p>
+<h2 id="bound-the-gain-with-amdahls-law">Bound the gain with Amdahl's law</h2>
+<p>If a fraction p of the run time is made s times faster, the overall speed-up is:</p>
+<blockquote>
+<p>speed-up = 1 / ((1 − p) + p / s)</p>
+</blockquote>
+<p>The untouched fraction 1 − p sets a hard ceiling of 1 / (1 − p), however fast the hardware is.</p>
+<ul>
+<li>Accelerating only the FFT 20× (p = 0.45): 1 / (0.55 + 0.0225) ≈ 1.75×. Even an infinitely fast FFT block gives at most 1 / 0.55 ≈ 1.82×.</li>
+<li>Accelerating the FFT and the filtering 20× (p = 0.75): 1 / (0.25 + 0.0375) ≈ 3.48×, with a ceiling of 4×.</li>
+</ul>
+<p>That calculation takes a minute and already tells you that a filter-plus-FFT front end is worth twice as much as the FFT alone. It also tells you when to stop: if the requirement is a 1.5× speed-up, an FFT block, or even a few custom instructions for the FFT butterfly, will do.</p>
+<h2 id="count-the-interface-cost">Count the interface cost</h2>
+<p>Amdahl's law assumes the accelerated part simply takes p / s of the time. Real hardware has to be started, fed and read back, and that time is spent on the processor. Suppose the FFT is 450,000 cycles per frame in software, and the accelerator does it in 450,000 / 20 = 22,500 cycles. But the driver copies 1,024 samples into the accelerator's buffer with the CPU, about 4 cycles each, so 4,096 cycles, plus about 200 cycles of register writes and interrupt handling. The effective time is 26,796 cycles, an effective s of about 16.8 instead of 20.</p>
+<p>That is still a good result, because the overhead is small next to the work. The same arithmetic can go the other way. Consider a checksum computed on 16-byte packets: suppose software takes 120 cycles per packet and a hardware block 10, but each call needs register writes, a start, and polling for done, about 40 cycles. Hardware wins, 50 against 120. If the packets were 2 bytes and software took 24 cycles, the same 40-cycle overhead makes the accelerator slower than the code it replaced.</p>
+<p>So the rule is: <strong>offload only when overhead + hardware time is well below software time</strong>, and look for ways to shrink the overhead:</p>
+<ul>
+<li>let the accelerator read from shared memory, or use DMA, instead of copying with the CPU</li>
+<li>give it a whole frame or a whole layer per start, not one item</li>
+<li>signal completion with an interrupt so the CPU can sleep, rather than polling</li>
+</ul>
+<h2 id="choose-the-granularity">Choose the granularity</h2>
+<p>There are two broad shapes of hardware help, and they suit different profiles.</p>
+<ul>
+<li><strong>Fine-grained: a custom instruction</strong> in the processor, for example a multiply-accumulate on packed bytes or an FFT butterfly step. Call overhead is essentially zero because it is just an instruction, but each call does little work and the CPU stays busy. Good for hot inner loops that are spread through the code.</li>
+<li><strong>Coarse-grained: a memory-mapped accelerator</strong> that processes a whole buffer per start. Setup costs tens to hundreds of cycles, but it can do a lot of work in parallel while the CPU sleeps. Good for large, regular kernels such as the filter-and-FFT front end above.</li>
+</ul>
+<p>Also ask what will change. Hardware is fixed at tape-out; firmware is not. Filtering and transforms are stable mathematics and make good hardware. Thresholds, classifier structure and decision rules change as you learn from field data and belong in software, or at most on a general-purpose engine that software programs.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>building the accelerator before a software baseline exists to profile and to check results against</li>
+<li>quoting the accelerator's speed-up on its kernel instead of the end-to-end speed-up</li>
+<li>ignoring driver and data-copy cycles, which can cancel the gain on small jobs</li>
+<li>hard-wiring parameters that the product team will want to tune later</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the processing chain for a small signal task in C, wrap each stage with the <code>cycles()</code> function, and run it under a RISC-V simulator such as Spike or Renode, or on a board.</li>
+<li>Fill in a profile table like the one above from your measurements and compute the Amdahl ceiling for each candidate.</li>
+<li>For the best candidate, write down the driver steps (copy, configure, start, wait, read back) and estimate their cycles before you design any RTL.</li>
+<li>Explain your partition to a colleague in one page; if you cannot justify a block with numbers, leave it in software for now.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>co-design</li><li>profiling</li><li>amdahl&#x27;s law</li><li>accelerators</li><li>firmware</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="gesture-recognition-from-an-imu.html"><span>Previous in Edge AI</span>Gesture recognition from an IMU: data, features and a small model</a><a class="next" href="image-preprocessing-in-hardware.html"><span>Next in Edge AI</span>Image preprocessing in hardware: downscaling, normalisation and windowing</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="prototyping-an-ml-accelerator-on-fpga.html">Prototyping a small ML accelerator on an FPGA</a></h3>
+          <p>Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="tflm-interpreter-arena-operators.html">Running a model with TensorFlow Lite Micro: the interpreter, arena and operators</a></h3>
+          <p>What happens between handing TensorFlow Lite Micro a model array and getting scores back - how it reads the model in place, plans memory in the arena, calls kernels, and how to link only the operators you use.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="treating-models-like-firmware.html">Treating models like firmware: versioning, tests and CI for edge AI</a></h3>
+          <p>A deployed model is part of the firmware image and deserves the same discipline - pinned and hashed model files, regression tests on frozen held-out data, bit-exact checks of the device code, and budgets enforced in CI.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

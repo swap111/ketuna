@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What happens before main(): startup code on a microcontroller · Ketuna blog</title>
+  <meta name="description" content="Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What happens before main(): startup code on a microcontroller · Ketuna blog">
+  <meta property="og:description" content="Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-happens-before-main.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-happens-before-main.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What happens before main(): startup code on a microcontroller",
+  "description": "Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "startup code, reset, linker, risc-v, bare metal",
+  "articleSection": "Embedded systems",
+  "wordCount": 947,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-happens-before-main.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>What happens before main(): startup code on a microcontroller</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Between reset and the first line of main() a few dozen instructions set the stack pointer, copy initialised globals into RAM and zero the rest. Here is each step on a RISC-V microcontroller, and why C needs it.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-c-language-makes-promises-the-hardware-does-not-keep">The C language makes promises the hardware does not keep</a></li><li><a href="#the-sequence-from-reset-to-main">The sequence from reset to main</a></li><li><a href="#the-startup-code-itself">The startup code itself</a></li><li><a href="#bugs-that-live-before-main">Bugs that live before main</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>On a laptop, <code>main()</code> feels like the beginning of the program. On a microcontroller it is not. When the chip comes out of reset, RAM holds random bits, there is no stack, and nothing has set your global variables to the values you wrote in the source. A short piece of startup code fixes all of that before <code>main()</code> is called, and when it is wrong the symptoms are baffling: globals with strange values, a crash on the first function call, or a bug that appears only after a power cycle.</p>
+<h2 id="the-c-language-makes-promises-the-hardware-does-not-keep">The C language makes promises the hardware does not keep</h2>
+<p>Look at three lines of ordinary C:</p>
+<pre><code class="language-c">int boot_count = 5;        /* initialised global  */
+int errors;                /* uninitialised global */
+int main(void) { return boot_count + errors; }
+</code></pre>
+<p>The C standard says <code>boot_count</code> starts at 5 and <code>errors</code> starts at 0. It also assumes that calling a function works, which needs a stack. None of this is true at reset. RAM is volatile memory: after power-up each bit is whatever the cells settled to. The only thing that survives power-off is flash, so the value 5 must be stored in flash and copied into RAM at run time.</p>
+<p>The compiler and linker sort your variables into <strong>sections</strong> so the startup code can deal with each kind in bulk:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Holds</th>
+<th>Lives in</th>
+<th>Startup must</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.text</code>, <code>.rodata</code></td>
+<td>Code and constants</td>
+<td>Flash</td>
+<td>Nothing; used in place</td>
+</tr>
+<tr>
+<td><code>.data</code></td>
+<td>Initialised globals</td>
+<td>RAM, initial values in flash</td>
+<td>Copy flash to RAM</td>
+</tr>
+<tr>
+<td><code>.bss</code></td>
+<td>Zero or uninitialised globals</td>
+<td>RAM only</td>
+<td>Fill with zeros</td>
+</tr>
+<tr>
+<td>stack</td>
+<td>Locals and return addresses</td>
+<td>RAM</td>
+<td>Set the stack pointer</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>.bss</code> takes no space in flash at all: there is nothing to store except "this many bytes of zeros", which is why a large zeroed array makes RAM use grow but not the firmware image.</p>
+<h2 id="the-sequence-from-reset-to-main">The sequence from reset to main</h2>
+<p>What the hardware does at reset depends on the architecture. Some cores read an initial stack pointer and a reset address from a table at a fixed location. A RISC-V core simply starts fetching instructions at an implementation-defined reset address, with almost every register undefined. On RISC-V, the first instructions therefore must be assembly, because a C function cannot run before the stack pointer is valid.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 300" role="img" aria-labelledby="bm-title bm-desc" font-size="14">
+<title id="bm-title">Steps from reset to main on a RISC-V microcontroller</title>
+<desc id="bm-desc">Six boxes in a vertical chain: reset fetches from the reset address; assembly sets sp, gp and mtvec; .data is copied from flash to RAM; .bss is zeroed; optional clock setup and constructors; then main is called. The first two steps are in assembly, the rest can be in C.</desc>
+<rect x="110" y="10" width="260" height="34" rx="6" class="dg-core"/>
+<text x="240" y="32" text-anchor="middle" class="dg-text">Reset: fetch at reset address</text>
+<rect x="110" y="58" width="260" height="34" rx="6" class="dg-amber" fill-opacity="0.3"/>
+<text x="240" y="80" text-anchor="middle" class="dg-text">Set sp, gp, mtvec (assembly)</text>
+<rect x="110" y="106" width="260" height="34" rx="6" class="dg-box"/>
+<text x="240" y="128" text-anchor="middle" class="dg-text">Copy .data: flash to RAM</text>
+<rect x="110" y="154" width="260" height="34" rx="6" class="dg-box"/>
+<text x="240" y="176" text-anchor="middle" class="dg-text">Zero .bss</text>
+<rect x="110" y="202" width="260" height="34" rx="6" class="dg-box"/>
+<text x="240" y="224" text-anchor="middle" class="dg-text">Clocks, constructors (optional)</text>
+<rect x="110" y="250" width="260" height="34" rx="6" class="dg-core"/>
+<text x="240" y="272" text-anchor="middle" class="dg-text">call main()</text>
+<path d="M240,44 V58 M240,92 V106 M240,140 V154 M240,188 V202 M240,236 V250" class="dg-line"/>
+<text x="20" y="80" class="dg-muted">no stack yet</text>
+<text x="20" y="152" class="dg-muted">C is safe</text>
+<text x="20" y="168" class="dg-muted">from here</text>
+<text x="386" y="152" class="dg-muted">uses linker</text>
+<text x="386" y="168" class="dg-muted">symbols</text>
+</svg>
+<figcaption>Only the first step after reset must be assembly; once the stack pointer is set, the copy and zero loops can be written in C.</figcaption>
+</figure>
+
+<p>Each step has a reason:</p>
+<ol>
+<li><strong>Set the stack pointer.</strong> Every function call stores its return address and locals on the stack. The stack usually starts at the top of RAM and grows down.</li>
+<li><strong>Set the global pointer (<code>gp</code>).</strong> The RISC-V toolchain can reach small globals with one instruction relative to <code>gp</code>. If <code>gp</code> is wrong, those accesses hit the wrong addresses.</li>
+<li><strong>Set the trap vector (<code>mtvec</code>).</strong> If anything faults before this, the core jumps to an undefined address and you learn nothing. With a handler in place, an early bug at least lands somewhere you can inspect.</li>
+<li><strong>Copy <code>.data</code>, zero <code>.bss</code>.</strong> After this, every global holds the value the C code expects.</li>
+<li><strong>Optional early hardware setup.</strong> Switching to a faster clock, enabling an FPU, running C++ static constructors.</li>
+<li><strong>Call <code>main()</code>.</strong> On bare metal there is nothing to return to, so the startup code loops (or resets) if <code>main()</code> ever returns.</li>
+</ol>
+<h2 id="the-startup-code-itself">The startup code itself</h2>
+<p>This is a minimal RISC-V version, close to what the Ketuna track D labs use on QEMU's <code>virt</code> machine. The symbols with leading underscores are not variables; the linker script defines them as addresses.</p>
+<pre><code class="language-text">    .section .text.start, &quot;ax&quot;
+    .globl _start
+_start:
+    la    sp, _stack_top        # 1. stack
+    .option push
+    .option norelax
+    la    gp, __global_pointer$ # 2. global pointer
+    .option pop
+    la    t0, trap_vector       # 3. trap vector
+    csrw  mtvec, t0
+
+    la    t0, _sidata           # 4a. .data source (flash)
+    la    t1, _sdata            #     .data destination (RAM)
+    la    t2, _edata
+1:  bgeu  t1, t2, 2f
+    lw    t3, 0(t0)
+    sw    t3, 0(t1)
+    addi  t0, t0, 4
+    addi  t1, t1, 4
+    j     1b
+2:  la    t1, _sbss             # 4b. zero .bss
+    la    t2, _ebss
+3:  bgeu  t1, t2, 4f
+    sw    zero, 0(t1)
+    addi  t1, t1, 4
+    j     3b
+4:  call  main                  # 6.
+5:  wfi
+    j     5b
+</code></pre>
+<p>The <code>.option norelax</code> around the <code>gp</code> load matters. The linker normally "relaxes" address calculations into shorter <code>gp</code>-relative forms, and it would happily do that to the instruction that is supposed to set <code>gp</code>, producing an instruction that computes <code>gp</code> from itself.</p>
+<p>Notice that the copy loop moves whole 32-bit words. That only works if the linker script aligns <code>_sdata</code>, <code>_edata</code>, <code>_sbss</code> and <code>_ebss</code> to 4 bytes. If they are not aligned, the last variable in the section may be skipped or a neighbour overwritten.</p>
+<h2 id="bugs-that-live-before-main">Bugs that live before main</h2>
+<ul>
+<li><strong>Startup code that reads a global before the copy.</strong> If clock setup runs before step 4 and reads a configuration global, it reads random RAM. Use only constants and locals there.</li>
+<li><strong>A debugger that skips startup.</strong> Some debug flows load the image and jump straight to <code>main</code>. A global like <code>boot_count</code> then holds whatever was in RAM, and the bug vanishes on a real power-up.</li>
+<li><strong>Wrong stack top.</strong> If <code>_stack_top</code> points past the end of physical RAM, the first function call writes to nothing and the core faults, often before any output.</li>
+<li><strong>Forgetting <code>KEEP</code> on the startup section.</strong> With <code>--gc-sections</code>, the linker removes sections nothing refers to. The reset code is referenced only by the hardware, so it must be kept explicitly.</li>
+<li><strong>Several cores.</strong> On a multi-core part, every core may start at the same address. The startup code reads the core ID (<code>mhartid</code> on RISC-V) and parks all but one, or each needs its own stack.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install the RISC-V cross-compiler and QEMU (<code>gcc-riscv64-unknown-elf</code> and <code>qemu-system-misc</code> on Ubuntu). Build a tiny program with the startup code above and run it with <code>qemu-system-riscv32 -M virt -bios none -nographic -kernel app.elf</code>.</li>
+<li>Start QEMU with <code>-s -S</code> added, attach <code>gdb-multiarch app.elf</code>, type <code>target remote :1234</code>, then <code>stepi</code> through <code>_start</code>. Use <code>x/4wx &amp;boot_count</code> before and after the copy loop and watch the value 5 appear.</li>
+<li>Run <code>riscv64-unknown-elf-objdump -h app.elf</code> and find the <code>.data</code> section. Its VMA (where it runs) and LMA (where it is stored) differ; <code>.text</code> has the same value in both columns.</li>
+<li>Delete the <code>.bss</code> zero loop, add <code>errors++</code> to <code>main</code>, and see what value you get. Then explain it to someone else before you put the loop back.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>startup code</li><li>reset</li><li>linker</li><li>risc-v</li><li>bare metal</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="using-a-watchdog-properly.html"><span>Previous in Embedded systems</span>Using a watchdog properly: what to kick, where, and when not to</a><a class="next" href="what-volatile-really-does.html"><span>Next in Embedded systems</span>What volatile really does in embedded C, and what it does not</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="finding-the-cause-of-a-firmware-crash.html">Finding the cause of a firmware crash from the trap state</a></h3>
+          <p>When a RISC-V core traps, three registers say what went wrong and where. Capture them with the stack pointer and return address, then walk the stack back by reading function prologues, as in this real QEMU example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="measuring-and-guarding-stack-use.html">How big should the stack be? Measuring and guarding stack use</a></h3>
+          <p>Stack overflow on a microcontroller corrupts data silently. Combine stack painting, the compiler&#x27;s per-function stack reports and a guard region that faults on overflow to size stacks with evidence instead of hope.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

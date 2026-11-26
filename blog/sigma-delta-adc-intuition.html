@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping · Ketuna blog</title>
+  <meta name="description" content="A one-bit quantizer inside a feedback loop, run far faster than the signal, plus a digital filter, gives high resolution at low bandwidth. See why noise shaping works, simulate it, and learn its limits.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping · Ketuna blog">
+  <meta property="og:description" content="A one-bit quantizer inside a feedback loop, run far faster than the signal, plus a digital filter, gives high resolution at low bandwidth. See why noise shaping works, simulate it, and learn its limits.">
+  <link rel="canonical" href="https://ketuna.online/blog/sigma-delta-adc-intuition.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sigma-delta-adc-intuition.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping",
+  "description": "A one-bit quantizer inside a feedback loop, run far faster than the signal, plus a digital filter, gives high resolution at low bandwidth. See why noise shaping works, simulate it, and learn its limits.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sigma-delta, oversampling, noise shaping, data converters, decimation",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 957,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sigma-delta-adc-intuition.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Sigma-delta ADCs: trading speed for resolution with oversampling and noise shaping</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A one-bit quantizer inside a feedback loop, run far faster than the signal, plus a digital filter, gives high resolution at low bandwidth. See why noise shaping works, simulate it, and learn its limits.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#oversampling-alone-buys-little">Oversampling alone buys little</a></li><li><a href="#feedback-shapes-the-noise">Feedback shapes the noise</a></li><li><a href="#checking-it-in-simulation">Checking it in simulation</a></li><li><a href="#the-decimation-filter-does-half-the-work">The decimation filter does half the work</a></li><li><a href="#where-real-designs-struggle">Where real designs struggle</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>How can a converter whose only analog decision is a single comparator deliver 20 or more bits? The sigma-delta (ΔΣ) ADC does it by refusing to resolve each sample accurately. It makes a crude one-bit decision millions of times a second, uses feedback to push the resulting error out of the band you care about, and lets a digital filter throw that error away. The analog precision requirements move into time and arithmetic, which CMOS does well. This article builds the intuition, checks it with a simulation, and covers what limits real designs.</p>
+<h2 id="oversampling-alone-buys-little">Oversampling alone buys little</h2>
+<p>Quantization adds an error of roughly uniform distribution, with total power LSB<sup>2</sup>/12, spread evenly from DC to half the sampling rate. Sample at OSR times the Nyquist rate of your signal and the same noise power spreads over an OSR-times wider band. A digital low-pass filter then keeps only the signal band, removing a fraction (OSR − 1)/OSR of the noise.</p>
+<p>The gain is 10·log<sub>10</sub>(OSR) dB: 3 dB, or half a bit, per doubling. Going from 1 bit to 16 bits this way would need an absurd OSR. Something more is needed.</p>
+<h2 id="feedback-shapes-the-noise">Feedback shapes the noise</h2>
+<p>The trick is to put the quantizer inside a loop with an integrator.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="sd-title sd-desc" font-size="14">
+<title id="sd-title">First-order sigma-delta modulator and decimation filter</title>
+<desc id="sd-desc">The input enters a subtractor, then an integrator, then a one-bit quantizer clocked at the oversampled rate. The one-bit output feeds back through a one-bit DAC to the subtractor, and also goes forward to a digital decimation filter that produces multi-bit words at the low output rate.</desc>
+<text x="5" y="75" class="dg-text">x</text>
+<line x1="20" y1="70" x2="52" y2="70" class="dg-line"/>
+<path d="M46,65 L54,70 L46,75 Z" class="dg-arrow"/>
+<circle cx="66" cy="70" r="12" class="dg-box"/>
+<text x="60" y="75" class="dg-text">Σ</text>
+<line x1="78" y1="70" x2="102" y2="70" class="dg-line"/>
+<rect x="104" y="45" width="80" height="50" class="dg-box"/>
+<text x="118" y="75" class="dg-text">∫ dt</text>
+<line x1="184" y1="70" x2="212" y2="70" class="dg-line"/>
+<rect x="214" y="45" width="80" height="50" class="dg-core"/>
+<text x="226" y="68" class="dg-text">1-bit</text>
+<text x="226" y="86" class="dg-text">quant.</text>
+<line x1="294" y1="70" x2="338" y2="70" class="dg-line"/>
+<path d="M332,65 L340,70 L332,75 Z" class="dg-arrow"/>
+<rect x="340" y="40" width="120" height="60" class="dg-box"/>
+<text x="350" y="66" class="dg-text">decimation</text>
+<text x="350" y="86" class="dg-text">filter</text>
+<line x1="400" y1="100" x2="400" y2="130" class="dg-line"/>
+<text x="350" y="148" class="dg-text">N-bit words</text>
+<text x="350" y="166" class="dg-muted">at fs / OSR</text>
+<line x1="316" y1="70" x2="316" y2="180" class="dg-line"/>
+<rect x="216" y="160" width="76" height="40" class="dg-box"/>
+<text x="228" y="185" class="dg-text">1-bit DAC</text>
+<line x1="316" y1="180" x2="292" y2="180" class="dg-line"/>
+<line x1="216" y1="180" x2="66" y2="180" class="dg-line"/>
+<line x1="66" y1="180" x2="66" y2="84" class="dg-line"/>
+<path d="M61,90 L66,82 L71,90 Z" class="dg-arrow"/>
+<text x="74" y="110" class="dg-text">−</text>
+<text x="226" y="30" class="dg-muted">clocked at fs</text>
+</svg>
+<figcaption>The integrator accumulates the difference between input and fed-back output; the digital filter averages the bitstream into high-resolution words.</figcaption>
+</figure>
+
+<p>The integrator accumulates the difference between the input and what the loop has output so far. Whenever the running error grows, the quantizer flips to correct it. For a constant input of 0.3 (on a ±1 scale), the output bitstream becomes a pattern of +1 and −1 values whose average is exactly 0.3. The loop does not care that each bit is wrong by a lot; it guarantees that the <em>accumulated</em> error stays bounded.</p>
+<p>In the frequency domain, model the quantizer as an adder of error e. For the first-order loop in discrete time, the output is:</p>
+<blockquote>
+<p>Y(z) = z<sup>−1</sup>X(z) + (1 − z<sup>−1</sup>)E(z)</p>
+</blockquote>
+<p>The signal passes through with a delay. The error is multiplied by (1 − z<sup>−1</sup>), a high-pass filter with a zero at DC: the <strong>noise transfer function</strong>. Quantization noise is suppressed near DC and pushed towards half the sampling rate. That is <strong>noise shaping</strong>. A second integrator gives (1 − z<sup>−1</sup>)<sup>2</sup>, an even steeper high-pass. Theory for an L-th order loop predicts an in-band improvement of about (6L + 3) dB per doubling of OSR: 9 dB for first order and 15 dB for second, instead of 3.</p>
+<h2 id="checking-it-in-simulation">Checking it in simulation</h2>
+<p>The script below runs first- and second-order one-bit modulators on a sine wave at half of full scale and measures in-band signal-to-quantization-noise ratio (SQNR) from an FFT:</p>
+<pre><code class="language-python">import numpy as np
+
+def modulate(x, order):
+    &quot;&quot;&quot;1-bit sigma-delta modulator, first or second order.&quot;&quot;&quot;
+    i1 = i2 = 0.0
+    y = np.empty_like(x)
+    for n, xn in enumerate(x):
+        v = i2 if order == 2 else i1
+        y[n] = 1.0 if v &gt;= 0 else -1.0       # the one-bit quantizer
+        i1 += xn - y[n]                      # first integrator
+        if order == 2:
+            i2 += i1 - y[n]                  # second integrator
+    return y
+
+def inband_sqnr(y, k_sig, osr):
+    spec = np.abs(np.fft.rfft(y * np.hanning(len(y)))) ** 2
+    band = len(y) // (2 * osr)               # bins up to fs / (2 * OSR)
+    sig = spec[k_sig - 2:k_sig + 3].sum()    # Hann window spreads 3 bins
+    noise = spec[1:band].sum() - sig
+    return 10 * np.log10(sig / noise)
+
+N, OSR, k = 2 ** 16, 64, 31                  # tone well inside the band
+x = 0.5 * np.sin(2 * np.pi * k * np.arange(N) / N)
+for order in (1, 2):
+    y = modulate(x, order)
+    print(f&quot;order {order}: in-band SQNR {inband_sqnr(y, k, OSR):5.1f} dB&quot;)
+</code></pre>
+<p>Varying the OSR argument of <code>inband_sqnr</code> on the same bitstreams gives:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>OSR</th>
+<th>First order</th>
+<th>Second order</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>32</td>
+<td>39.0 dB</td>
+<td>55.0 dB</td>
+</tr>
+<tr>
+<td>64</td>
+<td>46.3 dB</td>
+<td>70.1 dB</td>
+</tr>
+<tr>
+<td>128</td>
+<td>54.5 dB</td>
+<td>85.1 dB</td>
+</tr>
+<tr>
+<td>256</td>
+<td>62.6 dB</td>
+<td>98.2 dB</td>
+</tr>
+</tbody>
+</table></div>
+<p>The second-order loop gains about 15 dB per doubling, as predicted; the first-order loop gains about 8 dB, close to its predicted 9. At OSR 256 the second-order modulator delivers roughly 16 bits of SQNR from one comparator. The absolute values fall short of the textbook formula, because that formula treats the quantizer as a linear gain plus white noise, which a one-bit quantizer is not. Simulate rather than trust the formula.</p>
+<h2 id="the-decimation-filter-does-half-the-work">The decimation filter does half the work</h2>
+<p>The modulator's output is a fast, one-bit stream full of high-frequency noise. The <strong>decimation filter</strong> low-pass filters it to the signal band and reduces the rate by OSR, producing multi-bit words. It must attenuate the shaped noise strongly, because anything left above the new Nyquist frequency folds back into the band during decimation. A common structure is a cascade of sinc (comb) filters, cheap because they need no multipliers, followed by sharper FIR stages at lower rates. A useful rule is that the sinc order should exceed the modulator order by one, so the filter's roll-off beats the noise's rise.</p>
+<p>This is why sigma-delta converters are "slow": the output rate is the modulator clock divided by OSR, and the filter adds latency of many output samples. That latency is fine for audio, weighing, temperature and energy metering, and wrong for a fast control loop.</p>
+<h2 id="where-real-designs-struggle">Where real designs struggle</h2>
+<ul>
+<li><strong>Stability of high-order loops.</strong> Beyond second order, a one-bit loop can overload: integrator states grow without bound for large inputs. Designers limit the input range, scale the loop coefficients, and add reset logic.</li>
+<li><strong>Idle tones.</strong> First-order loops with DC inputs produce periodic patterns that appear as tones in the band. Higher order, dither, or multi-bit quantizers break them up.</li>
+<li><strong>The feedback DAC must be perfect.</strong> Its errors enter at the input, unshaped. A one-bit DAC has only two levels, so it is inherently linear, which is a major reason for using one bit. Multi-bit loops improve stability and SQNR but need DAC mismatch shaping.</li>
+<li><strong>Integrator leakage and finite op-amp gain</strong> move the noise-transfer zeros away from DC and let noise leak into the band.</li>
+<li><strong>Clock jitter</strong> matters greatly in continuous-time modulators, where the DAC pulse width directly sets how much charge is fed back.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script with <strong>numpy</strong>, plot the spectrum of the bitstream on a log-frequency axis, and see the noise floor rise at 20 dB per decade (first order) and 40 dB per decade (second order).</li>
+<li>Feed a constant input such as 0.001 to the first-order loop and look for idle tones in the spectrum. Add a little random dither and compare.</li>
+<li>Write a first-order modulator and a simple counter-based sinc decimator in <strong>Verilog</strong>, simulate with <strong>Icarus Verilog</strong> or <strong>Verilator</strong>, and compare the decimated words with the Python model.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sigma-delta</li><li>oversampling</li><li>noise shaping</li><li>data converters</li><li>decimation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sampling-and-aliasing.html"><span>Previous in Analog &amp; mixed-signal</span>Sampling and aliasing: why an anti-alias filter comes before every ADC</a><a class="next" href="analog-corners-and-monte-carlo.html"><span>Next in Analog &amp; mixed-signal</span>Simulating an analog block across corners and with Monte Carlo</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="cell-voltage-measurement-in-a-bms.html">Measuring cell voltages in a battery pack: the analog front end of a BMS</a></h3>
+          <p>Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

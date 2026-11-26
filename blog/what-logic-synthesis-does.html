@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What logic synthesis actually does to your RTL · Ketuna blog</title>
+  <meta name="description" content="Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What logic synthesis actually does to your RTL · Ketuna blog">
+  <meta property="og:description" content="Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-logic-synthesis-does.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-logic-synthesis-does.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What logic synthesis actually does to your RTL",
+  "description": "Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "logic synthesis, yosys, netlist, technology mapping, standard cells",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 861,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-logic-synthesis-does.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>What logic synthesis actually does to your RTL</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Synthesis elaborates your RTL, optimises it as generic logic, then maps it onto real library cells. Here is what happens at each stage and how to read the cell-count report it leaves behind.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#stage-1-elaboration-turns-text-into-a-circuit">Stage 1: elaboration turns text into a circuit</a></li><li><a href="#stage-2-generic-optimisation-simplifies-the-logic">Stage 2: generic optimisation simplifies the logic</a></li><li><a href="#stage-3-technology-mapping-picks-real-cells">Stage 3: technology mapping picks real cells</a></li><li><a href="#reading-the-cell-count-report">Reading the cell-count report</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>You write <code>assign y = a + b;</code> and a few seconds later a tool hands you a file full of cells with names like <code>sky130_fd_sc_hd__xor2_1</code>. Between those two moments, synthesis has done three distinct jobs. Knowing them helps you predict what hardware your code becomes, and lets you read the report at the end as evidence rather than as noise.</p>
+<h2 id="stage-1-elaboration-turns-text-into-a-circuit">Stage 1: elaboration turns text into a circuit</h2>
+<p>Elaboration reads your Verilog, resolves parameters and <code>generate</code> blocks, connects module instances into a hierarchy, and converts every <code>always</code> block and <code>assign</code> into a graph of abstract operators: adders, multiplexers, comparators, and storage elements.</p>
+<p>The most important decision here is <strong>what becomes a flip-flop</strong>. A signal assigned inside <code>always @(posedge clk)</code> becomes a register. A signal assigned in a combinational block that is not given a value on every path becomes a <strong>latch</strong>, because the hardware must remember the old value when no branch assigns it. Elaboration is where an incomplete <code>case</code> statement turns into a latch you did not want, and the log says so.</p>
+<pre><code class="language-verilog">// Missing default: synthesis infers a latch on y
+always @(*) begin
+  case (sel)
+    2'b00: y = a;
+    2'b01: y = b;
+    2'b10: y = c;
+  endcase
+end
+</code></pre>
+<p>Adding <code>default: y = 1'b0;</code> (or assigning <code>y</code> before the <code>case</code>) gives every path a value and removes the latch.</p>
+<h2 id="stage-2-generic-optimisation-simplifies-the-logic">Stage 2: generic optimisation simplifies the logic</h2>
+<p>Next, the tool works on technology-independent logic. It does not yet know which cells exist; it just wants fewer and simpler operations. Typical transformations:</p>
+<ul>
+<li><strong>Constant propagation:</strong> an input tied to 0 removes the gates it feeds.</li>
+<li><strong>Dead logic removal:</strong> anything that does not reach an output or a register is deleted. If you forget to connect an output, a whole block can vanish.</li>
+<li><strong>Sharing:</strong> two identical expressions are computed once.</li>
+<li><strong>Finite state machine extraction and re-encoding</strong> in some tools.</li>
+<li><strong>Boolean minimisation:</strong> the logic is rewritten into a smaller network of AND, OR and inverter nodes.</li>
+</ul>
+<p>This stage is why synthesis results sometimes surprise you. A register that never changes is replaced by a constant. A counter whose upper bits are never read loses those bits. The tool is right: it only keeps hardware that affects an observable output.</p>
+<h2 id="stage-3-technology-mapping-picks-real-cells">Stage 3: technology mapping picks real cells</h2>
+<p>Finally, the optimised logic is covered with cells from the standard-cell library. The library's Liberty file describes each cell's function, area, input capacitance and delay tables. The mapper (ABC inside Yosys) chooses a combination of cells that implements the logic while meeting a target, usually minimum area or a delay goal.</p>
+<p>Flip-flops are mapped separately onto the library's flip-flop cells, including versions with reset or enable if the library has them. Then the tool may resize cells, picking a stronger drive version (for example <code>_2</code> or <code>_4</code> rather than <code>_1</code>) for nets with many loads or tight timing.</p>
+<p>The output is a <strong>gate-level netlist</strong>: still Verilog, but every instance is a library cell. You can simulate it, and you should, because it is the first point where a mistake in your RTL style becomes real hardware.</p>
+<h2 id="reading-the-cell-count-report">Reading the cell-count report</h2>
+<p>At the end, Yosys's <code>stat</code> command (or the equivalent in any tool) prints the number of cells of each type and, given a Liberty file, the total area. Here is an illustrative report for a small registered 8-bit ALU; the numbers are made up for illustration but the shape is typical.</p>
+<pre><code class="language-text">Number of cells:                142
+  sky130_fd_sc_hd__dfrtp_1       17
+  sky130_fd_sc_hd__a21oi_1       21
+  sky130_fd_sc_hd__xor2_1        14
+  sky130_fd_sc_hd__nand2_1       25
+  sky130_fd_sc_hd__mux2_1        16
+  ...
+Chip area for module '\alu8_reg': 1534.2
+</code></pre>
+<p>Questions to ask of a report like this:</p>
+<ul>
+<li><strong>Does the flip-flop count match what you expected?</strong> Two 8-bit input registers and one output register with a carry give 8 + 8 + 9 = 25 flops. Seeing 17 here means some register was optimised away, perhaps because its value was constant or unused. Find out which one before moving on.</li>
+<li><strong>Are there any latches?</strong> Any latch cell in a design that was meant to be fully synchronous is a bug until proven otherwise.</li>
+<li><strong>Which cells dominate?</strong> Many <code>xor2</code> and <code>maj3</code> or <code>a21oi</code> cells point to arithmetic; many <code>mux2</code> cells point to wide multiplexers or shift logic. If the mix does not match your mental picture of the design, your picture or your RTL is wrong.</li>
+<li><strong>What is the area per function?</strong> Area is in square micrometres for an open PDK library. Comparing it before and after an RTL change tells you what the change cost.</li>
+</ul>
+<p>Also read the warnings. Messages about undriven nets, multiple drivers, or signals "removed" are often the only clue to a real bug.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating synthesis as a black box.</strong> If you cannot sketch roughly what hardware a block of RTL becomes, you cannot judge the report.</li>
+<li><strong>Ignoring disappeared logic.</strong> A suspiciously small netlist usually means an output was not connected.</li>
+<li><strong>Trusting RTL simulation alone.</strong> Synthesis and simulation can interpret some constructs differently, such as incomplete sensitivity lists. Simulate the gate netlist too.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a small registered ALU in Verilog. In <strong>Yosys</strong>, run <code>read_verilog alu.v</code>, then <code>synth -top alu</code>, then <code>stat</code>. Note the generic cell counts.</li>
+<li>Map to a real library from the open sky130 PDK: <code>dfflibmap -liberty &lt;lib&gt;</code>, <code>abc -liberty &lt;lib&gt;</code>, then <code>stat -liberty &lt;lib&gt;</code> to see area.</li>
+<li>Remove one output port's connection, resynthesise and watch the cell count drop. Then add the latch example above and find the latch in the log.</li>
+<li>Simulate the written netlist with <strong>Icarus Verilog</strong> against your RTL testbench and confirm the results match.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>logic synthesis</li><li>yosys</li><li>netlist</li><li>technology mapping</li><li>standard cells</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="timing-closure-when-paths-will-not-close.html"><span>Previous in Physical design &amp; tape-out</span>Timing closure when the last few paths will not close</a><a class="next" href="signoff-corners-for-digital-timing.html"><span>Next in Physical design &amp; tape-out</span>Which corners to sign off: process, voltage and temperature for digital timing</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-a-standard-cell-library.html">Inside a standard-cell library: Liberty, LEF and what the numbers mean</a></h3>
+          <p>A cell library is several files that describe the same cells for different tools. Learn what Liberty timing tables and LEF footprints contain, what drive strengths mean, and how a tool looks up one delay.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="clock-tree-skew-and-latency.html">Clock tree synthesis: skew, latency and why zero skew is not the goal</a></h3>
+          <p>Clock tree synthesis balances arrival times across thousands of flops, but chasing zero skew wastes power and can hurt timing. Learn how latency and skew trade off and how useful skew fixes a critical path.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

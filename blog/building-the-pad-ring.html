@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building the pad ring: I/O cells, power pads and padframe planning · Ketuna blog</title>
+  <meta name="description" content="The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Building the pad ring: I/O cells, power pads and padframe planning · Ketuna blog">
+  <meta property="og:description" content="The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.">
+  <link rel="canonical" href="https://ketuna.online/blog/building-the-pad-ring.html">
+  <meta property="og:url" content="https://ketuna.online/blog/building-the-pad-ring.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building the pad ring: I/O cells, power pads and padframe planning",
+  "description": "The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pad ring, io cells, esd, packaging, floorplanning",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 1000,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/building-the-pad-ring.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Building the pad ring: I/O cells, power pads and padframe planning</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-lives-in-the-ring">What lives in the ring</a></li><li><a href="#choosing-the-pad-order">Choosing the pad order</a></li><li><a href="#how-many-power-pads">How many power pads</a></li><li><a href="#bonding-and-geometry-constraints">Bonding and geometry constraints</a></li><li><a href="#where-the-ring-meets-the-core">Where the ring meets the core</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A digital block ends at its pins; a chip ends at its pads. Between the core logic and the package sits the pad ring: a frame of I/O cells around the die that drives signals off chip, receives them, brings in power, and absorbs electrostatic discharge before it reaches thin-oxide transistors. Planning it is a negotiation between the core's needs, the package's geometry and the electrical rules of the I/O library, and its decisions are fixed early because both the package and the core floorplan depend on them.</p>
+<h2 id="what-lives-in-the-ring">What lives in the ring</h2>
+<p>An I/O library for a process provides a family of cells designed to abut each other around the die edge:</p>
+<ul>
+<li><strong>Signal pads:</strong> input, output and bidirectional cells, each with a bond pad, drivers or receivers, and ESD protection. Many offer options such as drive strength, pull-ups or Schmitt-trigger inputs.</li>
+<li><strong>Core power pads:</strong> bring the core supply and ground in, and connect to the core's power ring.</li>
+<li><strong>I/O power pads:</strong> supply the output drivers, often at a higher voltage than the core, on separate rails inside the ring.</li>
+<li><strong>Corner cells:</strong> turn the ring's internal power buses around the corners.</li>
+<li><strong>Filler cells:</strong> fill gaps between pads so the ring's buses and wells stay continuous.</li>
+</ul>
+<p>The I/O cells abut so that several supply buses run all the way around the ring inside them, typically core supply, I/O supply and their grounds. Each power pad connects its supply to the matching bus; every signal pad draws from the buses. A gap in the ring breaks those buses, which is why fillers matter.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 280" role="img" aria-labelledby="pr-title pr-desc" font-size="14">
+<title id="pr-title">Pad ring around a core</title>
+<desc id="pr-desc">A square die with a ring of pad cells along all four edges and corner cells at the corners. Some pads are marked as core power, some as I/O power, the rest as signals. Inside the ring sits the core with its own power ring, connected to the core power pads by short wide straps.</desc>
+<rect x="60" y="20" width="360" height="250" fill="none" class="dg-line" stroke-width="2"/>
+<rect x="60" y="20" width="36" height="36" class="dg-core"/>
+<rect x="384" y="20" width="36" height="36" class="dg-core"/>
+<rect x="60" y="234" width="36" height="36" class="dg-core"/>
+<rect x="384" y="234" width="36" height="36" class="dg-core"/>
+<rect x="104" y="20" width="30" height="36" class="dg-box"/>
+<rect x="142" y="20" width="30" height="36" class="dg-amber" fill-opacity="0.6"/>
+<rect x="180" y="20" width="30" height="36" class="dg-box"/>
+<rect x="218" y="20" width="30" height="36" class="dg-box"/>
+<rect x="256" y="20" width="30" height="36" class="dg-track"/>
+<rect x="294" y="20" width="30" height="36" class="dg-box"/>
+<rect x="332" y="20" width="30" height="36" class="dg-box"/>
+<rect x="104" y="234" width="30" height="36" class="dg-box"/>
+<rect x="142" y="234" width="30" height="36" class="dg-box"/>
+<rect x="180" y="234" width="30" height="36" class="dg-track"/>
+<rect x="218" y="234" width="30" height="36" class="dg-box"/>
+<rect x="256" y="234" width="30" height="36" class="dg-box"/>
+<rect x="294" y="234" width="30" height="36" class="dg-amber" fill-opacity="0.6"/>
+<rect x="332" y="234" width="30" height="36" class="dg-box"/>
+<rect x="60" y="70" width="36" height="30" class="dg-box"/>
+<rect x="60" y="110" width="36" height="30" class="dg-amber" fill-opacity="0.6"/>
+<rect x="60" y="150" width="36" height="30" class="dg-box"/>
+<rect x="60" y="190" width="36" height="30" class="dg-box"/>
+<rect x="384" y="70" width="36" height="30" class="dg-box"/>
+<rect x="384" y="110" width="36" height="30" class="dg-box"/>
+<rect x="384" y="150" width="36" height="30" class="dg-amber" fill-opacity="0.6"/>
+<rect x="384" y="190" width="36" height="30" class="dg-box"/>
+<rect x="130" y="85" width="220" height="120" fill="none" class="dg-line" stroke-width="6"/>
+<text x="240" y="150" text-anchor="middle" class="dg-text">core</text>
+<line x1="157" y1="56" x2="157" y2="85" class="dg-line" stroke-width="5"/>
+<line x1="96" y1="125" x2="130" y2="125" class="dg-line" stroke-width="5"/>
+<line x1="309" y1="234" x2="309" y2="205" class="dg-line" stroke-width="5"/>
+<line x1="384" y1="165" x2="350" y2="165" class="dg-line" stroke-width="5"/>
+<rect x="10" y="20" width="14" height="14" class="dg-amber" fill-opacity="0.6"/>
+<text x="10" y="50" class="dg-muted">core</text>
+<text x="10" y="66" class="dg-muted">power</text>
+<rect x="436" y="20" width="14" height="14" class="dg-track"/>
+<text x="430" y="50" class="dg-muted">I/O</text>
+<text x="430" y="66" class="dg-muted">power</text>
+</svg>
+<figcaption>Core power pads on all four sides feed the core's power ring through short, wide straps; I/O power pads feed the ring's own buses.</figcaption>
+</figure>
+
+<h2 id="choosing-the-pad-order">Choosing the pad order</h2>
+<p>Pad order is decided with the package and the board in mind, not only the core.</p>
+<ul>
+<li><strong>Follow the package.</strong> Each pad bonds to a package lead or ball. Wires should not cross, so the pad order around the die must match the lead order around the package. If the board layout or a standard pinout fixes the package pins, that fixes your pad order.</li>
+<li><strong>Keep related signals together.</strong> A bus, a serial interface or a clock and its data should sit on adjacent pads, which also keeps them adjacent on the board.</li>
+<li><strong>Face the core logic.</strong> Put pads on the edge closest to the core logic they connect to. A pin on the wrong side forces long wires across the core and can cost timing.</li>
+<li><strong>Separate noisy from sensitive.</strong> Keep fast-switching outputs away from analog inputs, clock inputs and reference pins, and give sensitive pads their own nearby ground.</li>
+</ul>
+<h2 id="how-many-power-pads">How many power pads</h2>
+<p>Two separate limits set the count.</p>
+<p><strong>Core current.</strong> Each power pad and its bond wire can carry a limited current, set by electromigration in the pad metal and by the wire itself. With illustrative numbers: if the core draws a peak of 100 mA and the library allows 30 mA per power pad, you need at least 100 / 30 ≈ 3.3, so 4 core supply pads, and as many ground pads. Spread them across all four sides, so that no part of the core is far from a supply and the core's ring is fed evenly.</p>
+<p><strong>Simultaneous switching outputs.</strong> When many outputs switch at once, their combined current through the inductance of the I/O power and ground bond wires produces a voltage bounce (ground bounce) that can upset other pads and the core. I/O libraries give rules of the form "at most so many outputs of a given drive strength per I/O power and ground pair". Follow the rule for your library, and put the pairs close to the outputs they serve.</p>
+<p>Add pads for every separate supply: analog supplies, an always-on domain, a different I/O voltage. Each needs its own power pads and often its own section of the ring, separated by cells that break the buses.</p>
+<h2 id="bonding-and-geometry-constraints">Bonding and geometry constraints</h2>
+<ul>
+<li><strong>Pad pitch</strong> must be at least the minimum the packaging process can bond, and pads should be evenly spaced.</li>
+<li><strong>Die size can be pad-limited.</strong> If the ring needs more pads than fit around a die sized for the core, the die grows to fit the pads, and the core has spare room. If the core is large and pads are few, the die is core-limited. Know which case you are in before you finalise either.</li>
+<li><strong>Bond wire length and angle</strong> limit how far the die can be from the leads and how steeply wires may run at the corners. Corner pads are often left unused for this reason.</li>
+<li><strong>Seal ring</strong> around the die edge, outside the pads, protects the circuit from cracks and moisture after the wafer is sawn. Leave the space it requires.</li>
+</ul>
+<h2 id="where-the-ring-meets-the-core">Where the ring meets the core</h2>
+<p>The core's power ring connects to the core power pads with short, wide straps on upper metals, ideally from every core power pad. Signal pads connect to the core's top-level pins, so the core's pin placement should mirror the pad order. Plan the two together; a core floorplanned with pins in a different order from the pads produces a tangle of long wires in the space between them.</p>
+<p>Level shifting between core and I/O voltages usually happens inside the I/O cells. Check which side of the cell expects which voltage.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>List the I/O cells provided in the sky130 PDK and read their documentation for signal, power, corner and filler types.</li>
+<li>Draw a pad ring for a 24-pin package by hand: signal pads, core and I/O power pairs, corners. Check the core supply pad count against your current estimate.</li>
+<li>Write the pin table as a spreadsheet or CSV, ordered around the die, and check that buses are adjacent and noisy outputs are away from the clock input.</li>
+<li>Open an open-source chip design that includes a padframe in <strong>KLayout</strong> and identify the cell types around its ring.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pad ring</li><li>io cells</li><li>esd</li><li>packaging</li><li>floorplanning</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="clock-tree-skew-and-latency.html"><span>Next in Physical design &amp; tape-out</span>Clock tree synthesis: skew, latency and why zero skew is not the goal</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="floorplanning-a-drone-controller-chip.html">Floorplanning a low-power drone controller chip: motor PWM, sensors and always-on logic</a></h3>
+          <p>A flight controller chip mixes noisy motor outputs, sensitive sensor interfaces, a processor and always-on logic. Work through partitioning it into regions, power domains and pin groups, and why each choice is made.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="floorplanning-decisions.html">Floorplanning decisions that make or break a block</a></h3>
+          <p>Aspect ratio, utilisation, macro placement and pin order are set in minutes at the floorplan and paid for hours later. Learn how each choice shows up as congestion or timing, with a worked sizing example.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="power-grid-rings-and-straps.html">Designing a power grid: rings, straps and why IR drop starts at the floorplan</a></h3>
+          <p>Rings, straps and rails carry supply current from the pads to every cell. Learn how the grid is laid out, why its resistance sets the IR drop, and why it is far easier to plan early than to repair after routing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

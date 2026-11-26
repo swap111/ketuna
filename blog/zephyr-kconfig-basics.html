@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kconfig in Zephyr: turning features on without editing source · Ketuna blog</title>
+  <meta name="description" content="How Zephyr&#x27;s Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Kconfig in Zephyr: turning features on without editing source · Ketuna blog">
+  <meta property="og:description" content="How Zephyr&#x27;s Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.">
+  <link rel="canonical" href="https://ketuna.online/blog/zephyr-kconfig-basics.html">
+  <meta property="og:url" content="https://ketuna.online/blog/zephyr-kconfig-basics.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Kconfig in Zephyr: turning features on without editing source",
+  "description": "How Zephyr's Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "zephyr, kconfig, build system, configuration, rtos",
+  "articleSection": "Embedded systems",
+  "wordCount": 939,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/zephyr-kconfig-basics.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Kconfig in Zephyr: turning features on without editing source</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How Zephyr&#x27;s Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#options-values-and-where-they-live">Options, values and where they live</a></li><li><a href="#a-first-prjconf">A first prj.conf</a></li><li><a href="#dependencies-and-why-your-option-can-stay-off">Dependencies, and why your option can stay off</a></li><li><a href="#exploring-and-checking-the-configuration">Exploring and checking the configuration</a></li><li><a href="#your-own-options">Your own options</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Zephyr contains drivers, network stacks, file systems, shells and logging, far more than any one product needs. You choose which parts go into your firmware without editing a line of Zephyr's source, using a configuration system called Kconfig. It is simple to use and easy to misread: the most common beginner problem is setting an option that then quietly does not take effect. This article explains how the system works and how to check what your build really contains.</p>
+<h2 id="options-values-and-where-they-live">Options, values and where they live</h2>
+<p>Kconfig is a language for declaring configuration <strong>symbols</strong>. Each symbol has a type, usually a boolean (<code>y</code> or <code>n</code>), an integer or a string, along with a default value, a help text and rules about other symbols it depends on. Zephyr and its modules declare thousands of them in files named <code>Kconfig</code>.</p>
+<p>At build time every symbol gets a final value, and those values become C macros. A boolean set to <code>y</code> appears as <code>CONFIG_NAME</code> defined to 1; one set to <code>n</code> is simply not defined. CMake reads the same values to decide which source files to compile, so turning off a driver removes its code entirely rather than skipping it at run time.</p>
+<p>Values come from several places, merged in order:</p>
+<ol>
+<li>the defaults written in the <code>Kconfig</code> files;</li>
+<li>the board's default configuration file, supplied with the board;</li>
+<li>your application's <code>prj.conf</code>;</li>
+<li>an optional <code>boards/&lt;board&gt;.conf</code> in your application, for one board only;</li>
+<li>extra fragments passed on the command line, for example <code>west build -- -DEXTRA_CONF_FILE=debug.conf</code> (older releases called this <code>OVERLAY_CONFIG</code>).</li>
+</ol>
+<p>Later sources override earlier ones, as long as the dependency rules allow it.</p>
+<h2 id="a-first-prjconf">A first prj.conf</h2>
+<p><code>prj.conf</code> is a plain list of assignments:</p>
+<pre><code class="language-text">CONFIG_GPIO=y
+CONFIG_I2C=y
+CONFIG_LOG=y
+CONFIG_LOG_DEFAULT_LEVEL=3
+CONFIG_MAIN_STACK_SIZE=2048
+CONFIG_ASSERT=y
+</code></pre>
+<p>Each line has a reason worth writing down next to it, using <code>#</code> comments. <code>CONFIG_I2C</code> builds the I2C subsystem and the drivers for enabled I2C controllers. <code>CONFIG_MAIN_STACK_SIZE</code> sets the stack of the thread that runs <code>main()</code> in bytes. <code>CONFIG_ASSERT</code> enables run-time assertions, useful during development and a deliberate decision for release builds.</p>
+<p>A rule of thumb: put only what your application needs in <code>prj.conf</code>, and nothing that is already the default. A short file is easy to review, and it does not pin values that should follow the board.</p>
+<h2 id="dependencies-and-why-your-option-can-stay-off">Dependencies, and why your option can stay off</h2>
+<p>Symbols declare relationships with <code>depends on</code> and <code>select</code>. A symbol that <code>depends on I2C</code> cannot be <code>y</code> unless <code>I2C</code> is <code>y</code>. A symbol that <code>selects</code> another forces it on.</p>
+<p>Here is the trap. If you write <code>CONFIG_SOME_DRIVER=y</code> in <code>prj.conf</code> but its dependency is not met, Kconfig cannot honour the assignment. The symbol stays <code>n</code>, its code is not compiled, and your application fails later with an undefined function or a device that never appears. The build reports the conflict, naming the symbol, the value you asked for, the value it got and the dependency that was not satisfied. Read the configuration output when a build starts behaving unexpectedly, rather than scrolling past it.</p>
+<p>Drivers add a second condition. In Zephyr, many driver options default to <code>y</code> only when the devicetree contains an enabled node for that hardware. A driver is built when <strong>both</strong> its Kconfig symbol is on <strong>and</strong> a matching devicetree node has <code>status = "okay"</code>. If either half is missing, the device is not there.</p>
+<h2 id="exploring-and-checking-the-configuration">Exploring and checking the configuration</h2>
+<h3 id="browsing-with-menuconfig">Browsing with menuconfig</h3>
+<p>To browse all options with their help text and dependencies, open the interactive menu on a configured build:</p>
+<pre><code class="language-bash">west build -b qemu_riscv32 samples/hello_world
+west build -t menuconfig        # text interface
+west build -t guiconfig         # graphical interface, if available
+</code></pre>
+<p>Press <code>/</code> in menuconfig to search for a symbol by name. Selecting a symbol and pressing <code>?</code> shows its help, where it is defined, what it depends on and what selects it. That screen answers most "why can't I enable this?" questions.</p>
+<p>Changes made in menuconfig are saved to the build folder only. A pristine rebuild (<code>west build -p</code>) discards them. Once you have found the settings you want, copy the lines into <code>prj.conf</code> so that they are versioned and reviewed like code.</p>
+<h3 id="checking-what-you-actually-got">Checking what you actually got</h3>
+<p>Do not trust what you <em>asked</em> for; read what you <em>got</em>. After every configuration, Zephyr writes the full resolved configuration to:</p>
+<pre><code class="language-bash">build/zephyr/.config
+</code></pre>
+<p>Search it for the options you care about:</p>
+<pre><code class="language-bash">grep -E &quot;CONFIG_(I2C|LOG|ASSERT)=&quot; build/zephyr/.config
+grep &quot;CONFIG_SOME_DRIVER&quot; build/zephyr/.config
+</code></pre>
+<p>A disabled boolean appears as a comment such as <code># CONFIG_SOME_DRIVER is not set</code>. Comparing two <code>.config</code> files with <code>diff</code> is the fastest way to see why one build behaves differently from another.</p>
+<h2 id="your-own-options">Your own options</h2>
+<p>Applications can declare their own symbols in a <code>Kconfig</code> file next to <code>prj.conf</code>. It must end by including Zephyr's own Kconfig tree:</p>
+<pre><code class="language-text">mainmenu &quot;Sensor demo&quot;
+
+config DEMO_SAMPLE_PERIOD_MS
+    int &quot;Sample period in milliseconds&quot;
+    default 250
+    range 10 10000
+
+config DEMO_VERBOSE
+    bool &quot;Log every sample&quot;
+    depends on LOG
+
+source &quot;Kconfig.zephyr&quot;
+</code></pre>
+<p>In C, use the value directly and test booleans with <code>IS_ENABLED</code>, which works in ordinary <code>if</code> statements so that both branches are still compiled and type-checked:</p>
+<pre><code class="language-c">k_msleep(CONFIG_DEMO_SAMPLE_PERIOD_MS);
+if (IS_ENABLED(CONFIG_DEMO_VERBOSE)) {
+    LOG_INF(&quot;sample %d&quot;, value);
+}
+</code></pre>
+<p>The <code>range</code> line means a typo such as <code>CONFIG_DEMO_SAMPLE_PERIOD_MS=5</code> is rejected at configuration time, not discovered on the bench.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Setting an option whose dependency is off and assuming it worked</li>
+<li>Editing options in menuconfig and losing them on the next pristine build</li>
+<li>Copying a whole <code>.config</code> into <code>prj.conf</code>, which pins hundreds of defaults and hides the few choices that matter</li>
+<li>Using <code>#ifdef</code> everywhere instead of <code>IS_ENABLED</code>, so code in disabled branches stops being compiled and rots</li>
+<li>Forgetting that a board-specific <code>.conf</code> file also applies, and wondering where a value came from</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build <code>samples/hello_world</code> for <code>qemu_riscv32</code>, run <code>west build -t run</code>, and then search <code>build/zephyr/.config</code> for <code>CONFIG_SERIAL</code> and <code>CONFIG_CONSOLE</code>.</li>
+<li>Add <code>CONFIG_LOG=y</code> to the sample's <code>prj.conf</code>, rebuild, and use <code>diff</code> between the old and new <code>.config</code> to see every symbol it pulled in.</li>
+<li>Add an application <code>Kconfig</code> with an integer option, set an out-of-range value in <code>prj.conf</code>, and read the message. Then find your option in menuconfig with <code>/</code>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>zephyr</li><li>kconfig</li><li>build system</li><li>configuration</li><li>rtos</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="measuring-and-guarding-stack-use.html"><span>Previous in Embedded systems</span>How big should the stack be? Measuring and guarding stack use</a><a class="next" href="keep-interrupt-handlers-short.html"><span>Next in Embedded systems</span>Keeping interrupt handlers short: what belongs in an ISR and what does not</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="zephyr-devicetree-first-look.html">Zephyr devicetree for beginners: describing hardware so drivers can find it</a></h3>
+          <p>How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="keep-interrupt-handlers-short.html">Keeping interrupt handlers short: what belongs in an ISR and what does not</a></h3>
+          <p>A good interrupt handler acknowledges the hardware, captures the data that would otherwise be lost, and defers everything else. Here is why, with the arithmetic and the patterns for deferring work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="priority-inversion-and-inheritance.html">Priority inversion, and how priority inheritance fixes it</a></h3>
+          <p>A high-priority task waiting on a mutex held by a low-priority task can be delayed without bound by medium-priority work. A millisecond-by-millisecond timeline shows how it happens and how priority inheritance bounds it.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

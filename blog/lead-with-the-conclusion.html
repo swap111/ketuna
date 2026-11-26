@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Technical writing for engineers: lead with the conclusion · Ketuna blog</title>
+  <meta name="description" content="Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Technical writing for engineers: lead with the conclusion · Ketuna blog">
+  <meta property="og:description" content="Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.">
+  <link rel="canonical" href="https://ketuna.online/blog/lead-with-the-conclusion.html">
+  <meta property="og:url" content="https://ketuna.online/blog/lead-with-the-conclusion.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Technical writing for engineers: lead with the conclusion",
+  "description": "Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "technical writing, communication, reports, documentation",
+  "articleSection": "Careers & skills",
+  "wordCount": 1050,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/lead-with-the-conclusion.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-careers.html">Careers &amp; skills</a></p>
+        <h1>Technical writing for engineers: lead with the conclusion</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-careers.html">Careers &amp; skills</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Put the answer in the first sentence, follow it with only the evidence the reader needs to trust it, and cut the rest. A method for emails, reports and design notes, with before and after rewrites.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-story-order-fails-the-reader">Why story order fails the reader</a></li><li><a href="#the-pattern-answer-evidence-detail">The pattern: answer, evidence, detail</a></li><li><a href="#a-rewrite-step-by-step">A rewrite, step by step</a></li><li><a href="#cutting-what-the-reader-does-not-need">Cutting what the reader does not need</a></li><li><a href="#when-to-soften-the-pattern">When to soften the pattern</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Engineers usually write in the order they worked: what they tried first, what went wrong, what they tried next, and finally what they found. That order feels natural to the writer and is painful for the reader, who wants the answer and has to dig for it. Reversing it, conclusion first, then evidence, then detail for those who want it, is the single most useful change most engineers can make to their writing.</p>
+<h2 id="why-story-order-fails-the-reader">Why story order fails the reader</h2>
+<p>Think about who reads your email or report. A lead deciding whether to move the tape-out date. A verification engineer deciding whether to rerun a regression. A teammate deciding whether your change affects their block. Each one has a decision to make and limited time. If the answer is in the last paragraph, they either read everything (slow) or skim and miss it (dangerous).</p>
+<p>Story order also hides the quality of the reasoning. When the conclusion comes last, the reader cannot judge each piece of evidence as they go, because they do not yet know what it is supposed to support. Put the claim first and every following sentence is read as evidence for or against it.</p>
+<h2 id="the-pattern-answer-evidence-detail">The pattern: answer, evidence, detail</h2>
+<p>Structure almost any engineering message in three layers:</p>
+<ol>
+<li><strong>The answer.</strong> One or two sentences: the conclusion, the number, the decision or the request.</li>
+<li><strong>The evidence.</strong> The few facts the reader needs to trust the answer: measurements, test results, the reasoning step that matters.</li>
+<li><strong>The detail.</strong> Method, history, alternatives considered, raw data. Often a link or an appendix.</li>
+</ol>
+<p>A reader can stop after any layer and still have acted correctly. Someone who reads only the first sentence knows the outcome. Someone who reads the evidence can check it. Only the person who needs to reproduce the work reads the detail.</p>
+<h2 id="a-rewrite-step-by-step">A rewrite, step by step</h2>
+<p>Here is a realistic first draft of a message to a team lead. The numbers are made up for illustration.</p>
+<blockquote>
+<p>I started looking at the timing failures on Tuesday. At first I thought it was the new multiplier, so I tried retiming it, but that didn't help much. Then I checked the constraints and noticed the clock for the APB block was defined at 200 MHz instead of 100 MHz. I fixed that and reran STA. Most of the violations went away. There are still a couple of paths in the multiplier that fail by a small amount. I think we can fix them by adding a pipeline stage, which would add one cycle of latency. Let me know what you think.</p>
+</blockquote>
+<p>The answer, and the decision the lead must make, are in the last two sentences. Rewritten:</p>
+<blockquote>
+<p><strong>Timing is now clean except two multiplier paths failing by 0.08 ns; I propose adding one pipeline stage (+1 cycle latency) and need your OK by Thursday.</strong></p>
+<ul>
+<li>Cause of most failures: the APB clock was constrained at 200 MHz instead of 100 MHz. Fixed in commit <code>a1c3f09</code>; worst slack on APB paths is now +0.41 ns.</li>
+<li>Remaining: two paths through the multiplier, worst slack −0.08 ns at the slow corner. Retiming without a new stage did not close them.</li>
+<li>Impact of the pipeline stage: the multiply result arrives one cycle later. The firmware driver does not depend on that latency; the testbench scoreboard needs a one-line change.</li>
+</ul>
+<p>Full STA reports: <code>reports/sta_slow.rpt</code> and <code>reports/sta_fast.rpt</code>.</p>
+</blockquote>
+<p>The rewrite is a similar length, but the lead can decide from the first line, check the three bullets and never open the reports unless they want to. The history of "first I thought" is gone because it does not change the decision.</p>
+<h2 id="cutting-what-the-reader-does-not-need">Cutting what the reader does not need</h2>
+<p>Leading with the conclusion exposes padding, because once the answer is at the top, anything that does not support it stands out. When you revise, ask of each sentence: <em>would the reader act differently without this?</em> If not, cut it. Common candidates:</p>
+<ul>
+<li><strong>Effort descriptions.</strong> "I spent a lot of time on this" tells the reader about you, not the result.</li>
+<li><strong>Dead ends</strong>, unless they stop someone from repeating them. Then one line is enough: "Retiming alone does not close these paths."</li>
+<li><strong>Hedges stacked on hedges.</strong> "It seems that it might possibly be" becomes "It is likely", or better, the measurement that settles it.</li>
+<li><strong>Restating the question.</strong> The reader knows what they asked.</li>
+</ul>
+<p>Keep, and make specific, anything that lets the reader trust or act: numbers with units and conditions, file and commit references, the one assumption that would change the answer if wrong.</p>
+<h2 id="when-to-soften-the-pattern">When to soften the pattern</h2>
+<p>Leading with the conclusion does not mean hiding uncertainty. If you do not know yet, the first sentence says so and says what you do know: "Root cause not found yet; the failure needs both a full FIFO and a reset in the same cycle, and I expect to isolate it by Wednesday." That is still answer-first; the answer is the current state of knowledge.</p>
+<p>Tutorials and teaching material, like this article, can build up to an idea, because the reader is there to learn the path, not just the result. Specs, status reports, review findings, bug reports and emails asking for a decision almost always benefit from the answer-first pattern.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>A subject line that says nothing.</strong> "Update" or "Timing" wastes the most-read line. Make it the conclusion: "Timing clean except 2 multiplier paths; need decision".</li>
+<li><strong>Burying the request.</strong> If you need something from the reader, say what, from whom and by when, in the first lines.</li>
+<li><strong>Evidence without conditions.</strong> "Slack is positive" at which corner, with which constraints?</li>
+<li><strong>Conclusion first, but vague.</strong> "Things look mostly fine" is first but useless. The first line must be specific enough to act on.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Take your last lab report or a long message you sent. Find the sentence that states the result and move it to the top. Rewrite it to include a number or a decision.</li>
+<li>Delete every sentence that would not change what the reader does. Count how much you removed.</li>
+<li>Rewrite a subject line or report title so it states the conclusion.</li>
+<li>Give the result to a classmate, let them read only the first two lines, and ask what they would do next. If their answer matches your intent, the structure works.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>technical writing</li><li>communication</li><li>reports</li><li>documentation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="switching-into-vlsi.html"><span>Previous in Careers &amp; skills</span>Switching into VLSI from software or another branch: what transfers and what to learn</a><a class="next" href="linux-shell-skills-for-engineers.html"><span>Next in Careers &amp; skills</span>The Linux shell skills every chip and firmware engineer uses</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-readme-that-explains-in-two-minutes.html">Writing a README that explains your project in two minutes</a></h3>
+          <p>A README should answer five questions in order, what it is, why it matters, how to run it, what the results are and where it stops, so a stranger understands your project in two minutes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="weekly-status-update.html">Writing a weekly status update that managers and peers can scan</a></h3>
+          <p>A good weekly status update fits in a few lines, done, next, blocked and risks, each backed by a link to evidence rather than adjectives. Here is the format, a worked example and the mistakes to avoid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-careers.html">Careers &amp; skills</a><span class="lvl">Beginner</span></div>
+          <h3><a href="asking-for-help-well.html">When to ask for help, and how to ask so you get a useful answer</a></h3>
+          <p>Asking for help is a skill. Time-box your own attempt, then ask with context, what you tried and a minimal example, so a busy senior can answer in minutes instead of starting from zero.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

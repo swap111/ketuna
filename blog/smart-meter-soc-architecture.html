@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture of a smart energy meter SoC: core, metering engine, security and communications · Ketuna blog</title>
+  <meta name="description" content="Why a smart meter SoC splits its work between a fixed-function metering engine, a small processor core, secure storage and communication interfaces, with a worked energy calculation and the reasoning behind each block.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Architecture of a smart energy meter SoC: core, metering engine, security and communications · Ketuna blog">
+  <meta property="og:description" content="Why a smart meter SoC splits its work between a fixed-function metering engine, a small processor core, secure storage and communication interfaces, with a worked energy calculation and the reasoning behind each block.">
+  <link rel="canonical" href="https://ketuna.online/blog/smart-meter-soc-architecture.html">
+  <meta property="og:url" content="https://ketuna.online/blog/smart-meter-soc-architecture.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Architecture of a smart energy meter SoC: core, metering engine, security and communications",
+  "description": "Why a smart meter SoC splits its work between a fixed-function metering engine, a small processor core, secure storage and communication interfaces, with a worked energy calculation and the reasoning behind each block.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "smart meter, soc architecture, metering, security, embedded",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 986,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/smart-meter-soc-architecture.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Architecture of a smart energy meter SoC: core, metering engine, security and communications</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why a smart meter SoC splits its work between a fixed-function metering engine, a small processor core, secure storage and communication interfaces, with a worked energy calculation and the reasoning behind each block.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-blocks-and-why-each-exists">The blocks and why each exists</a></li><li><a href="#why-metering-gets-its-own-hardware">Why metering gets its own hardware</a></li><li><a href="#a-worked-energy-calculation">A worked energy calculation</a></li><li><a href="#power-failure-and-tamper">Power failure and tamper</a></li><li><a href="#standards-to-look-up">Standards to look up</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An electricity meter looks like a simple product: measure energy, show a number, report it. A smart meter adds remote reading, time-of-use tariffs, tamper detection, firmware updates and secure communication, and it must keep measuring correctly for many years, through power cuts and attacks, on very little power. Designing the SoC inside it is a good lesson in architecture, because the right answer is not "a faster processor" but a careful split of responsibilities. This article walks through that split.</p>
+<h2 id="the-blocks-and-why-each-exists">The blocks and why each exists</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="sm-title sm-desc" font-size="14">
+<title id="sm-title">Block diagram of a smart meter SoC</title>
+<desc id="sm-desc">Voltage and current sensors feed analog-to-digital converters inside a metering engine, which produces energy registers. A processor core reads the registers over the on-chip bus. The bus also connects a security block with key storage, non-volatile memory, a real-time clock with battery backup, a display driver and communication interfaces to an optical port and an external communication module.</desc>
+<rect x="10" y="30" width="80" height="30" class="dg-box"/><text x="50" y="50" text-anchor="middle" class="dg-text">voltage</text>
+<rect x="10" y="70" width="80" height="30" class="dg-box"/><text x="50" y="90" text-anchor="middle" class="dg-text">current</text>
+<line x1="90" y1="45" x2="110" y2="55" class="dg-line"/><line x1="90" y1="85" x2="110" y2="75" class="dg-line"/>
+<rect x="110" y="20" width="140" height="90" class="dg-amber" fill-opacity="0.3"/><text x="180" y="44" text-anchor="middle" class="dg-text">metering engine</text><text x="180" y="66" text-anchor="middle" class="dg-muted">ADCs, filters,</text><text x="180" y="84" text-anchor="middle" class="dg-muted">V×I, RMS, energy</text>
+<rect x="290" y="20" width="170" height="90" class="dg-core"/><text x="375" y="60" text-anchor="middle" class="dg-text">processor core</text><text x="375" y="80" text-anchor="middle" class="dg-muted">tariffs, protocol, UI</text>
+<line x1="20" y1="135" x2="470" y2="135" class="dg-line" stroke-width="3"/><text x="20" y="128" class="dg-muted">on-chip bus</text>
+<line x1="180" y1="110" x2="180" y2="135" class="dg-line"/><line x1="375" y1="110" x2="375" y2="135" class="dg-line"/>
+<rect x="10" y="165" width="100" height="70" class="dg-box"/><text x="60" y="194" text-anchor="middle" class="dg-text">security</text><text x="60" y="214" text-anchor="middle" class="dg-muted">keys, crypto</text>
+<rect x="125" y="165" width="100" height="70" class="dg-box"/><text x="175" y="194" text-anchor="middle" class="dg-text">NVM</text><text x="175" y="214" text-anchor="middle" class="dg-muted">registers, logs</text>
+<rect x="240" y="165" width="100" height="70" class="dg-box"/><text x="290" y="194" text-anchor="middle" class="dg-text">RTC</text><text x="290" y="214" text-anchor="middle" class="dg-muted">battery-backed</text>
+<rect x="355" y="165" width="115" height="70" class="dg-box"/><text x="412" y="194" text-anchor="middle" class="dg-text">comms, LCD</text><text x="412" y="214" text-anchor="middle" class="dg-muted">optical, UART</text>
+<line x1="60" y1="135" x2="60" y2="165" class="dg-line"/><line x1="175" y1="135" x2="175" y2="165" class="dg-line"/><line x1="290" y1="135" x2="290" y2="165" class="dg-line"/><line x1="412" y1="135" x2="412" y2="165" class="dg-line"/>
+</svg>
+<figcaption>Measurement, control, trust and communication each get their own block, joined by a simple bus.</figcaption>
+</figure>
+
+<ul>
+<li><strong>Metering engine.</strong> Analog-to-digital converters (typically sigma-delta types, which suit high-resolution, low-bandwidth signals) sample the voltage and current of each phase continuously. Fixed-function digital logic filters the samples, multiplies voltage by current, and accumulates active and reactive energy, RMS values and frequency into registers.</li>
+<li><strong>Processor core.</strong> A small 32-bit microcontroller-class core runs everything that is policy rather than physics: tariff schedules, the display, event logs, the communication protocol stack, firmware update and housekeeping.</li>
+<li><strong>Security block.</strong> Hardware cryptography and protected key storage for authenticated, encrypted communication and for verifying firmware images before they run.</li>
+<li><strong>Non-volatile memory.</strong> Stores cumulative energy registers, configuration and event logs so they survive power loss.</li>
+<li><strong>Real-time clock.</strong> Keeps time for time-of-use tariffs and timestamped events, with a backup battery so time is not lost during outages.</li>
+<li><strong>Communication and user interface.</strong> An optical port for local reading, a UART or SPI link to a separate communication module (radio, power-line or cellular, chosen per deployment), and a segment LCD driver.</li>
+</ul>
+<h2 id="why-metering-gets-its-own-hardware">Why metering gets its own hardware</h2>
+<p>The arithmetic is not demanding. As an illustration, sampling voltage and current at 4 kHz per phase needs 4000 multiply-accumulates per second per phase, which a small core could do easily. The reasons for a fixed-function engine are elsewhere:</p>
+<ul>
+<li><strong>It must never stop.</strong> Energy is accumulated sample by sample. If the firmware is busy with a protocol message, handling an interrupt storm or being updated, a software meter would miss samples. A hardware engine keeps counting regardless of what the core is doing.</li>
+<li><strong>Metrology must be isolated from firmware changes.</strong> A meter's accuracy is certified. If measurement lives in firmware, every firmware update can affect the certified function and may require recertification. Keeping metrology in a fixed block with a narrow register interface lets communication and tariff firmware evolve without touching it. Check the current rules of the certifying authority for what separation they require.</li>
+<li><strong>Power and determinism.</strong> A small dedicated datapath clocked just fast enough uses less energy than a core running a software loop, and its timing never varies.</li>
+</ul>
+<h2 id="a-worked-energy-calculation">A worked energy calculation</h2>
+<p>Take one phase at 230 V RMS, 5 A RMS and a power factor of 0.9 (illustrative values). Active power is 230 × 5 × 0.9 = 1035 W. At 4000 samples per second, each sample contributes on average 1035 / 4000 = 0.25875 J to the energy accumulator. One kilowatt-hour is 3.6 × 10<sup>6</sup> J, so at this load the accumulator gains one kWh after about 13.9 million samples, a little under an hour.</p>
+<p>Meters often also emit a test pulse (an LED) at a fixed number of pulses per kWh so that test equipment can check accuracy. With an illustrative constant of 3200 pulses per kWh, each pulse represents 3.6 × 10<sup>6</sup> / 3200 = 1125 J, and at 1035 W the LED blinks 3312 times an hour. The metering engine generates these pulses directly from its accumulator, so the check exercises the same path that bills the customer.</p>
+<p>The accumulator must be wide enough never to overflow between the moments when firmware moves its contents into the long-term energy register, and the engine must use fixed-point scaling chosen so that rounding errors stay far below the accuracy class. Both are decisions to make on paper, with numbers, before RTL.</p>
+<h2 id="power-failure-and-tamper">Power failure and tamper</h2>
+<p>Two events shape the rest of the architecture.</p>
+<p><strong>Power failure.</strong> When mains drops, the meter has a short time, powered by stored charge, to save its state. A brownout detector interrupts the core early, the core writes the latest energy registers and a timestamped event to non-volatile memory, and the system shuts down cleanly. The hold-up time, the amount to save and the memory's write time must be budgeted together; this is a hardware-software co-design problem, not an afterthought.</p>
+<p><strong>Tamper.</strong> Meters face deliberate interference: opening the cover, strong magnets near current sensors, reversed connections. Cover switches and magnetic-field sensors feed the SoC as interrupt sources, and the metering engine itself can flag anomalies such as reverse energy or a large imbalance between phase and neutral current. Each event is logged with the RTC timestamp and protected against later erasure.</p>
+<h2 id="standards-to-look-up">Standards to look up</h2>
+<p>Meter data models and communication commonly follow an internationally standardised metering protocol family (IEC 62056, often called DLMS/COSEM), and national requirements are set in the relevant Indian Standard (IS) for smart meters. Read the current editions for accuracy classes, tamper events and communication requirements; they shape the register map and the security design directly.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Putting metrology in firmware to save area.</strong> It ties every firmware update to certified accuracy.</li>
+<li><strong>Under-budgeting power-fail hold-up.</strong> If the save does not finish, energy is lost.</li>
+<li><strong>Sharing key storage with general memory.</strong> A firmware bug then becomes a key leak.</li>
+<li><strong>Choosing one communication technology on-chip.</strong> Keeping the radio or modem as an external module lets one SoC serve many deployments.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python model that generates sampled voltage and current with a phase shift, accumulates V × I, and checks that the energy matches V<sub>rms</sub> × I<sub>rms</sub> × power factor × time.</li>
+<li>Implement the accumulator and pulse generator in Verilog, simulate in Icarus Verilog against the Python model, and check that the pulse count matches.</li>
+<li>Write a power-fail budget in a spreadsheet or Python: bytes to save, memory write time, hold-up capacitance and the voltage at which the brownout fires.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>smart meter</li><li>soc architecture</li><li>metering</li><li>security</li><li>embedded</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="amdahls-law-for-soc-designers.html"><span>Previous in Computer architecture &amp; RISC-V</span>Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</a><a class="next" href="cache-associativity-and-policies.html"><span>Next in Computer architecture &amp; RISC-V</span>Associativity, replacement and write policies: cache design choices compared</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-flight-controller-soc-needs.html">What a drone flight-controller SoC needs: latency, sensor interfaces and safety</a></h3>
+          <p>A flight controller is a hard real-time system with many serial and PWM interfaces and no tolerance for hangs. Derive its SoC requirements from a control-loop latency budget, the sensor list and the fail-safes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="navic-receiver-hw-sw-partition.html">Partitioning a NavIC receiver SoC between hardware correlators and firmware</a></h3>
+          <p>Count the operations in acquisition, tracking, data decoding and position solution for a NavIC receiver, and see why correlators belong in hardware while loop filters and navigation run comfortably in firmware.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="riscv-privilege-modes.html">Machine, supervisor and user mode: why RISC-V has privilege levels</a></h3>
+          <p>What machine, supervisor and user mode may each do, which kinds of systems need which combination, and how traps, delegation and the return instructions move execution between them.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

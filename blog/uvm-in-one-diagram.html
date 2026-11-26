@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UVM in one diagram: sequences, drivers, monitors and the agent · Ketuna blog</title>
+  <meta name="description" content="One picture of a UVM testbench, from test to pins, with what each component owns, how transactions flow between them, and why splitting the work this way lets the same pieces be reused.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="UVM in one diagram: sequences, drivers, monitors and the agent · Ketuna blog">
+  <meta property="og:description" content="One picture of a UVM testbench, from test to pins, with what each component owns, how transactions flow between them, and why splitting the work this way lets the same pieces be reused.">
+  <link rel="canonical" href="https://ketuna.online/blog/uvm-in-one-diagram.html">
+  <meta property="og:url" content="https://ketuna.online/blog/uvm-in-one-diagram.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "UVM in one diagram: sequences, drivers, monitors and the agent",
+  "description": "One picture of a UVM testbench, from test to pins, with what each component owns, how transactions flow between them, and why splitting the work this way lets the same pieces be reused.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "uvm, testbench architecture, agent, sequences, reuse",
+  "articleSection": "Verification",
+  "wordCount": 880,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/uvm-in-one-diagram.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>UVM in one diagram: sequences, drivers, monitors and the agent</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">One picture of a UVM testbench, from test to pins, with what each component owns, how transactions flow between them, and why splitting the work this way lets the same pieces be reused.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-picture">The picture</a></li><li><a href="#what-each-piece-is-responsible-for">What each piece is responsible for</a></li><li><a href="#why-the-separation-pays-off">Why the separation pays off</a></li><li><a href="#three-supporting-mechanisms">Three supporting mechanisms</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The Universal Verification Methodology (UVM, standardised as IEEE 1800.2) looks intimidating mainly because of its vocabulary. There are dozens of base classes, and tutorials often start with phases and factories before showing why any of it exists. Underneath, a UVM testbench is a small number of components, each doing one job, connected in a fixed pattern. If you can draw that pattern from memory, the rest is detail you can look up.</p>
+<h2 id="the-picture">The picture</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 330" role="img" aria-labelledby="uvm-title uvm-desc" font-size="14">
+<title id="uvm-title">Structure of a UVM testbench</title>
+<desc id="uvm-desc">A test contains an environment. The environment contains an agent, a scoreboard and a coverage collector. Inside the agent, a sequence feeds items to a sequencer, the sequencer hands them to a driver, and the driver drives the design's pins. A monitor watches the same pins and broadcasts transactions to the scoreboard and the coverage collector.</desc>
+<rect x="10" y="10" width="460" height="310" rx="8" class="dg-track"/>
+<text x="22" y="32" class="dg-text">test</text>
+<rect x="24" y="42" width="432" height="200" rx="8" class="dg-box"/>
+<text x="36" y="62" class="dg-text">env</text>
+<rect x="36" y="72" width="250" height="160" rx="8" class="dg-track"/>
+<text x="48" y="92" class="dg-text">agent</text>
+<rect x="48" y="102" width="100" height="36" rx="5" class="dg-core"/>
+<text x="98" y="125" text-anchor="middle" class="dg-text">sequencer</text>
+<rect x="170" y="102" width="100" height="36" rx="5" class="dg-core"/>
+<text x="220" y="125" text-anchor="middle" class="dg-text">driver</text>
+<rect x="90" y="182" width="110" height="36" rx="5" class="dg-core"/>
+<text x="145" y="205" text-anchor="middle" class="dg-text">monitor</text>
+<line x1="148" y1="120" x2="164" y2="120" class="dg-line"/>
+<path d="M164,116 L170,120 L164,124 Z" class="dg-arrow"/>
+<rect x="306" y="80" width="138" height="40" rx="5" class="dg-amber" fill-opacity="0.3"/>
+<text x="375" y="105" text-anchor="middle" class="dg-text">scoreboard</text>
+<rect x="306" y="140" width="138" height="40" rx="5" class="dg-amber" fill-opacity="0.3"/>
+<text x="375" y="165" text-anchor="middle" class="dg-text">coverage</text>
+<path d="M200,200 H290 V100 H300" class="dg-dash" fill="none"/>
+<path d="M300,96 L306,100 L300,104 Z" class="dg-arrow"/>
+<path d="M290,160 H300" class="dg-dash" fill="none"/>
+<path d="M300,156 L306,160 L300,164 Z" class="dg-arrow"/>
+<rect x="60" y="262" width="200" height="40" rx="6" class="dg-core"/>
+<text x="160" y="287" text-anchor="middle" class="dg-text">DUT pins</text>
+<line x1="220" y1="138" x2="220" y2="256" class="dg-line"/>
+<path d="M216,256 L220,262 L224,256 Z" class="dg-arrow"/>
+<line x1="120" y1="262" x2="120" y2="224" class="dg-line"/>
+<path d="M116,224 L120,218 L124,224 Z" class="dg-arrow"/>
+<text x="300" y="275" class="dg-muted">sequence runs</text>
+<text x="300" y="295" class="dg-muted">on the sequencer</text>
+<text x="300" y="220" class="dg-muted">dashed: analysis port</text>
+</svg>
+<figcaption>Stimulus flows down through sequencer and driver to the pins; observation flows up through the monitor to the checkers.</figcaption>
+</figure>
+
+<p>There are two paths in this picture, and they never mix. The <strong>stimulus path</strong> goes from a sequence, through the sequencer and driver, to the pins. The <strong>observation path</strong> goes from the pins, through the monitor, to the scoreboard and coverage. Nothing on the observation path asks the stimulus path what it meant to do; it looks only at what actually happened on the wires.</p>
+<h2 id="what-each-piece-is-responsible-for">What each piece is responsible for</h2>
+<ul>
+<li><strong>Sequence item.</strong> One transaction as data: an address, write data, a direction. No timing, no pins. It knows how to copy, compare and print itself.</li>
+<li><strong>Sequence.</strong> Decides <em>what</em> to send. Its <code>body()</code> creates items, randomises them under constraints and hands them over one at a time. A test can run several sequences, and a sequence can start other sequences.</li>
+<li><strong>Sequencer.</strong> Arbitrates when several sequences want the same interface, and passes one item at a time to the driver. You rarely write any code in it.</li>
+<li><strong>Driver.</strong> Decides <em>how</em> to send. It pulls an item with <code>get_next_item</code>, wiggles the pins through a virtual interface according to the protocol, and calls <code>item_done</code>. It is the only component that knows the protocol's timing for driving.</li>
+<li><strong>Monitor.</strong> Passive. It samples the pins, reassembles complete transactions, and broadcasts each one on an analysis port. It never drives anything.</li>
+<li><strong>Agent.</strong> A container for one interface's sequencer, driver and monitor. An <em>active</em> agent has all three; a <em>passive</em> agent has only the monitor.</li>
+<li><strong>Scoreboard and coverage.</strong> Subscribers to the monitor's broadcasts. The scoreboard checks against a reference model; the coverage collector counts which plan items occurred.</li>
+<li><strong>Env.</strong> Holds the agents and checkers for one block or subsystem.</li>
+<li><strong>Test.</strong> Builds and configures the env, picks the sequences, and decides when the run ends by raising and dropping an objection.</li>
+</ul>
+<h2 id="why-the-separation-pays-off">Why the separation pays off</h2>
+<p>Splitting "what", "how" and "check" into separate classes looks like ceremony on a small block. It earns its keep the moment anything changes.</p>
+<p><strong>New tests cost only a sequence.</strong> A test that hammers back-to-back writes, one that does reads after reset, and one that randomises everything all reuse the same driver, monitor and scoreboard. You write a new <code>body()</code>, not a new testbench.</p>
+<p><strong>Passive agents move up to chip level.</strong> When your block is placed in a larger system, its interface is driven by real RTL, not by your driver. Switch the agent to passive, and its monitor, scoreboard and coverage keep checking the block inside the bigger design with no edits. This is the main reason the monitor must not depend on the driver: at chip level there is no driver.</p>
+<p><strong>Checks see the truth.</strong> Because the scoreboard is fed from the monitor, it checks what the pins actually did. If the driver has a bug and sends the wrong thing, the model predicts from what was really sent, and the mismatch points at the design only when the design is wrong.</p>
+<p><strong>Analysis ports decouple observers.</strong> A monitor's <code>write()</code> broadcasts to any number of subscribers and never blocks. Adding a protocol checker or a transaction logger means connecting one more subscriber, not editing the monitor.</p>
+<h2 id="three-supporting-mechanisms">Three supporting mechanisms</h2>
+<p>Three UVM facilities hold the structure together. You can learn them after the picture makes sense.</p>
+<ul>
+<li><strong>Phases</strong> run in the same order for every component: build, connect, then the time-consuming run phase in parallel, then check and report. They guarantee that everything exists and is connected before simulation time starts.</li>
+<li><strong>The configuration database</strong> passes settings, such as the virtual interface handle or active/passive mode, down the hierarchy by path, so components do not need hard-wired references to each other.</li>
+<li><strong>The factory</strong> lets a test replace one component type with another, for example a driver that injects errors, without editing the env.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Checking inside the driver.</strong> It feels convenient, but it disappears when the agent becomes passive. Checks belong on the observation path.</li>
+<li><strong>Monitors that peek at the sequence.</strong> If the monitor learns the expected value from the stimulus side, a dropped transaction becomes invisible.</li>
+<li><strong>Protocol timing in the sequence.</strong> Sequences should not count clock cycles on pins; that couples them to one interface and breaks reuse.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the diagram above from memory for a simple valid/ready interface, and label which class owns the handshake timing.</li>
+<li>Install pyuvm and cocotb in a Python virtual environment and build the smallest version: one item, one sequence, a driver, a monitor and a scoreboard around a register or FIFO, simulated on Icarus Verilog.</li>
+<li>Write a second sequence and a second test that reuse every other component unchanged.</li>
+<li>Disable the driver and drive the pins from a plain cocotb coroutine instead; confirm the monitor and scoreboard still work, which is the passive-agent idea in miniature.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>uvm</li><li>testbench architecture</li><li>agent</li><li>sequences</li><li>reuse</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="apb-register-block-with-pyuvm.html"><span>Previous in Verification</span>Testing an APB register block with pyuvm, from sequence to scoreboard</a><a class="next" href="ai-written-testbench-code-review.html"><span>Next in Verification</span>Using AI to write testbench code without trusting it blindly</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="layering-a-testbench.html">Layering a testbench: stimulus, driver, monitor and checker</a></h3>
+          <p>Split a testbench into what to send, how to send it, what was observed and whether it was right. A plain cocotb example shows why this layering pays off even without a methodology library.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="apb-register-block-with-pyuvm.html">Testing an APB register block with pyuvm, from sequence to scoreboard</a></h3>
+          <p>A walk-through of a pyuvm environment for a four-register APB slave, with a spec-derived register model, a wait-state-aware driver, reset-value checks and a scoreboard that predicts side effects.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

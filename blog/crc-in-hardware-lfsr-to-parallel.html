@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Computing a CRC in hardware: from the polynomial to an LFSR and a parallel form · Ketuna blog</title>
+  <meta name="description" content="Turn a CRC polynomial into a serial shift-register circuit, check it against a known test vector, then let a short script unroll it into XOR equations that process a whole byte per clock.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Computing a CRC in hardware: from the polynomial to an LFSR and a parallel form · Ketuna blog">
+  <meta property="og:description" content="Turn a CRC polynomial into a serial shift-register circuit, check it against a known test vector, then let a short script unroll it into XOR equations that process a whole byte per clock.">
+  <link rel="canonical" href="https://ketuna.online/blog/crc-in-hardware-lfsr-to-parallel.html">
+  <meta property="og:url" content="https://ketuna.online/blog/crc-in-hardware-lfsr-to-parallel.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Computing a CRC in hardware: from the polynomial to an LFSR and a parallel form",
+  "description": "Turn a CRC polynomial into a serial shift-register circuit, check it against a known test vector, then let a short script unroll it into XOR equations that process a whole byte per clock.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "crc, lfsr, error detection, xor logic, sensor node",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 857,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/crc-in-hardware-lfsr-to-parallel.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Computing a CRC in hardware: from the polynomial to an LFSR and a parallel form</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Turn a CRC polynomial into a serial shift-register circuit, check it against a known test vector, then let a short script unroll it into XOR equations that process a whole byte per clock.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-polynomial-as-a-recipe">The polynomial as a recipe</a></li><li><a href="#the-serial-circuit-an-lfsr">The serial circuit: an LFSR</a></li><li><a href="#unrolling-to-a-byte-per-clock">Unrolling to a byte per clock</a></li><li><a href="#verifying-it">Verifying it</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A low-power sensor node sends short packets over a noisy radio or a long cable, and the receiver needs to know whether a packet arrived intact. A cyclic redundancy check (CRC) is the usual answer: a few check bits computed from the packet that change if any bit is corrupted in common ways. In software a CRC is a loop or a lookup table. In hardware it is one of the most elegant small circuits you can build: a shift register with a few XOR gates, which you can then unroll to handle a whole byte every clock.</p>
+<h2 id="the-polynomial-as-a-recipe">The polynomial as a recipe</h2>
+<p>A CRC treats the message as a long binary polynomial and computes the remainder after dividing it by a fixed <strong>generator polynomial</strong>, using arithmetic in which addition and subtraction are both XOR and there are no carries. The remainder is the CRC.</p>
+<p>For this article we use the 8-bit generator x<sup>8</sup> + x<sup>2</sup> + x + 1, a common choice for short packets, written in hex as <code>0x07</code> (the x<sup>8</sup> term is implied). The details that define a complete CRC variant are the polynomial, the initial register value, whether bits are processed most-significant first, whether the result is inverted, and whether input or output bits are reflected. Here: initial value 0, most-significant bit first, no inversion, no reflection. With those settings, the standard check is that the ASCII string <code>123456789</code> gives <code>0xF4</code>. Always pick your parameters from the specification of the protocol you implement, and test against its check value.</p>
+<p>What does the receiver gain? Two properties follow from the algebra. Any CRC whose generator has degree n and a nonzero constant term detects every error burst of length n bits or less, so this one catches any burst of up to 8 bits. And because x<sup>8</sup> + x<sup>2</sup> + x + 1 has x + 1 as a factor (set x = 1 and the terms sum to 0 under XOR), it detects every error that flips an odd number of bits. A CRC detects errors; it does not correct them, and it is not protection against deliberate tampering.</p>
+<h2 id="the-serial-circuit-an-lfsr">The serial circuit: an LFSR</h2>
+<p>Long division by the generator, one message bit at a time, maps directly onto a linear feedback shift register (LFSR). Each clock:</p>
+<ol>
+<li>The feedback bit is the register's top bit XORed with the incoming message bit.</li>
+<li>The register shifts left by one.</li>
+<li>If the feedback is 1, the polynomial is XORed in, which means XOR gates in front of every bit position where the polynomial has a 1 (bits 0, 1 and 2 for <code>0x07</code>).</li>
+</ol>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="cr-title cr-desc" font-size="14">
+<title id="cr-title">Serial CRC-8 shift register for x^8 + x^2 + x + 1</title>
+<desc id="cr-desc">Eight register cells from bit 0 on the left to bit 7 on the right. The output of bit 7 is XORed with the incoming data bit to form the feedback, which runs back along the bottom to bit 0 and to XOR gates in front of bits 1 and 2. All other bits shift directly into their neighbour.</desc>
+<rect x="20" y="50" width="36" height="36" class="dg-core"/>
+<rect x="90" y="50" width="36" height="36" class="dg-core"/>
+<rect x="160" y="50" width="36" height="36" class="dg-core"/>
+<rect x="216" y="50" width="36" height="36" class="dg-core"/>
+<rect x="272" y="50" width="36" height="36" class="dg-core"/>
+<rect x="328" y="50" width="36" height="36" class="dg-core"/>
+<rect x="384" y="50" width="36" height="36" class="dg-core"/>
+<text x="38" y="73" text-anchor="middle" class="dg-text">0</text>
+<text x="108" y="73" text-anchor="middle" class="dg-text">1</text>
+<text x="178" y="73" text-anchor="middle" class="dg-text">2</text>
+<text x="234" y="73" text-anchor="middle" class="dg-text">3</text>
+<text x="290" y="73" text-anchor="middle" class="dg-text">4</text>
+<text x="346" y="73" text-anchor="middle" class="dg-text">5</text>
+<text x="402" y="73" text-anchor="middle" class="dg-text">6</text>
+<rect x="430" y="50" width="36" height="36" class="dg-core"/>
+<text x="448" y="73" text-anchor="middle" class="dg-text">7</text>
+<circle cx="73" cy="68" r="9" class="dg-box"/>
+<text x="73" y="73" text-anchor="middle" class="dg-text">+</text>
+<circle cx="143" cy="68" r="9" class="dg-box"/>
+<text x="143" y="73" text-anchor="middle" class="dg-text">+</text>
+<path d="M56,68 H64 M82,68 H90 M126,68 H134 M152,68 H160 M196,68 H216 M252,68 H272 M308,68 H328 M364,68 H384 M420,68 H430" class="dg-line"/>
+<path d="M448,86 V110" class="dg-line"/>
+<circle cx="448" cy="119" r="9" class="dg-box"/>
+<text x="448" y="124" text-anchor="middle" class="dg-text">+</text>
+<text x="380" y="155" class="dg-text">data in</text>
+<path d="M448,150 V128" class="dg-line"/>
+<path d="M439,119 H8 V68 H20 M73,119 V77 M143,119 V77" class="dg-amber-line" stroke-width="2"/>
+<text x="230" y="112" text-anchor="middle" class="dg-muted">feedback</text>
+</svg>
+<figcaption>Bits shift right in the drawing, from bit 0 towards bit 7; the feedback is XORed in at bits 0, 1 and 2, matching the 1s of the polynomial 0x07.</figcaption>
+</figure>
+
+<pre><code class="language-verilog">module crc8_serial (
+  input  wire       clk, rst_n,
+  input  wire       init,      // load the initial value
+  input  wire       en,        // one message bit this clock
+  input  wire       din,       // message bit, MSB of each byte first
+  output reg  [7:0] crc
+);
+  wire fb = crc[7] ^ din;
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n)    crc &lt;= 8'h00;
+    else if (init) crc &lt;= 8'h00;
+    else if (en)   crc &lt;= {crc[6:0], 1'b0} ^ (fb ? 8'h07 : 8'h00);
+endmodule
+</code></pre>
+<p>Eight flops and three XOR gates. It processes one bit per clock, so a byte takes eight clocks. For a slow serial link that is fine; for a byte-wide bus it is eight times too slow.</p>
+<h2 id="unrolling-to-a-byte-per-clock">Unrolling to a byte per clock</h2>
+<p>The circuit is linear: every next-state bit is an XOR of some current-state bits and some input bits. So eight serial steps can be collapsed into one combinational step, in which each of the 8 new CRC bits is an XOR of current CRC bits and the 8 data bits. Working out which ones by hand is tedious and error-prone. A script does it by simulating the serial circuit symbolically, tracking for each bit the <em>set</em> of inputs it is an XOR of:</p>
+<pre><code class="language-python">POLY = 0x07                      # x^8 + x^2 + x + 1
+
+def crc8_symbolic():
+    crc = [{f&quot;c{i}&quot;} for i in range(8)]
+    data = [{f&quot;d{i}&quot;} for i in range(8)]
+    for i in range(7, -1, -1):              # MSB of the byte first
+        fb = crc[7] ^ data[i]               # set XOR = symmetric diff
+        crc = [set()] + crc[:7]             # shift left
+        for b in range(8):
+            if (POLY &gt;&gt; b) &amp; 1:
+                crc[b] = crc[b] ^ fb
+    return crc
+
+for b, terms in enumerate(crc8_symbolic()):
+    print(f&quot;next[{b}] =&quot;, &quot; ^ &quot;.join(sorted(terms)))
+</code></pre>
+<p>The set XOR (symmetric difference) is exactly right because anything XORed twice cancels. The script prints, for example, <code>next[0] = c0 ^ c6 ^ c7 ^ d0 ^ d6 ^ d7</code>. Notice that every equation contains <code>c</code><sub>i</sub> and <code>d</code><sub>i</sub> in pairs. For this CRC, the byte-wide update only depends on <code>crc ^ data</code>, which halves the inputs:</p>
+<pre><code class="language-verilog">wire [7:0] x = crc ^ data;   // data is one byte, bit 7 = first bit
+wire [7:0] nxt = {
+  x[5]^x[6]^x[7],             // bit 7
+  x[4]^x[5]^x[6],             // bit 6
+  x[3]^x[4]^x[5],             // bit 5
+  x[2]^x[3]^x[4],             // bit 4
+  x[1]^x[2]^x[3]^x[7],        // bit 3
+  x[0]^x[1]^x[2]^x[6],        // bit 2
+  x[0]^x[1]^x[6],             // bit 1
+  x[0]^x[6]^x[7]              // bit 0
+};
+always @(posedge clk) if (en) crc &lt;= nxt;
+</code></pre>
+<p>Each output is an XOR of three or four bits, a single shallow level of logic. The same script approach works for 32-bit CRCs or wider data paths; the equations get longer and you should generate the RTL from the script rather than typing it.</p>
+<h2 id="verifying-it">Verifying it</h2>
+<p>Never trust a CRC implementation without a known answer. Feed <code>123456789</code> one byte per clock and check for <code>0xF4</code>. Then cross-check thousands of random bytes against a bit-serial model. The parallel equations above were checked this way against a bit-by-bit Python model for random CRC and data values.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Processing bits LSB-first when the protocol specifies MSB-first, or the reverse</li>
+<li>Forgetting the initial value or the final inversion that some CRC variants use</li>
+<li>Hand-typing long parallel equations instead of generating them</li>
+<li>Testing only with all-zero data, which gives a zero CRC for many variants and proves nothing</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the Python script, then write a bit-by-bit software CRC and confirm <code>crc8("123456789") == 0xF4</code> before writing any RTL.</li>
+<li>Simulate <code>crc8_serial</code> and the byte-wide version in <strong>Icarus Verilog</strong> on the same packet and confirm they agree with each other and with Python.</li>
+<li>Synthesise the byte-wide version with <strong>Yosys</strong> (<code>synth</code>, then <code>stat</code>) and count the XOR cells; compare with the number of terms in the equations.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>crc</li><li>lfsr</li><li>error detection</li><li>xor logic</li><li>sensor node</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="glitch-free-clock-gating.html"><span>Previous in Digital &amp; VLSI design</span>Clock gating without glitches: the latch-based integrated clock gate</a><a class="next" href="crossing-multi-bit-values-between-clocks.html"><span>Next in Digital &amp; VLSI design</span>Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

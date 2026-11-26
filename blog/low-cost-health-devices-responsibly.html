@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing low-cost health devices responsibly: accuracy, safety and approvals · Ketuna blog</title>
+  <meta name="description" content="Why medical devices are regulated, how to validate a device&#x27;s accuracy honestly against a reference with a Bland-Altman analysis, and how to avoid claims that a low-cost device cannot support.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing low-cost health devices responsibly: accuracy, safety and approvals · Ketuna blog">
+  <meta property="og:description" content="Why medical devices are regulated, how to validate a device&#x27;s accuracy honestly against a reference with a Bland-Altman analysis, and how to avoid claims that a low-cost device cannot support.">
+  <link rel="canonical" href="https://ketuna.online/blog/low-cost-health-devices-responsibly.html">
+  <meta property="og:url" content="https://ketuna.online/blog/low-cost-health-devices-responsibly.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing low-cost health devices responsibly: accuracy, safety and approvals",
+  "description": "Why medical devices are regulated, how to validate a device's accuracy honestly against a reference with a Bland-Altman analysis, and how to avoid claims that a low-cost device cannot support.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "medical devices, validation, safety, regulation, wearables",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 949,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/low-cost-health-devices-responsibly.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Designing low-cost health devices responsibly: accuracy, safety and approvals</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why medical devices are regulated, how to validate a device&#x27;s accuracy honestly against a reference with a Bland-Altman analysis, and how to avoid claims that a low-cost device cannot support.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-medical-devices-are-regulated">Why medical devices are regulated</a></li><li><a href="#safety-starts-with-the-hardware">Safety starts with the hardware</a></li><li><a href="#validating-accuracy-honestly">Validating accuracy honestly</a></li><li><a href="#claims-a-device-can-support">Claims a device can support</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Low-cost health devices, such as a heart-rate monitor, a pulse oximeter, a thermometer or a fall detector, could make basic monitoring available to many more people. Engineering students build prototypes of them every year, often with good intentions and impressive demos. But a health device is different from a weather station: if it is wrong, someone may skip a doctor's visit they needed, or panic over nothing. Designing one responsibly means taking accuracy, safety and approvals seriously from the first day, and being honest about what the device can and cannot do.</p>
+<h2 id="why-medical-devices-are-regulated">Why medical devices are regulated</h2>
+<p>A device that claims to diagnose, monitor, treat or prevent a medical condition can harm people in two ways. It can harm directly, through electric shock, burns, toxic materials or a failed therapy. And it can harm through wrong information, a reading that leads to a wrong decision. Regulation exists to make sure a device's benefits outweigh those risks before it reaches patients.</p>
+<p>In India, medical devices are regulated under rules administered by the central drugs regulator, and devices are classified by risk, from low-risk items to those that sustain life or are implanted. Higher-risk classes face stricter requirements for evidence, quality systems and approval. The details, including which products count as medical devices and what each class needs, change over time, so <strong>check the current official rules</strong> before you design anything you intend to sell.</p>
+<p>What makes something a medical device is usually its <strong>intended use</strong>, the claims made for it. A wrist band that counts steps for fitness may not be one; the same hardware marketed to detect an irregular heart rhythm probably is. That is why claims are an engineering decision, not just a marketing one.</p>
+<h2 id="safety-starts-with-the-hardware">Safety starts with the hardware</h2>
+<p>Several safety concerns apply to almost every body-worn or patient-connected device:</p>
+<ul>
+<li><strong>Electrical isolation:</strong> anything connected to a person must never pass a dangerous current through them, even if a fault occurs or the device is plugged into a charger. Patient-connected parts need isolation from mains and from other equipment.</li>
+<li><strong>Battery safety:</strong> lithium cells worn against the skin must be protected against over-charge, over-discharge, short circuit and overheating.</li>
+<li><strong>Materials:</strong> parts in contact with skin should not irritate or sensitise it.</li>
+<li><strong>Software:</strong> a crash, a frozen display showing an old value or a silent failure can mislead. Show clearly when a reading is not valid.</li>
+</ul>
+<p>The IEC standards for medical electrical equipment (the IEC 60601 family) and for medical device software set out how to handle these risks; check the editions that apply to your device. Even a student prototype should follow the spirit: assume faults will happen and design so that they fail safe.</p>
+<h2 id="validating-accuracy-honestly">Validating accuracy honestly</h2>
+<p>Testing a device on yourself and three friends and seeing that the numbers "look right" is not validation. Honest validation compares your device against an accepted <strong>reference</strong> method, on enough people, under the conditions the device will meet.</p>
+<p>A good study plan decides in advance:</p>
+<ul>
+<li><strong>The reference:</strong> a recognised instrument or method, used correctly</li>
+<li><strong>The participants:</strong> a range of ages, body types and skin tones that represents future users, since optical sensors in particular can behave differently across skin pigmentation</li>
+<li><strong>The conditions:</strong> at rest and in motion, in heat and cold, at the edges of the measuring range</li>
+<li><strong>The acceptance criteria:</strong> how close is close enough, written down before you collect data</li>
+</ul>
+<p>Correlation is a weak measure of agreement: two methods can correlate strongly while one reads consistently high. A standard approach is the <strong>Bland-Altman analysis</strong>: for each pair of readings, compute the difference, then report the mean difference (bias) and the range within which most differences fall (the limits of agreement). The data below is made up for illustration: heart rate in beats per minute, reference versus a prototype.</p>
+<pre><code class="language-python">import numpy as np
+
+# paired readings, made up for illustration: reference vs our device
+ref = np.array([72, 88, 65, 101, 79, 93, 58, 110, 84, 70], float)
+dev = np.array([74, 87, 68, 97, 80, 96, 61, 104, 85, 73], float)
+
+diff = dev - ref
+bias = diff.mean()
+sd = diff.std(ddof=1)
+lo, hi = bias - 1.96 * sd, bias + 1.96 * sd
+print(f&quot;bias {bias:+.1f}, limits of agreement {lo:+.1f} to {hi:+.1f}&quot;)
+print(&quot;worst at reference&quot;, ref[np.argmax(abs(diff))])
+</code></pre>
+<p>It prints a bias of +0.5 bpm and limits of agreement from −5.8 to +6.8 bpm, with the worst error at a reference of 110 bpm. The average looks excellent, but look closer: the two largest errors are at the two highest heart rates, both reading low. That pattern suggests the device under-reads at high rates, exactly where it may matter most. Ten readings are far too few to conclude anything firmly; a real study needs many more participants and a plan reviewed by people with clinical research experience. Studies involving people also need ethics approval and informed consent.</p>
+<h2 id="claims-a-device-can-support">Claims a device can support</h2>
+<p>The most common mistake is claiming more than the evidence supports. Good practice:</p>
+<ul>
+<li>state the intended use narrowly and plainly, for example "displays heart rate during rest for general wellness"</li>
+<li>never call a wellness or student device a diagnostic tool; a wearable classifier is not a diagnosis</li>
+<li>show uncertainty and invalid readings honestly instead of always displaying a number</li>
+<li>tell users when to see a doctor regardless of what the device says</li>
+<li>publish the conditions under which you validated the device, and do not claim accuracy outside them</li>
+</ul>
+<p>A cheap device that is honest about its limits can still be useful. A cheap device that overclaims can be dangerous.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Validating only on the development team</li>
+<li>Reporting correlation instead of agreement</li>
+<li>Choosing acceptance criteria after seeing the data</li>
+<li>Ignoring motion, temperature and skin tone effects</li>
+<li>Letting marketing language turn a wellness gadget into a medical claim</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, then plot difference against the mean of each pair with <strong>matplotlib</strong> to make a Bland-Altman plot, and look for trends.</li>
+<li>Write a one-paragraph intended-use statement for a device you are building, and list which claims it rules out.</li>
+<li>Draw your prototype's power path in <strong>KiCad</strong> and mark every place a fault could connect the user to a charger or other equipment.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>medical devices</li><li>validation</li><li>safety</li><li>regulation</li><li>wearables</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="drone-electronics-for-agriculture-and-mapping.html"><span>Next in India&#x27;s electronics ecosystem</span>Drone electronics for agriculture and mapping: what the controller must handle</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

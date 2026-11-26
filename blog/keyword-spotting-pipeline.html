@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A keyword-spotting pipeline from microphone to decision · Ketuna blog</title>
+  <meta name="description" content="How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="A keyword-spotting pipeline from microphone to decision · Ketuna blog">
+  <meta property="og:description" content="How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.">
+  <link rel="canonical" href="https://ketuna.online/blog/keyword-spotting-pipeline.html">
+  <meta property="og:url" content="https://ketuna.online/blog/keyword-spotting-pipeline.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "A keyword-spotting pipeline from microphone to decision",
+  "description": "How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "keyword spotting, audio, tinyml, streaming, cnn",
+  "articleSection": "Edge AI",
+  "wordCount": 912,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/keyword-spotting-pipeline.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>A keyword-spotting pipeline from microphone to decision</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How an always-listening device turns a microphone stream into a yes or no - framing audio, computing features incrementally, running a small convolutional network on a sliding window, and smoothing decisions over time.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-pipeline-at-a-glance">The pipeline at a glance</a></li><li><a href="#capturing-and-framing-the-audio">Capturing and framing the audio</a></li><li><a href="#a-sliding-window-into-a-small-network">A sliding window into a small network</a></li><li><a href="#smoothing-decisions-over-time">Smoothing decisions over time</a></li><li><a href="#measuring-what-matters">Measuring what matters</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A keyword spotter listens all the time and must answer one question many times a second: was the wake word just spoken? The neural network is the part everyone talks about, but it is one stage in a pipeline, and most field failures come from the stages around it: frames that do not line up with training, features computed slightly differently on the device, or a decision rule that fires on a single noisy window. This article follows the audio from the microphone to the decision and explains what each stage must get right.</p>
+<h2 id="the-pipeline-at-a-glance">The pipeline at a glance</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="kws-title kws-desc" font-size="14">
+<title id="kws-title">Keyword-spotting pipeline</title>
+<desc id="kws-desc">Five stages in a row: microphone and DMA buffer, framing into 30 millisecond windows every 20 milliseconds, feature extraction into a 49 by 10 grid, a small convolutional network producing class scores, and smoothing with a threshold that produces the decision.</desc>
+<rect x="10" y="30" width="80" height="60" class="dg-box"/>
+<rect x="105" y="30" width="80" height="60" class="dg-box"/>
+<rect x="200" y="30" width="80" height="60" class="dg-box"/>
+<rect x="295" y="30" width="80" height="60" class="dg-core"/>
+<rect x="390" y="30" width="80" height="60" class="dg-amber" fill-opacity="0.35"/>
+<text x="50" y="56" text-anchor="middle" class="dg-text">mic +</text>
+<text x="50" y="74" text-anchor="middle" class="dg-text">DMA</text>
+<text x="145" y="56" text-anchor="middle" class="dg-text">frames</text>
+<text x="145" y="74" text-anchor="middle" class="dg-text">30/20 ms</text>
+<text x="240" y="56" text-anchor="middle" class="dg-text">features</text>
+<text x="240" y="74" text-anchor="middle" class="dg-text">49 × 10</text>
+<text x="335" y="56" text-anchor="middle" class="dg-text">small</text>
+<text x="335" y="74" text-anchor="middle" class="dg-text">CNN</text>
+<text x="430" y="56" text-anchor="middle" class="dg-text">smooth +</text>
+<text x="430" y="74" text-anchor="middle" class="dg-text">threshold</text>
+<path d="M90,60 H99 M185,60 H194 M280,60 H289 M375,60 H384" class="dg-line"/>
+<path d="M99,56 L105,60 L99,64 Z M194,56 L200,60 L194,64 Z M289,56 L295,60 L289,64 Z M384,56 L390,60 L384,64 Z" class="dg-arrow"/>
+<text x="50" y="120" text-anchor="middle" class="dg-muted">16 kHz</text>
+<text x="145" y="120" text-anchor="middle" class="dg-muted">every 20 ms</text>
+<text x="240" y="120" text-anchor="middle" class="dg-muted">1 s window</text>
+<text x="335" y="120" text-anchor="middle" class="dg-muted">every 200 ms</text>
+<text x="430" y="120" text-anchor="middle" class="dg-muted">yes / no</text>
+<path d="M145,140 V160 H240 V140" class="dg-dash"/>
+<text x="192" y="180" text-anchor="middle" class="dg-muted">must match training exactly</text>
+</svg>
+<figcaption>Audio flows left to right; framing and features must be computed exactly as during training.</figcaption>
+</figure>
+
+<p>The rates in the figure are a common choice for this task and are used throughout as an example: 16 kHz sampling, a feature frame every 20 ms, a 1 s window of frames for the network, and an inference every 200 ms.</p>
+<h2 id="capturing-and-framing-the-audio">Capturing and framing the audio</h2>
+<p>A digital microphone or an ADC delivers samples continuously, and DMA moves them into a buffer in RAM without the processor touching each sample. Using two halves of the buffer (ping-pong) lets the processor work on one half while DMA fills the other; an interrupt marks each half as ready.</p>
+<p>The processor then cuts the stream into short, overlapping <strong>frames</strong>. Speech changes over tens of milliseconds, so a frame of 30 ms (480 samples at 16 kHz) is short enough to treat the sound as steady, and a hop of 20 ms (320 samples) gives overlap so that no sound falls into a gap. Over one second, the number of complete frames is (16,000 − 480) / 320 + 1, rounded down: 49 frames.</p>
+<p>Each frame becomes a small vector of features, typically 10 to 40 numbers describing how energy is spread over frequency. How those features are computed is a topic of its own (see <a href="audio-features-for-edge-ai.html">audio features for edge AI</a>). For the pipeline, two points matter: features are computed <strong>incrementally</strong>, one new frame every 20 ms, rather than recomputing the whole second; and the device code must reproduce the training code's features exactly, down to window shape, scaling and quantization.</p>
+<h2 id="a-sliding-window-into-a-small-network">A sliding window into a small network</h2>
+<p>The network sees a 49 × 10 grid: 49 frames of 10 features. Treated as a one-channel image, it is a natural fit for a small <strong>convolutional network</strong>: a couple of convolution layers find local patterns in time and frequency, pooling shrinks the grid, and one or two dense layers map the result to class scores. Typical outputs are the keyword, <em>silence</em> and <em>unknown</em> (any other speech or noise). The unknown class matters: without it, the model only knows how to say "keyword" or "silence", and everyday speech gets forced into one of them.</p>
+<p>The feature grid is kept as a circular buffer of the last 49 frames. Every 200 ms, ten new frames have arrived; the oldest ten are dropped and the network runs on the updated grid. A spoken word therefore appears in several overlapping windows, shifted a little each time. That is deliberate, and the next stage relies on it.</p>
+<p>Timing has to fit. If one inference takes, say, 30 ms on the processor, running every 200 ms keeps it busy 15 % of the time, leaving room for features and sleep. Measure it on the target with a cycle counter rather than assuming.</p>
+<h2 id="smoothing-decisions-over-time">Smoothing decisions over time</h2>
+<p>A single window can produce a high keyword score by accident: a door slam, a word that sounds similar, a cut-off syllable. Acting on every raw output gives frequent false triggers. Because a real keyword appears in several consecutive windows, you can demand agreement over time:</p>
+<pre><code class="language-python">from collections import deque
+import numpy as np
+
+class Detector:
+    def __init__(self, n_avg=4, threshold=0.8, refractory=5):
+        self.hist = deque(maxlen=n_avg)   # last n_avg score vectors
+        self.threshold = threshold
+        self.refractory = refractory      # inferences to ignore after a hit
+        self.hold = 0
+
+    def update(self, probs):              # probs: scores for one window
+        self.hist.append(np.asarray(probs, dtype=float))
+        if self.hold &gt; 0:
+            self.hold -= 1
+            return None
+        avg = np.mean(self.hist, axis=0)
+        k = int(np.argmax(avg))
+        if k &gt;= 2 and avg[k] &gt;= self.threshold:  # 0 silence, 1 unknown
+            self.hold = self.refractory
+            self.hist.clear()
+            return k                       # index of the keyword heard
+        return None
+</code></pre>
+<p>Averaging the last four windows (800 ms) suppresses one-off spikes. The threshold trades misses against false triggers. The refractory period stops one utterance from firing several times as it slides through successive windows. The same logic ports to C in a few lines using int8 scores directly, since averaging and comparing do not need real-valued probabilities.</p>
+<h2 id="measuring-what-matters">Measuring what matters</h2>
+<p>Accuracy on a test set of one-second clips is a starting point, not the product metric. An always-listening device is judged on two numbers measured on long, realistic recordings: how often it misses the keyword when spoken (false rejects), and how often it fires when nobody said it (false accepts, usually counted per hour of background audio). Tune the threshold and averaging length on a validation recording, then report both numbers on a separate test recording.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>training on clips that are perfectly centred on the word, when the device sees it at every offset</li>
+<li>leaving out an unknown class, so ordinary speech triggers the keyword</li>
+<li>computing features in floating point during training and in a different fixed-point form on the device without comparing them</li>
+<li>tuning the threshold on the same recordings used to report results</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Record a few minutes of your own voice and background noise at 16 kHz, cut it into 30 ms frames with a 20 ms hop in numpy, and confirm you get 49 frames per second of audio.</li>
+<li>Train a small CNN on a public speech-commands dataset in PyTorch, using the same framing.</li>
+<li>Run the trained model over a long recording window by window, feed the scores through the <code>Detector</code>, and count false accepts per hour for a few thresholds.</li>
+<li>Quantize the model to int8 and check that the detections on the long recording barely change.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>keyword spotting</li><li>audio</li><li>tinyml</li><li>streaming</li><li>cnn</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="next" href="accumulator-width-in-quantized-inference.html"><span>Next in Edge AI</span>Accumulator width in quantized inference: avoiding overflow</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="audio-features-for-edge-ai.html">Audio features for edge AI: from samples to a spectrogram</a></h3>
+          <p>Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="convolution-layer-arithmetic.html">Convolution layer arithmetic: output size, MACs and memory by hand</a></h3>
+          <p>From kernel size, stride and padding to the output shape, then to multiply-accumulates, weights and activation bytes for one convolution layer, worked by hand and checked with a few lines of Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="gesture-recognition-from-an-imu.html">Gesture recognition from an IMU: data, features and a small model</a></h3>
+          <p>From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

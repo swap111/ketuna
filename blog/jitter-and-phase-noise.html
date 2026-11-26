@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jitter and phase noise: what they are and why ADCs and radios care · Ketuna blog</title>
+  <meta name="description" content="Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Jitter and phase noise: what they are and why ADCs and radios care · Ketuna blog">
+  <meta property="og:description" content="Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.">
+  <link rel="canonical" href="https://ketuna.online/blog/jitter-and-phase-noise.html">
+  <meta property="og:url" content="https://ketuna.online/blog/jitter-and-phase-noise.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Jitter and phase noise: what they are and why ADCs and radios care",
+  "description": "Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "jitter, phase noise, clocking, adc, pll",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1131,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/jitter-and-phase-noise.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Jitter and phase noise: what they are and why ADCs and radios care</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Jitter is clock timing error seen in the time domain; phase noise is the same error seen in frequency. Learn the jitter definitions, convert a phase-noise plot to RMS jitter, and see how jitter caps ADC resolution.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#jitter-in-the-time-domain">Jitter in the time domain</a></li><li><a href="#phase-noise-in-the-frequency-domain">Phase noise in the frequency domain</a></li><li><a href="#converting-phase-noise-to-jitter">Converting phase noise to jitter</a></li><li><a href="#why-adcs-care">Why ADCs care</a></li><li><a href="#why-radios-care">Why radios care</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>No clock edge arrives exactly when it should. The error is tiny, picoseconds or femtoseconds, but it sets a hard ceiling on how well a high-speed ADC can digitise, how cleanly a radio can receive, and how fast a serial link can run. Digital designers meet it as jitter, a time-domain number in a timing budget. RF designers meet it as phase noise, a curve in dBc/Hz. They are the same physical thing, and moving between the two views is a skill worth having.</p>
+<h2 id="jitter-in-the-time-domain">Jitter in the time domain</h2>
+<p>Take an ideal clock with period T and compare each real edge with where the ideal edge would be. That timing error, edge by edge, is the raw material for several jitter definitions:</p>
+<ul>
+<li><strong>Absolute jitter (time interval error):</strong> the deviation of each edge from its ideal position. Its RMS value is what limits sampling systems.</li>
+<li><strong>Period jitter:</strong> the deviation of each period from the nominal period. This is what a synchronous digital path sees, since setup timing depends on the time from one edge to the next.</li>
+<li><strong>Cycle-to-cycle jitter:</strong> the change between consecutive periods. It matters for circuits that track the clock, such as some clock-data recovery loops.</li>
+</ul>
+<p>These are not interchangeable. A clock whose frequency wanders slowly can have large absolute jitter but small period jitter, because neighbouring periods are almost identical. A datasheet number is meaningless until you know which definition, and over what measurement bandwidth, it refers to.</p>
+<p>Jitter is also split by cause. <strong>Random jitter</strong> comes from thermal and flicker noise in the oscillator and is usually close to Gaussian, so it is described by an RMS value and has no hard peak. <strong>Deterministic jitter</strong> comes from identifiable sources such as supply ripple, crosstalk or reference spurs, and is bounded. For a timing budget, random jitter is converted to a peak value by multiplying its RMS by a factor chosen for the error rate you can accept.</p>
+<h2 id="phase-noise-in-the-frequency-domain">Phase noise in the frequency domain</h2>
+<p>Look at the same clock on a spectrum analyser. An ideal oscillator is a single line at f<sub>0</sub>. A real one has skirts: power spread to nearby frequencies because its phase is being randomly modulated. <strong>Phase noise</strong> L(f) describes those skirts. It is the noise power in a 1 Hz bandwidth at an offset f from the carrier, relative to the carrier power, in dBc/Hz.</p>
+<p>A typical oscillator plot falls with offset. Close in, flicker noise in the devices makes it fall steeply; further out, thermal noise gives a gentler slope; far out, it flattens into a floor set by buffers and dividers. A PLL reshapes this: inside the loop bandwidth, the output follows the (multiplied) reference noise and the in-band plateau is fairly flat; outside the bandwidth, the free-running VCO noise appears and rolls off.</p>
+<h2 id="converting-phase-noise-to-jitter">Converting phase noise to jitter</h2>
+<p>The bridge between the two views is integration. The RMS phase error in radians is the square root of the area under the phase-noise curve, counting both sidebands:</p>
+<blockquote>
+<p>σ<sub>φ</sub> = √(2 ∫ 10<sup>L(f)/10</sup> df),  then σ<sub>t</sub> = σ<sub>φ</sub> / (2π f<sub>0</sub>)</p>
+</blockquote>
+<p>The integration limits matter as much as the curve. The lower limit is usually set by what the system can track or ignore: slow wander that a receiver's own loops follow does not hurt it. The upper limit is often a filter bandwidth or half the clock frequency.</p>
+<p>A quick check by hand: a 100 MHz clock with flat phase noise of −120 dBc/Hz from 10 kHz to 10 MHz. The area is 10<sup>−12</sup> × (10<sup>7</sup> − 10<sup>4</sup>) ≈ 10<sup>−5</sup>, so σ<sub>φ</sub> = √(2 × 10<sup>−5</sup>) ≈ 4.47 mrad, and σ<sub>t</sub> = 4.47 × 10<sup>−3</sup> / (2π × 10<sup>8</sup>) ≈ <strong>7.1 ps</strong>. The script below does the same calculation for any piecewise profile, interpolating straight lines on a log-frequency axis:</p>
+<pre><code class="language-python">import numpy as np
+
+def rms_jitter(f0, offsets, l_dbc, f_lo, f_hi):
+    &quot;&quot;&quot;Integrate single-sideband phase noise L(f) into RMS jitter (s).&quot;&quot;&quot;
+    f = np.logspace(np.log10(f_lo), np.log10(f_hi), 4000)
+    l = np.interp(np.log10(f), np.log10(offsets), l_dbc)  # straight on log axis
+    s = 10 ** (l / 10)                                    # dBc/Hz to 1/Hz
+    area = np.sum((s[1:] + s[:-1]) / 2 * np.diff(f))      # trapezoid rule
+    phase_rms = np.sqrt(2 * area)                         # both sidebands, rad
+    return phase_rms / (2 * np.pi * f0)
+
+f0 = 100e6
+flat = rms_jitter(f0, [1e4, 1e7], [-120, -120], 1e4, 1e7)
+print(f&quot;flat -120 dBc/Hz: {flat*1e12:.2f} ps&quot;)
+
+# A PLL-like profile: flat in-band, then rolling off. Made up.
+offsets = [1e3, 1e5, 1e6, 1e7]
+l_dbc = [-100, -105, -125, -145]
+sigma = rms_jitter(f0, offsets, l_dbc, 1e3, 1e7)
+print(f&quot;PLL-like profile: {sigma*1e12:.2f} ps&quot;)
+for f_in in (5e6, 50e6):
+    snr = -20 * np.log10(2 * np.pi * f_in * sigma)
+    print(f&quot;f_in {f_in/1e6:4.0f} MHz: jitter-limited SNR {snr:5.1f} dB&quot;)
+</code></pre>
+<p>For the made-up PLL-like profile the total is about 6.05 ps. Integrating each segment separately shows where it comes from: about 4.5 ps from 1 kHz to 100 kHz, 3.8 ps from 100 kHz to 1 MHz, and only 1.2 ps from 1 MHz to 10 MHz (the parts add in quadrature, not linearly). The in-band plateau dominates, even though the curve is lowest far out, because a flat region covering decades of frequency has a lot of area. Lowering the PLL's in-band noise, by a cleaner reference or a smaller divide ratio, usually pays more than improving the far-out floor.</p>
+<h2 id="why-adcs-care">Why ADCs care</h2>
+<p>An ADC samples at the clock edge. If the edge is early or late by Δt, the sample is taken where the input has moved by slope × Δt. The steepest slope of a sine of amplitude A and frequency f<sub>in</sub> is 2πf<sub>in</sub>A, so timing error turns into voltage error that grows with input frequency. Averaged over the sine, this sets a ceiling:</p>
+<blockquote>
+<p>SNR<sub>jitter</sub> = −20 log<sub>10</sub>(2π f<sub>in</sub> σ<sub>t</sub>)</p>
+</blockquote>
+<p>With σ<sub>t</sub> = 6.05 ps, a 5 MHz input is limited to about 74.4 dB (roughly 12 effective bits), while a 50 MHz input is limited to about 54.4 dB (under 9 bits). The same converter with the same clock loses more than three bits just because the input frequency rose tenfold. Note what is <em>absent</em> from the formula: the sample rate and the ADC's resolution. A 16-bit converter clocked by this source and digitising 50 MHz is a 9-bit converter. For high-frequency sampling, the clock is part of the ADC.</p>
+<h2 id="why-radios-care">Why radios care</h2>
+<p>In a receiver, the local oscillator mixes the wanted channel down to baseband. Phase noise on the oscillator means the mixer is effectively a range of frequencies, so a strong signal in a neighbouring channel gets mixed down too, its energy spread by the oscillator's skirts onto the wanted channel. This is <strong>reciprocal mixing</strong>, and it is why radio standards push synthesiser phase noise at the offsets where adjacent channels sit. In the transmitter, the same skirts leak power into neighbouring channels. Close-in phase noise also rotates constellation points, limiting how dense a modulation can be used.</p>
+<p>Common pitfalls:</p>
+<ul>
+<li>Comparing jitter figures with different definitions or integration bandwidths</li>
+<li>Ignoring supply noise; ripple on an oscillator's supply appears as spurs and deterministic jitter</li>
+<li>Routing a sampling clock through ordinary logic gates, each of which adds its own jitter</li>
+<li>Budgeting only random jitter and forgetting reference spurs</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script with <strong>numpy</strong>, change the in-band plateau by 6 dB, and check that the jitter roughly doubles or halves when that region dominates.</li>
+<li>Generate a sampled sine with <strong>numpy</strong>, perturb each sample time by Gaussian noise of a chosen RMS, compute SNR from an FFT, and compare with the formula.</li>
+<li>Simulate a ring oscillator in <strong>ngspice</strong> with transient noise enabled (see the <code>trnoise</code> source option in the ngspice manual), record the edge times, and compute period and cycle-to-cycle jitter from them.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>jitter</li><li>phase noise</li><li>clocking</li><li>adc</li><li>pll</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="interfacing-water-quality-sensors.html"><span>Previous in Analog &amp; mixed-signal</span>Interfacing pH, conductivity and turbidity sensors: the analog side</a><a class="next" href="ldo-regulators-inside-chips.html"><span>Next in Analog &amp; mixed-signal</span>Low-dropout regulators inside chips: the loop, stability and dropout</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-a-pll.html">Inside a PLL: phase detector, charge pump, loop filter and VCO</a></h3>
+          <p>A phase-locked loop multiplies a slow, accurate crystal into a fast clock. Walk through what each block does, why the loop filter needs a resistor, and watch a simple model lock in Python.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

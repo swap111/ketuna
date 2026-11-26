@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inside an asynchronous FIFO: why the pointers cross in Gray code · Ketuna blog</title>
+  <meta name="description" content="An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Inside an asynchronous FIFO: why the pointers cross in Gray code · Ketuna blog">
+  <meta property="og:description" content="An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.">
+  <link rel="canonical" href="https://ketuna.online/blog/asynchronous-fifo-gray-pointers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/asynchronous-fifo-gray-pointers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Inside an asynchronous FIFO: why the pointers cross in Gray code",
+  "description": "An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "async fifo, cdc, gray code, synchronizer",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 1001,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/asynchronous-fifo-gray-pointers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Inside an asynchronous FIFO: why the pointers cross in Gray code</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-structure">The structure</a></li><li><a href="#why-binary-pointers-would-fail">Why binary pointers would fail</a></li><li><a href="#why-gray-code-fixes-it">Why Gray code fixes it</a></li><li><a href="#the-full-and-empty-compares">The full and empty compares</a></li><li><a href="#why-the-flags-are-pessimistic-and-why-that-is-safe">Why the flags are pessimistic, and why that is safe</a></li><li><a href="#pitfalls-seen-in-reviews">Pitfalls seen in reviews</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An asynchronous FIFO is the standard way to move a stream of data between two unrelated clocks. The memory itself is easy: a dual-port RAM written on one clock and read on the other. The hard part is that each side must know how full the FIFO is, and that requires sending a multi-bit pointer across the clock boundary, which is exactly what you are told never to do. The design works because of one property of Gray code, and every detail of the classic structure follows from protecting that property.</p>
+<h2 id="the-structure">The structure</h2>
+<p>Each side keeps its own pointer, in its own clock domain. The write side increments <code>wptr</code> on every write; the read side increments <code>rptr</code> on every read. The pointers are one bit wider than needed to address the memory, so that full and empty can be told apart: for a 16-entry FIFO they are 5 bits.</p>
+<p>To compute <strong>empty</strong>, the read side needs the write pointer. To compute <strong>full</strong>, the write side needs the read pointer. So each pointer is converted to Gray code in its home domain, registered, and passed through a two-flop synchronizer into the other domain.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="af-title af-desc" font-size="14">
+<title id="af-title">Asynchronous FIFO pointer crossing</title>
+<desc id="af-desc">On the left, the write clock domain holds the write pointer with its binary to Gray converter at the top and the full flag logic at the bottom. On the right, the read clock domain holds the empty flag logic at the top and the read pointer with its Gray converter at the bottom. A dual-port memory sits in the middle. Across the top, the write Gray pointer passes through a two-flop synchronizer to the empty logic; across the bottom, the read Gray pointer passes through another two-flop synchronizer to the full logic.</desc>
+<rect x="10" y="10" width="170" height="210" class="dg-track"/>
+<rect x="300" y="10" width="170" height="210" class="dg-track"/>
+<text x="95" y="30" text-anchor="middle" class="dg-muted">write clock</text>
+<text x="385" y="30" text-anchor="middle" class="dg-muted">read clock</text>
+<rect x="30" y="45" width="130" height="36" class="dg-box"/>
+<text x="95" y="68" text-anchor="middle" class="dg-text">wptr → Gray</text>
+<rect x="30" y="160" width="130" height="36" class="dg-box"/>
+<text x="95" y="183" text-anchor="middle" class="dg-text">full compare</text>
+<rect x="320" y="45" width="130" height="36" class="dg-box"/>
+<text x="385" y="68" text-anchor="middle" class="dg-text">empty compare</text>
+<rect x="320" y="160" width="130" height="36" class="dg-box"/>
+<text x="385" y="183" text-anchor="middle" class="dg-text">rptr → Gray</text>
+<rect x="200" y="95" width="80" height="50" class="dg-core"/>
+<text x="240" y="116" text-anchor="middle" class="dg-text">dual-port</text>
+<text x="240" y="134" text-anchor="middle" class="dg-text">RAM</text>
+<path d="M160,63 H225 M255,63 H320" class="dg-line"/>
+<rect x="225" y="53" width="30" height="20" class="dg-amber" fill-opacity="0.4"/>
+<path d="M314,59 L320,63 L314,67 Z" class="dg-arrow"/>
+<path d="M320,178 H255 M225,178 H160" class="dg-line"/>
+<rect x="225" y="168" width="30" height="20" class="dg-amber" fill-opacity="0.4"/>
+<path d="M166,174 L160,178 L166,182 Z" class="dg-arrow"/>
+<text x="240" y="45" text-anchor="middle" class="dg-muted">2-flop sync</text>
+<text x="240" y="208" text-anchor="middle" class="dg-muted">2-flop sync</text>
+</svg>
+<figcaption>Each Gray-coded pointer crosses into the other domain through its own two-flop synchronizer; the flags are computed where they are used.</figcaption>
+</figure>
+
+<h2 id="why-binary-pointers-would-fail">Why binary pointers would fail</h2>
+<p>Suppose the write pointer crossed in binary. Going from 7 (<code>0111</code>) to 8 (<code>1000</code>) changes four bits at once. The synchronizer flops in the read domain may sample this change on the edge where it happens, and each bit can resolve to old or new independently. The read side might see <code>1111</code> (15) or <code>0000</code> (0), or any mix. Seeing 15 would make it believe eight extra entries are present, and it would read garbage. Seeing 0 might make it think the FIFO is empty when it is not, which is harmless, but the first case corrupts data.</p>
+<h2 id="why-gray-code-fixes-it">Why Gray code fixes it</h2>
+<p>In Gray code consecutive values differ in exactly one bit. If the pointer changes from Gray(7) to Gray(8), only one bit is in flight. Whichever way that bit resolves in the synchronizer, the receiver sees either the old pointer or the new one, both of which were real values. The worst case is that it sees the old value for one extra cycle.</p>
+<p>This only holds if three conditions are true:</p>
+<ul>
+<li><strong>The pointer changes by at most one step per source clock.</strong> A write pointer that jumps by two would change more than one Gray bit.</li>
+<li><strong>The Gray value comes straight from a register.</strong> If it came from combinational logic, glitches on the conversion could put multi-bit hazards on the wire. Register the Gray code in the source domain before it crosses.</li>
+<li><strong>The depth is a power of two.</strong> Gray code is cyclic, with one bit changing on the wrap, only over a power-of-two range. A depth of 12 would make the wrap from 11 to 0 change several bits.</li>
+</ul>
+<p>Conversion is cheap in both directions:</p>
+<pre><code class="language-systemverilog">// binary to Gray: one XOR per bit
+function automatic logic [4:0] bin2gray(logic [4:0] b);
+  return b ^ (b &gt;&gt; 1);
+endfunction
+
+// Gray to binary: a prefix XOR from the top bit down
+function automatic logic [4:0] gray2bin(logic [4:0] g);
+  logic [4:0] b;
+  b[4] = g[4];
+  for (int i = 3; i &gt;= 0; i--) b[i] = b[i+1] ^ g[i];
+  return b;
+endfunction
+</code></pre>
+<h2 id="the-full-and-empty-compares">The full and empty compares</h2>
+<p>With N+1-bit pointers in binary, the FIFO is empty when the pointers are equal and full when the low N bits are equal and the top bits differ. In Gray code the empty test is still plain equality, compared in the read domain:</p>
+<pre><code class="language-systemverilog">assign empty = (rgray_next == wgray_sync);
+</code></pre>
+<p>The full test is less obvious. Because of the reflected structure of Gray code, the pattern that corresponds to "same position, one lap ahead" is the other pointer with its <strong>top two bits inverted</strong> and the rest equal:</p>
+<pre><code class="language-systemverilog">assign full = (wgray_next == {~rgray_sync[4:3], rgray_sync[2:0]});
+</code></pre>
+<p>You can check this by hand: for a 16-entry FIFO, binary 3 and binary 19 (3 + 16) are one lap apart. Gray(3) is <code>00010</code> and Gray(19) is <code>11010</code>. They differ in exactly the top two bits. Using <code>_next</code> values lets the flags be registered on the same edge as the pointer update, so they are ready without an extra cycle of delay.</p>
+<h2 id="why-the-flags-are-pessimistic-and-why-that-is-safe">Why the flags are pessimistic, and why that is safe</h2>
+<p>The synchronized pointer is two or three cycles old by the time it is compared. Consider each flag:</p>
+<ul>
+<li><strong>Empty</strong> uses a stale write pointer. The writer may have added entries the reader cannot see yet. So empty can stay asserted a little too long, but it can never deassert when the FIFO is truly empty, because the reader's own pointer is always current.</li>
+<li><strong>Full</strong> uses a stale read pointer. The reader may have freed entries the writer cannot see yet. So full can stay asserted a little too long, but never deasserts too early.</li>
+</ul>
+<p>Both errors are in the safe direction: a side may wait a few cycles unnecessarily, but it never overwrites unread data or reads empty slots. The cost is that the usable throughput near full or empty is slightly lower, which is one reason to size the FIFO with margin.</p>
+<h2 id="pitfalls-seen-in-reviews">Pitfalls seen in reviews</h2>
+<ul>
+<li>Synchronizing the binary pointer and converting to Gray afterwards</li>
+<li>Computing Gray in combinational logic and sending it across unregistered</li>
+<li>A non-power-of-two depth with the simple Gray scheme</li>
+<li>Timing exceptions that declare the whole crossing a false path, which also hides excessive skew between the Gray bits; a max-delay constraint on the crossing keeps the bits arriving within about one destination clock period of each other</li>
+<li>Using the almost-full count computed from a stale pointer as if it were exact</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the two conversion functions in Python, print Gray codes for 0 to 31, and confirm that each step, including the wrap from 31 to 0, changes one bit. Check the "top two bits inverted" rule for every pair one lap apart.</li>
+<li>Study the asynchronous FIFO lab in Track A of the program's lab set, or build your own, and simulate it in <strong>Icarus Verilog</strong> with clock periods that are not multiples of each other, such as 7 ns and 11 ns.</li>
+<li>Add an assertion in the write domain that <code>$countones(wgray ^ $past(wgray))</code> is at most 1 on every clock, and run it in simulation or with <strong>SymbiYosys</strong>.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>async fifo</li><li>cdc</li><li>gray code</li><li>synchronizer</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="sizing-a-fifo-for-bursts.html"><span>Previous in Digital &amp; VLSI design</span>How deep should a FIFO be? Sizing it from burst length and rate mismatch</a><a class="next" href="lint-warnings-that-point-at-bugs.html"><span>Next in Digital &amp; VLSI design</span>Lint warnings that point at real RTL bugs</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-a-two-flop-synchronizer-works.html">Why a two-flop synchronizer works, and when it doesn&#x27;t</a></h3>
+          <p>A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

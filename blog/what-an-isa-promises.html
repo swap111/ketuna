@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What an instruction set promises, and what it leaves to the hardware · Ketuna blog</title>
+  <meta name="description" content="An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What an instruction set promises, and what it leaves to the hardware · Ketuna blog">
+  <meta property="og:description" content="An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-an-isa-promises.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-an-isa-promises.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What an instruction set promises, and what it leaves to the hardware",
+  "description": "An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "isa, risc-v, microarchitecture, computer architecture",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1150,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-an-isa-promises.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>What an instruction set promises, and what it leaves to the hardware</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An instruction set is a contract. Learn exactly what it guarantees to software, what it deliberately leaves open, and why that freedom lets one binary run on very different cores.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-contract-in-one-sentence">The contract in one sentence</a></li><li><a href="#the-sequential-illusion">The sequential illusion</a></li><li><a href="#a-worked-example-one-loop-two-cores">A worked example: one loop, two cores</a></li><li><a href="#the-freedom-the-isa-leaves-on-purpose">The freedom the ISA leaves on purpose</a></li><li><a href="#why-the-line-matters-to-engineers">Why the line matters to engineers</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A compiled program for a small RISC-V microcontroller core can also run, unchanged, on a much larger RISC-V core with a deep pipeline and caches. The two chips share almost no circuits, yet both produce the same answer. That works because both honour the same contract: the instruction set architecture, or ISA. Knowing what the contract says, and what it does not say, tells a hardware engineer which parts of a design are free to change and which must never move.</p>
+<h2 id="the-contract-in-one-sentence">The contract in one sentence</h2>
+<p>The ISA defines the <strong>architectural state</strong> of the machine and how each instruction changes it. Architectural state is everything software can observe: the program counter (PC), the integer registers, memory, and the control and status registers (CSRs). An instruction such as <code>add x3, x1, x2</code> is defined purely as a state change: read x1 and x2, write their sum into x3, and advance the PC by 4.</p>
+<p>Notice what is missing from that definition. It says nothing about how many clock cycles the add takes, which adder circuit does the work, or whether the result sits in a pipeline register for a while before reaching the register file. Those choices belong to the <strong>microarchitecture</strong>, the particular way one chip implements the ISA.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Promised by the ISA</th>
+<th>Left to the microarchitecture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register count and width</td>
+<td>Pipeline depth and stage split</td>
+</tr>
+<tr>
+<td>Instruction encodings and meaning</td>
+<td>Adder, multiplier and divider circuits</td>
+</tr>
+<tr>
+<td>Memory model and byte order</td>
+<td>Caches, buffers, prefetchers</td>
+</tr>
+<tr>
+<td>Which events cause traps, and what state a trap leaves</td>
+<td>Branch prediction, speculation</td>
+</tr>
+<tr>
+<td>CSR names and behaviour</td>
+<td>Clock frequency, cycles per instruction</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="the-sequential-illusion">The sequential illusion</h2>
+<p>The strongest promise is this: the result must look as if instructions ran <strong>one at a time, in program order</strong>, each finishing before the next begins. A pipelined core overlaps five instructions; an out-of-order core may execute a later instruction before an earlier one. Both are allowed, as long as software can never tell.</p>
+<p>This is why pipelines need forwarding and stall logic. If <code>add x3, x1, x2</code> is followed by <code>sub x5, x3, x4</code>, the subtract must see the new x3 even though the add has not reached the register file yet. The hazard logic exists only to keep the sequential promise.</p>
+<p>The same promise covers traps. When an instruction faults, for example a load from a misaligned address on a core that does not support it, the ISA requires a <strong>precise</strong> trap: every older instruction has completed, the faulting one and every younger one have had no effect, and a CSR (<code>mepc</code> in RISC-V machine mode) records exactly which instruction faulted. A core that speculatively ran three younger instructions must throw their results away before the handler starts.</p>
+<h2 id="a-worked-example-one-loop-two-cores">A worked example: one loop, two cores</h2>
+<p>Take a short loop that sums an array of 100 words. The compiler produces the same five instructions per iteration whichever core you buy:</p>
+<pre><code class="language-text">loop: lw   t1, 0(a0)      # load a word
+      add  t0, t0, t1     # accumulate
+      addi a0, a0, 4      # next address
+      addi a1, a1, -1     # count down
+      bnez a1, loop       # repeat while count != 0
+</code></pre>
+<p>That is 500 instructions for the loop body. Now compare two imaginary cores (numbers made up for illustration):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Core A: multi-cycle</th>
+<th>Core B: 5-stage pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clock</td>
+<td>50 MHz (20 ns)</td>
+<td>200 MHz (5 ns)</td>
+</tr>
+<tr>
+<td>Average cycles per instruction</td>
+<td>4.0</td>
+<td>1.3</td>
+</tr>
+<tr>
+<td>Time for 500 instructions</td>
+<td>500 × 4.0 × 20 ns = 40 µs</td>
+<td>500 × 1.3 × 5 ns = 3.25 µs</td>
+</tr>
+</tbody>
+</table></div>
+<p>The architectural result is identical: the same sum in <code>t0</code>, the same final values of <code>a0</code> and <code>a1</code>, the same memory contents. Only the time differs, and time is not part of the contract. That is precisely the freedom that lets one core be tiny and another fast.</p>
+<h2 id="the-freedom-the-isa-leaves-on-purpose">The freedom the ISA leaves on purpose</h2>
+<p>Good ISAs leave more open than you might expect, because every guarantee costs hardware somewhere. RISC-V is a useful example because its specification is open and explicit about these choices.</p>
+<ul>
+<li><strong>Optional extensions.</strong> The base integer set (RV32I) is small. Multiply and divide (M), atomics (A), compressed 16-bit instructions (C) and floating point (F, D) are optional. A core declares what it implements, and the toolchain is told the same through the <code>-march</code> option.</li>
+<li><strong>Misaligned accesses.</strong> A core may handle a word load from an odd address in hardware, or it may trap and let software emulate it. Both are legal. Software that wants to be portable avoids misaligned accesses.</li>
+<li><strong>Fields with legal-value rules.</strong> Many CSR fields are specified as "write any value, read back a legal one". A core that supports only one interrupt-vector mode can hard-wire the mode bits, and software discovers this by writing and reading back.</li>
+<li><strong>Timing.</strong> The ISA never promises how long anything takes. Code that relies on a delay loop taking a fixed time is relying on the microarchitecture, not the contract, and will break on the next core.</li>
+<li><strong>Memory ordering.</strong> RISC-V uses a relaxed memory model. A core may let a later load overtake an earlier store to a different address, so software that needs ordering (for device registers or for other cores) must ask for it with a <code>fence</code> instruction.</li>
+</ul>
+<h2 id="why-the-line-matters-to-engineers">Why the line matters to engineers</h2>
+<p>For a <strong>hardware designer</strong>, the contract is a licence: change anything below the line, as long as the architectural behaviour is unchanged. Adding a cache, deepening a pipeline or replacing a slow divider are all invisible to software if done correctly.</p>
+<p>For a <strong>verification engineer</strong>, the contract is the reference. A common technique is to run the same program on the RTL and on an instruction set simulator, and compare the architectural state after every retired instruction. Cycle counts are expected to differ; register and memory values are not.</p>
+<p>For a <strong>firmware engineer</strong>, the contract says what is portable. Code written to the ISA and its standard calling convention (the ABI, which says which register holds arguments, return address and stack pointer) moves between cores. Code that depends on cycle counts or undocumented behaviour does not.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Treating a particular core's timing as part of the ISA.</strong> Cycle-counted delays work on one chip and fail on the next.</li>
+<li><strong>Confusing ISA and ABI.</strong> The ISA says x1 is a register; the ABI says it holds the return address. Hand-written assembly must follow both.</li>
+<li><strong>Assuming every extension is present.</strong> Code built for RV32IMC raises illegal-instruction traps on an RV32I core.</li>
+<li><strong>Leaking microarchitecture into behaviour.</strong> If a design returns a different result depending on pipeline state, it has broken the contract, even if the test suite happened to pass.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install a RISC-V GCC cross-compiler and compile a small C function twice, with <code>-march=rv32i -mabi=ilp32</code> and with <code>-march=rv32imc -mabi=ilp32</code>, adding <code>-S</code> to see the assembly. Note which instructions change and why.</li>
+<li>Run the binary on an instruction set simulator such as Spike or QEMU (<code>qemu-riscv32</code> in user mode) and confirm the result.</li>
+<li>If you have a small open-source RV32I core in Verilog, run the same program in Icarus Verilog or Verilator and compare the final register values with the simulator. Count cycles in both and notice that only the time differs.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>isa</li><li>risc-v</li><li>microarchitecture</li><li>computer architecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="drone-flight-controller-soc-needs.html"><span>Previous in Computer architecture &amp; RISC-V</span>What a drone flight-controller SoC needs: latency, sensor interfaces and safety</a><a class="next" href="why-riscv-scrambles-immediates.html"><span>Next in Computer architecture &amp; RISC-V</span>Why RISC-V scrambles its immediate bits</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="reading-the-riscv-specification.html">How to read the RISC-V specification without getting lost</a></h3>
+          <p>A reading order for the RISC-V manuals, how extension names like RV32IMAC_Zicsr are built, how to read the encoding tables, and the handful of specification words that change what you must implement.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How a bandgap reference makes a voltage that ignores temperature · Ketuna blog</title>
+  <meta name="description" content="A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How a bandgap reference makes a voltage that ignores temperature · Ketuna blog">
+  <meta property="og:description" content="A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.">
+  <link rel="canonical" href="https://ketuna.online/blog/bandgap-reference-intuition.html">
+  <meta property="og:url" content="https://ketuna.online/blog/bandgap-reference-intuition.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How a bandgap reference makes a voltage that ignores temperature",
+  "description": "A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bandgap, voltage reference, ptat, temperature, analog design",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1091,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/bandgap-reference-intuition.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>How a bandgap reference makes a voltage that ignores temperature</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-voltages-that-move-in-opposite-directions">Two voltages that move in opposite directions</a></li><li><a href="#why-it-is-called-a-bandgap">Why it is called a bandgap</a></li><li><a href="#the-circuit-that-does-the-addition">The circuit that does the addition</a></li><li><a href="#what-limits-accuracy">What limits accuracy</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every ADC needs a reference voltage, every regulator needs something to regulate to, and every brown-out detector needs a threshold. On a chip, almost all of these trace back to one block: the bandgap reference. Its job is to produce a voltage, typically near 1.2 V, that barely moves as the die heats from −40 °C to 125 °C and as the supply wanders. It does that not by finding a component that ignores temperature, but by adding two quantities whose temperature dependences cancel.</p>
+<h2 id="two-voltages-that-move-in-opposite-directions">Two voltages that move in opposite directions</h2>
+<p>The first ingredient is the base-emitter voltage V<sub>BE</sub> of a forward-biased bipolar junction at constant current. It <strong>falls</strong> as temperature rises, roughly linearly, by around 2 mV per kelvin in silicon (the exact slope depends on current density and process). A voltage with this behaviour is called <strong>CTAT</strong>, complementary to absolute temperature.</p>
+<p>The second ingredient comes from two junctions run at different current densities. A junction's voltage depends logarithmically on its current density, so if transistor Q<sub>2</sub> has n times the emitter area of Q<sub>1</sub> and both carry the same current, the difference in their V<sub>BE</sub> is:</p>
+<blockquote>
+<p>ΔV<sub>BE</sub> = V<sub>T</sub> × ln(n),  where V<sub>T</sub> = kT/q</p>
+</blockquote>
+<p>This difference is <strong>PTAT</strong>, proportional to absolute temperature, and remarkably clean: the process-dependent saturation currents cancel in the difference, leaving only fundamental constants, the temperature and an area ratio you set in layout. At 300 K, V<sub>T</sub> ≈ 25.85 mV, so for n = 8, ΔV<sub>BE</sub> ≈ 25.85 × ln 8 ≈ 53.8 mV, with a slope of k·ln(8)/q ≈ 0.179 mV/K.</p>
+<p>The PTAT slope is about ten times smaller than the CTAT slope, so it must be amplified. If you scale ΔV<sub>BE</sub> by a factor K and add it to V<sub>BE</sub>, the slopes cancel when K × 0.179 mV/K ≈ 2 mV/K, giving K ≈ 11.2.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="bg-title bg-desc" font-size="14">
+<title id="bg-title">Adding CTAT and PTAT voltages to get a flat reference</title>
+<desc id="bg-desc">Voltage against temperature. A falling line labelled V_BE, a rising line labelled K times delta V_BE, and a flat line near 1.25 volts labelled reference, which is their sum.</desc>
+<line x1="60" y1="220" x2="460" y2="220" class="dg-line"/>
+<line x1="60" y1="220" x2="60" y2="20" class="dg-line"/>
+<text x="380" y="242" class="dg-text">temperature</text>
+<text x="10" y="30" class="dg-text">V</text>
+<line x1="70" y1="45" x2="450" y2="45" class="dg-amber-line" stroke-width="3"/>
+<text x="330" y="38" class="dg-text">VREF ≈ 1.25 V</text>
+<line x1="70" y1="120" x2="450" y2="185" class="dg-line" stroke-width="2"/>
+<text x="360" y="200" class="dg-text">VBE (falls)</text>
+<line x1="70" y1="175" x2="450" y2="110" class="dg-dash" stroke-width="2"/>
+<text x="300" y="108" class="dg-text">K·ΔVBE (rises)</text>
+<text x="70" y="240" class="dg-muted">−40 °C</text>
+<text x="230" y="240" class="dg-muted">25 °C</text>
+</svg>
+<figcaption>The slopes of the falling and rising terms cancel, so their sum stays nearly constant over temperature.</figcaption>
+</figure>
+
+<h2 id="why-it-is-called-a-bandgap">Why it is called a bandgap</h2>
+<p>Add the numbers. With V<sub>BE</sub> = 0.65 V at 300 K (an illustrative value) and K = 11.16, the reference is 0.65 + 11.16 × 0.0538 ≈ <strong>1.25 V</strong>. Using the same simple linear model at −40 °C and 125 °C gives values within a fraction of a millivolt of that.</p>
+<p>The result is no coincidence. Extrapolate V<sub>BE</sub> back to absolute zero and it approaches roughly the bandgap energy of silicon, expressed in volts. Cancelling the temperature slope at room temperature effectively recreates that extrapolated value, so every bandgap reference built in silicon lands near 1.2 V regardless of the exact currents. That near-universal value gives the circuit its name.</p>
+<h2 id="the-circuit-that-does-the-addition">The circuit that does the addition</h2>
+<p>A common CMOS implementation uses two bipolar transistors that come almost free in a standard CMOS process: the substrate acts as a collector, an n-well as the base and a p+ diffusion as the emitter, forming a <strong>vertical PNP</strong>. Q<sub>1</sub> is one unit; Q<sub>2</sub> is eight units in parallel.</p>
+<ul>
+<li>Branch A: a resistor R<sub>2</sub> from the output node to the emitter of Q<sub>1</sub>.</li>
+<li>Branch B: an equal resistor R<sub>2</sub> from the output node to a resistor R<sub>1</sub>, then to the emitter of Q<sub>2</sub>.</li>
+<li>An op-amp senses the voltage at the top of Q<sub>1</sub> and the top of R<sub>1</sub>, and drives the output node until they are equal.</li>
+</ul>
+<p>With the two sensed nodes equal, the voltage across R<sub>1</sub> is V<sub>BE1</sub> − V<sub>BE2</sub> = ΔV<sub>BE</sub>. The branch current is therefore ΔV<sub>BE</sub>/R<sub>1</sub>, a PTAT current, and because the R<sub>2</sub> resistors are equal and see equal voltages, both branches carry it. The output is the Q<sub>1</sub> emitter voltage plus the drop across R<sub>2</sub>:</p>
+<blockquote>
+<p>V<sub>REF</sub> = V<sub>BE1</sub> + (R<sub>2</sub> / R<sub>1</sub>) × V<sub>T</sub> ln(n)</p>
+</blockquote>
+<p>The scaling factor K is simply a resistor ratio, which matches well on chip and has little temperature coefficient when both resistors are the same type. For K ≈ 11.2 and R<sub>1</sub> = 10 kΩ, R<sub>2</sub> ≈ 112 kΩ and the branch current at 300 K is 53.8 mV / 10 kΩ ≈ 5.4 µA. These values are illustrative; a real design picks currents for noise and area, and then trims.</p>
+<h2 id="what-limits-accuracy">What limits accuracy</h2>
+<p>A first bandgap simulation often looks perfect over temperature. Monte Carlo and corners tell a different story.</p>
+<ul>
+<li><strong>Op-amp offset is amplified.</strong> An offset V<sub>os</sub> appears in series with ΔV<sub>BE</sub>, so it is multiplied by about (1 + R<sub>2</sub>/R<sub>1</sub>). With K ≈ 11, a 2 mV offset shifts the output by roughly 24 mV. This is usually the dominant error, which is why bandgaps use large input devices, chopping, or trimming.</li>
+<li><strong>Curvature.</strong> V<sub>BE</sub> is not exactly linear in temperature, so cancelling the linear slope leaves a small bowed residual, with the output peaking near the temperature where the slopes cancel. Curvature-correction techniques add a small nonlinear term to flatten it.</li>
+<li><strong>Process spread of V<sub>BE</sub>.</strong> The absolute V<sub>BE</sub> varies from die to die, shifting both the output and the temperature at which the slopes cancel. Production parts usually trim a resistor ratio at test.</li>
+<li><strong>Resistor and transistor mismatch.</strong> An error in the area ratio n, or between the two R<sub>2</sub> resistors, enters directly. Common-centroid layout of the bipolar array (one unit surrounded by eight) and matched resistor segments are standard.</li>
+<li><strong>Start-up.</strong> The circuit has a second stable state in which all currents are zero and the op-amp is content. Every bandgap needs a start-up circuit that injects current at power-up and then disconnects. Forgetting it gives a chip that works in simulation, where solvers often find the intended state, and fails on the bench.</li>
+<li><strong>Supply rejection.</strong> Noise on the supply reaches the output through the op-amp and the current sources; the op-amp's loop gain at the noise frequency sets how well it is rejected.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the linear model above in Python: V<sub>BE</sub>(T) as a straight line, ΔV<sub>BE</sub>(T) from kT/q·ln(n), and sweep K to find the value that makes the output flattest from −40 °C to 125 °C.</li>
+<li>In <strong>ngspice</strong> with the sky130 models, find the PDK's parasitic PNP device, bias it with a constant current, and run <code>.dc temp -40 125 5</code> to measure its real V<sub>BE</sub> slope.</li>
+<li>Build the full circuit with an ideal op-amp (a high-gain voltage-controlled source), sweep temperature, and look for the curvature. Then add a 2 mV offset source at the op-amp input and measure the output shift against your estimate.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bandgap</li><li>voltage reference</li><li>ptat</li><li>temperature</li><li>analog design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="how-a-sar-adc-converts.html"><span>Previous in Analog &amp; mixed-signal</span>How a SAR ADC converts: binary search with a capacitor DAC</a><a class="next" href="inside-a-pll.html"><span>Next in Analog &amp; mixed-signal</span>Inside a PLL: phase detector, charge pump, loop filter and VCO</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="hand-calculation-before-simulation.html">Hand calculation before simulation: the analog designer&#x27;s habit</a></h3>
+          <p>A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-differential-pair.html">The differential pair: why analog designers love it</a></h3>
+          <p>Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

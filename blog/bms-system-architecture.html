@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection · Ketuna blog</title>
+  <meta name="description" content="How to partition a BMS for a small lithium traction pack into cell sensing, current and temperature measurement, balancing, layered protection, precharge and communication, and the trade-offs at each boundary.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection · Ketuna blog">
+  <meta property="og:description" content="How to partition a BMS for a small lithium traction pack into cell sensing, current and temperature measurement, balancing, layered protection, precharge and communication, and the trade-offs at each boundary.">
+  <link rel="canonical" href="https://ketuna.online/blog/bms-system-architecture.html">
+  <meta property="og:url" content="https://ketuna.online/blog/bms-system-architecture.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection",
+  "description": "How to partition a BMS for a small lithium traction pack into cell sensing, current and temperature measurement, balancing, layered protection, precharge and communication, and the trade-offs at each boundary.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bms, battery, e-mobility, protection, system architecture",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1110,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/bms-system-architecture.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>System architecture of a BMS for e-rickshaw batteries: sensing, balancing and protection</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to partition a BMS for a small lithium traction pack into cell sensing, current and temperature measurement, balancing, layered protection, precharge and communication, and the trade-offs at each boundary.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-pack-and-what-can-go-wrong">The pack and what can go wrong</a></li><li><a href="#partitioning-the-functions">Partitioning the functions</a></li><li><a href="#layered-independent-protection">Layered, independent protection</a></li><li><a href="#balancing">Balancing</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A lithium traction pack in a three-wheeler stores enough energy to start a fire, and it lives a hard life: deep daily cycles, high currents on hills, heat, dust, vibration and charging from supplies of uncertain quality. The battery management system (BMS) is what keeps every cell inside its safe window under those conditions. Getting its architecture right, meaning which function lives where and which protections are independent of which, matters more than any single component choice. This article walks through the partitioning for an illustrative 48 V-class pack.</p>
+<p>Lithium batteries are hazardous. A real BMS for a vehicle must be designed, tested and certified against the applicable battery and vehicle safety standards, under qualified supervision. This article is about architecture, not a design to build.</p>
+<h2 id="the-pack-and-what-can-go-wrong">The pack and what can go wrong</h2>
+<p>Take, for illustration, sixteen lithium iron phosphate (LFP) cells in series, 16S. With a nominal 3.2 V per cell, the pack is 51.2 V nominal; with an illustrative per-cell window of 2.5 V to 3.65 V, the pack spans 40.0 V to 58.4 V. Use the cell datasheet's actual limits in a real design.</p>
+<p>Start the architecture from the hazards, not from a block diagram. A short list:</p>
+<ul>
+<li><strong>Overcharge</strong> of any single cell, even if the pack voltage looks fine.</li>
+<li><strong>Over-discharge</strong>, which damages cells and can make later charging unsafe.</li>
+<li><strong>Overcurrent and short circuit</strong>, from a motor controller fault or a damaged cable.</li>
+<li><strong>Over-temperature</strong> while charging or discharging, and charging when too cold.</li>
+<li><strong>Cell imbalance</strong>, which lets one cell hit its limit while the others have capacity left.</li>
+<li><strong>BMS failure itself:</strong> a stuck switch, a frozen processor, a broken sense wire.</li>
+</ul>
+<p>Each hazard needs a detection path and a response. The architecture is mostly about making those paths fast enough and independent enough.</p>
+<h2 id="partitioning-the-functions">Partitioning the functions</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 280" role="img" aria-labelledby="bm-title bm-desc" font-size="14">
+<title id="bm-title">Block diagram of a small traction pack BMS</title>
+<desc id="bm-desc">On the left, a stack of series cells with sense wires and temperature sensors going to an analogue front end. The front end connects to a microcontroller. The pack negative passes through a current shunt and back-to-back protection MOSFETs to the load terminal. A fuse sits in the positive path. The front end drives the MOSFETs directly for fast protection, and the microcontroller can also open them. The microcontroller connects to the vehicle controller and charger over a communication bus. A precharge path bypasses the main switch.</desc>
+<rect x="20" y="30" width="60" height="200" rx="4" class="dg-track"/>
+<text x="50" y="135" text-anchor="middle" class="dg-text">16S</text>
+<text x="50" y="155" text-anchor="middle" class="dg-muted">cells</text>
+<rect x="120" y="60" width="110" height="70" rx="4" class="dg-box"/>
+<text x="175" y="90" text-anchor="middle" class="dg-text">AFE</text>
+<text x="175" y="110" text-anchor="middle" class="dg-muted">V, T, balance</text>
+<line x1="80" y1="70" x2="120" y2="70" class="dg-line"/>
+<line x1="80" y1="90" x2="120" y2="90" class="dg-line"/>
+<line x1="80" y1="110" x2="120" y2="110" class="dg-line"/>
+<text x="100" y="55" text-anchor="middle" class="dg-muted">sense</text>
+<rect x="290" y="60" width="110" height="70" rx="4" class="dg-core"/>
+<text x="345" y="90" text-anchor="middle" class="dg-text">MCU</text>
+<text x="345" y="110" text-anchor="middle" class="dg-muted">SoC, faults</text>
+<line x1="230" y1="95" x2="290" y2="95" class="dg-line"/>
+<rect x="410" y="80" width="60" height="30" rx="4" class="dg-box"/>
+<text x="440" y="100" text-anchor="middle" class="dg-text">bus</text>
+<line x1="400" y1="95" x2="410" y2="95" class="dg-line"/>
+<rect x="120" y="200" width="70" height="34" rx="4" class="dg-box"/>
+<text x="155" y="222" text-anchor="middle" class="dg-text">shunt</text>
+<rect x="230" y="200" width="110" height="34" rx="4" class="dg-amber" fill-opacity="0.35"/>
+<text x="285" y="222" text-anchor="middle" class="dg-text">FET switch</text>
+<line x1="80" y1="217" x2="120" y2="217" class="dg-line"/>
+<line x1="190" y1="217" x2="230" y2="217" class="dg-line"/>
+<line x1="340" y1="217" x2="460" y2="217" class="dg-line"/>
+<text x="455" y="208" text-anchor="end" class="dg-text">PACK−</text>
+<rect x="250" y="248" width="70" height="24" rx="4" class="dg-track"/>
+<text x="285" y="265" text-anchor="middle" class="dg-muted">precharge</text>
+<line x1="225" y1="217" x2="225" y2="260" class="dg-dash"/>
+<line x1="225" y1="260" x2="250" y2="260" class="dg-dash"/>
+<line x1="320" y1="260" x2="350" y2="260" class="dg-dash"/>
+<line x1="350" y1="260" x2="350" y2="217" class="dg-dash"/>
+<line x1="155" y1="200" x2="155" y2="130" class="dg-line"/>
+<line x1="210" y1="130" x2="260" y2="200" class="dg-amber-line" stroke-width="2"/>
+<text x="250" y="160" class="dg-muted">fast trip</text>
+<line x1="330" y1="130" x2="310" y2="200" class="dg-line"/>
+<rect x="20" y="8" width="60" height="18" rx="3" class="dg-box"/>
+<text x="50" y="22" text-anchor="middle" class="dg-muted">fuse</text>
+</svg>
+<figcaption>The front end measures and can trip the switch in hardware; the microcontroller handles estimation, slower limits and communication; the fuse is the last, independent line.</figcaption>
+</figure>
+
+<p><strong>Cell sensing in an analogue front end (AFE).</strong> A multi-cell monitor chip measures every cell voltage through sense wires, reads temperature sensors, and drives balancing switches. Many such chips also include hardware comparators for overvoltage, undervoltage, overcurrent and short circuit that can open the protection switch without software. Placing the AFE close to the cells keeps sense wires short; its accuracy sets how close to the cell limits you can safely operate.</p>
+<p><strong>Current measurement.</strong> A low-resistance shunt in the pack negative, read by the AFE or a dedicated amplifier, serves both protection (fast) and charge counting (accurate). A Hall-effect sensor avoids the shunt's power loss and offers isolation, at the cost of offset drift that hurts charge counting.</p>
+<p><strong>Temperature.</strong> Sensors on cells at the expected hot and cold spots, on the protection switch and on busbars. Charging limits at low temperature are as important as limits at high temperature.</p>
+<p><strong>The protection switch.</strong> For a pack of this size, back-to-back MOSFETs are common: two sets in series with opposite orientation, so the body diodes cannot conduct in either direction when off, and charge and discharge can be blocked separately. Conduction loss matters: at an illustrative 60 A continuous through a path of 2 mΩ total, the switch dissipates 60<sup>2</sup> × 0.002 = 7.2 W, which needs a thermal design. Low-side switching is simpler to drive; high-side switching keeps the pack negative continuous with the vehicle ground, which helps communication and safety, but needs a charge-pump driver. Larger packs often use contactors instead.</p>
+<p><strong>Precharge.</strong> The motor controller has large input capacitors. Closing the main switch onto them directly causes a huge inrush current. A precharge path through a resistor charges them first, and the main switch closes only when the voltage difference is small.</p>
+<p><strong>The microcontroller.</strong> It estimates state of charge (by counting charge and correcting with voltage at rest) and state of health, enforces slower limits such as temperature-dependent current limits, logs faults, and talks to the motor controller, charger and display, commonly over CAN or a serial bus.</p>
+<p><strong>The fuse.</strong> A fuse or pyrotechnic disconnect sized for the pack is the last line, independent of all electronics.</p>
+<h2 id="layered-independent-protection">Layered, independent protection</h2>
+<p>The key architectural idea is <strong>layering</strong>. Each hazard has more than one path, with different speeds and different failure modes:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Speed</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AFE hardware comparators</td>
+<td>Microseconds to milliseconds</td>
+<td>Short circuit, gross over and under voltage</td>
+</tr>
+<tr>
+<td>Microcontroller firmware</td>
+<td>Milliseconds to seconds</td>
+<td>Temperature limits, current derating, charge control</td>
+</tr>
+<tr>
+<td>Fuse</td>
+<td>Set by its curve</td>
+<td>Sustained fault current if switches fail closed</td>
+</tr>
+</tbody>
+</table></div>
+<p>Firmware is flexible but can hang; hardware comparators are fast but crude; the fuse is dumb but needs nothing to work. An FMEA should check that no single failure removes all protection for any hazard. For example, if the switch is the only response to overcharge and it fails shorted, the charger must also be told to stop, which is why the communication link carries charge permission, and why the charger should stop when communication is lost.</p>
+<h2 id="balancing">Balancing</h2>
+<p>Cells differ slightly in capacity and self-discharge, so their states of charge drift apart. <strong>Passive balancing</strong> bleeds energy from higher cells through resistors near the top of charge. With an illustrative 39 Ω resistor across a 3.3 V cell, the bleed current is about 85 mA and the resistor dissipates about 0.28 W per cell. Correcting a 1 Ah imbalance at that current takes nearly 12 hours of balancing time, spread over charge sessions. That is acceptable if cells are well matched; heat from sixteen resistors on one board needs attention. <strong>Active balancing</strong> moves energy between cells with switched converters, which is faster and less wasteful but more complex. For a small LFP pack, passive balancing with well-matched cells is the usual starting point.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Relying on pack voltage.</strong> One cell can be overcharged while the total looks normal; every cell must be measured.</li>
+<li><strong>Protection only in firmware.</strong> A hung processor must not leave the pack unprotected.</li>
+<li><strong>No plan for a broken sense wire.</strong> The AFE should detect open wires rather than reading a wrong voltage.</li>
+<li><strong>Forgetting low-temperature charging limits.</strong></li>
+<li><strong>Ignoring precharge.</strong> Inrush damages switches and connectors over time.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a hazard list for the pack above and, for each hazard, name the detection path and response at each protection layer. Find any hazard with only one layer.</li>
+<li>In <strong>ngspice</strong>, model the precharge circuit: a 58 V source, a precharge resistor and the controller's input capacitance, and pick a resistor that limits peak current while charging the capacitor in an acceptable time.</li>
+<li>Write a simple charge-counting state-of-charge estimator in Python and feed it a synthetic current profile with a small sensor offset. Watch how the estimate drifts, and add correction from rest voltage.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bms</li><li>battery</li><li>e-mobility</li><li>protection</li><li>system architecture</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="drone-controller-safety-analysis.html"><span>Previous in Systems &amp; product engineering</span>Safety analysis for a drone controller: failure modes and fail-safe behaviour</a><a class="next" href="smart-meter-tamper-and-security.html"><span>Next in Systems &amp; product engineering</span>Tamper detection and security requirements for an energy meter</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="a-risk-register-people-use.html">A risk register that people actually use</a></h3>
+          <p>How to write risks as cause, event and effect, rate them on probability and impact, give each an owner and a trigger, and review the register weekly so it changes decisions instead of gathering dust.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="agile-for-hardware-teams.html">Agile for hardware teams: what works when you cannot ship every week</a></h3>
+          <p>Which agile habits carry over to hardware and chip projects, where boards take weeks to arrive: short planning cycles, visible work boards, demos of intermediate results and fixed gates for irreversible steps.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AXI&#x27;s five channels and why reads and writes are separate · Ketuna blog</title>
+  <meta name="description" content="Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="AXI&#x27;s five channels and why reads and writes are separate · Ketuna blog">
+  <meta property="og:description" content="Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.">
+  <link rel="canonical" href="https://ketuna.online/blog/axi-five-channels.html">
+  <meta property="og:url" content="https://ketuna.online/blog/axi-five-channels.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "AXI's five channels and why reads and writes are separate",
+  "description": "Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "axi, on-chip buses, handshake, bursts, soc design",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 1062,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/axi-five-channels.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>AXI&#x27;s five channels and why reads and writes are separate</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Why AXI splits a transaction into five handshaked channels, what the valid/ready rules prevent, how bursts and wrap addresses work, and how many outstanding transactions it takes to hide memory latency.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-five-channels">The five channels</a></li><li><a href="#why-reads-and-writes-are-separate">Why reads and writes are separate</a></li><li><a href="#the-validready-rules">The valid/ready rules</a></li><li><a href="#bursts-and-their-address-rules">Bursts and their address rules</a></li><li><a href="#outstanding-transactions-and-ids">Outstanding transactions and IDs</a></li><li><a href="#failure-modes-worth-testing">Failure modes worth testing</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Simple buses tie a transfer's address, data and response together in one sequence: nothing else happens until the current transfer ends. That is fine for register access and wasteful for memory, where a request may take tens of cycles to answer. AXI takes the opposite approach. It breaks every transaction into independent channels, each with its own flow control, so that requests, data and responses can all be in flight at once. Understanding why the split is drawn where it is, and what rules make it safe, is the key to designing and verifying AXI blocks.</p>
+<h2 id="the-five-channels">The five channels</h2>
+<p>A read uses two channels and a write uses three:</p>
+<ul>
+<li><strong>AR (read address):</strong> the manager sends the address, burst length, size, type and an ID.</li>
+<li><strong>R (read data):</strong> the subordinate returns the data beats, each tagged with the ID and a response, with <code>RLAST</code> on the final beat.</li>
+<li><strong>AW (write address):</strong> the manager sends the write's address and burst information.</li>
+<li><strong>W (write data):</strong> the manager sends the data beats with byte strobes (<code>WSTRB</code>), <code>WLAST</code> on the last.</li>
+<li><strong>B (write response):</strong> the subordinate sends one response per write burst, after it has accepted all the data.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="ax-title ax-desc" font-size="14">
+<title id="ax-title">The five AXI channels between a manager and a subordinate</title>
+<desc id="ax-desc">A manager on the left and a subordinate on the right are joined by five arrows. Write address, write data and read address point from manager to subordinate. Write response and read data point back from subordinate to manager. Each channel has its own valid and ready signals.</desc>
+<rect x="10" y="20" width="100" height="190" class="dg-core"/><text x="60" y="120" text-anchor="middle" class="dg-text">manager</text>
+<rect x="370" y="20" width="100" height="190" class="dg-core"/><text x="420" y="120" text-anchor="middle" class="dg-text">subordinate</text>
+<line x1="110" y1="45" x2="362" y2="45" class="dg-line"/><path d="M362,41 L370,45 L362,49 Z" class="dg-arrow"/><text x="240" y="38" text-anchor="middle" class="dg-text">AW: write address</text>
+<line x1="110" y1="85" x2="362" y2="85" class="dg-line"/><path d="M362,81 L370,85 L362,89 Z" class="dg-arrow"/><text x="240" y="78" text-anchor="middle" class="dg-text">W: write data + strobes</text>
+<line x1="370" y1="125" x2="118" y2="125" class="dg-amber-line"/><path d="M118,121 L110,125 L118,129 Z" class="dg-arrow"/><text x="240" y="118" text-anchor="middle" class="dg-text">B: write response</text>
+<line x1="110" y1="165" x2="362" y2="165" class="dg-line"/><path d="M362,161 L370,165 L362,169 Z" class="dg-arrow"/><text x="240" y="158" text-anchor="middle" class="dg-text">AR: read address</text>
+<line x1="370" y1="200" x2="118" y2="200" class="dg-amber-line"/><path d="M118,196 L110,200 L118,204 Z" class="dg-arrow"/><text x="240" y="193" text-anchor="middle" class="dg-text">R: read data + response</text>
+</svg>
+<figcaption>Requests and write data flow one way, responses and read data the other; every channel has its own valid/ready pair.</figcaption>
+</figure>
+
+<h2 id="why-reads-and-writes-are-separate">Why reads and writes are separate</h2>
+<p>Reads and writes have opposite data directions. On a shared bus, a long read burst blocks every write behind it, and turning the bus around costs time. With separate channels, a DMA engine can read a source buffer and write a destination buffer at the same time, and a processor's write-back of a dirty cache line does not delay the read that caused the eviction.</p>
+<p>Splitting address from data inside each direction matters just as much. A manager can send several addresses before any data returns, so the memory controller sees requests early and can schedule them. The write data channel is even allowed to run ahead of its address: a subordinate must cope with <code>W</code> beats arriving before the matching <code>AW</code>. The separate <strong>B</strong> channel exists because a write is not complete when the data has been sent; the subordinate confirms it, including errors, only after it has accepted everything.</p>
+<h2 id="the-validready-rules">The valid/ready rules</h2>
+<p>Every channel uses the same handshake: the source drives <code>VALID</code> with the payload, the destination drives <code>READY</code>, and a transfer happens on a rising clock edge where both are high. Three rules keep the system from deadlocking or corrupting data:</p>
+<ol>
+<li><strong>Once <code>VALID</code> is asserted, it stays asserted, with the payload unchanged, until the handshake.</strong> The destination may sample whenever it is ready, so the source must not withdraw or change an offer.</li>
+<li><strong>The source must not wait for <code>READY</code> before asserting <code>VALID</code>.</strong> If both sides waited for the other, nothing would ever move.</li>
+<li><strong>The destination may wait for <code>VALID</code> before asserting <code>READY</code></strong>, and may assert <code>READY</code> early if it likes.</li>
+</ol>
+<p>Rule 1 is the one most often broken in new RTL, and it is easy to check with an assertion in SystemVerilog:</p>
+<pre><code class="language-systemverilog">// AR channel: an offered request must be held until accepted.
+property ar_stable;
+  @(posedge aclk) disable iff (!aresetn)
+    (arvalid &amp;&amp; !arready) |=&gt;
+      (arvalid &amp;&amp; $stable({araddr, arlen, arsize, arburst, arid}));
+endproperty
+assert property (ar_stable);
+</code></pre>
+<p>The same property, with different signals, belongs on all five channels in every AXI block you verify.</p>
+<h2 id="bursts-and-their-address-rules">Bursts and their address rules</h2>
+<p>One address handshake can move many data beats. The burst type decides how the address advances:</p>
+<ul>
+<li><strong>INCR:</strong> the address increases by the beat size each beat. AXI4 allows up to 256 beats.</li>
+<li><strong>WRAP:</strong> the address increases and wraps at a boundary equal to the total burst size. Lengths are 2, 4, 8 or 16 beats. This exists for cache refills, which want the critical word first.</li>
+<li><strong>FIXED:</strong> the address stays the same, for a FIFO-style register.</li>
+</ul>
+<p>Work a WRAP burst by hand: 4 beats of 8 bytes starting at <code>0x1018</code>. The total is 32 bytes, so the wrap boundary is the 32-byte block containing the start, <code>0x1000</code> to <code>0x101F</code>. The beats go to <code>0x1018</code>, then wrap to <code>0x1000</code>, <code>0x1008</code> and <code>0x1010</code>. The word the processor missed on arrives first.</p>
+<p>A second rule bites in DMA design: <strong>a burst must not cross a 4 KB address boundary</strong>. An INCR burst of 8 beats of 4 bytes starting at <code>0x1FF0</code> would cover <code>0x1FF0</code> to <code>0x200F</code> and is illegal. The manager must split it into a 4-beat burst ending at <code>0x1FFF</code> and a 4-beat burst starting at <code>0x2000</code>. The rule lets interconnects decode a burst once, since no burst can wander into the next 4 KB region and a different subordinate.</p>
+<h2 id="outstanding-transactions-and-ids">Outstanding transactions and IDs</h2>
+<p>Separate channels pay off only if the manager keeps several requests in flight. Little's law gives the number needed: outstanding requests = latency × request rate. Suppose (illustrative numbers) a memory returns the first beat 40 cycles after the request and you want the R channel busy every cycle with 8-beat bursts. One burst occupies the data channel for 8 cycles, so you need 40 / 8 = 5 bursts outstanding. A manager limited to one outstanding read would use the channel only 8 cycles in every 48.</p>
+<p>IDs make this manageable. Transactions with the same ID must complete in order; transactions with different IDs may complete out of order, so a fast on-chip SRAM response need not wait behind a slow DRAM one. The cost lands in the interconnect and the manager, which must track every outstanding ID and reorder or route responses correctly.</p>
+<h2 id="failure-modes-worth-testing">Failure modes worth testing</h2>
+<ul>
+<li><strong>Combinational <code>VALID</code> that depends on <code>READY</code>.</strong> Breaks rule 2 and can deadlock when two such blocks meet.</li>
+<li><strong>A subordinate that needs <code>AW</code> before accepting <code>W</code>.</strong> Legal behaviour, but it deadlocks with a manager that sends all data first and has no buffering.</li>
+<li><strong>Bursts crossing 4 KB.</strong> Common in DMA engines that compute burst lengths from transfer size alone.</li>
+<li><strong>Lost IDs under back-pressure.</strong> Out-of-order responses expose tracking bugs only when several transactions are outstanding.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write the stability property above for all five channels and bind it to an open-source AXI subordinate model; simulate with Verilator using <code>--assert</code> (it supports a subset of SystemVerilog assertions, so check the constructs against your version).</li>
+<li>Prove the same rules with SymbiYosys on a small AXI-Lite register block. With the open-source Yosys front end, write them as immediate assertions using <code>$past</code> inside an <code>always @(posedge aclk)</code> block.</li>
+<li>Write a Python function that splits any (address, length) request into legal INCR bursts with no 4 KB crossing, and test it against random inputs.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>axi</li><li>on-chip buses</li><li>handshake</li><li>bursts</li><li>soc design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="apb-ahb-axi-compared.html"><span>Previous in Computer architecture &amp; RISC-V</span>APB, AHB and AXI compared: picking a bus for each peripheral</a><a class="next" href="custom-instruction-or-peripheral.html"><span>Next in Computer architecture &amp; RISC-V</span>Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-an-soc-memory-map.html">Designing an SoC memory map: regions, alignment and room to grow</a></h3>
+          <p>Lay out a small RISC-V SoC&#x27;s memory map by hand, choose sizes and alignments that make address decoding cheap, make the holes fault instead of alias, and leave space for the next chip.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="dma-bus-masters-and-arbitration.html">DMA from the architecture side: bus masters, arbitration and coherence</a></h3>
+          <p>A DMA engine is a second bus master competing with the CPU. Work out arbitration latency and burst efficiency, and see why caches make DMA buffers tricky and what clean, invalidate and alignment fix.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

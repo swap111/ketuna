@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debouncing a push button in RTL, and why a counter beats a delay chain · Ketuna blog</title>
+  <meta name="description" content="A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Debouncing a push button in RTL, and why a counter beats a delay chain · Ketuna blog">
+  <meta property="og:description" content="A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.">
+  <link rel="canonical" href="https://ketuna.online/blog/debouncing-a-button-in-rtl.html">
+  <meta property="og:url" content="https://ketuna.online/blog/debouncing-a-button-in-rtl.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Debouncing a push button in RTL, and why a counter beats a delay chain",
+  "description": "A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "debounce, synchronizer, fpga, counters, rtl design",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 929,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/debouncing-a-button-in-rtl.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Debouncing a push button in RTL, and why a counter beats a delay chain</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A mechanical button bounces for milliseconds when pressed. Learn why you synchronize the input first, how a small counter-based debouncer filters the bounce, and how to size the counter.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-bounce-looks-like">What bounce looks like</a></li><li><a href="#step-one-synchronize">Step one: synchronize</a></li><li><a href="#step-two-a-counter-based-debouncer">Step two: a counter-based debouncer</a></li><li><a href="#sizing-the-counter">Sizing the counter</a></li><li><a href="#why-not-a-delay-chain">Why not a delay chain</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Your first FPGA project counts button presses on an LED display. You press once and the count jumps by three, or seven, or one, depending on the press. The logic is fine. The button is the problem: a mechanical contact does not close cleanly, it bounces. Filtering that bounce is a small design problem that teaches two habits you will use for the rest of your career: synchronize every asynchronous input, and use time measured by a counter rather than by gate delays.</p>
+<h2 id="what-bounce-looks-like">What bounce looks like</h2>
+<p>Inside a push button, a metal contact springs onto another. On impact it rebounds, touches again, rebounds again, and settles after a short time. On an oscilloscope, a single press shows a burst of pulses before the line settles, and a release often does the same. How long the bouncing lasts depends on the switch type, its age and how it is pressed; it is commonly in the range of a few milliseconds. If you do not have a datasheet figure for your button, measure it with an oscilloscope or a logic analyser and design with margin.</p>
+<p>A digital circuit clocked at tens of megahertz samples the button tens of thousands of times during that burst. Every bounce looks like a separate press.</p>
+<h2 id="step-one-synchronize">Step one: synchronize</h2>
+<p>The button is an asynchronous input. It can change at any moment relative to your clock, so the first flop that samples it can go metastable. Before doing anything else with it, pass it through a two-flop synchronizer.</p>
+<p>This is not optional just because the debouncer will "filter it anyway". A metastable value fed to the debouncer's comparison and counter logic can make different flops in that logic see different values on the same edge, which can corrupt the counter state. The synchronizer ensures the debouncer sees a clean, single-valued signal every cycle, even if it bounces.</p>
+<h2 id="step-two-a-counter-based-debouncer">Step two: a counter-based debouncer</h2>
+<p>The idea is simple: accept a new button level only after the synchronized input has held that level, without a single change, for a fixed time T. Any bounce restarts the timer.</p>
+<pre><code class="language-verilog">module debounce #(
+  parameter CLK_HZ = 50_000_000,
+  parameter T_MS   = 10
+) (
+  input  wire clk,
+  input  wire rst_n,
+  input  wire btn_async,     // raw pin
+  output reg  btn_clean,     // debounced level
+  output wire press          // one-cycle pulse on each press
+);
+  localparam integer N = CLK_HZ / 1000 * T_MS;  // cycles to wait
+  localparam integer W = $clog2(N + 1);
+
+  reg       s1, s2;          // two-flop synchronizer
+  reg [W-1:0] cnt;
+  reg       btn_prev;
+
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      s1 &lt;= 1'b0; s2 &lt;= 1'b0;
+      cnt &lt;= 0; btn_clean &lt;= 1'b0; btn_prev &lt;= 1'b0;
+    end else begin
+      s1 &lt;= btn_async;
+      s2 &lt;= s1;
+      if (s2 == btn_clean)
+        cnt &lt;= 0;                  // input agrees: nothing pending
+      else if (cnt == N - 1) begin
+        btn_clean &lt;= s2;           // stable for N cycles: accept
+        cnt &lt;= 0;
+      end else
+        cnt &lt;= cnt + 1'b1;         // disagreeing: keep timing
+      btn_prev &lt;= btn_clean;
+    end
+
+  assign press = btn_clean &amp; ~btn_prev;
+endmodule
+</code></pre>
+<p>Whenever the synchronized input <code>s2</code> matches the current output, the counter is held at zero. When it differs, the counter runs. If the input bounces back before the count completes, the counter resets on that cycle. Only an input that differs continuously for N cycles changes the output.</p>
+<p>The <code>press</code> output is an edge detector on the clean level: one clock-cycle pulse per real press, which is what a counter or a state machine downstream usually wants.</p>
+<h2 id="sizing-the-counter">Sizing the counter</h2>
+<p>Choose T longer than the worst bounce you expect and shorter than a human would notice as lag; values around 10 ms are a common starting point, but base your choice on measurement. With a 50 MHz clock and T = 10 ms:</p>
+<blockquote>
+<p>N = 50,000,000 × 0.010 = 500,000 cycles</p>
+</blockquote>
+<p>A 19-bit counter covers it, since 2<sup>19</sup> = 524,288. The parameters compute this automatically, so the same module works on a board with a different clock. A 19-bit counter and a comparator are a few dozen cells: tiny.</p>
+<p>If you have many buttons, you can share a single prescaler that produces a tick every millisecond, and give each button a small counter that advances on ticks. That trades a little timing precision for much less area per button.</p>
+<h2 id="why-not-a-delay-chain">Why not a delay chain</h2>
+<p>A tempting alternative is to "wait until the signal settles" with a chain of buffers, or by sampling the input through a long shift register clocked directly by the system clock and requiring all bits to agree.</p>
+<ul>
+<li><strong>A buffer chain</strong> delays by gate delays, which are nanoseconds and vary with process, voltage and temperature. Reaching milliseconds would take an absurd number of cells, and synthesis tools treat pure buffer chains as removable logic unless you force them to keep it. The delay would not be predictable anyway.</li>
+<li><strong>A shift register on the fast clock</strong> needs one flop per clock cycle of filter time: 500,000 flops for 10 ms at 50 MHz. Even with a slow sampling clock, it costs a flop per sample, while a counter needs only log<sub>2</sub> of that many.</li>
+</ul>
+<p>A counter measures time in clock cycles, which are exact and set by a crystal. It scales logarithmically with the filter time, and it is described entirely in synchronous logic that every tool understands. That combination is why counters are the default way to measure any interval longer than a few cycles in RTL.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Debouncing the raw input without a synchronizer in front</li>
+<li>Detecting edges on the raw or synchronized input instead of on the debounced level</li>
+<li>Picking T without measuring the switch, or with no margin</li>
+<li>Using a separate slow clock for the debouncer, creating an unnecessary clock domain crossing</li>
+<li>Simulating with the real 10 ms timing, which makes tests extremely slow; override <code>T_MS</code> or <code>CLK_HZ</code> in the testbench</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a testbench in <strong>Icarus Verilog</strong> that generates a bouncy press as a burst of random-width pulses before settling, and instantiate <code>debounce</code> with <code>CLK_HZ = 1_000_000</code> and <code>T_MS = 1</code> so the simulation runs quickly. Check that <code>press</code> fires exactly once per press.</li>
+<li>Count the flip-flops after synthesis with <strong>Yosys</strong> (<code>synth -top debounce</code>, then <code>stat</code>) and compare with the number a shift-register filter of the same duration would need.</li>
+<li>If you have a board, wire the button to a counter and an LED display, try it with and without the debouncer, and capture the raw bounce on an oscilloscope or a low-cost logic analyser with open-source capture software.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>debounce</li><li>synchronizer</li><li>fpga</li><li>counters</li><li>rtl design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="crossing-multi-bit-values-between-clocks.html"><span>Previous in Digital &amp; VLSI design</span>Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a><a class="next" href="centre-aligned-pwm-with-dead-time.html"><span>Next in Digital &amp; VLSI design</span>Designing a centre-aligned PWM block with dead time for a BLDC controller</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

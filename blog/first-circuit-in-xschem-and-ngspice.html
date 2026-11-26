@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot · Ketuna blog</title>
+  <meta name="description" content="Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot · Ketuna blog">
+  <meta property="og:description" content="Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.">
+  <link rel="canonical" href="https://ketuna.online/blog/first-circuit-in-xschem-and-ngspice.html">
+  <meta property="og:url" content="https://ketuna.online/blog/first-circuit-in-xschem-and-ngspice.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot",
+  "description": "Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "xschem, ngspice, sky130, cmos inverter, simulation",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1000,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/first-circuit-in-xschem-and-ngspice.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Your first circuit in Xschem and ngspice: an inverter from schematic to transient plot</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Draw a CMOS inverter in Xschem with sky130 transistors, generate a SPICE netlist, simulate it in ngspice and measure its delay. Each step explains what the tool is doing so you can debug it yourself.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-you-need-and-how-the-pieces-fit">What you need and how the pieces fit</a></li><li><a href="#step-1-draw-the-inverter">Step 1: draw the inverter</a></li><li><a href="#step-2-tell-ngspice-what-to-do">Step 2: tell ngspice what to do</a></li><li><a href="#step-3-netlist-simulate-read">Step 3: netlist, simulate, read</a></li><li><a href="#when-it-does-not-work">When it does not work</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every analog designer's first real simulation is an inverter, and it is worth doing carefully. It exercises the whole open-source flow: a schematic editor (Xschem), an open process design kit (sky130), a netlister and a circuit simulator (ngspice). When something breaks later in a bigger design, it is nearly always one of the links you set up here. This walk-through keeps each step small and says what is happening underneath, so that when a step fails you know where to look.</p>
+<h2 id="what-you-need-and-how-the-pieces-fit">What you need and how the pieces fit</h2>
+<p>Install three things: <strong>Xschem</strong>, <strong>ngspice</strong> and the <strong>sky130 PDK</strong> with its Xschem symbol library. Package managers and the PDK's own installers handle this; the details change with versions, so follow the current instructions of each project.</p>
+<p>The flow is a chain:</p>
+<ol>
+<li>Xschem holds a <strong>schematic</strong>: symbols and wires.</li>
+<li>Each symbol carries a template that tells Xschem what SPICE line to write for it. Generating the <strong>netlist</strong> turns the drawing into a text file.</li>
+<li>ngspice reads that text file, plus the PDK's <strong>model library</strong>, which describes how sky130 transistors behave, and runs the analyses you ask for.</li>
+</ol>
+<p>The model library is the link people forget. Transistor symbols only name a device such as <code>sky130_fd_pr__nfet_01v8</code>; the equations live in the PDK's ngspice files, pulled in with a <code>.lib</code> line that also selects a process corner such as <code>tt</code>.</p>
+<h2 id="step-1-draw-the-inverter">Step 1: draw the inverter</h2>
+<p>Start Xschem from a directory where the PDK's <code>xschemrc</code> is visible, so that the sky130 libraries load. Open a new schematic.</p>
+<ul>
+<li>Insert a PMOS (<code>pfet_01v8</code>) and an NMOS (<code>nfet_01v8</code>) from the sky130 symbol library. Xschem's insert-symbol command is on the <strong>Insert</strong> key and in the menus.</li>
+<li>Set their sizes by editing properties (select the symbol and press <strong>q</strong>): for a first try, NMOS W = 1, L = 0.15 and PMOS W = 2, L = 0.15, in micrometres. The PMOS is wider because holes are slower than electrons.</li>
+<li>Wire them (the <strong>w</strong> key starts a wire): PMOS source and body to a node <code>vdd</code>, NMOS source and body to ground, both drains to a node <code>out</code>, both gates to <code>in</code>. Name nodes with label pins rather than relying on wire names.</li>
+<li>Add a load capacitor of 10 fF from <code>out</code> to ground, so the delay you measure reflects some fan-out instead of a bare drain.</li>
+</ul>
+<p>Two voltage sources complete the circuit: a DC supply of 1.8 V on <code>vdd</code>, and a pulse source on <code>in</code>.</p>
+<h2 id="step-2-tell-ngspice-what-to-do">Step 2: tell ngspice what to do</h2>
+<p>The analysis commands go into a code block on the schematic. Xschem provides a code symbol (<code>code_shown.sym</code> in the standard device library) whose text is copied into the netlist. The PDK's Xschem library also provides a corner symbol that writes the <code>.lib</code> line; if you prefer, put the <code>.lib</code> line in the code block yourself.</p>
+<p>The netlist Xschem generates will look much like this (the exact model path depends on your install):</p>
+<pre><code class="language-text">* inverter test bench
+.lib &quot;sky130A/libs.tech/ngspice/sky130.lib.spice&quot; tt
+XMP out in vdd vdd sky130_fd_pr__pfet_01v8 W=2 L=0.15
+XMN out in 0 0 sky130_fd_pr__nfet_01v8 W=1 L=0.15
+CL out 0 10f
+VDD vdd 0 1.8
+VIN in 0 PULSE(0 1.8 1n 50p 50p 2n 4n)
+.control
+tran 1p 10n
+plot v(in) v(out)
+meas tran tphl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1
+meas tran tplh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1
+.endc
+.end
+</code></pre>
+<p>Read it once line by line; you will debug at this level for the rest of your career.</p>
+<ul>
+<li><code>XMP</code> and <code>XMN</code> start with X because sky130 transistors are wrapped in subcircuits. The four nodes are drain, gate, source and body.</li>
+<li><code>PULSE(0 1.8 1n 50p 50p 2n 4n)</code> means: low level 0 V, high level 1.8 V, delay 1 ns, rise and fall 50 ps, high for 2 ns, period 4 ns.</li>
+<li><code>tran 1p 10n</code> runs a transient analysis for 10 ns with a 1 ps suggested step.</li>
+<li>The two <code>meas</code> lines measure propagation delay from the input crossing half the supply to the output crossing half the supply, once for a falling output (t<sub>pHL</sub>) and once for a rising one (t<sub>pLH</sub>).</li>
+</ul>
+<h2 id="step-3-netlist-simulate-read">Step 3: netlist, simulate, read</h2>
+<p>Use Xschem's <strong>Netlist</strong> button, then <strong>Simulate</strong>, which launches ngspice with the generated file. You should see the input pulse and an inverted, slightly delayed output, and the two delays printed in the ngspice console.</p>
+<p>Before trusting the numbers, sanity-check them against a hand estimate. Delay is roughly 0.69 × R<sub>on</sub> × C<sub>L</sub>. If the transistor's effective on-resistance is a few kilohms and the load is 10 fF plus the drain capacitances, you expect tens of picoseconds. A result in nanoseconds or femtoseconds means something is wrong, usually a unit error such as <code>W=1e-6</code> written where the PDK expects micrometres, or a missing load.</p>
+<p>Then compare the two delays. If t<sub>pLH</sub> is much longer than t<sub>pHL</sub>, the PMOS is too weak; widen it and run again. Looking at both edges and adjusting one width is your first real piece of transistor sizing.</p>
+<h2 id="when-it-does-not-work">When it does not work</h2>
+<p>Most first-run failures fall into a few groups:</p>
+<ul>
+<li><strong>"Unknown model" or "unknown subcircuit".</strong> ngspice cannot find the transistor definitions. The <code>.lib</code> line is missing, the path is wrong, or the corner name is misspelt.</li>
+<li><strong>Symbols not found when opening Xschem.</strong> It was started without the PDK's <code>xschemrc</code>, so the sky130 library paths are not set.</li>
+<li><strong>Floating node errors.</strong> A body terminal or a gate is unconnected. Every node needs a DC path to ground.</li>
+<li><strong>Flat output.</strong> The supply source is not connected to the same net name as the PMOS source; a label spelt <code>vdd</code> in one place and <code>vcc</code> in another creates two separate nets. (SPICE ignores letter case, so <code>VDD</code> and <code>vdd</code> are the same node.)</li>
+<li><strong>Simulation is very slow.</strong> The time step is far smaller than needed, or the stop time is far longer; start with a few periods.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Draw the inverter in <strong>Xschem</strong>, generate the netlist and compare it line by line with the one above.</li>
+<li>Simulate it in <strong>ngspice</strong>, record t<sub>pHL</sub> and t<sub>pLH</sub>, then double the load capacitor and check that both delays roughly double.</li>
+<li>Add a <code>.dc VIN 0 1.8 0.005</code> analysis in a second code block, plot the transfer curve, and use <code>meas dc vm when v(out)=v(in)</code> to find the switching point. Change the corner from <code>tt</code> to <code>ss</code> and <code>ff</code> and note how the delay and switching point move.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>xschem</li><li>ngspice</li><li>sky130</li><li>cmos inverter</li><li>simulation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="noise-in-analog-front-ends.html"><span>Previous in Analog &amp; mixed-signal</span>Thermal and flicker noise in analog front ends</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="analog-corners-and-monte-carlo.html">Simulating an analog block across corners and with Monte Carlo</a></h3>
+          <p>One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="hand-calculation-before-simulation.html">Hand calculation before simulation: the analog designer&#x27;s habit</a></h3>
+          <p>A simulator always gives an answer, right or wrong. Learn to estimate bias, gain and bandwidth on paper first, with a worked common-source example, so you can tell at a glance when a simulation result cannot be true.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="how-a-cmos-wafer-is-made.html">How a CMOS wafer is made: the fabrication steps every designer should picture</a></h3>
+          <p>Every layer you draw in a layout becomes a mask and a set of process steps. Follow a CMOS wafer from bare silicon through lithography, implant, etch, deposition and metallisation, mapped to the layers in a layout.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

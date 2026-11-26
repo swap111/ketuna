@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RV32I in one sitting: every instruction format and why it is laid out that way · Ketuna blog</title>
+  <meta name="description" content="RV32I packs every instruction into one of six 32-bit formats. See each format field by field, decode real instructions by hand, and learn why fixed register positions keep the decoder small.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="RV32I in one sitting: every instruction format and why it is laid out that way · Ketuna blog">
+  <meta property="og:description" content="RV32I packs every instruction into one of six 32-bit formats. See each format field by field, decode real instructions by hand, and learn why fixed register positions keep the decoder small.">
+  <link rel="canonical" href="https://ketuna.online/blog/rv32i-instruction-formats.html">
+  <meta property="og:url" content="https://ketuna.online/blog/rv32i-instruction-formats.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RV32I in one sitting: every instruction format and why it is laid out that way",
+  "description": "RV32I packs every instruction into one of six 32-bit formats. See each format field by field, decode real instructions by hand, and learn why fixed register positions keep the decoder small.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "risc-v, rv32i, instruction encoding, decoder",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 938,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/rv32i-instruction-formats.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>RV32I in one sitting: every instruction format and why it is laid out that way</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">RV32I packs every instruction into one of six 32-bit formats. See each format field by field, decode real instructions by hand, and learn why fixed register positions keep the decoder small.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-six-formats-at-a-glance">The six formats at a glance</a></li><li><a href="#why-the-register-fields-never-move">Why the register fields never move</a></li><li><a href="#opcode-funct3-and-funct7">Opcode, funct3 and funct7</a></li><li><a href="#decoding-two-instructions-by-hand">Decoding two instructions by hand</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>When you look at a RISC-V core in a waveform viewer, the instruction bus shows a stream of 32-bit hex numbers. Reading them by hand is a basic skill, and it is easier than it looks because the base integer set, RV32I, uses only six layouts. Once you know the six formats and the reasoning behind them, you can decode most instructions in your head and see why the decoder in the RTL is so short.</p>
+<h2 id="the-six-formats-at-a-glance">The six formats at a glance</h2>
+<p>Every RV32I instruction is 32 bits wide. The lowest seven bits, <code>[6:0]</code>, are always the <strong>opcode</strong>, which says which family the instruction belongs to. The other fields depend on the format:</p>
+<ul>
+<li><strong>R-type</strong> (register–register): <code>add</code>, <code>sub</code>, <code>and</code>, <code>sll</code>, <code>slt</code> and friends. Two source registers, one destination.</li>
+<li><strong>I-type</strong> (immediate): <code>addi</code>, <code>andi</code>, the shift-immediates, all loads, and <code>jalr</code>. One source register, a 12-bit immediate, one destination.</li>
+<li><strong>S-type</strong> (store): <code>sb</code>, <code>sh</code>, <code>sw</code>. Two source registers (the base address and the data) and a 12-bit offset, but no destination.</li>
+<li><strong>B-type</strong> (branch): <code>beq</code>, <code>bne</code>, <code>blt</code> and so on. Like S-type, but the immediate is a branch offset in multiples of 2 bytes.</li>
+<li><strong>U-type</strong> (upper immediate): <code>lui</code> and <code>auipc</code>. A 20-bit immediate and a destination.</li>
+<li><strong>J-type</strong> (jump): <code>jal</code>. A 20-bit jump offset and a destination for the return address.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="rvf-title rvf-desc" font-size="14">
+<title id="rvf-title">The six RV32I instruction formats</title>
+<desc id="rvf-desc">Six rows, one per format R, I, S, B, U and J, each split into bit fields from bit 31 on the left to bit 0 on the right. The opcode always occupies bits 6 to 0. Where rd, rs1, rs2 and funct3 exist they are always in the same columns. Immediate fields, shaded, fill whatever space the register fields leave.</desc>
+<text x="52" y="20" class="dg-muted">31</text>
+<text x="143" y="20" class="dg-muted">24</text>
+<text x="208" y="20" class="dg-muted">19</text>
+<text x="273" y="20" class="dg-muted">14</text>
+<text x="312" y="20" class="dg-muted">11</text>
+<text x="377" y="20" class="dg-muted">6</text>
+<text x="464" y="20" text-anchor="end" class="dg-muted">0</text>
+<text x="10" y="49" class="dg-text">R</text>
+<rect x="50" y="30" width="91" height="28" class="dg-box"/><text x="95" y="49" text-anchor="middle" class="dg-text">funct7</text>
+<rect x="141" y="30" width="65" height="28" class="dg-box"/><text x="173" y="49" text-anchor="middle" class="dg-text">rs2</text>
+<rect x="206" y="30" width="65" height="28" class="dg-box"/><text x="238" y="49" text-anchor="middle" class="dg-text">rs1</text>
+<rect x="271" y="30" width="39" height="28" class="dg-box"/><text x="290" y="49" text-anchor="middle" class="dg-text">f3</text>
+<rect x="310" y="30" width="65" height="28" class="dg-box"/><text x="342" y="49" text-anchor="middle" class="dg-text">rd</text>
+<rect x="375" y="30" width="91" height="28" class="dg-core"/><text x="420" y="49" text-anchor="middle" class="dg-text">opcode</text>
+<text x="10" y="85" class="dg-text">I</text>
+<rect x="50" y="66" width="156" height="28" class="dg-amber" fill-opacity="0.35"/><text x="128" y="85" text-anchor="middle" class="dg-text">imm</text>
+<rect x="206" y="66" width="65" height="28" class="dg-box"/><text x="238" y="85" text-anchor="middle" class="dg-text">rs1</text>
+<rect x="271" y="66" width="39" height="28" class="dg-box"/><text x="290" y="85" text-anchor="middle" class="dg-text">f3</text>
+<rect x="310" y="66" width="65" height="28" class="dg-box"/><text x="342" y="85" text-anchor="middle" class="dg-text">rd</text>
+<rect x="375" y="66" width="91" height="28" class="dg-core"/><text x="420" y="85" text-anchor="middle" class="dg-text">opcode</text>
+<text x="10" y="121" class="dg-text">S</text>
+<rect x="50" y="102" width="91" height="28" class="dg-amber" fill-opacity="0.35"/><text x="95" y="121" text-anchor="middle" class="dg-text">imm</text>
+<rect x="141" y="102" width="65" height="28" class="dg-box"/><text x="173" y="121" text-anchor="middle" class="dg-text">rs2</text>
+<rect x="206" y="102" width="65" height="28" class="dg-box"/><text x="238" y="121" text-anchor="middle" class="dg-text">rs1</text>
+<rect x="271" y="102" width="39" height="28" class="dg-box"/><text x="290" y="121" text-anchor="middle" class="dg-text">f3</text>
+<rect x="310" y="102" width="65" height="28" class="dg-amber" fill-opacity="0.35"/><text x="342" y="121" text-anchor="middle" class="dg-text">imm</text>
+<rect x="375" y="102" width="91" height="28" class="dg-core"/><text x="420" y="121" text-anchor="middle" class="dg-text">opcode</text>
+<text x="10" y="157" class="dg-text">B</text>
+<rect x="50" y="138" width="91" height="28" class="dg-amber" fill-opacity="0.35"/><text x="95" y="157" text-anchor="middle" class="dg-text">imm</text>
+<rect x="141" y="138" width="65" height="28" class="dg-box"/><text x="173" y="157" text-anchor="middle" class="dg-text">rs2</text>
+<rect x="206" y="138" width="65" height="28" class="dg-box"/><text x="238" y="157" text-anchor="middle" class="dg-text">rs1</text>
+<rect x="271" y="138" width="39" height="28" class="dg-box"/><text x="290" y="157" text-anchor="middle" class="dg-text">f3</text>
+<rect x="310" y="138" width="65" height="28" class="dg-amber" fill-opacity="0.35"/><text x="342" y="157" text-anchor="middle" class="dg-text">imm</text>
+<rect x="375" y="138" width="91" height="28" class="dg-core"/><text x="420" y="157" text-anchor="middle" class="dg-text">opcode</text>
+<text x="10" y="193" class="dg-text">U</text>
+<rect x="50" y="174" width="260" height="28" class="dg-amber" fill-opacity="0.35"/><text x="180" y="193" text-anchor="middle" class="dg-text">imm (20 bits)</text>
+<rect x="310" y="174" width="65" height="28" class="dg-box"/><text x="342" y="193" text-anchor="middle" class="dg-text">rd</text>
+<rect x="375" y="174" width="91" height="28" class="dg-core"/><text x="420" y="193" text-anchor="middle" class="dg-text">opcode</text>
+<text x="10" y="229" class="dg-text">J</text>
+<rect x="50" y="210" width="260" height="28" class="dg-amber" fill-opacity="0.35"/><text x="180" y="229" text-anchor="middle" class="dg-text">imm (20 bits)</text>
+<rect x="310" y="210" width="65" height="28" class="dg-box"/><text x="342" y="229" text-anchor="middle" class="dg-text">rd</text>
+<rect x="375" y="210" width="91" height="28" class="dg-core"/><text x="420" y="229" text-anchor="middle" class="dg-text">opcode</text>
+</svg>
+<figcaption>Register fields and funct3 (f3) never change column; immediates (shaded) fill the space that is left.</figcaption>
+</figure>
+
+<h2 id="why-the-register-fields-never-move">Why the register fields never move</h2>
+<p>Look down any column in the diagram. Wherever <code>rs1</code> exists, it is in bits <code>[19:15]</code>. Wherever <code>rs2</code> exists, it is in <code>[24:20]</code>. <code>rd</code> is always <code>[11:7]</code>, and <code>funct3</code> is always <code>[14:12]</code>.</p>
+<p>This is the single most important design decision in the encoding. Because the source register numbers are always in the same place, the core can start reading the register file <strong>before it knows what the instruction is</strong>. In a pipelined core, the decode stage wires bits <code>[19:15]</code> and <code>[24:20]</code> straight to the register file's read ports while the opcode logic works out the instruction type in parallel. If an instruction does not actually use <code>rs2</code>, the value read is simply ignored. Reading a register you do not need costs nothing; waiting for decode before reading would add delay to one of the busiest paths in the core.</p>
+<p>Look at S-type and you see the price of this rule. A store has no destination register, so bits <code>[11:7]</code> are free. Rather than move <code>rs2</code> into that space, the designers split the 12-bit offset into two pieces, <code>[31:25]</code> and <code>[11:7]</code>, so that <code>rs2</code> stays where it always is. A split immediate costs a few wires in the decoder, which are cheap. A moved register field would cost a multiplexer in front of the register file, on the critical path.</p>
+<h2 id="opcode-funct3-and-funct7">Opcode, funct3 and funct7</h2>
+<p>Decoding happens in up to three steps:</p>
+<ol>
+<li>The <strong>opcode</strong> picks the family: <code>0110011</code> is register–register arithmetic, <code>0010011</code> is immediate arithmetic, <code>0000011</code> is loads, <code>0100011</code> is stores, <code>1100011</code> is branches, <code>0110111</code> is <code>lui</code>, <code>0010111</code> is <code>auipc</code>, <code>1101111</code> is <code>jal</code> and <code>1100111</code> is <code>jalr</code>.</li>
+<li><strong>funct3</strong> picks the operation within the family: for arithmetic, <code>000</code> is add, <code>111</code> is and, <code>110</code> is or; for loads and stores it gives the size (<code>000</code> byte, <code>001</code> half, <code>010</code> word); for branches it gives the comparison.</li>
+<li><strong>funct7</strong> separates the few pairs that share a funct3. For R-type, <code>add</code> and <code>sub</code> differ only in bit 30, and so do logical and arithmetic right shifts.</li>
+</ol>
+<p>In RV32I the two lowest opcode bits are always <code>11</code>. Other values in those two bits are used by the compressed (C) extension for its 16-bit instructions, which is how a core with C tells the two lengths apart from the first halfword.</p>
+<h2 id="decoding-two-instructions-by-hand">Decoding two instructions by hand</h2>
+<p><strong>0x002081B3.</strong> In binary, the low seven bits are <code>0110011</code>, so this is R-type arithmetic. Bits <code>[11:7]</code> give rd = 3, <code>[14:12]</code> give funct3 = 0, <code>[19:15]</code> give rs1 = 1, <code>[24:20]</code> give rs2 = 2, and <code>[31:25]</code> are all zero. Funct3 0 with funct7 0 means add: this is <code>add x3, x1, x2</code>. Change bit 30 to 1 and you get 0x402081B3, which is <code>sub x3, x1, x2</code>.</p>
+<p><strong>0x00512423.</strong> The opcode is <code>0100011</code>, a store. Funct3 is <code>010</code>, a word, so it is <code>sw</code>. rs1 = 2 and rs2 = 5. The immediate is bits <code>[31:25]</code> (all zero) joined above bits <code>[11:7]</code> (<code>01000</code>), which is 8. The instruction is <code>sw x5, 8(x2)</code>: store x5 at address x2 + 8.</p>
+<p>A short Python helper makes the slicing mechanical and is a good habit when you debug a waveform:</p>
+<pre><code class="language-python">def fields(ins):
+    return {
+        &quot;opcode&quot;: ins &amp; 0x7F,
+        &quot;rd&quot;:     (ins &gt;&gt; 7) &amp; 0x1F,
+        &quot;funct3&quot;: (ins &gt;&gt; 12) &amp; 0x7,
+        &quot;rs1&quot;:    (ins &gt;&gt; 15) &amp; 0x1F,
+        &quot;rs2&quot;:    (ins &gt;&gt; 20) &amp; 0x1F,
+        &quot;funct7&quot;: (ins &gt;&gt; 25) &amp; 0x7F,
+    }
+
+print(fields(0x002081B3))   # add x3, x1, x2
+print(fields(0x00512423))   # sw x5, 8(x2): rd field holds imm[4:0]
+</code></pre>
+<p>It slices every field for every instruction, exactly as hardware does. Interpreting which fields matter is the decoder's job.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Reading the S-type "rd" field as a register.</strong> In a store it holds the low five bits of the offset.</li>
+<li><strong>Forgetting the sign.</strong> All immediates are sign-extended from bit 31, so <code>0xFFF</code> in an I-type immediate means −1, not 4095.</li>
+<li><strong>Treating branch and jump offsets as instruction counts.</strong> They are byte offsets, always even.</li>
+<li><strong>Ignoring funct7.</strong> A decoder that checks only opcode and funct3 turns every <code>sub</code> into an <code>add</code>.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>With a RISC-V GCC toolchain, assemble a few lines (<code>add</code>, <code>sw</code>, <code>beq</code>, <code>lui</code>) and run <code>riscv64-unknown-elf-objdump -d</code> on the object file. Decode each hex word by hand before reading the disassembly.</li>
+<li>Extend the Python helper to print the instruction name for the R-type and I-type arithmetic families.</li>
+<li>Write the same decoder in Verilog as a combinational module, simulate it in Icarus Verilog against your Python results, and check that the register fields are just wires.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>risc-v</li><li>rv32i</li><li>instruction encoding</li><li>decoder</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="riscv-traps-and-csrs.html"><span>Previous in Computer architecture &amp; RISC-V</span>RISC-V traps and CSRs: what happens between an interrupt and your handler</a><a class="next" href="m-and-c-extensions-cost.html"><span>Next in Computer architecture &amp; RISC-V</span>The M and C extensions: what multiply and compressed instructions cost in hardware</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-riscv-scrambles-immediates.html">Why RISC-V scrambles its immediate bits</a></h3>
+          <p>Branch and jump offsets in RISC-V look shuffled. Count the multiplexer inputs in the immediate generator and you see why: the shuffle keeps each bit in one place across formats and saves logic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="assembly-to-understand-your-c.html">Writing a little RISC-V assembly to understand what your C compiles to</a></h3>
+          <p>Read compiler output for a loop and a function call with the RISC-V calling convention in hand. Learn which register holds what, why the stack frame looks the way it does, and how to check your reading.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="branch-prediction-basics.html">Branch prediction from static rules to two-bit counters</a></h3>
+          <p>Every wrong branch guess throws away pipeline work. Work out the cost of a misprediction, compare static rules with one-bit and two-bit predictors by hand, and see where each one fails.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

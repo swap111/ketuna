@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Electronics for farms: sensing, connectivity and power in rural deployments · Ketuna blog</title>
+  <meta name="description" content="The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Electronics for farms: sensing, connectivity and power in rural deployments · Ketuna blog">
+  <meta property="og:description" content="The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.">
+  <link rel="canonical" href="https://ketuna.online/blog/electronics-for-farms.html">
+  <meta property="og:url" content="https://ketuna.online/blog/electronics-for-farms.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Electronics for farms: sensing, connectivity and power in rural deployments",
+  "description": "The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "agriculture, sensors, low power, solar, lpwan",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 962,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/electronics-for-farms.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Electronics for farms: sensing, connectivity and power in rural deployments</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The building blocks of a farm sensor node, from soil and weather sensors to long-range low-power radio and solar and battery power, with a worked energy budget and the maintenance realities that shape design.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-is-worth-measuring">What is worth measuring</a></li><li><a href="#connectivity-over-long-distances">Connectivity over long distances</a></li><li><a href="#power-solar-battery-and-sleep">Power: solar, battery and sleep</a></li><li><a href="#surviving-the-field">Surviving the field</a></li><li><a href="#data-that-farmers-can-use">Data that farmers can use</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A sensor that tells a farmer when a field actually needs water, or warns of conditions that favour a crop disease, can save water, fertiliser and effort. Building one sounds simple: a sensor, a microcontroller and a radio. In practice a farm is one of the hardest places to put electronics. There is often no mains power, the mobile signal may be weak, the device sits in sun and rain for months and the nearest technician may be far away. This article describes the building blocks of a farm sensor node and the reasons behind each design choice.</p>
+<h2 id="what-is-worth-measuring">What is worth measuring</h2>
+<p>Start from a decision someone will make, not from a sensor catalogue. A farmer deciding when to irrigate needs soil moisture at root depth. Someone tracking disease risk needs air temperature, humidity and leaf wetness. Common measurements include:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th>Typical sensing approach</th>
+<th>What to watch for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Soil moisture</td>
+<td>Capacitive probe measuring the soil's dielectric response</td>
+<td>Needs calibration for soil type; poor contact gives false readings</td>
+</tr>
+<tr>
+<td>Soil temperature</td>
+<td>Sealed temperature sensor at depth</td>
+<td>Cable and seal quality</td>
+</tr>
+<tr>
+<td>Air temperature and humidity</td>
+<td>Digital sensor in a ventilated radiation shield</td>
+<td>Direct sun heats an unshielded sensor and gives wrong readings</td>
+</tr>
+<tr>
+<td>Rainfall</td>
+<td>Tipping-bucket gauge with a reed switch</td>
+<td>Debris, insects and levelling</td>
+</tr>
+<tr>
+<td>Leaf wetness</td>
+<td>Interdigitated sensor surface</td>
+<td>Placement and cleaning</td>
+</tr>
+</tbody>
+</table></div>
+<p>Capacitive soil probes are widely used in low-cost nodes because they have no exposed metal electrodes to corrode, unlike simple resistive probes, which electrolyse and degrade quickly in wet soil. Even so, the raw reading depends on soil texture and salinity, so treat it as relative unless you calibrate it for the field.</p>
+<h2 id="connectivity-over-long-distances">Connectivity over long distances</h2>
+<p>Farm sensors send small amounts of data, a few bytes every few minutes or hours, but often over long distances and from places with no Wi-Fi. That suits <strong>low-power wide-area networks</strong> (LPWAN):</p>
+<ul>
+<li><strong>Sub-GHz licence-exempt radios</strong> reach far at low power because lower frequencies travel further and pass through crops and obstacles better than higher ones. Sensors talk to a gateway at the edge of the field or village, and the gateway forwards data over mobile internet. Check which sub-GHz frequencies and power levels are licence-exempt in India before choosing a radio.</li>
+<li><strong>Cellular IoT standards</strong>, such as NB-IoT and LTE-M, connect directly to mobile networks without a gateway, if the area has coverage for them.</li>
+<li><strong>Store and forward,</strong> where a node logs data and uploads when a link is available, is a sensible fallback everywhere.</li>
+</ul>
+<p>Antenna placement matters more than almost anything else in rural links. An antenna raised above the crop canopy can make the difference between a link that works and one that drops out when the crop grows.</p>
+<h2 id="power-solar-battery-and-sleep">Power: solar, battery and sleep</h2>
+<p>A node that needs a battery change every month will be abandoned. The design goal is to spend almost all the time asleep and wake briefly to measure and transmit. A worked energy budget makes this concrete. All numbers below are made up for illustration; use your own measured currents.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>State</th>
+<th>Current</th>
+<th>Time per day</th>
+<th>Charge per day</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sleep</td>
+<td>20 µA</td>
+<td>about 24 h</td>
+<td>0.48 mAh</td>
+</tr>
+<tr>
+<td>Awake: measure and transmit</td>
+<td>40 mA</td>
+<td>96 wakes × 5 s = 480 s</td>
+<td>5.33 mAh</td>
+</tr>
+<tr>
+<td>Total</td>
+<td></td>
+<td></td>
+<td>about 5.8 mAh</td>
+</tr>
+</tbody>
+</table></div>
+<p>The awake charge is 40 mA × 480 s ÷ 3600 s/h ≈ 5.33 mAh. Even though the node is awake for under 0.6 percent of the day, the awake time dominates the budget, so shortening it pays off most. A 2000 mAh battery would in theory last about 340 days on this budget, but self-discharge, cold and heat, and ageing reduce that, so measure rather than trust the arithmetic.</p>
+<p>A small solar panel with a charge controller can keep the battery topped up indefinitely, provided the budget includes cloudy days. Design for several days with no sun, and check that the battery chemistry suits the temperatures inside a sealed box in summer sun, which can be far hotter than the air.</p>
+<h2 id="surviving-the-field">Surviving the field</h2>
+<p>The enclosure and mechanics decide how long a node lasts:</p>
+<ul>
+<li><strong>Sealing:</strong> choose an enclosure with an ingress protection rating suited to rain and dust, and seal cable entries with glands</li>
+<li><strong>Condensation:</strong> temperature swings draw moist air into a sealed box; a breather vent and conformal coating on the board help</li>
+<li><strong>Sun and heat:</strong> pale enclosures and shade reduce internal temperature; plastics degrade in strong ultraviolet light unless rated for it</li>
+<li><strong>Animals and people:</strong> mount above reach where possible, protect cables from rodents and label the device so people know what it is</li>
+</ul>
+<p>Plan for maintenance from the start. Sensors need cleaning and checking, batteries age and mounts loosen. Make the device easy to open, test and fix with simple tools, and have it report its own health, such as battery voltage, signal strength and resets, so problems are visible without a visit.</p>
+<h2 id="data-that-farmers-can-use">Data that farmers can use</h2>
+<p>The point is a decision, not a dashboard. A message in the local language saying that a field is dry at root depth and the next irrigation is due is more useful than a graph. Work with farmers and local agricultural experts to decide what the readings mean for their crops and soils, and be honest about uncertainty when the sensor's calibration is rough.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Measure your own node's sleep and awake currents with a multimeter or a current-sense setup, and redo the energy budget above.</li>
+<li>Write firmware on <strong>Zephyr</strong> that wakes on a timer, reads a sensor, prints a reading and returns to sleep, and measure how long it stays awake.</li>
+<li>Put a capacitive soil probe in pots of dry and wet soil from your area, record readings, and build a two-point calibration in Python.</li>
+<li>Draw the enclosure, cable entries and mounting in <strong>KiCad</strong> or on paper before you buy anything.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>agriculture</li><li>sensors</li><li>low power</li><li>solar</li><li>lpwan</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="edge-ai-for-indian-languages.html"><span>Previous in India&#x27;s electronics ecosystem</span>Edge AI for Indian languages: keyword spotting across languages and accents</a><a class="next" href="fabless-foundry-osat-who-does-what.html"><span>Next in India&#x27;s electronics ecosystem</span>Fabless, foundry, OSAT: who does what in the semiconductor chain</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="running-a-field-pilot.html">Running a field pilot for sensing hardware: from a handful of prototypes to real users</a></h3>
+          <p>How to plan a field pilot for sensing hardware, choosing sites, working through local partners, logging and updating devices remotely, planning maintenance visits and deciding up front what the pilot must prove.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="why-low-cost-water-quality-sensing-is-hard.html">Why low-cost water quality sensing matters, and what makes it hard</a></h3>
+          <p>Why continuous water quality monitoring is useful, and why sensor drift, fouling, calibration and maintenance, not the electronics, are the real obstacles, with a simulation of drift and recalibration.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

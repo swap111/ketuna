@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>When gate-level simulation is still worth running · Ketuna blog</title>
+  <meta name="description" content="Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="When gate-level simulation is still worth running · Ketuna blog">
+  <meta property="og:description" content="Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.">
+  <link rel="canonical" href="https://ketuna.online/blog/when-gate-level-simulation-pays.html">
+  <meta property="og:url" content="https://ketuna.online/blog/when-gate-level-simulation-pays.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "When gate-level simulation is still worth running",
+  "description": "Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "gate-level simulation, sdf, x-propagation, reset, static timing analysis",
+  "articleSection": "Verification",
+  "wordCount": 987,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/when-gate-level-simulation-pays.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>When gate-level simulation is still worth running</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Equivalence checking and static timing cover most of what gate-level simulation once did. What remains: reset and initialisation bugs, X behaviour, constraint mistakes and test or power modes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-the-static-methods-already-cover">What the static methods already cover</a></li><li><a href="#reset-and-initialisation">Reset and initialisation</a></li><li><a href="#x-optimism-and-x-pessimism">X-optimism and X-pessimism</a></li><li><a href="#timing-annotated-runs-checking-the-constraints">Timing-annotated runs: checking the constraints</a></li><li><a href="#modes-the-rtl-never-exercised">Modes the RTL never exercised</a></li><li><a href="#a-targeted-plan">A targeted plan</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Gate-level simulation (GLS) is slow, noisy and painful to debug, and the two static methods that replaced most of it are better at what they do. Equivalence checking proves the netlist computes the same functions as the RTL; static timing analysis (STA) proves every path meets setup and hold under the stated constraints. Teams that drop GLS entirely, though, eventually ship a bug that only GLS would have shown. The useful question is not whether to run it, but which narrow set of problems justifies its cost.</p>
+<h2 id="what-the-static-methods-already-cover">What the static methods already cover</h2>
+<p>It helps to be precise about what you are <em>not</em> trying to find with GLS.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Covered by</th>
+<th>Why GLS adds little</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Netlist logic equals RTL logic</td>
+<td>Equivalence checking</td>
+<td>Proven for all inputs, not just simulated ones</td>
+</tr>
+<tr>
+<td>Setup and hold on constrained paths</td>
+<td>STA</td>
+<td>Exhaustive over paths and corners</td>
+</tr>
+<tr>
+<td>Functional correctness of the RTL</td>
+<td>RTL simulation, formal</td>
+<td>Far faster at RTL level</td>
+</tr>
+</tbody>
+</table></div>
+<p>If GLS is used to re-run the full functional regression on the netlist, it spends a great deal of compute to re-prove what these methods already established. The value lies where their assumptions break.</p>
+<h2 id="reset-and-initialisation">Reset and initialisation</h2>
+<p>Both equivalence checking and STA reason about a design in a known state. Neither tells you whether the design actually <em>reaches</em> a known state from power-up.</p>
+<p>RTL simulation is often too kind here. Consider a flop without reset feeding a control decision:</p>
+<pre><code class="language-verilog">reg       armed;            // no reset: designer assumed &quot;it starts at 0&quot;
+reg [7:0] cnt;
+always @(posedge clk) begin
+  if (!rst_n) cnt &lt;= 8'd0;
+  else if (armed) cnt &lt;= cnt + 8'd1;
+  if (start) armed &lt;= 1'b1;
+end
+</code></pre>
+<p>In RTL, <code>armed</code> starts as X. The <code>if (armed)</code> treats X as false and takes the else path, so <code>cnt</code> stays at 0 and the simulation looks clean. In the netlist, the X on <code>armed</code> drives the enable logic of the counter flops, and the cell models propagate X into <code>cnt</code> itself. GLS shows <code>cnt</code> going X right after reset, and points at a real hazard: on silicon, <code>armed</code> powers up as 0 or 1 unpredictably, and the counter may start running before anyone pressed <code>start</code>.</p>
+<p>The same class includes memories read before being written, registers that depend on a reset synchronizer whose release ordering differs from the RTL model, and clock-gating cells whose enable latch has no defined initial value.</p>
+<h2 id="x-optimism-and-x-pessimism">X-optimism and X-pessimism</h2>
+<p>RTL simulation is <strong>X-optimistic</strong>: <code>if</code> and <code>case</code> collapse an unknown into one definite branch, hiding uncertainty. Gate-level models are closer to the hardware but are often <strong>X-pessimistic</strong>: a simple mux model with an X select produces X even when both data inputs are equal and real silicon would settle to that value.</p>
+<p>That means every X in a GLS run needs classification. Some are real (an unreset flop that influences behaviour); some are artefacts of the cell model. The disciplined approach is to start GLS from reset with all non-reset state at X, trace each X that reaches an important signal back to its source, and record the verdict. Forcing state to zero to make the Xs disappear defeats the purpose.</p>
+<h2 id="timing-annotated-runs-checking-the-constraints">Timing-annotated runs: checking the constraints</h2>
+<p>STA proves timing <em>under the constraints you wrote</em>. If a constraint is wrong, STA proves the wrong thing. Typical examples:</p>
+<ul>
+<li>a path declared <strong>false</strong> that is actually exercised in some mode</li>
+<li>a <strong>multicycle</strong> exception applied to a path whose data does change every cycle</li>
+<li>an asynchronous reset release treated as untimed, when the release can land near a clock edge</li>
+<li>a generated clock defined with the wrong relationship to its source</li>
+</ul>
+<p>An SDF-annotated simulation applies real cell and wire delays to the netlist. Timing checks in the cell models fire when a flop's setup or hold is violated during the run. If a path you declared false shows violations under a real test, the exception is wrong. Running at the slow and fast corners used for STA gives you the setup and hold extremes respectively.</p>
+<p>Timing GLS needs care to be useful. Read the SDF annotation report: an instance that failed to annotate silently runs with zero delay. Expect and suppress violations on the first flop of each synchronizer, which are supposed to see asynchronous data; anything else that violates deserves an explanation.</p>
+<h2 id="modes-the-rtl-never-exercised">Modes the RTL never exercised</h2>
+<p>Some behaviour exists only in the netlist:</p>
+<ul>
+<li><strong>Test modes.</strong> Scan chains, test-mode muxes and on-chip test controllers are inserted after synthesis. Equivalence checking usually ties them off; a short GLS run in each test mode confirms they work and that leaving test mode returns the design to function.</li>
+<li><strong>Power and clock sequencing.</strong> Clock-gating cells, glitch-free clock muxes and level shifters are often instantiated from the library, with behaviour that an RTL model only approximated.</li>
+<li><strong>Simulation–synthesis mismatches.</strong> <code>initial</code> blocks are ignored by synthesis for most ASIC flows; incomplete sensitivity lists in old-style combinational blocks simulate differently from the hardware; casez patterns with unexpected X or Z behave differently. Equivalence checking catches many of these as logic differences, but a short GLS run confirms what the hardware does from reset.</li>
+</ul>
+<h2 id="a-targeted-plan">A targeted plan</h2>
+<p>Keep GLS small and pointed at those risks:</p>
+<ol>
+<li>A zero-delay run from power-up with all non-reset state X, through reset and the first few transactions on each interface</li>
+<li>One test per test mode, entering and leaving it</li>
+<li>SDF runs at the fast and slow corners for a handful of tests that exercise every clock domain and every timing exception</li>
+<li>A written classification of every X and every timing-check violation</li>
+</ol>
+<p>That is usually a small fraction of the full regression, and it targets exactly the gaps the static methods leave.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Synthesise the counter above with Yosys against the sky130 standard-cell library and write the netlist with <code>write_verilog</code>.</li>
+<li>Simulate the RTL and the netlist with Icarus Verilog using the library's Verilog cell models, with the same testbench and no initialisation of <code>armed</code>; compare when <code>cnt</code> goes X.</li>
+<li>Add a reset to <code>armed</code>, rerun both, and confirm the X disappears in the netlist.</li>
+<li>Write an SDF file from OpenSTA with <code>write_sdf</code>, check your simulator's SDF support, and run one annotated test at a slow corner.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>gate-level simulation</li><li>sdf</li><li>x-propagation</li><li>reset</li><li>static timing analysis</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-simulation-misses-in-cdc.html"><span>Previous in Verification</span>What simulation cannot tell you about clock domain crossings</a><a class="next" href="full-code-coverage-is-not-done.html"><span>Next in Verification</span>Why 100% code coverage does not mean the design is verified</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="x-propagation-in-rtl-simulation.html">X in RTL simulation: how unknowns hide bugs and how to flush them out</a></h3>
+          <p>Why if and case statements swallow X values in RTL simulation, how that hides missing resets, and how assertions, coding style and randomised initial values make uninitialised state visible.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Beginner</span></div>
+          <h3><a href="ai-written-testbench-code-review.html">Using AI to write testbench code without trusting it blindly</a></h3>
+          <p>Write the first test by hand, then let an AI assistant draft more, and review every generated check against the spec. A worked review shows the flaws that make generated tests pass while checking nothing.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

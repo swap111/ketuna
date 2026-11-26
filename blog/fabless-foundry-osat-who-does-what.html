@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fabless, foundry, OSAT: who does what in the semiconductor chain · Ketuna blog</title>
+  <meta name="description" content="The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Fabless, foundry, OSAT: who does what in the semiconductor chain · Ketuna blog">
+  <meta property="og:description" content="The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.">
+  <link rel="canonical" href="https://ketuna.online/blog/fabless-foundry-osat-who-does-what.html">
+  <meta property="og:url" content="https://ketuna.online/blog/fabless-foundry-osat-who-does-what.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Fabless, foundry, OSAT: who does what in the semiconductor chain",
+  "description": "The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fabless, foundry, osat, eda, semiconductor industry",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 875,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/fabless-foundry-osat-who-does-what.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Fabless, foundry, OSAT: who does what in the semiconductor chain</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The roles of chip design companies, wafer foundries, assembly and test houses, and EDA and IP providers, what each one hands to the next, and why the handoff files matter as much as the work.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-the-work-is-split">Why the work is split</a></li><li><a href="#the-design-company">The design company</a></li><li><a href="#the-foundry">The foundry</a></li><li><a href="#assembly-and-test">Assembly and test</a></li><li><a href="#eda-and-ip-providers">EDA and IP providers</a></li><li><a href="#what-passes-between-them">What passes between them</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>News about semiconductors in India is full of words like fabless, foundry and OSAT, often in the same sentence, and it is easy to come away thinking they are all the same kind of company. They are not. Making a chip is split across several kinds of organisation, each with very different skills, equipment and economics, and they cooperate through a small number of well-defined handoffs. Knowing who does what tells you where different engineering jobs sit and what each one needs to learn.</p>
+<h2 id="why-the-work-is-split">Why the work is split</h2>
+<p>In the early decades of the industry, one company often did everything: designed the chip, ran its own fab, packaged and tested the parts. That model still exists, and such firms are called <strong>integrated device manufacturers</strong>. But a modern wafer fab is enormously expensive to build and must run close to full capacity to pay for itself. Few design teams can fill a fab on their own.</p>
+<p>The industry's answer was specialisation. Some companies run fabs and sell manufacturing capacity to many customers. Others only design. Still others package and test. Specialists in software tools and reusable circuit blocks serve all of them. Each can focus on what it is good at and spread its fixed costs across many customers.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="fo-title fo-desc" font-size="14">
+<title id="fo-title">Handoffs in the semiconductor chain</title>
+<desc id="fo-desc">Three boxes left to right: fabless design company, foundry, and assembly and test house, linked by arrows labelled layout file and tested wafers. Above them a wide box for EDA tools and IP blocks feeds the design company and the foundry provides the PDK back to the designer.</desc>
+<rect x="10" y="20" width="460" height="40" rx="6" class="dg-track"/>
+<text x="240" y="45" text-anchor="middle" class="dg-text">EDA tools and IP blocks</text>
+<rect x="10" y="110" width="130" height="60" rx="6" class="dg-box"/>
+<rect x="175" y="110" width="130" height="60" rx="6" class="dg-box"/>
+<rect x="340" y="110" width="130" height="60" rx="6" class="dg-box"/>
+<text x="75" y="137" text-anchor="middle" class="dg-text">Fabless</text>
+<text x="75" y="157" text-anchor="middle" class="dg-muted">design</text>
+<text x="240" y="137" text-anchor="middle" class="dg-text">Foundry</text>
+<text x="240" y="157" text-anchor="middle" class="dg-muted">wafers</text>
+<text x="405" y="137" text-anchor="middle" class="dg-text">OSAT</text>
+<text x="405" y="157" text-anchor="middle" class="dg-muted">package, test</text>
+<path d="M75,60 V104" class="dg-line"/>
+<path d="M71,104 L75,110 L79,104 Z" class="dg-arrow"/>
+<path d="M140,130 H169" class="dg-line"/>
+<path d="M169,126 L175,130 L169,134 Z" class="dg-arrow"/>
+<path d="M175,152 H146" class="dg-dash"/>
+<path d="M146,148 L140,152 L146,156 Z" class="dg-arrow"/>
+<path d="M305,140 H334" class="dg-line"/>
+<path d="M334,136 L340,140 L334,144 Z" class="dg-arrow"/>
+<text x="157" y="196" text-anchor="middle" class="dg-muted">GDS out, PDK back</text>
+<text x="322" y="196" text-anchor="middle" class="dg-muted">wafers</text>
+</svg>
+<figcaption>The design company sends layout to the foundry and receives the process kit in return; finished wafers move on to assembly and test.</figcaption>
+</figure>
+
+<h2 id="the-design-company">The design company</h2>
+<p>A <strong>fabless</strong> company designs chips but owns no fab. Its engineers write the specification, design digital and analog blocks, verify them, do physical design and produce the final layout, usually as a GDS or OASIS file. It also writes test programs, works out how the part will be packaged, characterises samples and supports customers.</p>
+<p>What it receives: tools from EDA providers, reusable blocks from IP providers, and from the foundry a <strong>process design kit</strong> (PDK) describing the transistors, design rules and standard cells for one process. What it delivers: the layout to the foundry, and test specifications and package requirements to the assembly and test house.</p>
+<p>India has long had a large community of design engineers working on chips, whether in design companies or in design centres of larger firms. Most VLSI jobs that students see advertised, in RTL design, verification, physical design and analog layout, sit in this part of the chain.</p>
+<h2 id="the-foundry">The foundry</h2>
+<p>A <strong>foundry</strong> manufactures wafers for other companies. It develops and maintains processes, publishes PDKs, runs mask making (directly or through partners) and processes wafers through hundreds of steps. It checks each lot with test structures on the wafer and gives customers data showing the process stayed within its limits.</p>
+<p>The foundry's skills are materials science, process engineering, equipment and yield. It does not know or care what your chip does; it guarantees that if your layout obeys its rules, the transistors will behave as its models say, within stated variation. That guarantee is why design rule checks are non-negotiable.</p>
+<h2 id="assembly-and-test">Assembly and test</h2>
+<p><strong>OSAT</strong> stands for outsourced semiconductor assembly and test. These facilities receive finished wafers, test each die on the wafer, cut the wafer into dies, mount each die in a package, connect it, seal it, and test the packaged part again before shipping. Their skills are packaging technology, high-volume test, handling equipment and process control.</p>
+<p>Packaging is not just a box around the die. It carries heat away, sets electrical parasitics on every pin, and determines how the chip is soldered onto a board. Advanced packages that stack dies or put several chiplets side by side are becoming as important to performance as the chip itself, which makes this part of the chain increasingly design-heavy.</p>
+<h2 id="eda-and-ip-providers">EDA and IP providers</h2>
+<p><strong>EDA</strong> companies make the software that every other part of the chain depends on: simulators, synthesis, place-and-route, timing analysis, physical verification and test generation. <strong>IP</strong> providers sell or license pre-designed blocks such as processor cores, memory compilers, interface controllers and analog blocks like PLLs and data converters, so a design company does not design every block from scratch.</p>
+<p>Open-source tools and open PDKs now offer a parallel path for learning and small designs. Yosys, OpenROAD, Magic, KLayout and Netgen, with PDKs such as sky130 and gf180, let you see every file that passes between stages, which makes the handoffs easy to study.</p>
+<h2 id="what-passes-between-them">What passes between them</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>What is handed over</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foundry</td>
+<td>Design company</td>
+<td>PDK: models, rules, cell libraries</td>
+</tr>
+<tr>
+<td>Design company</td>
+<td>Foundry</td>
+<td>Layout file, mask data, process options</td>
+</tr>
+<tr>
+<td>Foundry</td>
+<td>Assembly and test</td>
+<td>Wafers, wafer maps, process data</td>
+</tr>
+<tr>
+<td>Design company</td>
+<td>Assembly and test</td>
+<td>Package drawing, bond diagram, test program</td>
+</tr>
+</tbody>
+</table></div>
+<p>Most painful delays in real projects happen at these boundaries: a test program not ready when wafers arrive, a bond diagram that does not match the pad ring, a PDK version mismatch. Engineers who understand both sides of a handoff are valuable for exactly that reason.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install the sky130 PDK and open its documentation; list what the foundry is telling designers (rules, models, cells).</li>
+<li>Open a sample GDS in <strong>KLayout</strong> and look at the layers: this file is what a design company sends a foundry.</li>
+<li>Pick a chip you use, read its datasheet's package section, and sketch which parts of the chain produced each piece of information on that page.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fabless</li><li>foundry</li><li>osat</li><li>eda</li><li>semiconductor industry</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="electronics-for-farms.html"><span>Previous in India&#x27;s electronics ecosystem</span>Electronics for farms: sensing, connectivity and power in rural deployments</a><a class="next" href="joining-the-open-source-hardware-community.html"><span>Next in India&#x27;s electronics ecosystem</span>Finding and joining the open-source hardware community from India</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="inside-an-assembly-and-test-facility.html">What happens in an assembly and test facility: from wafer to packaged, tested part</a></h3>
+          <p>The steps a finished wafer goes through to become a packaged, tested chip, in order, from wafer probing and dicing to die attach, bonding, moulding, final test and burn-in, and what each step guards against.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

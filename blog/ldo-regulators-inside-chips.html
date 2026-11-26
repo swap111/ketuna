@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-dropout regulators inside chips: the loop, stability and dropout · Ketuna blog</title>
+  <meta name="description" content="An LDO is an op-amp driving a large pass transistor inside a feedback loop. Learn where dropout comes from, why the output pole moves with load current, and how the capacitor choice decides stability.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Low-dropout regulators inside chips: the loop, stability and dropout · Ketuna blog">
+  <meta property="og:description" content="An LDO is an op-amp driving a large pass transistor inside a feedback loop. Learn where dropout comes from, why the output pole moves with load current, and how the capacitor choice decides stability.">
+  <link rel="canonical" href="https://ketuna.online/blog/ldo-regulators-inside-chips.html">
+  <meta property="og:url" content="https://ketuna.online/blog/ldo-regulators-inside-chips.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Low-dropout regulators inside chips: the loop, stability and dropout",
+  "description": "An LDO is an op-amp driving a large pass transistor inside a feedback loop. Learn where dropout comes from, why the output pole moves with load current, and how the capacitor choice decides stability.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "ldo, voltage regulator, stability, power management, feedback",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1115,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/ldo-regulators-inside-chips.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Low-dropout regulators inside chips: the loop, stability and dropout</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An LDO is an op-amp driving a large pass transistor inside a feedback loop. Learn where dropout comes from, why the output pole moves with load current, and how the capacitor choice decides stability.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-loop-in-four-parts">The loop in four parts</a></li><li><a href="#dropout">Dropout</a></li><li><a href="#two-poles-that-will-not-sit-still">Two poles that will not sit still</a></li><li><a href="#large-capacitor-or-no-capacitor">Large capacitor or no capacitor</a></li><li><a href="#load-transients-the-capacitor-buys-time">Load transients: the capacitor buys time</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Most chips do not run their blocks directly from the board supply. A sensitive analog block, a PLL or a memory array gets its own regulated rail, and the circuit that makes it is usually a low-dropout regulator (LDO). An LDO is conceptually just an op-amp in feedback, but it drives a huge transistor into a load that can change by orders of magnitude in nanoseconds. That makes it one of the harder feedback problems in analog design, and a good place to see how loop poles depend on operating conditions.</p>
+<h2 id="the-loop-in-four-parts">The loop in four parts</h2>
+<p>An LDO has four pieces.</p>
+<ul>
+<li>A <strong>reference</strong> V<sub>REF</sub>, usually from a bandgap.</li>
+<li>An <strong>error amplifier</strong> that compares V<sub>REF</sub> with a scaled copy of the output.</li>
+<li>A <strong>pass transistor</strong>, typically a large PMOS between the input supply and the output.</li>
+<li>A <strong>feedback divider</strong> R<sub>1</sub>, R<sub>2</sub> from the output to ground.</li>
+</ul>
+<p>The amplifier adjusts the PMOS gate until the divided output equals the reference, giving V<sub>OUT</sub> = V<sub>REF</sub> × (1 + R<sub>1</sub>/R<sub>2</sub>). With V<sub>REF</sub> = 0.6 V and R<sub>1</sub> = R<sub>2</sub>, the output is 1.2 V. Note the polarity: a PMOS common-source pass device inverts (raising its gate lowers the output), so the feedback goes to the amplifier's <em>non-inverting</em> input to keep the overall loop negative.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 270" role="img" aria-labelledby="ldo-title ldo-desc" font-size="14">
+<title id="ldo-title">LDO regulator block diagram</title>
+<desc id="ldo-desc">An error amplifier compares a reference with the feedback voltage from a resistor divider on the output. Its output drives the gate of a PMOS pass transistor connected between the input supply and the output. The output node has a load current and an output capacitor to ground.</desc>
+<line x1="40" y1="25" x2="440" y2="25" class="dg-line"/>
+<text x="400" y="18" class="dg-text">VIN</text>
+<path d="M60,90 L60,170 L150,130 Z" class="dg-box"/>
+<text x="66" y="112" class="dg-text">+</text>
+<text x="66" y="160" class="dg-text">−</text>
+<text x="10" y="160" class="dg-text">VREF</text>
+<line x1="20" y1="165" x2="60" y2="165" class="dg-line"/>
+<line x1="150" y1="130" x2="230" y2="130" class="dg-line"/>
+<text x="160" y="122" class="dg-muted">gate (big Cg)</text>
+<rect x="230" y="60" width="60" height="70" class="dg-core"/>
+<text x="238" y="100" class="dg-text">PMOS</text>
+<line x1="260" y1="25" x2="260" y2="60" class="dg-line"/>
+<line x1="260" y1="130" x2="260" y2="170" class="dg-line"/>
+<line x1="260" y1="170" x2="460" y2="170" class="dg-line"/>
+<circle cx="260" cy="170" r="3" class="dg-arrow"/>
+<text x="400" y="162" class="dg-text">VOUT</text>
+<rect x="300" y="180" width="16" height="30" class="dg-box"/>
+<rect x="300" y="215" width="16" height="30" class="dg-box"/>
+<line x1="308" y1="170" x2="308" y2="180" class="dg-line"/>
+<text x="322" y="200" class="dg-text">R1</text>
+<text x="322" y="235" class="dg-text">R2</text>
+<line x1="308" y1="212" x2="40" y2="212" class="dg-amber-line"/>
+<line x1="40" y1="212" x2="40" y2="105" class="dg-amber-line"/>
+<line x1="40" y1="105" x2="60" y2="105" class="dg-amber-line"/>
+<line x1="380" y1="170" x2="380" y2="200" class="dg-line"/>
+<line x1="366" y1="200" x2="394" y2="200" class="dg-line" stroke-width="3"/>
+<line x1="366" y1="208" x2="394" y2="208" class="dg-line" stroke-width="3"/>
+<text x="398" y="208" class="dg-text">COUT</text>
+<line x1="440" y1="170" x2="440" y2="230" class="dg-line"/>
+<path d="M434,214 L440,226 L446,214 Z" class="dg-arrow"/>
+<text x="400" y="250" class="dg-text">load</text>
+<line x1="20" y1="260" x2="460" y2="260" class="dg-line"/>
+<line x1="308" y1="245" x2="308" y2="260" class="dg-line"/>
+<line x1="380" y1="208" x2="380" y2="260" class="dg-line"/>
+</svg>
+<figcaption>The error amplifier, PMOS pass device and divider form the loop; the output capacitor and the load set the output pole.</figcaption>
+</figure>
+
+<p>A PMOS pass device is what makes the regulator "low dropout". To turn a PMOS fully on, the amplifier only has to pull its gate towards ground, which it can do even when V<sub>IN</sub> is barely above V<sub>OUT</sub>. An NMOS source follower would need its gate <em>above</em> the output by a threshold plus overdrive, which needs headroom the input may not have.</p>
+<h2 id="dropout">Dropout</h2>
+<p><strong>Dropout voltage</strong> is the smallest V<sub>IN</sub> − V<sub>OUT</sub> at which the regulator still regulates. As the input falls towards the output, the amplifier pulls the gate lower and lower until the PMOS is fully on and sits in its triode region, behaving like a resistor R<sub>on</sub>. Beyond that point the loop has nothing left to give, and the output simply follows the input minus I<sub>LOAD</sub> × R<sub>on</sub>.</p>
+<p>Worked example, illustrative numbers: a pass device with R<sub>on</sub> = 2 Ω at full gate drive, carrying 50 mA, drops 100 mV. Halving dropout means doubling the transistor width, which doubles its gate capacitance. Keep that capacitance in mind; it returns in the stability analysis.</p>
+<p>There is a subtler cost. Near dropout the PMOS leaves saturation, its gain collapses, and loop gain with it. Line and load regulation, and supply rejection, degrade well before the hard dropout point.</p>
+<h2 id="two-poles-that-will-not-sit-still">Two poles that will not sit still</h2>
+<p>The loop has two main poles.</p>
+<ul>
+<li>The <strong>output pole</strong>, set by the output capacitor C<sub>OUT</sub> and the resistance at the output node. That resistance is roughly the pass transistor's output resistance in parallel with the load, and the transistor's r<sub>o</sub> ≈ 1/(λI<sub>LOAD</sub>) falls as load current rises.</li>
+<li>The <strong>gate pole</strong>, set by the error amplifier's output resistance and the large gate capacitance of the pass device.</li>
+</ul>
+<p>Here is why that is hard. Take λ = 0.1 V<sup>−1</sup> and C<sub>OUT</sub> = 1 µF, with numbers made up for illustration. At 1 mA load, r<sub>o</sub> ≈ 10 kΩ and the output pole is 1 / (2π × 10 kΩ × 1 µF) ≈ <strong>16 Hz</strong>. At 50 mA, r<sub>o</sub> ≈ 200 Ω and the pole moves to about <strong>800 Hz</strong>. A fifty-fold change in load moves the pole fifty-fold. Meanwhile loop gain changes too, because the pass device's transconductance rises with current. A compensation that gives good phase margin at one load may give almost none at another.</p>
+<h2 id="large-capacitor-or-no-capacitor">Large capacitor or no capacitor</h2>
+<p>LDOs split into two families, depending on which pole is made dominant.</p>
+<p><strong>External-capacitor LDOs</strong> use a large off-chip C<sub>OUT</sub>, typically microfarads. The output pole is the dominant pole, and the gate pole must stay well above the unity-gain frequency. The worst case is usually heavy load, where the output pole moves up towards the gate pole. Historically these regulators relied on the capacitor's equivalent series resistance (ESR) to add a stabilising zero, which is why discrete LDO datasheets specify an allowed ESR range. Modern designs add internal zeros so ceramic capacitors with very low ESR also work.</p>
+<p><strong>Capacitor-less (on-chip) LDOs</strong> have only on-die capacitance, typically hundreds of picofarads. The output pole is now high, so the dominant pole is made internal, at the amplifier output, often with Miller compensation across the pass device. The worst case flips: at light load, the output resistance is high and the output pole drops towards the unity-gain frequency. Designers add a minimum bleed current, or adaptive biasing that raises the amplifier current with load, to keep the poles apart.</p>
+<p>A buffer between the error amplifier and the gate is common in both families. It drives the large gate capacitance with low output resistance, pushing the gate pole up, at the cost of some headroom and quiescent current.</p>
+<h2 id="load-transients-the-capacitor-buys-time">Load transients: the capacitor buys time</h2>
+<p>When the load current jumps, the loop cannot respond instantly. Until it does, the output capacitor supplies the difference, and the output droops by about ΔV ≈ ΔI × t<sub>response</sub> / C<sub>OUT</sub>.</p>
+<ul>
+<li>External capacitor: a 50 mA step, a loop that responds in 1 µs and 1 µF give about <strong>50 mV</strong> of droop.</li>
+<li>On-chip: a 5 mA step, a 5 ns response and 200 pF give about <strong>125 mV</strong>.</li>
+</ul>
+<p>The second example shows why capacitor-less LDOs need very fast loops and are suited to loads whose current steps are small or predictable. A digital block that wakes from sleep all at once can exceed what an on-chip LDO can absorb; staggered wake-up, or an advance warning to the regulator, helps.</p>
+<p>Pitfalls when designing or simulating one:</p>
+<ul>
+<li>Checking stability only at one load; sweep from minimum to maximum load and across corners</li>
+<li>Forgetting the package and bond-wire inductance in series with an external capacitor</li>
+<li>Measuring supply rejection only at DC; it falls as loop gain falls with frequency</li>
+<li>Leaving out a start-up and current-limit path, so a short on the output destroys the pass device</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In <strong>ngspice</strong>, build an LDO from an ideal transconductance amplifier, a sky130 PMOS and a resistor divider, with a current-source load.</li>
+<li>Break the loop for AC with a large inductor in the feedback path and a capacitor-coupled AC source, then run <code>ac</code> at 1 mA and 50 mA loads and compare the crossover frequency and phase margin.</li>
+<li>Run a <code>tran</code> with a pulsed load current and measure the droop. Compare with ΔI × t / C, then double C<sub>OUT</sub> and repeat.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>ldo</li><li>voltage regulator</li><li>stability</li><li>power management</li><li>feedback</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="jitter-and-phase-noise.html"><span>Previous in Analog &amp; mixed-signal</span>Jitter and phase noise: what they are and why ADCs and radios care</a><a class="next" href="cell-voltage-measurement-in-a-bms.html"><span>Next in Analog &amp; mixed-signal</span>Measuring cell voltages in a battery pack: the analog front end of a BMS</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="op-amp-stability-phase-margin.html">Op-amp stability and phase margin without the heavy maths</a></h3>
+          <p>Why an op-amp in feedback can ring or oscillate, explained with poles, loop gain and a Bode plot. Learn to read phase margin, why unity gain is the hardest case, and how compensation trades speed for stability.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

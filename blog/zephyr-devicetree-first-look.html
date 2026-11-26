@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zephyr devicetree for beginners: describing hardware so drivers can find it · Ketuna blog</title>
+  <meta name="description" content="How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Zephyr devicetree for beginners: describing hardware so drivers can find it · Ketuna blog">
+  <meta property="og:description" content="How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.">
+  <link rel="canonical" href="https://ketuna.online/blog/zephyr-devicetree-first-look.html">
+  <meta property="og:url" content="https://ketuna.online/blog/zephyr-devicetree-first-look.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Zephyr devicetree for beginners: describing hardware so drivers can find it",
+  "description": "How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "zephyr, devicetree, drivers, i2c, build system",
+  "articleSection": "Embedded systems",
+  "wordCount": 862,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/zephyr-devicetree-first-look.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Zephyr devicetree for beginners: describing hardware so drivers can find it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How Zephyr uses devicetree nodes, properties, overlays and bindings to tell drivers where a peripheral lives and which pins it uses, all resolved at build time into C macros.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#a-tree-that-describes-hardware-not-behaviour">A tree that describes hardware, not behaviour</a></li><li><a href="#an-overlay-for-one-sensor">An overlay for one sensor</a></li><li><a href="#bindings-the-schema-for-a-compatible">Bindings: the schema for a compatible</a></li><li><a href="#reading-the-tree-from-c">Reading the tree from C</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>In bare-metal firmware, the address of the I2C controller, the sensor's bus address and the pin for its interrupt line are usually <code>#define</code>s scattered through the code. Move to a new board and you hunt for every one of them. Zephyr takes a different approach: the hardware is described once, in a devicetree, and drivers and applications ask the build system for the values. This article explains the pieces, using a temperature sensor on an I2C bus as the running example.</p>
+<h2 id="a-tree-that-describes-hardware-not-behaviour">A tree that describes hardware, not behaviour</h2>
+<p>A devicetree is a text description of the hardware as a tree of <strong>nodes</strong>. Each node is a device or a bus: the SoC, its I2C controller, a sensor on that controller. Each node has <strong>properties</strong>: its register address, its interrupt number, the GPIO it uses, its clock frequency.</p>
+<p>The tree is assembled from layers:</p>
+<ul>
+<li>the <strong>SoC</strong> file (<code>.dtsi</code>) describes what is inside the chip: every peripheral, its base address and interrupts, mostly with <code>status = "disabled"</code>;</li>
+<li>the <strong>board</strong> file (<code>.dts</code>) includes the SoC file and enables what the board uses, sets pins and adds the parts soldered on the board;</li>
+<li>your <strong>overlay</strong> file adds or changes nodes for your application without editing either of the above.</li>
+</ul>
+<p>Unlike Linux, Zephyr does not parse the devicetree at run time. At build time, a script turns the final merged tree into a generated C header full of macros. Your code reads properties through those macros, and a wrong node name is a compile error, not a crash in the field.</p>
+<h2 id="an-overlay-for-one-sensor">An overlay for one sensor</h2>
+<p>Suppose a board's I2C controller is labelled <code>i2c0</code> in the board file, and you have connected a temperature sensor at bus address <code>0x48</code> with an alert output on a GPIO pin. You describe that in <code>app.overlay</code>, in the application folder, which the build picks up automatically (a file <code>boards/&lt;board&gt;.overlay</code> takes its place for a specific board):</p>
+<pre><code class="language-text">&amp;i2c0 {
+    status = &quot;okay&quot;;
+    clock-frequency = &lt;I2C_BITRATE_FAST&gt;;
+
+    temp0: temp-sensor@48 {
+        compatible = &quot;vnd,demo-temp&quot;;
+        reg = &lt;0x48&gt;;
+        alert-gpios = &lt;&amp;gpio0 7 GPIO_ACTIVE_LOW&gt;;
+        conversion-ms = &lt;100&gt;;
+    };
+};
+</code></pre>
+<p>Read it piece by piece:</p>
+<ul>
+<li><code>&amp;i2c0 { ... }</code> refers to an existing node by its <strong>label</strong> and adds to it. Here it also switches the controller on.</li>
+<li><code>temp0:</code> is a new label for the sensor node, so C code can find it. <code>temp-sensor@48</code> is the node name; the part after <code>@</code> is the unit address, which matches <code>reg</code>.</li>
+<li><code>compatible</code> says what kind of device this is. It is the key that connects the node to a binding and a driver. The <code>vnd</code> vendor prefix is the placeholder Zephyr uses in examples and tests; a real part uses its manufacturer's prefix.</li>
+<li><code>reg = &lt;0x48&gt;</code> is the address on the parent bus, so for a node under an I2C controller it is the 7-bit I2C address.</li>
+<li><code>alert-gpios</code> is a <strong>phandle-array</strong>: a reference to the GPIO controller node, then the pin number and flags.</li>
+</ul>
+<h2 id="bindings-the-schema-for-a-compatible">Bindings: the schema for a compatible</h2>
+<p>Zephyr will not accept arbitrary properties. Every <code>compatible</code> needs a <strong>binding</strong>, a YAML file that lists the allowed properties and their types. For an application-specific device, put it in <code>dts/bindings/</code> inside your application folder, which is searched automatically:</p>
+<pre><code class="language-yaml"># dts/bindings/vnd,demo-temp.yaml
+description: Demo I2C temperature sensor with an alert output
+
+compatible: &quot;vnd,demo-temp&quot;
+
+include: i2c-device.yaml
+
+properties:
+  alert-gpios:
+    type: phandle-array
+    description: Active alert output from the sensor
+  conversion-ms:
+    type: int
+    default: 100
+    description: Time between conversions, in milliseconds
+</code></pre>
+<p><code>include: i2c-device.yaml</code> brings in the standard properties for any I2C device, such as <code>reg</code>. If the overlay misspells <code>conversion-ms</code> or gives it a string, the build fails with an error naming the node and property, which is much better than discovering it on the bench.</p>
+<h2 id="reading-the-tree-from-c">Reading the tree from C</h2>
+<p>The generated macros take a node identifier and a property name. Property names are written with underscores instead of hyphens:</p>
+<pre><code class="language-c">#include &lt;zephyr/kernel.h&gt;
+#include &lt;zephyr/device.h&gt;
+#include &lt;zephyr/drivers/i2c.h&gt;
+#include &lt;zephyr/drivers/gpio.h&gt;
+
+#define TEMP_NODE DT_NODELABEL(temp0)
+
+static const struct i2c_dt_spec temp_i2c = I2C_DT_SPEC_GET(TEMP_NODE);
+static const struct gpio_dt_spec temp_alert =
+    GPIO_DT_SPEC_GET(TEMP_NODE, alert_gpios);
+static const int conv_ms = DT_PROP(TEMP_NODE, conversion_ms);
+
+int temp_init(void)
+{
+    if (!device_is_ready(temp_i2c.bus) ||
+        !gpio_is_ready_dt(&amp;temp_alert))
+        return -ENODEV;
+    return gpio_pin_configure_dt(&amp;temp_alert, GPIO_INPUT);
+}
+
+int temp_read_raw(uint8_t out[2])
+{
+    uint8_t reg = 0x00;                  /* made-up result register */
+    return i2c_write_read_dt(&amp;temp_i2c, &amp;reg, 1, out, 2);
+}
+</code></pre>
+<p><code>I2C_DT_SPEC_GET</code> bundles the controller device and the bus address; <code>GPIO_DT_SPEC_GET</code> bundles the GPIO controller, pin and flags, including the active-low setting. Nothing in this code mentions <code>0x48</code>, pin 7 or a controller address. Move the sensor to another bus or another board, change the overlay, and the C code is unchanged.</p>
+<p>A real Zephyr driver goes one step further: it defines <code>DT_DRV_COMPAT</code> for its compatible and uses the <code>DT_INST_*</code> macros to create one driver instance for every enabled node with that compatible. That is how one driver serves three identical sensors on two buses.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Node present but <code>status</code> not <code>"okay"</code>.</strong> Disabled nodes generate no device. Many SoC peripherals are disabled by default and must be enabled in the board file or overlay.</li>
+<li><strong>Devicetree right, Kconfig missing.</strong> The driver for a subsystem is compiled only if its Kconfig option is also enabled, for example <code>CONFIG_I2C=y</code>. Both halves are needed.</li>
+<li><strong>Using a device without checking readiness.</strong> Initialisation can fail at boot. Always check <code>device_is_ready()</code> or the matching <code>*_is_ready_dt()</code> helper.</li>
+<li><strong>Guessing what the build saw.</strong> The final merged tree is written to <code>build/zephyr/zephyr.dts</code>. When something is not found, read that file before anything else.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Install Zephyr with <code>west</code> following the project's getting-started guide, build <code>samples/hello_world</code> for <code>qemu_riscv32</code>, and open <code>build/zephyr/zephyr.dts</code>. Find the UART node and check its address against the QEMU <code>virt</code> memory map (<code>0x10000000</code>).</li>
+<li>Add a node under the root (<code>/ { ... };</code>) in an overlay with a <code>vnd,demo-config</code> compatible and an integer property, write its binding, and print the value with <code>DT_PROP</code> from <code>main()</code>.</li>
+<li>Misspell the property name in the overlay and read the build error. Then remove the binding file and read that error too, so you recognise both later.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>zephyr</li><li>devicetree</li><li>drivers</li><li>i2c</li><li>build system</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="interrupt-safe-uart-ring-buffer.html"><span>Previous in Embedded systems</span>Writing an interrupt-safe ring buffer for UART receive</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="zephyr-kconfig-basics.html">Kconfig in Zephyr: turning features on without editing source</a></h3>
+          <p>How Zephyr&#x27;s Kconfig decides what gets compiled, how prj.conf and menuconfig set options, why an option you set can silently stay off, and how to check what actually ended up in your build.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="recovering-a-stuck-i2c-bus.html">Why an I2C bus gets stuck low, and how firmware recovers it</a></h3>
+          <p>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="uart-spi-or-i2c-for-a-sensor.html">UART, SPI or I2C: choosing a serial bus for a sensor</a></h3>
+          <p>A practical comparison of UART, SPI and I2C for connecting sensors to a microcontroller, covering pin count, bandwidth worked out per sample, addressing, cable length and how each bus tells you something went wrong.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

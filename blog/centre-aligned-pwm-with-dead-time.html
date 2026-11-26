@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Designing a centre-aligned PWM block with dead time for a BLDC controller · Ketuna blog</title>
+  <meta name="description" content="Build a centre-aligned PWM from an up/down counter, insert dead time so the high and low switches of a half-bridge are never on together, and update the duty cycle without glitches.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Designing a centre-aligned PWM block with dead time for a BLDC controller · Ketuna blog">
+  <meta property="og:description" content="Build a centre-aligned PWM from an up/down counter, insert dead time so the high and low switches of a half-bridge are never on together, and update the duty cycle without glitches.">
+  <link rel="canonical" href="https://ketuna.online/blog/centre-aligned-pwm-with-dead-time.html">
+  <meta property="og:url" content="https://ketuna.online/blog/centre-aligned-pwm-with-dead-time.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing a centre-aligned PWM block with dead time for a BLDC controller",
+  "description": "Build a centre-aligned PWM from an up/down counter, insert dead time so the high and low switches of a half-bridge are never on together, and update the duty cycle without glitches.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pwm, motor control, dead time, bldc, timers",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 864,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/centre-aligned-pwm-with-dead-time.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Designing a centre-aligned PWM block with dead time for a BLDC controller</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build a centre-aligned PWM from an up/down counter, insert dead time so the high and low switches of a half-bridge are never on together, and update the duty cycle without glitches.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#edge-aligned-vs-centre-aligned">Edge-aligned vs centre-aligned</a></li><li><a href="#choosing-top">Choosing TOP</a></li><li><a href="#why-dead-time-is-necessary">Why dead time is necessary</a></li><li><a href="#the-rtl">The RTL</a></li><li><a href="#glitch-free-duty-updates">Glitch-free duty updates</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A brushless DC (BLDC) motor is driven by three half-bridges, each a high-side and a low-side power switch in series across the supply. A PWM block decides, many thousands of times a second, which switch is on. Two details separate a PWM block that works on a bench LED from one that can drive a power stage: centre alignment, which keeps the switching edges of the three phases apart, and dead time, which stops both switches of one leg from conducting at once. Both are simple to build in RTL once you see what they are for.</p>
+<h2 id="edge-aligned-vs-centre-aligned">Edge-aligned vs centre-aligned</h2>
+<p>An <strong>edge-aligned</strong> PWM uses a counter that counts up and wraps. Every phase's output turns on at the wrap, so all three legs switch at the same instant each period. That concentrates current transients and electrical noise at one moment, and it makes the effective voltage ripple worse.</p>
+<p>A <strong>centre-aligned</strong> PWM uses an up/down counter that rises from 0 to TOP and falls back to 0. Each output is high while the counter is below that phase's compare value. Because the counter is symmetric, each pulse is centred on the counter's valley, and phases with different duty cycles switch at different times. The pulses are also symmetric in time, which simplifies sampling motor currents at a known point in the period, typically the centre.</p>
+<p>The cost is that a full period takes 2 × TOP clock cycles instead of TOP, so for a given clock the PWM resolution is halved.</p>
+<h2 id="choosing-top">Choosing TOP</h2>
+<p>For a 20 kHz PWM from a 50 MHz clock, numbers chosen for illustration:</p>
+<blockquote>
+<p>TOP = f<sub>clk</sub> / (2 × f<sub>pwm</sub>) = 50,000,000 / 40,000 = 1250</p>
+</blockquote>
+<p>The duty cycle is then <code>duty / TOP</code>, in steps of 1/1250, which fits in an 11-bit register. 20 kHz is a common choice because it sits at or above the upper limit of human hearing, so the motor windings do not whine audibly; the right frequency for a real drive depends on the motor, the switches and the losses, and is a system decision.</p>
+<h2 id="why-dead-time-is-necessary">Why dead time is necessary</h2>
+<p>Power transistors do not switch instantly, and turning one off often takes longer than turning one on, partly because charge must be removed from its gate. If the controller turns the high side off and the low side on in the same clock cycle, there is an interval in which both conduct. That connects the supply straight to ground through two transistors, a condition called <strong>shoot-through</strong>, which wastes power at best and destroys the switches at worst.</p>
+<p><strong>Dead time</strong> is a short interval after one switch turns off and before the other turns on, during which both are off. Its length comes from the power devices' and gate driver's datasheets, plus margin; take it from the hardware designer, never guess it. Assume 500 ns here for illustration, which is 25 cycles at 50 MHz.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 215" role="img" aria-labelledby="pw-title pw-desc" font-size="14">
+<title id="pw-title">Centre-aligned PWM with dead time</title>
+<desc id="pw-desc">A triangle-shaped counter falls from a peak to a valley in the middle and rises to a second peak. A horizontal compare level crosses it twice. The PWM pulse is high while the counter is below the level, centred on the valley. The high-side output turns on a dead time after the PWM rises and off when it falls. The low-side output turns off when the PWM rises and back on a dead time after the PWM falls. The two dead-time gaps are shaded.</desc>
+<path d="M40,20 L240,110 L440,20" class="dg-line"/>
+<line x1="40" y1="80" x2="440" y2="80" class="dg-dash"/>
+<text x="444" y="84" class="dg-muted">duty</text>
+<text x="6" y="24" class="dg-muted">TOP</text>
+<text x="246" y="124" class="dg-muted">0</text>
+<rect x="173" y="135" width="15" height="70" class="dg-amber" fill-opacity="0.35"/>
+<rect x="307" y="135" width="15" height="70" class="dg-amber" fill-opacity="0.35"/>
+<text x="6" y="160" class="dg-text">high</text>
+<path d="M40,165 H188 V140 H307 V165 H440" class="dg-line"/>
+<text x="6" y="200" class="dg-text">low</text>
+<path d="M40,180 H173 V205 H322 V180 H440" class="dg-line"/>
+<line x1="173" y1="80" x2="173" y2="135" class="dg-dash"/>
+<line x1="307" y1="80" x2="307" y2="135" class="dg-dash"/>
+</svg>
+<figcaption>The pulse is centred on the counter's valley; the shaded gaps are the dead time in which both switches are off.</figcaption>
+</figure>
+
+<h2 id="the-rtl">The RTL</h2>
+<pre><code class="language-systemverilog">module pwm_ca #(parameter int W = 11) (
+  input  logic         clk, rst_n,
+  input  logic [W-1:0] top,       // half-period in cycles
+  input  logic [W-1:0] duty_in,   // written by firmware at any time
+  input  logic [W-1:0] dead,      // dead time in cycles
+  output logic         hi, lo     // gate commands for one leg
+);
+  logic [W-1:0] cnt, duty, dt_cnt;
+  logic         up, pwm, pwm_q;
+
+  // up/down counter with a shadow duty register loaded at the peak
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      cnt &lt;= '0; up &lt;= 1'b1; duty &lt;= '0;
+    end else if (up) begin
+      if (cnt == top) begin
+        up &lt;= 1'b0; cnt &lt;= cnt - 1'b1;
+        duty &lt;= duty_in;             // safe point: output is low
+      end else cnt &lt;= cnt + 1'b1;
+    end else begin
+      if (cnt == '0) begin up &lt;= 1'b1; cnt &lt;= cnt + 1'b1; end
+      else cnt &lt;= cnt - 1'b1;
+    end
+
+  assign pwm = (cnt &lt; duty);
+
+  // dead-time insertion: both off for 'dead' cycles after any change
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      pwm_q &lt;= 1'b0; dt_cnt &lt;= '0; hi &lt;= 1'b0; lo &lt;= 1'b0;
+    end else begin
+      pwm_q &lt;= pwm;
+      if (pwm != pwm_q) begin
+        hi &lt;= 1'b0; lo &lt;= 1'b0; dt_cnt &lt;= dead;
+      end else if (dt_cnt != '0) begin
+        dt_cnt &lt;= dt_cnt - 1'b1;
+      end else begin
+        hi &lt;= pwm_q; lo &lt;= ~pwm_q;
+      end
+    end
+endmodule
+</code></pre>
+<p>The outputs <code>hi</code> and <code>lo</code> come straight from flops, so they cannot glitch. Every change of <code>pwm</code> forces both off first and only then turns on the new side, so the two are never high in the same cycle.</p>
+<h2 id="glitch-free-duty-updates">Glitch-free duty updates</h2>
+<p>Firmware writes <code>duty_in</code> whenever its control loop finishes, at an arbitrary point in the period. If the comparator used that value directly, a write in the middle of a pulse could create an extra edge or a pulse that is too short or too long. The <strong>shadow register</strong> <code>duty</code> copies <code>duty_in</code> only at the counter's peak, where the output is low for any duty below 100 %. Each period therefore uses one consistent compare value. Three phases sharing the counter all update at the same peak, so the motor sees a coherent new voltage vector.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Dead time eats pulse width.</strong> The high side is on for the PWM pulse minus the dead time, so small duty cycles shrink or vanish, and the average voltage is slightly lower than commanded. Control software often compensates for this.</li>
+<li><strong>Minimum pulse width.</strong> A pulse shorter than the dead time never turns either switch on in this design. That is safe, but it creates a dead zone near 0 % and 100 % duty.</li>
+<li><strong>Reset and fault states.</strong> Both outputs must be off in reset and when a fault input is asserted. In a real controller, a hardware fault input that forces both off without waiting for software is standard.</li>
+<li><strong>Safety.</strong> Motor drives involve high currents and, often, high voltages. Test new PWM logic on a low-voltage, current-limited setup first, and have anyone working on a mains-powered drive supervised by someone qualified.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Simulate <code>pwm_ca</code> in <strong>Icarus Verilog</strong> with small values (for example <code>top = 20</code>, <code>dead = 2</code>) and check in <strong>GTKWave</strong> that the pulse is centred and the gaps appear on both edges.</li>
+<li>Add an assertion that <code>hi &amp;&amp; lo</code> is never true, and run it in simulation and with <strong>SymbiYosys</strong> to prove it for all inputs.</li>
+<li>Change <code>duty_in</code> at random cycles in the testbench and confirm that each period's pulse width matches the value held at the previous peak.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pwm</li><li>motor control</li><li>dead time</li><li>bldc</li><li>timers</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="debouncing-a-button-in-rtl.html"><span>Previous in Digital &amp; VLSI design</span>Debouncing a push button in RTL, and why a counter beats a delay chain</a><a class="next" href="register-blocks-firmware-friendly.html"><span>Next in Digital &amp; VLSI design</span>Designing a memory-mapped register block that firmware engineers will thank you for</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

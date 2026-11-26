@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What volatile really does in embedded C, and what it does not · Ketuna blog</title>
+  <meta name="description" content="volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="What volatile really does in embedded C, and what it does not · Ketuna blog">
+  <meta property="og:description" content="volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.">
+  <link rel="canonical" href="https://ketuna.online/blog/what-volatile-really-does.html">
+  <meta property="og:url" content="https://ketuna.online/blog/what-volatile-really-does.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What volatile really does in embedded C, and what it does not",
+  "description": "volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "volatile, embedded c, compiler, registers, interrupts",
+  "articleSection": "Embedded systems",
+  "wordCount": 977,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/what-volatile-really-does.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>What volatile really does in embedded C, and what it does not</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-compiler-assumes-nobody-else-touches-memory">The compiler assumes nobody else touches memory</a></li><li><a href="#watching-the-optimiser-remove-your-loop">Watching the optimiser remove your loop</a></li><li><a href="#the-rule-volatile-gives-you">The rule volatile gives you</a></li><li><a href="#what-volatile-does-not-do">What volatile does not do</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A classic first firmware bug: the code that waits for a UART byte works perfectly at <code>-O0</code>, then hangs forever when you switch on optimisation. Nothing is wrong with the UART. The compiler simply did what the C language allows, and the one keyword that would have stopped it, <code>volatile</code>, was missing. This article shows what <code>volatile</code> changes in the generated code, and just as importantly, the jobs people wrongly expect it to do.</p>
+<h2 id="the-compiler-assumes-nobody-else-touches-memory">The compiler assumes nobody else touches memory</h2>
+<p>An optimising compiler works on a simple model: memory changes only when <em>this</em> code writes to it. Under that model, reading the same address twice without a write in between must give the same value, so the second read can be skipped. Writing an address twice in a row means the first write is dead, so it can be removed. These are perfectly sensible optimisations for ordinary variables and they make programs smaller and faster.</p>
+<p>On a microcontroller that model is wrong in two places:</p>
+<ul>
+<li><strong>Memory-mapped registers.</strong> A status register changes because hardware changed it. A data register may deliver a new byte on every read, and a write may start a transmission.</li>
+<li><strong>Variables shared with an interrupt.</strong> An interrupt service routine (ISR) can run between any two instructions of the main loop. From the main loop's point of view, the variable changed by itself.</li>
+</ul>
+<h2 id="watching-the-optimiser-remove-your-loop">Watching the optimiser remove your loop</h2>
+<p>Here is a polling loop for the receive-ready bit of a 16550-style UART on QEMU's RISC-V <code>virt</code> machine, written without <code>volatile</code>:</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+#define UART_LSR (*(uint8_t *)0x10000005u)   /* bug: no volatile */
+
+void wait_for_byte(void)
+{
+    while ((UART_LSR &amp; 1u) == 0) { }         /* wait for data ready */
+}
+</code></pre>
+<p>Compiled with <code>riscv64-unknown-elf-gcc -O2</code>, the function loads the register once. If the bit is clear, it jumps to a label that contains nothing but a jump to itself: an infinite loop that never reads the register again. The compiler reasoned that nothing in the loop body writes <code>UART_LSR</code>, so its value cannot change, so checking it once is enough.</p>
+<p>Change one word and the code is correct:</p>
+<pre><code class="language-c">#define UART_LSR (*(volatile uint8_t *)0x10000005u)
+</code></pre>
+<p>Now the generated loop contains the load instruction inside it, and the hardware is read on every iteration.</p>
+<p>The same thing happens to writes. Without <code>volatile</code>, sending two characters with <code>UART_THR = 'O'; UART_THR = 'K';</code> compiles to a single store of <code>'K'</code>. The compiler saw two writes to the same address and kept only the last one. With <code>volatile</code>, both stores are emitted, in that order.</p>
+<h2 id="the-rule-volatile-gives-you">The rule volatile gives you</h2>
+<blockquote>
+<p>Every access to a volatile object in the source becomes exactly one access in the generated code, and volatile accesses keep their order relative to each other.</p>
+</blockquote>
+<p>That is all. The compiler must not cache the value in a register, merge accesses, invent extra ones or drop any. This is exactly what hardware registers need, and it is why every register definition in a vendor header or a driver is volatile.</p>
+<p>For an ISR flag the pattern looks like this:</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+
+static volatile bool tick;        /* written by ISR, read by main */
+
+void timer_isr(void)
+{
+    /* clear the timer's interrupt source here */
+    tick = true;
+}
+
+int main(void)
+{
+    for (;;) {
+        if (tick) {
+            tick = false;
+            do_periodic_work();
+        }
+    }
+}
+</code></pre>
+<p>Without <code>volatile</code>, the compiler may read <code>tick</code> once before the loop and never again.</p>
+<p>Where you put the keyword matters with pointers. <code>volatile uint32_t *p</code> is a pointer to volatile data: accesses through <code>p</code> are kept. <code>uint32_t *volatile p</code> is a volatile pointer to ordinary data: the pointer variable itself is re-read, but what it points to is not. For registers you want the first form.</p>
+<h2 id="what-volatile-does-not-do">What volatile does not do</h2>
+<p>This is where most of the bugs live.</p>
+<p><strong>It does not make an operation atomic.</strong> <code>count++</code> on a volatile variable still compiles to load, add, store. If an ISR also increments <code>count</code> between the load and the store, one increment is lost. Similarly, reading a 64-bit volatile counter on a 32-bit core takes two loads, and an interrupt between them can give you the low half of one value and the high half of another. Volatile guarantees that the two loads happen; it does not guarantee nothing happens between them. For that you need a critical section or an atomic operation.</p>
+<p><strong>It does not order ordinary accesses.</strong> The compiler may still move a normal (non-volatile) store past a volatile one. If an ISR fills a normal buffer and then sets a volatile <code>ready</code> flag, the compiler is allowed to emit the flag store first. You need a compiler barrier or C11 atomics with release and acquire ordering to keep them in order.</p>
+<p><strong>It does not control the hardware.</strong> On larger chips with caches, write buffers or several cores, the CPU itself can reorder or delay accesses. <code>volatile</code> only constrains the compiler. Hardware fences (<code>fence</code> on RISC-V) and cache maintenance are separate tools.</p>
+<p><strong>It is not a lock.</strong> Volatile says nothing about who may access a variable or when. Two tasks writing the same volatile structure still race.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Making every global volatile "to be safe". It disables useful optimisations everywhere and still does not fix atomicity, so it hides bugs rather than removing them.</li>
+<li>Testing only at <code>-O0</code>. At that level the compiler keeps every access anyway, so missing <code>volatile</code> is invisible. Test at the optimisation level you ship.</li>
+<li>Casting away volatile, for example passing a volatile buffer to <code>memcpy</code>. The library function is free to optimise its accesses.</li>
+<li>Using volatile for a variable shared between threads on a big operating system. There, use the language's atomics or the OS's synchronisation primitives.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Save the polling example to <code>poll.c</code> and run <code>riscv64-unknown-elf-gcc -march=rv32im_zicsr -mabi=ilp32 -O2 -S poll.c</code>. Read <code>poll.s</code> and find the self-jump. Add <code>volatile</code> and compare.</li>
+<li>Do the same with the two-character write and count the store (<code>sb</code>) instructions with and without <code>volatile</code>.</li>
+<li>Write a function that returns a <code>volatile uint64_t</code> global and compile it for the same 32-bit target. Find the two <code>lw</code> instructions and mark the point between them where an interrupt could tear the value.</li>
+<li>Predict the assembly for each case before you compile, then check. Ask an AI assistant the same questions and compare its answers with what the compiler actually produced.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>volatile</li><li>embedded c</li><li>compiler</li><li>registers</li><li>interrupts</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-happens-before-main.html"><span>Previous in Embedded systems</span>What happens before main(): startup code on a microcontroller</a><a class="next" href="recovering-a-stuck-i2c-bus.html"><span>Next in Embedded systems</span>Why an I2C bus gets stuck low, and how firmware recovers it</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
+          <h3><a href="register-bit-manipulation-in-c.html">Setting, clearing and testing register bits safely in C</a></h3>
+          <p>Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
+          <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
+          <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

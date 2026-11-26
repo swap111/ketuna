@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How over-constrained assumptions make formal proofs lie · Ketuna blog</title>
+  <meta name="description" content="An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="How over-constrained assumptions make formal proofs lie · Ketuna blog">
+  <meta property="og:description" content="An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.">
+  <link rel="canonical" href="https://ketuna.online/blog/over-constrained-formal-proofs.html">
+  <meta property="og:url" content="https://ketuna.online/blog/over-constrained-formal-proofs.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How over-constrained assumptions make formal proofs lie",
+  "description": "An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "formal verification, assumptions, vacuity, cover, symbiyosys",
+  "articleSection": "Verification",
+  "wordCount": 983,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/over-constrained-formal-proofs.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>How over-constrained assumptions make formal proofs lie</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">An assumption that is too strong can make a formal proof pass while checking nothing. Learn how vacuous passes and conflicting assumptions arise, and how cover statements and assumption reviews expose them.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-an-assumption-really-does">What an assumption really does</a></li><li><a href="#three-ways-a-proof-ends-up-lying">Three ways a proof ends up lying</a></li><li><a href="#covers-are-the-antidote">Covers are the antidote</a></li><li><a href="#checking-and-reviewing-assumptions">Checking and reviewing assumptions</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A formal proof is only as honest as its assumptions. Every <code>assume</code> statement removes behaviour from the set the solver explores, and the solver does not know which removals reflect the real environment and which reflect an engineer's impatience. Remove too much and the proof passes because the failing scenario has been ruled out, not because the design handles it. The tool reports PASS in the same colour either way. This article shows how proofs end up lying, and the cheap habits that catch it.</p>
+<h2 id="what-an-assumption-really-does">What an assumption really does</h2>
+<p>To a model checker, an unconstrained input can take any value on any cycle. An assumption narrows that. <code>assume (!(wr_en &amp;&amp; full))</code> says: consider only input sequences in which the producer never writes while the FIFO is full. If the real producer obeys that rule, the assumption is a faithful model of the environment and the proof is meaningful. If the real producer can write when full, the proof has excluded exactly the case that matters.</p>
+<p>Assumptions are not checked by the proof that uses them. They are taken as true. That is the root of every problem below.</p>
+<h2 id="three-ways-a-proof-ends-up-lying">Three ways a proof ends up lying</h2>
+<h3 id="assuming-away-the-bug">Assuming away the bug</h3>
+<p>The simplest lie is an assumption that forbids the situation where the bug lives. It usually starts innocently. A proof fails with a counterexample that looks "unrealistic", so someone adds an assumption to suppress it.</p>
+<pre><code class="language-verilog">// Counterexample showed a write on the cycle after reset.
+// &quot;That never happens&quot;, so:
+always @(posedge clk) if (f_past_valid &amp;&amp; $past(rst)) assume (!wr_en);
+</code></pre>
+<p>Perhaps it never happens with today's producer. But the counterexample may also have been pointing at a real reset bug, such as a pointer that is not cleared until a cycle after <code>rst</code> falls. The assumption hides it permanently. Every assumption added in response to a counterexample should be traced to a written rule in the interface spec. If there is no such rule, the counterexample is a question for the designer, not a nuisance for the verifier.</p>
+<p>A related trap is assuming on an <em>output</em> of the design. <code>assume (!full)</code> looks like it constrains the environment but actually constrains the design: it tells the solver to consider only runs in which the FIFO never fills. Every property about full behaviour then passes trivially. As a rule, assume only on inputs, or on relationships between inputs and outputs that the spec assigns to the environment.</p>
+<h3 id="vacuous-passes">Vacuous passes</h3>
+<p>An implication <code>a |-&gt; b</code> passes on every cycle where <code>a</code> is false. If the assumptions make <code>a</code> impossible, the assertion passes on every cycle without ever checking <code>b</code>. That is a <strong>vacuous pass</strong>.</p>
+<pre><code class="language-verilog">// Environment assumption, slightly too strong:
+always @(*) assume (!(req0 &amp;&amp; req1));      // never two requests at once
+
+// The property we care about:
+always @(posedge clk)
+  if (f_past_valid &amp;&amp; $past(req0 &amp;&amp; req1))
+    assert (gnt0 ^ gnt1);                  // exactly one grant on contention
+</code></pre>
+<p>The assertion exists to check arbitration under contention, and the assumption forbids contention. The proof passes. It has verified nothing about the one behaviour an arbiter exists for. Nobody wrote anything obviously wrong: the assumption was added for a different property, perhaps months earlier, and its interaction with this one went unnoticed.</p>
+<h3 id="conflicting-assumptions">Conflicting assumptions</h3>
+<p>If two assumptions contradict each other, no input sequence satisfies both. Then there are no traces at all, and every assertion holds over the empty set. The proof passes in seconds.</p>
+<p>Conflicts are rarely as blunt as <code>assume(a)</code> and <code>assume(!a)</code>. More often they involve time:</p>
+<pre><code class="language-verilog">// From the protocol spec: valid stays high until ready
+always @(posedge clk)
+  if (f_past_valid &amp;&amp; $past(valid &amp;&amp; !ready)) assume (valid);
+
+// Added later to &quot;speed up the proof&quot;: valid is a single-cycle pulse
+always @(posedge clk)
+  if (f_past_valid &amp;&amp; $past(valid)) assume (!valid);
+</code></pre>
+<p>Together these allow <code>valid</code> only on cycles where <code>ready</code> is also high. If a third assumption says <code>ready</code> is low during the first cycles after reset, the reachable behaviour shrinks further, possibly to nothing within the proof depth. Whether the conflict is total or partial, the result is the same kind of lie.</p>
+<h2 id="covers-are-the-antidote">Covers are the antidote</h2>
+<p>A cover statement asks the solver for a trace that reaches a condition, under the same assumptions as the proof. If a cover is unreachable, something in the assumptions is ruling out behaviour you believe should be possible. That is precisely the signal the assertions cannot give you.</p>
+<pre><code class="language-verilog">always @(*) if (f_past_valid) begin
+  cover (req0 &amp;&amp; req1);              // contention can happen
+  cover (full);                      // the FIFO can fill
+  cover (full &amp;&amp; wr_en);             // a write arrives while full
+end
+always @(posedge clk) if (f_past_valid) cover ($past(valid &amp;&amp; !ready) &amp;&amp; valid);
+</code></pre>
+<p>Write at least one cover for the antecedent of every important assertion, and for every interesting state in the plan. Run cover mode as a separate task in the same job, and treat an unreached cover as a failed test, not a warning. In the arbiter example, <code>cover (req0 &amp;&amp; req1)</code> would come back unreachable and point straight at the over-strong assumption.</p>
+<p>A cheap sanity check catches total conflicts: add a cover for a condition that should be trivially reachable a few cycles after reset, such as the reset having been released. If even that is unreachable, the assumptions admit no traces.</p>
+<h2 id="checking-and-reviewing-assumptions">Checking and reviewing assumptions</h2>
+<h3 id="checking-them-on-the-other-side">Checking them on the other side</h3>
+<p>An assumption about a block's inputs is a claim about its neighbour's outputs. That claim can be checked. In simulation of the larger system, compile the same property module with assumptions turned into assertions, so the real neighbour is held to the rule. In formal, prove the neighbour satisfies it as an assertion. This <strong>assume-guarantee</strong> split means every assumption is either proven somewhere else or explicitly documented as an external requirement.</p>
+<h3 id="a-review-checklist">A review checklist</h3>
+<p>When you review someone's formal setup, or your own, ask these for every <code>assume</code>:</p>
+<ul>
+<li>Which spec line justifies it? Is it quoted in a comment?</li>
+<li>Does it constrain only inputs, or relationships the spec assigns to the environment?</li>
+<li>Was it added to suppress a counterexample? If so, was that counterexample discussed with the designer?</li>
+<li>Is there a cover showing that the behaviour it permits still includes the interesting cases?</li>
+<li>Is it checked as an assertion on the neighbouring block or the system?</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a two-requester round-robin arbiter, an assertion that exactly one grant is given under contention, and the over-strong <code>!(req0 &amp;&amp; req1)</code> assumption; run SymbiYosys in prove mode and watch it pass.</li>
+<li>Add <code>cover (req0 &amp;&amp; req1)</code> in a separate cover task and confirm it is reported as unreached.</li>
+<li>Remove the assumption, plant a bug that grants both requesters on contention, and confirm the proof now fails with a short trace.</li>
+<li>Add the two conflicting <code>valid</code> assumptions to a small valid/ready block and find the simplest cover that exposes the conflict.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>formal verification</li><li>assumptions</li><li>vacuity</li><li>cover</li><li>symbiyosys</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="functional-coverage-what-to-measure.html"><span>Previous in Verification</span>Functional coverage: deciding what to measure before you measure it</a><a class="next" href="mutation-testing-your-testbench.html"><span>Next in Verification</span>Is your testbench any good? Checking it by injecting bugs on purpose</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bounded-proof-vs-k-induction.html">Bounded proof or full proof? Model-checking depth and k-induction explained</a></h3>
+          <p>Why a bounded model check can pass while the induction step fails on a correct design, how unreachable states cause it, and when to raise k versus write an invariant that makes the unbounded proof go through.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="prove-a-fifo-never-overflows.html">Proving a FIFO never overflows with SymbiYosys</a></h3>
+          <p>Write assertions, a reset assumption and covers for a small FIFO, run a SymbiYosys proof, and read the counterexample trace step by step when an undersized counter breaks the full flag.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="equivalence-checking-explained.html">Equivalence checking: proving synthesis did not change your design</a></h3>
+          <p>How combinational and sequential equivalence checking compare a netlist with its RTL, what compare points and miters are, and why retimed flops, re-encoded state machines and X assignments need help.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

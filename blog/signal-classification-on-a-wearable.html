@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>On-device signal classification for a health wearable: possibilities and limits · Ketuna blog</title>
+  <meta name="description" content="Small on-device models can flag patterns in body signals for follow-up, but a flag is not a diagnosis. Signal quality gates, the base-rate problem in numbers, and how to validate a wearable classifier responsibly.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="On-device signal classification for a health wearable: possibilities and limits · Ketuna blog">
+  <meta property="og:description" content="Small on-device models can flag patterns in body signals for follow-up, but a flag is not a diagnosis. Signal quality gates, the base-rate problem in numbers, and how to validate a wearable classifier responsibly.">
+  <link rel="canonical" href="https://ketuna.online/blog/signal-classification-on-a-wearable.html">
+  <meta property="og:url" content="https://ketuna.online/blog/signal-classification-on-a-wearable.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "On-device signal classification for a health wearable: possibilities and limits",
+  "description": "Small on-device models can flag patterns in body signals for follow-up, but a flag is not a diagnosis. Signal quality gates, the base-rate problem in numbers, and how to validate a wearable classifier responsibly.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "wearables, health, signal processing, validation, tinyml",
+  "articleSection": "Edge AI",
+  "wordCount": 1075,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/signal-classification-on-a-wearable.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>On-device signal classification for a health wearable: possibilities and limits</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Small on-device models can flag patterns in body signals for follow-up, but a flag is not a diagnosis. Signal quality gates, the base-rate problem in numbers, and how to validate a wearable classifier responsibly.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-small-models-can-reasonably-flag">What small models can reasonably flag</a></li><li><a href="#signals-are-noisy-in-specific-ways">Signals are noisy in specific ways</a></li><li><a href="#the-base-rate-problem-in-numbers">The base-rate problem, in numbers</a></li><li><a href="#validating-responsibly">Validating responsibly</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Wrist and chest wearables record body signals continuously: optical pulse signals, sometimes a single-lead electrical heart signal, skin temperature and motion. A small model running on the device can watch these signals around the clock in a way no periodic check can, and that makes it tempting to promise detection of medical conditions. Engineers building such products need to be clear, with themselves and with users, about what a small classifier on noisy wearable data can responsibly do. This article covers the engineering of the classifier and, as importantly, its limits.</p>
+<p><strong>A note before anything else:</strong> a wearable classifier is not a diagnosis. At most it can flag a pattern that is worth checking with a qualified clinician using proper tests. A product that makes health claims may be regulated as a medical device; the rules depend on the country and the claim, so check the current requirements of the relevant regulator, which in India is the national drug and medical device regulator, before making any claim.</p>
+<h2 id="what-small-models-can-reasonably-flag">What small models can reasonably flag</h2>
+<p>Tasks that suit an on-device model share a property: the output is a prompt for attention, not a decision.</p>
+<ul>
+<li><strong>Signal quality.</strong> Is this segment of the pulse signal clean enough to use at all? This is the most valuable classifier on the device, because every other output depends on it.</li>
+<li><strong>Context.</strong> Is the wearer still, walking, running or asleep? Physiological readings mean different things in each state, and motion is the main source of artefacts.</li>
+<li><strong>Rhythm irregularity screening.</strong> Over long recordings, a model can flag stretches where beat-to-beat intervals look irregular, for the user to discuss with a doctor.</li>
+<li><strong>Trends.</strong> Resting pulse rate, sleep duration estimates or temperature over weeks, where the value lies in change relative to the person's own baseline.</li>
+</ul>
+<p>What does not suit an on-device model: anything presented as ruling a condition in or out, anything where a missed event could lead a user to skip care, and any claim of accuracy that was not established through proper clinical study.</p>
+<h2 id="signals-are-noisy-in-specific-ways">Signals are noisy in specific ways</h2>
+<p>Optical pulse signals come from light reflected by tissue whose blood volume changes with each heartbeat. The pulse component is small next to everything else, and it is disturbed by:</p>
+<ul>
+<li><strong>motion</strong>, which moves the sensor against the skin and can create artefacts that look like beats</li>
+<li><strong>fit and contact pressure</strong>, which change the signal amplitude and shape</li>
+<li><strong>skin and tissue properties</strong>, which affect how much light returns; performance must be checked across the full range of skin tones and body types of intended users, not assumed</li>
+<li><strong>temperature and perfusion</strong>, since cold extremities give weak signals</li>
+</ul>
+<p>The engineering response is to <strong>abstain</strong> rather than guess. A signal quality gate, using the accelerometer's motion level plus a small classifier or simple template-matching on the pulse waveform, decides whether a segment is usable. Rhythm analysis runs only on clean segments, and the device reports "insufficient data" honestly when there are none. A system that says "I don't know" during exercise is far more trustworthy than one that reports nonsense.</p>
+<h2 id="the-base-rate-problem-in-numbers">The base-rate problem, in numbers</h2>
+<p>Even a classifier that is good on paper produces mostly false alarms when the condition it screens for is rare among the people wearing it. Use illustrative numbers: a classifier with 95 % sensitivity (it flags 95 % of people who have the pattern) and 95 % specificity (it correctly clears 95 % of people who do not). Apply it to 10,000 wearers, of whom 2 % have the pattern:</p>
+<ul>
+<li>people with the pattern: 200, of whom 190 are flagged</li>
+<li>people without: 9,800, of whom 5 % = 490 are flagged anyway</li>
+<li><strong>positive predictive value</strong>: 190 / (190 + 490) ≈ 28 %</li>
+</ul>
+<p>Fewer than a third of flagged users actually have the pattern. If only 0.2 % of wearers have it, the same classifier's positive predictive value drops to about 3.7 %; if 20 % have it, as in a group already referred for symptoms, it rises to about 83 %. Same model, very different meaning.</p>
+<pre><code class="language-python">def ppv(sens, spec, prevalence):
+    tp = sens * prevalence
+    fp = (1 - spec) * (1 - prevalence)
+    return tp / (tp + fp)
+
+for p in (0.2, 0.02, 0.002):
+    print(f&quot;prevalence {p:.1%}: PPV {ppv(0.95, 0.95, p):.1%}&quot;)
+</code></pre>
+<p>This is why the user-facing message matters as much as the model. "Irregular rhythm detected" overstates what the device knows. "Some readings looked irregular; consider discussing this with a doctor" is closer to the truth, and the product should also say plainly that it cannot detect everything and that symptoms need medical attention regardless of what the device shows.</p>
+<h2 id="validating-responsibly">Validating responsibly</h2>
+<p>Validation of a health classifier goes well beyond a held-out test set:</p>
+<ol>
+<li><strong>Reference measurements.</strong> Labels must come from clinical-grade equipment recorded at the same time, interpreted by qualified people, not from the wearable's own output or a consumer app.</li>
+<li><strong>Subject-wise splits.</strong> No person appears in both training and test data. Better still, test on people recruited separately from the training cohort, at a different site or time.</li>
+<li><strong>Subgroup results.</strong> Report sensitivity and specificity by age group, skin tone, body type and activity level. An average can hide a group for whom the device does not work.</li>
+<li><strong>Real conditions.</strong> Test during daily life, sleep and exercise, not only seated in a lab.</li>
+<li><strong>Report abstentions.</strong> State how often the device declined to give a result, because a high accuracy on a small, clean fraction of the data is not the same as working.</li>
+<li><strong>Ethics and consent.</strong> Studies on people need ethics review, informed consent and careful handling of data, which is personal health information.</li>
+</ol>
+<p>On the device itself, apply the same discipline as any edge model: verify that the deployed integer model and feature code reproduce the reference implementation exactly on recorded data, version the model like firmware, and log enough (with consent) to investigate problems.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>calling a flag a diagnosis, in the user interface or in marketing</li>
+<li>reporting accuracy on clean, seated lab recordings only</li>
+<li>testing on the same people used for training</li>
+<li>ignoring how prevalence changes what a positive result means</li>
+<li>forcing a result during motion instead of abstaining</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the PPV function for a range of sensitivities, specificities and prevalences and plot the result; notice how specificity dominates when prevalence is low.</li>
+<li>Using a public physiological signal database such as those on PhysioNet, build a simple signal-quality classifier for pulse or heart signal segments and evaluate it with a subject-wise split.</li>
+<li>Add synthetic motion artefacts to clean segments in numpy and measure how often your quality gate catches them.</li>
+<li>Write the user-facing message for a flag, and have someone outside engineering read it and tell you what they think it means.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>wearables</li><li>health</li><li>signal processing</li><li>validation</li><li>tinyml</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="neural-networks-for-hardware-engineers.html"><span>Previous in Edge AI</span>Neural networks for hardware engineers: layers as multiply-accumulates</a><a class="next" href="post-training-vs-quantization-aware.html"><span>Next in Edge AI</span>Post-training quantization vs quantization-aware training</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="audio-features-for-edge-ai.html">Audio features for edge AI: from samples to a spectrogram</a></h3>
+          <p>Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="gesture-recognition-from-an-imu.html">Gesture recognition from an IMU: data, features and a small model</a></h3>
+          <p>From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="int8-quantization-explained.html">Int8 quantization explained: scale, zero point and what you lose</a></h3>
+          <p>How real-valued weights and activations are mapped to 8-bit integers with a scale and a zero point, how symmetric and asymmetric schemes differ, and where the accuracy actually goes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

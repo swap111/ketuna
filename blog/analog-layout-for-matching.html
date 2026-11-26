@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analog layout for matching: common centroid, interdigitation and dummies · Ketuna blog</title>
+  <meta name="description" content="Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Analog layout for matching: common centroid, interdigitation and dummies · Ketuna blog">
+  <meta property="og:description" content="Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.">
+  <link rel="canonical" href="https://ketuna.online/blog/analog-layout-for-matching.html">
+  <meta property="og:url" content="https://ketuna.online/blog/analog-layout-for-matching.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Analog layout for matching: common centroid, interdigitation and dummies",
+  "description": "Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "analog layout, matching, common centroid, mismatch, layout",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 920,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/analog-layout-for-matching.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Analog layout for matching: common centroid, interdigitation and dummies</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Process parameters drift across a die, so two identical transistors placed side by side are not identical. See how interdigitated and common-centroid patterns cancel gradients, and why dummies and orientation matter.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-kinds-of-mismatch">Two kinds of mismatch</a></li><li><a href="#split-then-arrange">Split, then arrange</a></li><li><a href="#checking-patterns-with-numbers">Checking patterns with numbers</a></li><li><a href="#dummies-orientation-and-surroundings">Dummies, orientation and surroundings</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A differential pair, a current mirror or a capacitor array works only if its devices match. The schematic says the two transistors are identical, but on silicon they are drawn at different places, and the wafer is not uniform. Oxide thickness, doping, stress and temperature all drift slowly across a die. Analog layout has a small set of patterns that turn those drifts from a systematic error into nothing at all, and knowing why each pattern works lets you choose the right one.</p>
+<h2 id="two-kinds-of-mismatch">Two kinds of mismatch</h2>
+<p>Mismatch between nominally identical devices has two components, and layout treats them differently.</p>
+<ul>
+<li><strong>Random mismatch</strong> comes from atomic-scale randomness: the exact number of dopant atoms under a gate, roughness along its edges. It differs from device to device with no pattern, and it shrinks with area, roughly as one over the square root of gate area. Layout cannot cancel it; only larger devices reduce it.</li>
+<li><strong>Systematic mismatch</strong> comes from smooth variations across the die: a gradient in oxide thickness, a temperature gradient from a hot output stage nearby, mechanical stress near the package edge. It depends on <em>where</em> each device sits. Layout patterns can cancel it.</li>
+</ul>
+<p>A simple model is enough to reason about the systematic part. Suppose the threshold voltage drifts linearly across the die by g millivolts per unit of distance. A device's effective shift is the average of the shift at each of its parts. The trick is to arrange the parts so that both devices have the same average.</p>
+<h2 id="split-then-arrange">Split, then arrange</h2>
+<p>The first step is to split each device into identical <strong>unit</strong> transistors (fingers) wired in parallel. A pair of transistors A and B, each four units, becomes eight units in a row. Now the order matters:</p>
+<ul>
+<li><strong>AAAABBBB</strong> puts A's centre at position 1.5 and B's at 5.5 (counting from 0). A linear gradient shifts them differently by four unit pitches' worth.</li>
+<li><strong>ABABABAB</strong>, called <strong>interdigitation</strong>, alternates the units. The centres are now only one pitch apart, so the error falls by a factor of four, but it is not zero.</li>
+<li><strong>ABBAABBA</strong> places A at 0, 3, 4, 7 and B at 1, 2, 5, 6. Both centres sit at 3.5. This is a <strong>common-centroid</strong> arrangement: the geometric centre of each device's units coincides, so any linear gradient affects both equally and cancels.</li>
+</ul>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="cc-title cc-desc" font-size="14">
+<title id="cc-title">Unit placement patterns under a linear gradient</title>
+<desc id="cc-desc">A gradient arrow runs left to right. Below it, three rows of eight unit cells: AAAABBBB with the two centroids far apart, ABABABAB with centroids one pitch apart, and ABBAABBA with both centroids at the middle of the row. A fourth figure shows a two by two cross-coupled quad with A on one diagonal and B on the other.</desc>
+<line x1="40" y1="20" x2="300" y2="20" class="dg-amber-line" stroke-width="2"/>
+<path d="M298,15 L308,20 L298,25 Z" class="dg-arrow"/>
+<text x="40" y="38" class="dg-muted">gradient across the die</text>
+<rect x="40" y="50" width="30" height="30" class="dg-core"/><rect x="72" y="50" width="30" height="30" class="dg-core"/><rect x="104" y="50" width="30" height="30" class="dg-core"/><rect x="136" y="50" width="30" height="30" class="dg-core"/>
+<rect x="168" y="50" width="30" height="30" class="dg-box"/><rect x="200" y="50" width="30" height="30" class="dg-box"/><rect x="232" y="50" width="30" height="30" class="dg-box"/><rect x="264" y="50" width="30" height="30" class="dg-box"/>
+<rect x="40" y="110" width="30" height="30" class="dg-core"/><rect x="72" y="110" width="30" height="30" class="dg-box"/><rect x="104" y="110" width="30" height="30" class="dg-core"/><rect x="136" y="110" width="30" height="30" class="dg-box"/>
+<rect x="168" y="110" width="30" height="30" class="dg-core"/><rect x="200" y="110" width="30" height="30" class="dg-box"/><rect x="232" y="110" width="30" height="30" class="dg-core"/><rect x="264" y="110" width="30" height="30" class="dg-box"/>
+<rect x="40" y="170" width="30" height="30" class="dg-core"/><rect x="72" y="170" width="30" height="30" class="dg-box"/><rect x="104" y="170" width="30" height="30" class="dg-box"/><rect x="136" y="170" width="30" height="30" class="dg-core"/>
+<rect x="168" y="170" width="30" height="30" class="dg-core"/><rect x="200" y="170" width="30" height="30" class="dg-box"/><rect x="232" y="170" width="30" height="30" class="dg-box"/><rect x="264" y="170" width="30" height="30" class="dg-core"/>
+<text x="305" y="70" class="dg-text">AAAABBBB</text>
+<text x="305" y="130" class="dg-text">ABABABAB</text>
+<text x="305" y="190" class="dg-text">ABBAABBA</text>
+<line x1="167" y1="165" x2="167" y2="205" class="dg-dash"/>
+<text x="100" y="225" class="dg-muted">both centroids here</text>
+<rect x="400" y="160" width="30" height="30" class="dg-core"/><rect x="432" y="160" width="30" height="30" class="dg-box"/>
+<rect x="400" y="192" width="30" height="30" class="dg-box"/><rect x="432" y="192" width="30" height="30" class="dg-core"/>
+<text x="402" y="245" class="dg-muted">2-D quad</text>
+<text x="40" y="246" class="dg-muted">filled = A, outlined = B</text>
+</svg>
+<figcaption>Interdigitation shrinks the centroid gap; common-centroid patterns make it zero, in one or two dimensions.</figcaption>
+</figure>
+
+<h2 id="checking-patterns-with-numbers">Checking patterns with numbers</h2>
+<p>The script below evaluates each pattern under a linear gradient of 1 mV per unit pitch and under a curved, bowl-shaped variation centred on the row. The values are made up for illustration; the comparison between patterns is the point.</p>
+<pre><code class="language-python"># Threshold shift of each unit = gradient evaluated at its position.
+# Compare the average shift of device A with device B for a few layouts.
+def mismatch(pattern, shift):
+    a = [shift(i) for i, u in enumerate(pattern) if u == &quot;A&quot;]
+    b = [shift(i) for i, u in enumerate(pattern) if u == &quot;B&quot;]
+    return sum(a) / len(a) - sum(b) / len(b)
+
+linear = lambda x: 1.0 * x                 # 1 mV per unit pitch
+bowl = lambda x: 0.5 * (x - 3.5) ** 2      # curved, centred on the row
+
+for p in (&quot;AAAABBBB&quot;, &quot;ABABABAB&quot;, &quot;ABBAABBA&quot;, &quot;AABBBBAA&quot;, &quot;ABBABAAB&quot;):
+    print(f&quot;{p}: linear {mismatch(p, linear):+.2f} mV, &quot;
+          f&quot;curved {mismatch(p, bowl):+.2f} mV&quot;)
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Linear gradient</th>
+<th>Curved variation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AAAABBBB</td>
+<td>−4.00 mV</td>
+<td>0.00 mV</td>
+</tr>
+<tr>
+<td>ABABABAB</td>
+<td>−1.00 mV</td>
+<td>0.00 mV</td>
+</tr>
+<tr>
+<td>ABBAABBA</td>
+<td>0.00 mV</td>
+<td>+1.00 mV</td>
+</tr>
+<tr>
+<td>AABBBBAA</td>
+<td>0.00 mV</td>
+<td>+4.00 mV</td>
+</tr>
+<tr>
+<td>ABBABAAB</td>
+<td>0.00 mV</td>
+<td>0.00 mV</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two lessons come out of the table. Common centroid cancels linear gradients, but a pattern that is symmetric about the centre can be badly hit by a curved variation, as AABBBBAA shows. Dispersing the units more finely (ABBAABBA versus AABBBBAA) shrinks the residual, and a carefully chosen sequence such as ABBABAAB cancels both terms in this model. Real gradients are not known exactly, so the practical goal is a pattern that is common-centroid <em>and</em> well dispersed.</p>
+<p>In two dimensions, the classic structure is the <strong>cross-coupled quad</strong>: A on one diagonal, B on the other. It cancels linear gradients in both x and y and is the default for a critical differential pair.</p>
+<h2 id="dummies-orientation-and-surroundings">Dummies, orientation and surroundings</h2>
+<p>Common centroid handles smooth gradients. Several local effects need other measures.</p>
+<ul>
+<li><strong>Dummies.</strong> A unit at the end of a row has a neighbour on one side only. Etching, polysilicon line width and stress depend on what is nearby, so end units come out slightly different. Adding non-functional <strong>dummy</strong> units at both ends, typically with their gates tied off, makes every active unit see the same neighbourhood.</li>
+<li><strong>Orientation.</strong> Matched transistors should have current flowing in the same direction. Mobility depends on crystal direction and stress, and some implant steps are tilted, so a transistor rotated by 90° or mirrored is not equivalent.</li>
+<li><strong>Well and isolation proximity.</strong> Devices close to the edge of a well or to shallow trench isolation see threshold and mobility shifts. Keep matched devices away from well edges and give them identical spacing.</li>
+<li><strong>Symmetric wiring.</strong> A few ohms of extra wire in one source shifts its effective gate-source voltage. Route the two halves of a pair as mirror images, and keep heavy currents out of shared source lines.</li>
+<li><strong>Thermal symmetry.</strong> Place the matched structure on an axis of symmetry relative to any hot block, so both halves sit at the same temperature.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Matching the transistors but routing the drain wires of a differential pair with different lengths and couplings</li>
+<li>Forgetting dummies on capacitor arrays, where edge effects are as strong as for transistors</li>
+<li>Assuming common centroid fixes random mismatch; only area does that</li>
+<li>Ratioing devices with different unit sizes, which breaks the identical-units principle</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script above, add your own patterns for eight or twelve units, and find one that cancels both terms.</li>
+<li>In <strong>Magic</strong> with the sky130 technology, lay out a cross-coupled quad of four identical NMOS units with dummies on each side, and run DRC.</li>
+<li>Extract it with <code>extract all</code> and <code>ext2spice</code>, compare against a schematic netlist with <strong>Netgen</strong> for LVS, and simulate the extracted pair in <strong>ngspice</strong> to check that the routing has not added asymmetric parasitics.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>analog layout</li><li>matching</li><li>common centroid</li><li>mismatch</li><li>layout</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="adc-datasheet-terms-decoded.html"><span>Previous in Analog &amp; mixed-signal</span>ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a><a class="next" href="adc-architecture-for-sensor-fusion.html"><span>Next in Analog &amp; mixed-signal</span>Choosing an ADC architecture for a multi-channel sensor-fusion array</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="analog-corners-and-monte-carlo.html">Simulating an analog block across corners and with Monte Carlo</a></h3>
+          <p>One typical simulation proves little. Learn what process corners and Monte Carlo each model, script a PVT sweep around ngspice, and read a Monte Carlo spread as margin and confidence rather than one number.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="current-mirror-basics.html">Current mirrors: copying a current and why matching matters</a></h3>
+          <p>A current mirror copies one reference current to many places on a chip. Learn how the basic two-transistor mirror works, what its output resistance means, and how mismatch and channel-length modulation spoil the copy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="esd-protection-on-chip-pins.html">ESD protection on chip pins: why every pad has diodes</a></h3>
+          <p>A touch from a charged hand can put amperes into a pin and kilovolts across oxide that fails at a few volts. Learn what ESD does to a chip, and how pad diodes and rail clamps steer the current safely away.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

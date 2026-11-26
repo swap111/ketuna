@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detecting machine anomalies from vibration on a microcontroller · Ketuna blog</title>
+  <meta name="description" content="Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Detecting machine anomalies from vibration on a microcontroller · Ketuna blog">
+  <meta property="og:description" content="Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.">
+  <link rel="canonical" href="https://ketuna.online/blog/vibration-anomaly-detection-on-mcu.html">
+  <meta property="og:url" content="https://ketuna.online/blog/vibration-anomaly-detection-on-mcu.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Detecting machine anomalies from vibration on a microcontroller",
+  "description": "Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "anomaly detection, vibration, fft, condition monitoring, tinyml",
+  "articleSection": "Edge AI",
+  "wordCount": 991,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/vibration-anomaly-detection-on-mcu.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Detecting machine anomalies from vibration on a microcontroller</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Spectral band energies, a baseline learned from normal running and a simple distance score catch many machine faults on a microcontroller. Build that first, then decide whether a neural network adds anything.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#features-that-describe-a-vibration">Features that describe a vibration</a></li><li><a href="#a-baseline-of-normal-behaviour">A baseline of normal behaviour</a></li><li><a href="#the-whole-method-in-numpy">The whole method in numpy</a></li><li><a href="#fitting-it-on-the-microcontroller">Fitting it on the microcontroller</a></li><li><a href="#when-to-reach-for-a-neural-network">When to reach for a neural network</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A motor, pump or fan that is starting to fail usually tells you through its vibration before it stops: a bearing develops a new frequency, an imbalance grows the component at running speed, a loose mount raises the overall level. A small accelerometer and a microcontroller on the machine can watch for these changes continuously. The difficulty is that you rarely have recordings of faults to train on, because machines do not fail on request. So the practical question is not "which fault is this?" but "is this different from normal?", and that question has simple, explainable answers that should be tried before any neural network.</p>
+<h2 id="features-that-describe-a-vibration">Features that describe a vibration</h2>
+<p>Raw accelerometer samples change constantly even on a healthy machine, so you compare <strong>features</strong> computed over a frame of samples. Take, as an illustrative setup, an accelerometer sampled at 3,200 Hz and frames of 1,024 samples, about 0.32 s each.</p>
+<ul>
+<li><strong>RMS</strong> (root mean square) of the frame measures overall vibration energy. Rising RMS is the oldest warning sign there is.</li>
+<li><strong>Spectral band energies.</strong> Window the frame, take an FFT and add up the power in a handful of frequency bands. With these numbers each FFT bin is 3,200 / 1,024 = 3.125 Hz wide. Bands might separate the running speed (a machine at 1,500 rpm turns at 25 Hz) and its first harmonics from higher bands where bearing and gear defects tend to show up.</li>
+<li><strong>Shape statistics</strong> such as crest factor (peak divided by RMS) or kurtosis respond to short impacts, which early bearing damage produces, even when RMS barely moves.</li>
+</ul>
+<p>Taking the logarithm of band energies keeps them on a comparable scale, since vibration power varies over a wide range.</p>
+<h2 id="a-baseline-of-normal-behaviour">A baseline of normal behaviour</h2>
+<p>Record the machine while it is known to be healthy, over the conditions it normally sees: different loads, speeds, temperatures, times of day. Compute the features for every frame and store, for each feature, its mean μ and standard deviation σ. That is the <strong>baseline</strong>, and on a microcontroller it is a few dozen numbers.</p>
+<p>For a new frame, express each feature as a <strong>z-score</strong>, how many standard deviations it is from normal: z = (x − μ) / σ. Then combine them into one anomaly score. Two simple choices:</p>
+<ul>
+<li>the <strong>largest</strong> |z| across features, which points straight at the feature that moved</li>
+<li>the <strong>sum of squares</strong> of the z-scores, which notices several features drifting together</li>
+</ul>
+<p>Choose the alarm threshold from data, not by guessing: compute the score on normal frames that were <em>not</em> used to build the baseline and set the threshold just above nearly all of them, for example at their 99.9th percentile. Then require the score to stay above threshold for several consecutive frames before raising an alarm, because a door slamming next to the machine is not a fault.</p>
+<h2 id="the-whole-method-in-numpy">The whole method in numpy</h2>
+<p>The script below uses synthetic data, a 25 Hz running tone plus its harmonic plus noise, and simulates a fault as a new tone at 410 Hz of growing strength.</p>
+<pre><code class="language-python">import numpy as np
+
+FS, N = 3200, 1024                          # sample rate (Hz), frame
+EDGES = [0, 50, 100, 200, 400, 800, 1600]   # band edges in Hz
+rng = np.random.default_rng(0)
+
+def frame(fault=0.0):
+    t = np.arange(N) / FS
+    x = np.sin(2*np.pi*25*t) + 0.3*np.sin(2*np.pi*50*t)
+    x += fault * np.sin(2*np.pi*410*t)      # a new tone appears
+    return x + 0.2 * rng.standard_normal(N)
+
+def features(x):
+    p = np.abs(np.fft.rfft(x * np.hanning(N))) ** 2
+    f = np.fft.rfftfreq(N, 1 / FS)
+    bands = [p[(f &gt;= lo) &amp; (f &lt; hi)].sum()
+             for lo, hi in zip(EDGES, EDGES[1:])]
+    rms = np.sqrt(np.mean(x ** 2))
+    return np.log10(np.array(bands + [rms]) + 1e-12)
+
+base = np.array([features(frame()) for _ in range(500)])
+mu, sd = base.mean(axis=0), base.std(axis=0) + 1e-9
+
+def score(x):
+    return np.max(np.abs((features(x) - mu) / sd))
+
+normal = np.array([score(frame()) for _ in range(500)])
+thr = np.percentile(normal, 99.9)
+
+for a in [0.0, 0.05, 0.2]:
+    s = np.array([score(frame(a)) for _ in range(200)])
+    print(f&quot;fault={a}: flagged {np.mean(s &gt; thr):.0%}&quot;)
+</code></pre>
+<p>On this synthetic data the weakest fault goes unnoticed and the stronger one is flagged in every frame, and because the score is the largest z-score, you can also report <em>which band</em> moved, which is exactly what a maintenance engineer wants to know. Real machines are messier, so treat the output of a script like this as a way to understand the method, not as an estimate of how well it will do on your machine.</p>
+<h2 id="fitting-it-on-the-microcontroller">Fitting it on the microcontroller</h2>
+<p>Everything here maps onto a small processor:</p>
+<ul>
+<li>a 1,024-point FFT per frame, using an integer or single-precision FFT library, or a hardware FFT block if one is available</li>
+<li>a sum per band and a log, which can be a lookup table or the position of the highest set bit plus a small correction</li>
+<li>a subtraction, a multiplication by a precomputed 1/σ and a comparison per feature</li>
+</ul>
+<p>Memory is the frame buffer (1,024 samples), the FFT working space and the baseline. Compute is dominated by the FFT, and at one frame every few seconds the processor sleeps nearly all the time. The baseline can even be learned on the device during commissioning: run Welford's online algorithm for mean and variance over the first hours of operation, then freeze it.</p>
+<h2 id="when-to-reach-for-a-neural-network">When to reach for a neural network</h2>
+<p>Simple scores work well when faults show up as changes in a few known bands. A model earns its place when normal behaviour itself is complicated, for example a machine whose spectrum changes a lot with load, so that one mean and standard deviation per band describes it badly. Then options include a baseline per operating condition, or an <strong>autoencoder</strong> trained only on normal frames, whose reconstruction error becomes the anomaly score. Either way, keep the simple detector running beside it as a reference, and compare both against the same held-out data. If the model does not catch something the simple score misses, it is not worth its flash.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>building the baseline from a single afternoon, so the first change of load raises an alarm</li>
+<li>setting the threshold on the same frames used to build the baseline</li>
+<li>alarming on a single frame instead of requiring persistence</li>
+<li>training a classifier on simulated faults and assuming it recognises real ones</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Run the script and add a fault amplitude of 0.1 to see where detection starts.</li>
+<li>Change the fault to a change in the 25 Hz amplitude instead of a new tone and check which feature responds.</li>
+<li>Mount a phone or a small accelerometer board on a desk fan, record normal running at two speeds, and build a baseline from real data; then, with the fan unplugged, tape a small weight securely to one blade, keep the guard on, and score the new recording.</li>
+<li>Port the feature and score code to C for a microcontroller and compare its scores with numpy on the same recorded frames.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>anomaly detection</li><li>vibration</li><li>fft</li><li>condition monitoring</li><li>tinyml</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="convolution-layer-arithmetic.html"><span>Previous in Edge AI</span>Convolution layer arithmetic: output size, MACs and memory by hand</a><a class="next" href="edge-or-cloud-inference.html"><span>Next in Edge AI</span>Edge or cloud inference? Latency, power, privacy and cost</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="audio-features-for-edge-ai.html">Audio features for edge AI: from samples to a spectrogram</a></h3>
+          <p>Why small audio models are fed spectrograms rather than raw samples, and how to compute one step by step - framing, windowing, the FFT, mel scaling and the logarithm - with numpy code you can run.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drift-or-event-in-water-quality-data.html">Telling sensor drift from real events in water quality data</a></h3>
+          <p>A water quality reading can change because the water changed or because the sensor did. Moving statistics, reference checks and a few explainable rules separate slow drift from genuine events.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="gesture-recognition-from-an-imu.html">Gesture recognition from an IMU: data, features and a small model</a></h3>
+          <p>From recording wrist or handheld gestures to running a classifier on a microcontroller - defining classes, windowing six-axis motion data, compact features, a tiny network and the streaming loop on the device.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

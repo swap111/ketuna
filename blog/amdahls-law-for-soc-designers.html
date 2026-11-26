@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Amdahl&#x27;s law for SoC designers: when an accelerator is worth it · Ketuna blog</title>
+  <meta name="description" content="Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Amdahl&#x27;s law for SoC designers: when an accelerator is worth it · Ketuna blog">
+  <meta property="og:description" content="Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.">
+  <link rel="canonical" href="https://ketuna.online/blog/amdahls-law-for-soc-designers.html">
+  <meta property="og:url" content="https://ketuna.online/blog/amdahls-law-for-soc-designers.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Amdahl's law for SoC designers: when an accelerator is worth it",
+  "description": "Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl's law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "amdahl, accelerators, hardware-software co-design, profiling, performance",
+  "articleSection": "Computer architecture & RISC-V",
+  "wordCount": 865,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/amdahls-law-for-soc-designers.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-architecture.html">Computer architecture &amp; RISC-V</a></p>
+        <h1>Amdahl&#x27;s law for SoC designers: when an accelerator is worth it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Speeding up one part of a workload helps only as much as the rest allows. Use Amdahl&#x27;s law with data-movement overhead to decide, from a profile, whether a hardware accelerator earns its silicon.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-formula">The formula</a></li><li><a href="#a-worked-example-with-a-profile">A worked example with a profile</a></li><li><a href="#data-movement-is-part-of-the-bill">Data movement is part of the bill</a></li><li><a href="#compare-the-alternatives-honestly">Compare the alternatives honestly</a></li><li><a href="#profile-before-you-build">Profile before you build</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A common pitch in SoC projects goes like this: "the filter is slow, so let us build a hardware block that runs it ten times faster." The block gets built, and the product ends up barely twice as fast. Nothing went wrong with the block. The disappointment was predictable from a one-line formula, known as Amdahl's law, and from a profile of where the time actually goes. Learning to apply both before writing RTL saves months of work.</p>
+<h2 id="the-formula">The formula</h2>
+<p>Suppose a fraction <em>f</em> of a program's run time is spent in the part you can accelerate, and the accelerator makes that part <em>s</em> times faster. The rest, a fraction 1 − <em>f</em>, runs exactly as before. The new run time, relative to the old, is (1 − <em>f</em>) + <em>f</em> / <em>s</em>, so the overall speed-up is:</p>
+<blockquote>
+<p>Speed-up = 1 / ((1 − <em>f</em>) + <em>f</em> / <em>s</em>)</p>
+</blockquote>
+<p>The important consequence comes from letting <em>s</em> grow without limit. The <em>f</em> / <em>s</em> term vanishes and the speed-up approaches 1 / (1 − <em>f</em>). If the accelerated part is 60% of the time, no accelerator, however fast, can make the program more than 1 / 0.4 = 2.5 times faster. The part you did not touch sets the ceiling.</p>
+<h2 id="a-worked-example-with-a-profile">A worked example with a profile</h2>
+<p>Imagine a sensor product whose processing loop takes 100 ms per frame on the SoC's processor core. A profile (numbers made up for illustration) shows:</p>
+<ul>
+<li>60 ms in a frequency-domain transform</li>
+<li>25 ms in filtering and feature extraction</li>
+<li>15 ms in packet formatting and communication</li>
+</ul>
+<p>The transform is the obvious target: <em>f</em> = 0.6. Propose an accelerator that runs it 10 times faster.</p>
+<p>Speed-up = 1 / (0.4 + 0.6 / 10) = 1 / 0.46 ≈ <strong>2.17</strong>.</p>
+<p>The frame now takes 46 ms instead of 100. A 10× block delivered about 2.2× overall.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 200" role="img" aria-labelledby="am-title am-desc" font-size="14">
+<title id="am-title">Frame time before and after acceleration</title>
+<desc id="am-desc">Three horizontal bars on the same scale. The original frame is 100 milliseconds: 40 in the unaccelerated part and 60 in the transform. With a ten times accelerator and data movement it is 40 plus 6 plus 5, 51 milliseconds. With an infinitely fast accelerator it is 40 milliseconds, the floor set by the unaccelerated part.</desc>
+<text x="10" y="45" class="dg-text">original</text>
+<rect x="110" y="28" width="140" height="26" class="dg-box"/><text x="180" y="46" text-anchor="middle" class="dg-text">rest 40</text>
+<rect x="250" y="28" width="210" height="26" class="dg-amber" fill-opacity="0.5"/><text x="355" y="46" text-anchor="middle" class="dg-text">transform 60</text>
+<text x="10" y="105" class="dg-text">10× + copy</text>
+<rect x="110" y="88" width="140" height="26" class="dg-box"/><text x="180" y="106" text-anchor="middle" class="dg-text">rest 40</text>
+<rect x="250" y="88" width="21" height="26" class="dg-amber" fill-opacity="0.5"/>
+<rect x="271" y="88" width="18" height="26" class="dg-track"/>
+<text x="296" y="106" class="dg-text">51 ms total</text>
+<text x="10" y="165" class="dg-text">infinitely fast</text>
+<rect x="110" y="148" width="140" height="26" class="dg-box"/><text x="180" y="166" text-anchor="middle" class="dg-text">rest 40</text>
+<text x="258" y="166" class="dg-text">40 ms floor</text>
+<line x1="250" y1="20" x2="250" y2="185" class="dg-dash"/>
+</svg>
+<figcaption>Once the transform is fast, the untouched 40 ms dominates; the copy overhead (grey) eats part of the gain.</figcaption>
+</figure>
+
+<h2 id="data-movement-is-part-of-the-bill">Data movement is part of the bill</h2>
+<p>Accelerators rarely work in place. The processor or a DMA engine has to move input data to the block, start it, wait for it, and move results back. That time belongs in the formula as an extra term <em>o</em>, expressed as a fraction of the original run time:</p>
+<blockquote>
+<p>Speed-up = 1 / ((1 − <em>f</em>) + <em>f</em> / <em>s</em> + <em>o</em>)</p>
+</blockquote>
+<p>If moving data and synchronising cost 5 ms per frame, <em>o</em> = 0.05 and the speed-up drops to 1 / (0.4 + 0.06 + 0.05) = 1 / 0.51 ≈ <strong>1.96</strong>. Doubling the accelerator to 20× barely helps: 1 / (0.4 + 0.03 + 0.05) ≈ 2.08. Past a certain point, the block's raw speed stops mattering and the interface does.</p>
+<p>That is why good accelerator designs attack data movement as hard as computation: they share buffers with the processor, use DMA so the core can do other work, process data in streams rather than whole frames, or keep intermediate results inside the block between stages.</p>
+<h2 id="compare-the-alternatives-honestly">Compare the alternatives honestly</h2>
+<p>Amdahl's law also tells you what else could reach the same goal. Suppose the requirement is a 2× speed-up. Options include:</p>
+<ul>
+<li><strong>The transform accelerator.</strong> About 2× with overhead, at the cost of new RTL, verification, area and a driver.</li>
+<li><strong>A faster software transform.</strong> A better algorithm or an optimised library might make the transform 4× faster in software: 1 / (0.4 + 0.15) ≈ 1.82. Close, with no silicon change.</li>
+<li><strong>A small instruction set extension.</strong> A multiply-accumulate or bit-manipulation instruction might speed up both the transform and the filtering, attacking more than 60% of the time.</li>
+<li><strong>Accelerating something smaller.</strong> A 100× block for the 15 ms communication stage gives only 1 / (0.85 + 0.0015) ≈ 1.17. Small fractions are rarely worth hardware.</li>
+</ul>
+<p>Hardware is the most expensive option to build and the hardest to change after tape-out, so it should win only when the numbers say so, including the energy, area and verification cost.</p>
+<h2 id="profile-before-you-build">Profile before you build</h2>
+<p>All of this depends on knowing <em>f</em>, and intuition about where time goes is often wrong. Measure it.</p>
+<ul>
+<li>On a RISC-V core, the <code>mcycle</code> and <code>minstret</code> counters give cycles and retired instructions; read them before and after each stage.</li>
+<li>On a host or a simulator, use a profiler on a representative input, not a toy one.</li>
+<li>Profile the whole product loop, including communication and waiting, not just the computation you find interesting.</li>
+<li>Repeat after each change. Once the big stage is accelerated, a different stage becomes the largest, and the next decision depends on the new profile.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Quoting the accelerator's speed-up as the product's speed-up.</strong> Only the formula tells you the overall gain.</li>
+<li><strong>Ignoring data movement and synchronisation.</strong> The <em>o</em> term can dominate a fast block.</li>
+<li><strong>Profiling a different workload.</strong> A benchmark with a small input may spend its time somewhere else entirely.</li>
+<li><strong>Accelerating early.</strong> Build hardware after software has been optimised, or you may accelerate code that a better algorithm would have removed.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a Python function for the speed-up with overhead and plot speed-up against <em>s</em> for <em>f</em> = 0.6 and <em>o</em> = 0.05 using numpy and matplotlib. Note where the curve flattens.</li>
+<li>Run a small signal-processing program on QEMU or Spike, or on a RISC-V core in Verilator, and read <code>mcycle</code> around each stage to build your own profile.</li>
+<li>Feed your measured fractions into the formula and decide, with numbers, which stage, if any, deserves hardware.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>amdahl</li><li>accelerators</li><li>hardware-software co-design</li><li>profiling</li><li>performance</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="custom-instruction-or-peripheral.html"><span>Previous in Computer architecture &amp; RISC-V</span>Adding a custom instruction to a RISC-V core: when it beats a peripheral</a><a class="next" href="smart-meter-soc-architecture.html"><span>Next in Computer architecture &amp; RISC-V</span>Architecture of a smart energy meter SoC: core, metering engine, security and communications</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Advanced</span></div>
+          <h3><a href="custom-instruction-or-peripheral.html">Adding a custom instruction to a RISC-V core: when it beats a peripheral</a></h3>
+          <p>RISC-V reserves opcode space for your own instructions. Compare a custom instruction with a memory-mapped accelerator on overhead, datapath changes, toolchain and verification, and pick by the size of the work.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Beginner</span></div>
+          <h3><a href="iron-law-of-performance.html">The iron law of performance: instructions, CPI and clock period</a></h3>
+          <p>Execution time is instruction count times cycles per instruction times clock period. Learn where each factor comes from, compute CPI from an instruction mix, and see how compilers, caches and pipelines move each one.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-architecture.html">Computer architecture &amp; RISC-V</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="apb-ahb-axi-compared.html">APB, AHB and AXI compared: picking a bus for each peripheral</a></h3>
+          <p>APB for simple registers, AHB for pipelined memory traffic, AXI for independent read and write streams. Work out each bus&#x27;s bandwidth, match it to real peripherals, and write a small APB register block.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

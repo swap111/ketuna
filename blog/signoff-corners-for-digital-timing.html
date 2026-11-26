@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Which corners to sign off: process, voltage and temperature for digital timing · Ketuna blog</title>
+  <meta name="description" content="Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Which corners to sign off: process, voltage and temperature for digital timing · Ketuna blog">
+  <meta property="og:description" content="Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.">
+  <link rel="canonical" href="https://ketuna.online/blog/signoff-corners-for-digital-timing.html">
+  <meta property="og:url" content="https://ketuna.online/blog/signoff-corners-for-digital-timing.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Which corners to sign off: process, voltage and temperature for digital timing",
+  "description": "Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "pvt corners, sign-off, on-chip variation, static timing analysis, derating",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 996,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/signoff-corners-for-digital-timing.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Which corners to sign off: process, voltage and temperature for digital timing</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Setup is signed off where cells are slowest and hold where they are fastest. Learn which process, voltage and temperature combinations that means, and how on-chip variation derates tighten every check.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-three-axes">The three axes</a></li><li><a href="#setup-at-slow-corners-hold-at-fast-corners">Setup at slow corners, hold at fast corners</a></li><li><a href="#on-chip-variation-two-flops-on-one-die-are-not-identical">On-chip variation: two flops on one die are not identical</a></li><li><a href="#a-practical-corner-list">A practical corner list</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A timing report is only true for the conditions it was computed at. Real chips are made on wafers where transistors come out a little faster or slower, run from supplies that sag and overshoot, and sit in environments from cold to hot. Sign-off has to show that timing holds across all of that, without running an infinite number of analyses. The answer is a small set of carefully chosen corners, plus a model of variation within a single chip.</p>
+<h2 id="the-three-axes">The three axes</h2>
+<p>Each corner fixes three things:</p>
+<ul>
+<li><strong>Process (P).</strong> Fabrication varies from wafer to wafer and lot to lot. Foundries characterise the extremes as corners named by the speed of NMOS and PMOS devices: typical-typical (TT), slow-slow (SS), fast-fast (FF), and the skewed corners slow-fast (SF) and fast-slow (FS). Standard-cell libraries are characterised at several of these.</li>
+<li><strong>Voltage (V).</strong> The supply has a tolerance around its nominal value, plus IR drop inside the chip. Lower voltage means less drive current and slower cells.</li>
+<li><strong>Temperature (T).</strong> The specified operating junction temperature range. At older nodes, cells are slower when hot, because carrier mobility falls. At many newer nodes with low supply voltages, the threshold-voltage effect can dominate and cells may be slower when cold; this is called <strong>temperature inversion</strong>. Check what your library data shows, rather than assuming.</li>
+</ul>
+<p>A library file name in an open PDK usually encodes its corner, for example a sky130 library named with <code>ss_100C_1v60</code> is the slow-slow process at 100 °C and 1.60 V.</p>
+<h2 id="setup-at-slow-corners-hold-at-fast-corners">Setup at slow corners, hold at fast corners</h2>
+<p>The logic follows from the two checks.</p>
+<ul>
+<li><strong>Setup</strong> fails when data is too slow. So you check it where cells and wires are slowest: slow process, low voltage, and whichever temperature is slower for your process. This is often written as SS, low V, high T for older nodes.</li>
+<li><strong>Hold</strong> fails when data is too fast. So you check it where everything is quickest: fast process, high voltage, and the faster temperature, often FF, high V, low T.</li>
+</ul>
+<p>Interconnect has its own corners. Metal and dielectric dimensions vary too, so the extraction provides RC corners such as maximum capacitance and minimum capacitance. Setup is usually paired with the high-RC corner and hold with the low-RC corner, though a path dominated by wire resistance can behave differently, which is why foundries specify the combinations to sign off.</p>
+<p>Typical corner should still be analysed. It tells you the performance most parts will actually achieve, and it is where power is often estimated. But it is not a sign-off corner on its own.</p>
+<h2 id="on-chip-variation-two-flops-on-one-die-are-not-identical">On-chip variation: two flops on one die are not identical</h2>
+<p>Corners describe the whole chip being slow or fast together. Within one chip, neighbouring transistors still differ slightly, and voltage and temperature vary from region to region. A timing check compares two paths, the launch side and the capture side, so even small differences between them matter.</p>
+<p><strong>On-chip variation (OCV) derating</strong> models this. For a setup check, the tool makes the launch clock path and the data path a little slower (late derate) and the capture clock path a little faster (early derate), because that combination is the worst case. For hold, it does the opposite.</p>
+<p>An illustrative setup check with a 5.0 ns clock, clock latency 1.00 ns to both flops, a data path of 3.00 ns, and setup time 0.10 ns. Derates of 1.05 late and 0.95 early are made up for illustration.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>No derate</th>
+<th>With derate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arrival: launch latency + data</td>
+<td>1.00 + 3.00 = 4.00 ns</td>
+<td>1.05 + 3.15 = 4.20 ns</td>
+</tr>
+<tr>
+<td>Required: period + capture latency − setup</td>
+<td>5.00 + 1.00 − 0.10 = 5.90 ns</td>
+<td>5.00 + 0.95 − 0.10 = 5.85 ns</td>
+</tr>
+<tr>
+<td>Slack</td>
+<td>1.90 ns</td>
+<td>1.65 ns</td>
+</tr>
+</tbody>
+</table></div>
+<p>Derating cost 0.25 ns of slack here.</p>
+<p>Part of that is pessimistic. If the first 0.80 ns of clock latency is a shared buffer chain that feeds both flops, that chain cannot be both slow (for launch) and fast (for capture) at the same moment. <strong>Common path pessimism removal</strong> (CPPR) gives back the difference on the shared part: 0.80 × (1.05 − 0.95) = 0.08 ns, bringing the slack to 1.73 ns. This is why clock trees that keep related flops on common branches make closure easier.</p>
+<p>Flat derates are crude. More refined approaches scale the derate with path depth and distance, because random variations partly cancel over many stages, or describe each cell's delay as a statistical distribution. The idea is the same: the two halves of a timing check do not see identical silicon.</p>
+<h2 id="a-practical-corner-list">A practical corner list</h2>
+<p>For a small digital block on an open PDK, a reasonable sign-off set looks like this:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Process</th>
+<th>Voltage</th>
+<th>Temperature</th>
+<th>RC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Setup</td>
+<td>SS</td>
+<td>minimum</td>
+<td>slow-side extreme</td>
+<td>high</td>
+</tr>
+<tr>
+<td>Hold</td>
+<td>FF</td>
+<td>maximum</td>
+<td>fast-side extreme</td>
+<td>low</td>
+</tr>
+<tr>
+<td>Hold, second case</td>
+<td>SS</td>
+<td>minimum</td>
+<td>slow-side extreme</td>
+<td>high</td>
+</tr>
+<tr>
+<td>Reference</td>
+<td>TT</td>
+<td>nominal</td>
+<td>room</td>
+<td>typical</td>
+</tr>
+</tbody>
+</table></div>
+<p>The second hold case catches paths whose clock skew grows at slow corners, where a long clock path can be slowed more than a short data path. Many flows also check hold at typical. Your foundry's sign-off guide, not this table, is the final word, and it may add skewed process corners for some circuits.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Signing off at typical only.</strong> Typical is the middle of the distribution; half the parts are slower.</li>
+<li><strong>Assuming hot is always slow.</strong> Check the library tables for temperature inversion.</li>
+<li><strong>Forgetting IR drop in the voltage corner.</strong> The minimum voltage at the cell is the supply minimum minus the grid drop.</li>
+<li><strong>Turning off CPPR.</strong> Without it, every check carries pessimism from shared clock paths.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>List the Liberty files in your sky130 PDK's standard-cell library directory and decode the corner in each name.</li>
+<li>In <strong>OpenSTA</strong>, load the same netlist with the slow library, create the clock, run <code>report_checks -path_delay max</code>, then repeat with the fast library and <code>-path_delay min</code>.</li>
+<li>Apply <code>set_timing_derate -late 1.05</code> and <code>set_timing_derate -early 0.95</code>, rerun, and compare slack with the table above.</li>
+<li>Look at the multi-corner summary that <strong>LibreLane</strong> produces and identify which corner limits setup and which limits hold.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>pvt corners</li><li>sign-off</li><li>on-chip variation</li><li>static timing analysis</li><li>derating</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="what-logic-synthesis-does.html"><span>Previous in Physical design &amp; tape-out</span>What logic synthesis actually does to your RTL</a><a class="next" href="why-hold-violations-are-worse.html"><span>Next in Physical design &amp; tape-out</span>Why hold violations are worse than setup violations, and how tools fix them</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="ir-drop-and-electromigration.html">IR drop and electromigration in plain terms</a></h3>
+          <p>IR drop is supply voltage lost in the power grid, which slows cells today. Electromigration is metal worn away by current density, which breaks wires years later. Both are checked before tape-out.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-power firmware: sleep modes, wake sources and measuring the current you saved · Ketuna blog</title>
+  <meta name="description" content="How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Low-power firmware: sleep modes, wake sources and measuring the current you saved · Ketuna blog">
+  <meta property="og:description" content="How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.">
+  <link rel="canonical" href="https://ketuna.online/blog/low-power-sleep-and-wake.html">
+  <meta property="og:url" content="https://ketuna.online/blog/low-power-sleep-and-wake.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Low-power firmware: sleep modes, wake sources and measuring the current you saved",
+  "description": "How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "low power, sleep modes, wfi, current measurement, firmware",
+  "articleSection": "Embedded systems",
+  "wordCount": 1000,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/low-power-sleep-and-wake.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Low-power firmware: sleep modes, wake sources and measuring the current you saved</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#sleep-modes-trade-current-for-wake-up-cost">Sleep modes trade current for wake-up cost</a></li><li><a href="#a-break-even-calculation">A break-even calculation</a></li><li><a href="#choosing-and-configuring-wake-sources">Choosing and configuring wake sources</a></li><li><a href="#entering-sleep-without-losing-a-wake-up">Entering sleep without losing a wake-up</a></li><li><a href="#measuring-what-the-board-really-draws">Measuring what the board really draws</a></li><li><a href="#common-current-leaks">Common current leaks</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Battery-powered firmware spends most of its life asleep, so the sleep code matters more than almost anything that runs while awake. Yet many projects pick the deepest sleep mode in the datasheet, see a tiny number in the table, and never measure what the board actually draws. This article covers three decisions: how deep to sleep, how to wake up reliably, and how to measure the result well enough to trust it.</p>
+<h2 id="sleep-modes-trade-current-for-wake-up-cost">Sleep modes trade current for wake-up cost</h2>
+<p>Microcontrollers offer a ladder of low-power modes. Names differ between parts, but the pattern is the same:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>What stops</th>
+<th>What is kept</th>
+<th>Wake-up</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Idle / sleep</td>
+<td>CPU clock only</td>
+<td>Everything</td>
+<td>A few cycles</td>
+</tr>
+<tr>
+<td>Stop / deep sleep</td>
+<td>Most clocks, main oscillator</td>
+<td>RAM, registers</td>
+<td>Microseconds, plus clock restart</td>
+</tr>
+<tr>
+<td>Standby / shutdown</td>
+<td>Nearly everything</td>
+<td>A few backup registers, RTC</td>
+<td>Like a reset</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each step down saves current and costs something on the way back up: time to restart oscillators and regulators, and in the deepest modes a full reboot because RAM was lost. That wake-up costs energy too. So deeper is not automatically better; it depends on how long you sleep.</p>
+<h2 id="a-break-even-calculation">A break-even calculation</h2>
+<p>Suppose, with numbers made up for illustration, that idle sleep draws 200 µA, deep sleep draws 5 µA, and each wake from deep sleep spends an extra 2 ms at 3 mA restarting the clock and restoring peripherals.</p>
+<p>The wake-up overhead costs 2 ms × 3 mA = 6 µC of charge. Every second spent in deep sleep instead of idle saves 195 µA × 1 s = 195 µC. The two are equal after 6 µC / 195 µA ≈ 31 ms. If your firmware sleeps for longer than about 31 ms between events, deep sleep wins; for shorter gaps, the overhead eats the saving and idle sleep is better.</p>
+<p>The same reasoning applies to "race to sleep": running the CPU faster to finish sooner often saves energy, because the fixed currents of regulators and oscillators are paid only while awake. It is not guaranteed. Measure both.</p>
+<h2 id="choosing-and-configuring-wake-sources">Choosing and configuring wake sources</h2>
+<p>Before choosing a mode, list what must wake the device and check which modes support each source:</p>
+<ul>
+<li><strong>A real-time clock alarm or low-power timer</strong> for periodic work. These run from a slow, low-current oscillator and usually work in the deepest modes.</li>
+<li><strong>A GPIO edge</strong> for a button or a sensor's interrupt output. In deep modes, often only some pins can wake the chip.</li>
+<li><strong>A peripheral event</strong>, such as a byte on a low-power UART or a comparator threshold, on parts that keep those blocks alive.</li>
+</ul>
+<p>If the event you need cannot wake the mode you chose, the device sleeps through it. That is a design error found only by testing every wake source in every mode you use.</p>
+<h2 id="entering-sleep-without-losing-a-wake-up">Entering sleep without losing a wake-up</h2>
+<p>The classic race: firmware checks for pending work, finds none, and goes to sleep. If an interrupt arrives <em>between</em> the check and the sleep instruction, its flag is set but the CPU sleeps anyway, and the event waits until the next unrelated wake-up, which may be minutes later.</p>
+<p>On RISC-V, the <code>wfi</code> (wait for interrupt) instruction is designed to avoid this. It resumes when any interrupt that is enabled in the <code>mie</code> register becomes pending, <em>even if interrupts are globally disabled</em> in <code>mstatus</code>. So you can disable interrupts, check, and sleep, and nothing slips through:</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+#define MSTATUS_MIE (1u &lt;&lt; 3)
+
+extern volatile bool work_pending;     /* set by ISRs */
+
+void idle_until_work(void)
+{
+    for (;;) {
+        __asm__ volatile (&quot;csrc mstatus, %0&quot; :: &quot;r&quot;(MSTATUS_MIE));
+        if (work_pending) {
+            __asm__ volatile (&quot;csrs mstatus, %0&quot; :: &quot;r&quot;(MSTATUS_MIE));
+            return;                    /* go and do it */
+        }
+        __asm__ volatile (&quot;wfi&quot;);      /* wakes on a pending interrupt */
+        __asm__ volatile (&quot;csrs mstatus, %0&quot; :: &quot;r&quot;(MSTATUS_MIE));
+        /* the pending interrupt is taken here, then loop and re-check */
+    }
+}
+</code></pre>
+<p>Other architectures provide the same guarantee in their own way; look for it in the core's documentation before writing the idle loop. With an RTOS, the idle thread does this for you, and a "tickless" configuration stops the periodic tick so the CPU is not woken every millisecond for nothing.</p>
+<h2 id="measuring-what-the-board-really-draws">Measuring what the board really draws</h2>
+<p>Datasheet sleep figures describe the chip under stated conditions. Your board adds regulators, pull-up resistors, sensors, LEDs and leakage through pins. Only a measurement tells you the total.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="lp-title lp-desc" font-size="14">
+<title id="lp-title">Current profile of a duty-cycled device</title>
+<desc id="lp-desc">Current against time. Long flat stretches at a low sleep floor are interrupted by short tall spikes when the device wakes, works and returns to sleep. A dashed line marks the average current, which sits well above the sleep floor because of the spikes.</desc>
+<line x1="50" y1="190" x2="460" y2="190" class="dg-line"/>
+<line x1="50" y1="20" x2="50" y2="190" class="dg-line"/>
+<text x="12" y="30" class="dg-text">I</text>
+<text x="440" y="210" class="dg-text">t</text>
+<path d="M50,178 H120 V50 H135 V120 H150 V178 H270 V50 H285 V120 H300 V178 H420 V50 H435 V120 H450 V178 H460" class="dg-line" fill="none"/>
+<line x1="50" y1="160" x2="460" y2="160" class="dg-amber-line" stroke-dasharray="6 4"/>
+<text x="160" y="154" class="dg-text">average</text>
+<text x="160" y="206" class="dg-muted">sleep floor</text>
+<text x="140" y="42" class="dg-muted">wake + work</text>
+</svg>
+<figcaption>The average is set by the area under the spikes as much as by the sleep floor, so the whole cycle has to be captured.</figcaption>
+</figure>
+
+<p>Average current is the charge over a full cycle divided by its length:</p>
+<blockquote>
+<p>I<sub>avg</sub> = Σ (I<sub>mode</sub> × t<sub>mode</sub>) / T</p>
+</blockquote>
+<p>Three practical points decide whether your measurement means anything:</p>
+<ul>
+<li><strong>Dynamic range.</strong> A shunt resistor in series with the supply turns current into voltage. With 10 Ω, a 5 mA active current gives 50 mV, but a 5 µA sleep current gives only 50 µV, buried in the noise of most instruments. A big shunt fixes that but drops too much voltage when awake. Use an instrument designed for the job, such as a source-measure unit or a current-ranging power profiler, or measure the sleep floor and the active spikes in two separate set-ups.</li>
+<li><strong>Sample fast enough.</strong> Wake-up spikes may last microseconds. A slow multimeter averages them badly or misses them.</li>
+<li><strong>Remove the debugger.</strong> An attached debug probe often keeps clocks and power domains alive, and its pins can leak current. Measure with it disconnected, after a real power cycle.</li>
+</ul>
+<h2 id="common-current-leaks">Common current leaks</h2>
+<ul>
+<li>Floating digital inputs, which can sit between logic levels and draw current; configure unused pins as analog or with a defined pull</li>
+<li>Peripheral clocks left enabled before sleeping</li>
+<li>Pull-up resistors on lines held low during sleep</li>
+<li>Sensors and regulators with their own quiescent current, often larger than the microcontroller's</li>
+<li>An LED or a level shifter that nobody turned off</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>On QEMU's RISC-V <code>virt</code> machine, write an idle loop with <code>wfi</code> and a timer interrupt from the CLINT, as in the Ketuna track D labs, and count how many times the loop wakes per second with and without a periodic tick. QEMU will not tell you the current, but it will show you the wake-ups.</li>
+<li>On a real board, measure the sleep floor and one active cycle with whatever instrument you have, compute I<sub>avg</sub> with the formula, and compare with a direct long-interval average.</li>
+<li>Redo the break-even calculation with the numbers from your own microcontroller's datasheet, then check it by measuring both sleep modes at two different wake intervals.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>low power</li><li>sleep modes</li><li>wfi</li><li>current measurement</li><li>firmware</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="keep-interrupt-handlers-short.html"><span>Previous in Embedded systems</span>Keeping interrupt handlers short: what belongs in an ISR and what does not</a><a class="next" href="dma-double-buffering-for-adc.html"><span>Next in Embedded systems</span>Moving ADC samples with DMA and double buffering</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="recovering-a-stuck-i2c-bus.html">Why an I2C bus gets stuck low, and how firmware recovers it</a></h3>
+          <p>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="rural-iot-node-power-budget.html">A power budget for a battery-powered rural IoT node</a></h3>
+          <p>Work out the battery life of a field sensor node from the charge each part uses per reporting cycle, see why the radio dominates, and test how weak coverage, retries and reporting rate change the answer.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bootloaders and safe firmware updates: A/B slots, verification and rollback · Ketuna blog</title>
+  <meta name="description" content="A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Bootloaders and safe firmware updates: A/B slots, verification and rollback · Ketuna blog">
+  <meta property="og:description" content="A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.">
+  <link rel="canonical" href="https://ketuna.online/blog/safe-firmware-updates-ab-slots.html">
+  <meta property="og:url" content="https://ketuna.online/blog/safe-firmware-updates-ab-slots.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Bootloaders and safe firmware updates: A/B slots, verification and rollback",
+  "description": "A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "bootloader, firmware update, ota, security, flash",
+  "articleSection": "Embedded systems",
+  "wordCount": 1011,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/safe-firmware-updates-ab-slots.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-embedded.html">Embedded systems</a></p>
+        <h1>Bootloaders and safe firmware updates: A/B slots, verification and rollback</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-embedded.html">Embedded systems</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A firmware update must survive power loss at any instant and a new image that boots but misbehaves. How A/B slots, signed images, a trial boot and a confirm step give you that, and where designs usually go wrong.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-flash-layout">The flash layout</a></li><li><a href="#what-the-bootloader-verifies">What the bootloader verifies</a></li><li><a href="#trial-boot-and-confirmation">Trial boot and confirmation</a></li><li><a href="#surviving-power-loss-in-the-record-itself">Surviving power loss in the record itself</a></li><li><a href="#where-designs-go-wrong">Where designs go wrong</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A device in the field that receives a broken update is no longer a device; it is a support visit. Two failure modes matter. The first is mechanical: power fails halfway through writing flash, and nothing valid is left to boot. The second is logical: the new image is complete and correctly signed, but it hangs on this particular hardware revision or cannot reach the network to receive a fix. A good update design handles both without anyone touching the device, and it does so with surprisingly little code if the states are chosen carefully.</p>
+<h2 id="the-flash-layout">The flash layout</h2>
+<p>The standard arrangement divides flash into four areas:</p>
+<ul>
+<li><strong>Bootloader:</strong> at the reset address, small, rarely or never updated, and write-protected</li>
+<li><strong>Slot A</strong> and <strong>slot B:</strong> each large enough for a complete application image</li>
+<li><strong>Boot record:</strong> a small area, ideally two flash sectors, holding which slot is active and in what state</li>
+</ul>
+<p>The running application always lives in one slot. An update is downloaded into the <em>other</em> slot while the device keeps working normally. Nothing about the running image changes until the new one is complete and verified, so a power cut during download costs only the download.</p>
+<p>There are two ways to run the new image. In a <strong>swap</strong> design, the bootloader copies or swaps the new image into a fixed primary slot, so every image is linked for one address; the swap must be resumable after power loss, which is where most of the complexity lives. In a <strong>direct</strong> design, the bootloader jumps to whichever slot is active, so images are either built twice, once per slot address, or made position-independent. Direct designs avoid the copy at the cost of the double build. The open-source MCUboot bootloader supports both styles and is worth reading even if you write your own.</p>
+<h2 id="what-the-bootloader-verifies">What the bootloader verifies</h2>
+<p>Each image carries a header and a trailer. The header holds a magic number, the image size, a version and a security counter; the trailer holds a cryptographic hash of header and body and a signature over that hash.</p>
+<p>Before jumping to any image, the bootloader checks, in order:</p>
+<ol>
+<li>the magic number and that the size fits the slot (cheap, catches empty or erased slots);</li>
+<li>the SHA-256 hash of the image (catches corruption from an interrupted write);</li>
+<li>the signature with a public key stored in the bootloader (catches images that did not come from you; Ed25519 and ECDSA P-256 are common choices);</li>
+<li>the security counter against a value stored in the device, so an attacker cannot install an older, correctly signed image with a known vulnerability.</li>
+</ol>
+<p>A plain CRC catches corruption but not tampering. If anyone other than you can deliver bytes to the device, use a signature, and protect the bootloader's flash and the debug port so the key and the checks cannot be replaced.</p>
+<h2 id="trial-boot-and-confirmation">Trial boot and confirmation</h2>
+<p>Verification proves the image is intact and authentic, not that it works. That is the job of the <strong>trial boot</strong>: the new image runs once, provisionally, and must explicitly confirm itself after passing a self-test. If the device resets for any reason before confirmation, the bootloader goes back to the previous image.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 250" role="img" aria-labelledby="ab-title ab-desc" font-size="14">
+<title id="ab-title">Update states from download to confirmation or rollback</title>
+<desc id="ab-desc">Four states in a loop. Confirmed on slot A leads to Pending on slot B after the download is verified. A reboot moves Pending to Trial on slot B. From Trial, the application's confirm call leads to Confirmed on slot B. A reset before confirming leads back to Confirmed on slot A, which is the rollback.</desc>
+<rect x="20" y="30" width="170" height="50" rx="8" class="dg-core"/>
+<text x="105" y="52" text-anchor="middle" class="dg-text">CONFIRMED</text>
+<text x="105" y="70" text-anchor="middle" class="dg-muted">running A</text>
+<rect x="290" y="30" width="170" height="50" rx="8" class="dg-box"/>
+<text x="375" y="52" text-anchor="middle" class="dg-text">PENDING</text>
+<text x="375" y="70" text-anchor="middle" class="dg-muted">B written, verified</text>
+<rect x="290" y="170" width="170" height="50" rx="8" class="dg-amber" fill-opacity="0.35"/>
+<text x="375" y="192" text-anchor="middle" class="dg-text">TRIAL</text>
+<text x="375" y="210" text-anchor="middle" class="dg-muted">B runs once</text>
+<rect x="20" y="170" width="170" height="50" rx="8" class="dg-core"/>
+<text x="105" y="192" text-anchor="middle" class="dg-text">CONFIRMED</text>
+<text x="105" y="210" text-anchor="middle" class="dg-muted">running B</text>
+<path d="M190,55 H282" class="dg-line"/>
+<path d="M280,50 L288,55 L280,60 Z" class="dg-arrow"/>
+<text x="238" y="46" text-anchor="middle" class="dg-muted">download</text>
+<path d="M375,80 V162" class="dg-line"/>
+<path d="M370,160 L375,168 L380,160 Z" class="dg-arrow"/>
+<text x="385" y="128" class="dg-muted">reboot</text>
+<path d="M290,195 H198" class="dg-line"/>
+<path d="M200,190 L192,195 L200,200 Z" class="dg-arrow"/>
+<text x="244" y="186" text-anchor="middle" class="dg-muted">confirm</text>
+<path d="M320,170 C300,120 200,110 140,82" class="dg-dash" fill="none"/>
+<path d="M146,80 L136,80 L142,88 Z" class="dg-arrow"/>
+<text x="250" y="122" text-anchor="middle" class="dg-muted">reset first</text>
+</svg>
+<figcaption>Any reset while in TRIAL, including a watchdog reset from a hung image, sends the device back to the image that last confirmed itself.</figcaption>
+</figure>
+
+<p>The bootloader's decision is a few lines once the record is in hand:</p>
+<pre><code class="language-c">enum { ST_CONFIRMED = 1, ST_PENDING = 2, ST_TRIAL = 3 };
+
+struct boot_rec {
+    uint32_t magic, seq;         /* seq: highest valid copy wins */
+    uint8_t  active, state, pad[2];
+    uint32_t crc;                /* over the fields above */
+};
+
+int choose_slot(struct boot_rec *r)
+{
+    int other = 1 - r-&gt;active;
+
+    if (r-&gt;state == ST_PENDING) {           /* first boot of new image */
+        if (image_valid(r-&gt;active)) {
+            r-&gt;state = ST_TRIAL;
+            record_write(r);                /* before jumping, always */
+            return r-&gt;active;
+        }
+        r-&gt;active = other;                  /* bad image: fall back */
+        r-&gt;state = ST_CONFIRMED;
+        record_write(r);
+    } else if (r-&gt;state == ST_TRIAL) {      /* reset before confirm */
+        r-&gt;active = other;
+        r-&gt;state = ST_CONFIRMED;
+        record_write(r);
+    }
+    return image_valid(r-&gt;active) ? r-&gt;active : -1;  /* -1: recovery */
+}
+</code></pre>
+<p>The order matters: the record moves to TRIAL <em>before</em> the jump. If the new image then hangs, the watchdog resets the chip, the bootloader finds TRIAL and rolls back. If it wrote TRIAL after the image confirmed, a hang would leave the device rebooting into the bad image forever. The application's <code>confirm()</code> writes the record with state CONFIRMED; it should be called only after the checks that matter for this product, for example that the device has reached the update server, so that a broken network stack cannot confirm itself.</p>
+<h2 id="surviving-power-loss-in-the-record-itself">Surviving power loss in the record itself</h2>
+<p>The boot record is the single point of truth, so updating it must be atomic. Flash cannot be rewritten in place; a sector must be erased first, and power can fail between the erase and the write. Keep <strong>two copies</strong> in two sectors, each with a sequence number and a CRC. To update, erase and write the copy with the <em>lower</em> sequence number, giving it the next sequence number. At boot, read both and use the valid copy with the highest number. A power cut at any point leaves at least one valid copy, either the old state or the new one, never garbage.</p>
+<h2 id="where-designs-go-wrong">Where designs go wrong</h2>
+<ul>
+<li><strong>Confirming too early.</strong> An image that confirms itself in its first line of <code>main()</code> has turned the trial into a formality.</li>
+<li><strong>No watchdog during the trial.</strong> A new image that hangs with interrupts disabled never resets, so it never rolls back. Start the watchdog in the bootloader, before the jump.</li>
+<li><strong>Bootloader that cannot be trusted.</strong> If the application can rewrite the bootloader region, a bug or an attacker can remove every check. Lock it.</li>
+<li><strong>Forgetting the vector table and stack pointer.</strong> When jumping to an application, set the trap or vector base and the stack pointer from the application's image, not the bootloader's.</li>
+<li><strong>Testing only the happy path.</strong> The update path is the code most likely to be exercised for the first time in the field.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Implement <code>choose_slot()</code> and the two-copy record on your laptop, with flash simulated as a byte array whose writes can be cut off at any byte. Loop over every possible cut point in an update and assert that a valid image always boots.</li>
+<li>Sign and verify a test binary with Python's <code>hashlib</code> and an Ed25519 implementation, and flip one bit to confirm verification fails.</li>
+<li>On a board you own, build a Zephyr application with MCUboot (Zephyr's sysbuild can build both together) following the project's documentation, and walk a test update through the pending, trial and confirmed states. Pull the power once in each state and write down what boots.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>bootloader</li><li>firmware update</li><li>ota</li><li>security</li><li>flash</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="rural-iot-node-power-budget.html"><span>Previous in Embedded systems</span>A power budget for a battery-powered rural IoT node</a><a class="next" href="debugging-with-gdb-and-openocd.html"><span>Next in Embedded systems</span>Debugging bare-metal firmware with GDB and OpenOCD</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="reading-a-linker-script.html">Reading a linker script: sections, memory regions and the map file</a></h3>
+          <p>How a GNU linker script places code and data in flash and RAM, why .data has two addresses, and how to use the map file, size and nm to find out what is eating your memory.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
+          <h3><a href="smart-meter-firmware-architecture.html">Firmware architecture for a smart energy meter: metering, events and logs</a></h3>
+          <p>How to structure smart meter firmware so metering is never disturbed by communication, tamper events are recorded reliably, and energy totals survive sudden power loss, with the hold-up and flash-wear arithmetic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="debugging-with-gdb-and-openocd.html">Debugging bare-metal firmware with GDB and OpenOCD</a></h3>
+          <p>How GDB, OpenOCD and a JTAG probe fit together, and how to use breakpoints, watchpoints and memory examination to inspect a running microcontroller and its peripherals without adding a single printf.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Choosing an ADC architecture for a multi-channel sensor-fusion array · Ketuna blog</title>
+  <meta name="description" content="When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Choosing an ADC architecture for a multi-channel sensor-fusion array · Ketuna blog">
+  <meta property="og:description" content="When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.">
+  <link rel="canonical" href="https://ketuna.online/blog/adc-architecture-for-sensor-fusion.html">
+  <meta property="og:url" content="https://ketuna.online/blog/adc-architecture-for-sensor-fusion.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Choosing an ADC architecture for a multi-channel sensor-fusion array",
+  "description": "When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "adc, sensor fusion, simultaneous sampling, multiplexing, data converters",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1131,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/adc-architecture-for-sensor-fusion.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Choosing an ADC architecture for a multi-channel sensor-fusion array</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#start-from-what-the-fusion-algorithm-needs">Start from what the fusion algorithm needs</a></li><li><a href="#the-cost-of-multiplexing">The cost of multiplexing</a></li><li><a href="#simultaneous-sampling-options">Simultaneous sampling options</a></li><li><a href="#comparing-the-options">Comparing the options</a></li><li><a href="#shared-resources-that-couple-channels">Shared resources that couple channels</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Sensor fusion combines several measurements into one estimate: microphones in an array to find where a sound came from, current and voltage to compute power, accelerometer and gyroscope axes to track orientation, a row of strain gauges to locate a load. Each channel needs a converter, and the obvious question is resolution and speed. The less obvious question, and often the deciding one, is <em>timing</em>: whether all channels describe the same instant. This article works through the architecture choice for a multi-channel array, from the timing requirement down to area and power per channel.</p>
+<h2 id="start-from-what-the-fusion-algorithm-needs">Start from what the fusion algorithm needs</h2>
+<p>Before comparing converters, write down three requirements for the combined system, not for one channel.</p>
+<ol>
+<li><strong>Bandwidth and resolution per channel.</strong> The usual specifications: signal band, required effective number of bits, noise floor.</li>
+<li><strong>Inter-channel timing.</strong> How closely in time must samples from different channels align? Algorithms that compare <em>phase or arrival time</em> between channels (direction finding, power measurement, vibration mode analysis) are sensitive to it. Algorithms that only combine slow <em>magnitudes</em> (averaging temperatures, fusing a slow pressure reading with an accelerometer) are not.</li>
+<li><strong>Latency.</strong> How long after an event must the fused result exist? A control loop and an offline analysis give very different answers.</li>
+</ol>
+<p>The second requirement is the one most often missed, because it does not appear on any single ADC datasheet.</p>
+<h2 id="the-cost-of-multiplexing">The cost of multiplexing</h2>
+<p>The cheapest architecture shares one fast ADC among N channels through an analog multiplexer. The ADC converts channel 0, then channel 1, and so on, and each channel is sampled at the aggregate rate divided by N. The catch is that the channels are sampled at different instants.</p>
+<p>Worked example, with illustrative numbers: eight channels share a 1 MS/s converter. Each channel gets 125 kS/s, plenty for a 10 kHz band. But channel 7 is sampled 7 µs after channel 0. For a sine of frequency f, a time skew Δt is a phase error of 360° × f × Δt:</p>
+<ul>
+<li>at 1 kHz, 360 × 1,000 × 7 µs ≈ <strong>2.5°</strong></li>
+<li>at 10 kHz, about <strong>25°</strong></li>
+</ul>
+<p>For a power meter computing voltage times current, a few degrees of phase error between the two channels corrupts the result at low power factor. For a microphone array, compare the skew with the signal you are trying to measure: two microphones 5 cm apart see a sound with at most 0.05 / 343 ≈ 146 µs of arrival difference. A 7 µs sampling skew is a noticeable fraction of that and biases the computed bearing.</p>
+<p>Multiplexing has a second cost. When the multiplexer switches, the ADC's sampling capacitor must recharge from the previous channel's voltage to the new one. To settle within half an LSB, an RC network needs about (N + 1)·ln 2 time constants: about 9 time constants for 12 bits and 11.8 for 16 bits. If half of each 1 µs slot is available for acquisition, a 12-bit conversion needs a time constant of about 55 ns or less, which constrains the multiplexer resistance, the sensor's source impedance and any filter in front. Sensors with high source impedance usually need a buffer per channel, which erodes the cost saving.</p>
+<p>Skew is deterministic, so it can sometimes be corrected digitally: if each channel is band-limited well below its Nyquist frequency, a fractional-delay filter can interpolate every channel to a common instant. That works, but it costs computation and adds latency, and it fails for content near the band edge.</p>
+<h2 id="simultaneous-sampling-options">Simultaneous sampling options</h2>
+<p>Three structures give truly aligned samples.</p>
+<ul>
+<li><strong>Sample-and-hold per channel, one shared ADC.</strong> All channels are captured at the same instant on their own hold capacitors, then converted one after another. Timing is aligned; the converter is shared. The hold capacitors must keep their voltage, without droop, for the whole conversion sequence, and each hold stage needs a driver.</li>
+<li><strong>One SAR ADC per channel.</strong> Each channel has its own converter, all triggered by a common start signal. SAR converters are compact and draw power roughly in proportion to their conversion rate, which suits moderate rates and resolutions. Area and reference loading scale with the number of channels.</li>
+<li><strong>One sigma-delta modulator per channel, common clock.</strong> Each channel oversamples with its own modulator, all clocked together and decimated by identical digital filters, so their outputs are inherently time-aligned. Sigma-delta suits high resolution at low bandwidth, and the anti-alias filter becomes simple because of oversampling. The price is filter latency, often many output samples, and digital area for N decimation filters.</li>
+</ul>
+<h2 id="comparing-the-options">Comparing the options</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Architecture</th>
+<th>Inter-channel timing</th>
+<th>Area and power trend</th>
+<th>Fits well</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multiplexed, one ADC</td>
+<td>Skewed; correct digitally if band-limited</td>
+<td>Lowest; one converter</td>
+<td>Slow, independent channels</td>
+</tr>
+<tr>
+<td>S/H per channel, shared ADC</td>
+<td>Aligned</td>
+<td>Low; N hold stages plus one ADC</td>
+<td>Moderate rates, few channels</td>
+</tr>
+<tr>
+<td>SAR per channel</td>
+<td>Aligned</td>
+<td>Grows with N; efficient at moderate rates</td>
+<td>Mid-rate arrays, low latency</td>
+</tr>
+<tr>
+<td>Sigma-delta per channel</td>
+<td>Aligned; long filter latency</td>
+<td>Grows with N; digital filters dominate</td>
+<td>High resolution, low bandwidth</td>
+</tr>
+</tbody>
+</table></div>
+<p>These are trends, not numbers. Actual area and power depend heavily on the process and the design, so compare candidate designs or parts on the same basis: energy per conversion at the needed resolution, and area including references and drivers.</p>
+<h2 id="shared-resources-that-couple-channels">Shared resources that couple channels</h2>
+<p>Whatever the architecture, some things are shared, and shared things couple channels.</p>
+<ul>
+<li><strong>The reference.</strong> Every converter draws charge from it at each conversion. If one channel's conversion disturbs the reference while another is deciding a bit, the error shows up as crosstalk. Simultaneous SARs make this worse because all of them load the reference at the same moments; a strong reference buffer or per-channel decoupling is needed.</li>
+<li><strong>The sampling clock.</strong> For simultaneous sampling, the clock must arrive at every channel with matched delay. Clock skew between channels is just a smaller version of the multiplexing problem, and clock jitter limits each channel's resolution at high input frequency.</li>
+<li><strong>Substrate and supply.</strong> Many converters switching together inject correlated noise; staggering them helps noise and hurts alignment.</li>
+<li><strong>Calibration.</strong> Gain and phase differences between channels, including those of each sensor and its analog filter, must be calibrated together. An anti-alias filter whose components vary by a few per cent adds a phase shift that differs from channel to channel, comparable to sampling skew.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>With <strong>numpy</strong>, generate two copies of a 1 kHz sine, sample the second 7 µs late, and compute the phase difference from their FFTs. Repeat at 10 kHz.</li>
+<li>Implement a fractional-delay correction (for example, a windowed-sinc FIR) and measure how well it removes the skew for tones near and far from the band edge.</li>
+<li>In <strong>ngspice</strong>, model a multiplexer switch resistance and a sampling capacitor, step between two channels at different voltages, and measure how many time constants it takes to settle within half an LSB at 12 bits.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>adc</li><li>sensor fusion</li><li>simultaneous sampling</li><li>multiplexing</li><li>data converters</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="analog-layout-for-matching.html"><span>Previous in Analog &amp; mixed-signal</span>Analog layout for matching: common centroid, interdigitation and dummies</a><a class="next" href="comparator-design-tradeoffs.html"><span>Next in Analog &amp; mixed-signal</span>Comparators: speed, offset, hysteresis and kickback</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="smart-meter-metering-front-end.html">The metering front end of a smart energy meter: shunts, current transformers and simultaneous sampling</a></h3>
+          <p>An energy meter multiplies voltage by current thousands of times a second. Learn how shunts, current transformers and dividers sense them, why a few microseconds of skew ruins accuracy, and how meters are calibrated.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="cell-voltage-measurement-in-a-bms.html">Measuring cell voltages in a battery pack: the analog front end of a BMS</a></h3>
+          <p>Each cell in a series battery stack sits at a different, often high, common-mode voltage. Learn why simple dividers fail, how level shifting and stacked monitors measure each cell, and what balancing demands.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

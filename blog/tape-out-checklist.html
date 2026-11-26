@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The tape-out checklist: what to confirm before you send GDS · Ketuna blog</title>
+  <meta name="description" content="Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The tape-out checklist: what to confirm before you send GDS · Ketuna blog">
+  <meta property="og:description" content="Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.">
+  <link rel="canonical" href="https://ketuna.online/blog/tape-out-checklist.html">
+  <meta property="og:url" content="https://ketuna.online/blog/tape-out-checklist.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The tape-out checklist: what to confirm before you send GDS",
+  "description": "Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "tape-out, sign-off, checklist, precheck, physical verification",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 909,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/tape-out-checklist.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>The tape-out checklist: what to confirm before you send GDS</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Once GDS leaves your hands, nothing can be changed. Work through a tape-out checklist covering physical checks, timing at every corner, precheck, documentation and a bring-up plan, with a small script to gate a run.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#rule-one-evidence-not-feelings">Rule one: evidence, not feelings</a></li><li><a href="#physical-verification">Physical verification</a></li><li><a href="#timing-and-electrical">Timing and electrical</a></li><li><a href="#a-small-script-to-gate-a-run">A small script to gate a run</a></li><li><a href="#submission-and-precheck">Submission and precheck</a></li><li><a href="#documentation-and-bring-up-plan">Documentation and bring-up plan</a></li><li><a href="#review-it-with-someone-else">Review it with someone else</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Tape-out is the one step in chip design that cannot be undone. Software can be patched after release; a mask set cannot. The cost of a mistake found after tape-out is a respin, months of waiting and the price of another shuttle slot or mask set. That is why teams use a written checklist, filled in with evidence, and review it with someone who did not do the work. This article lays out such a checklist for a digital block or small chip, and explains why each line is there.</p>
+<h2 id="rule-one-evidence-not-feelings">Rule one: evidence, not feelings</h2>
+<p>Every item on the list should point to a file: a report, a log line, a screenshot, a commit hash. "DRC is clean" is a claim. "DRC is clean: <code>magic_drc.rpt</code> from run <code>final-03</code>, zero violations, commit <code>a1b2c3d</code>" is evidence that someone else can check. Flows print reassuring messages such as "Flow complete"; those are not sign-off. The checklist exists to force the step from claim to evidence.</p>
+<p>It also forces you to sign off <strong>one specific run</strong>. If you change anything, even one constraint, the evidence from the previous run no longer applies.</p>
+<h2 id="physical-verification">Physical verification</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What "done" means</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DRC</td>
+<td>Zero violations with the foundry or shuttle sign-off deck on the final GDS</td>
+<td>The router's own check is not the sign-off deck</td>
+</tr>
+<tr>
+<td>LVS</td>
+<td>Layout matches the final netlist, including power and physical cells</td>
+<td>Proves the polygons are the circuit you verified</td>
+</tr>
+<tr>
+<td>Antenna</td>
+<td>Zero violations after diode insertion</td>
+<td>Plasma damage during fabrication can kill gates</td>
+</tr>
+<tr>
+<td>Density</td>
+<td>Every layer within its density window, fill inserted</td>
+<td>Polishing needs even metal; fill changes parasitics</td>
+</tr>
+<tr>
+<td>GDS integrity</td>
+<td>The GDS opens, top cell name is correct, no empty or unexpected cells</td>
+<td>A wrong top cell or missing sub-cell is a silent disaster</td>
+</tr>
+</tbody>
+</table></div>
+<p>Run DRC and LVS on the <strong>final</strong> GDS, after fill and after any last edits, not on an intermediate file.</p>
+<h2 id="timing-and-electrical">Timing and electrical</h2>
+<ul>
+<li><strong>Setup and hold met at every sign-off corner,</strong> with extracted parasitics, not estimates. Record the worst slack per corner, not just the overall result.</li>
+<li><strong>Transition, capacitance and fanout limits</strong> met. Max slew and max capacitance violations are often ignored because they are not "timing", but they mean cells are driven outside their characterised range.</li>
+<li><strong>Constraints reviewed.</strong> No unexplained false paths, no unconstrained endpoints, clocks defined with the right periods.</li>
+<li><strong>IR drop and electromigration</strong> within limits for your power grid.</li>
+<li><strong>Equivalence checked</strong> between the RTL you verified and the final netlist, or at least gate-level simulation of the final netlist passing your key tests.</li>
+</ul>
+<h2 id="a-small-script-to-gate-a-run">A small script to gate a run</h2>
+<p>Open flows write their results to a metrics file, so part of the checklist can be automated. This Python script reads a LibreLane <code>metrics.json</code> and checks it against sign-off rules. The metric names are the ones LibreLane writes; check them against your version.</p>
+<pre><code class="language-python">import json
+import sys
+
+# (metric key, rule, limit, meaning)
+RULES = [
+    (&quot;timing__setup__ws&quot;, &quot;&gt;=&quot;, 0.0, &quot;setup slack, worst corner&quot;),
+    (&quot;timing__hold__ws&quot;, &quot;&gt;=&quot;, 0.0, &quot;hold slack, worst corner&quot;),
+    (&quot;route__drc_errors&quot;, &quot;==&quot;, 0, &quot;DRC after detailed route&quot;),
+    (&quot;design__lvs_error__count&quot;, &quot;==&quot;, 0, &quot;LVS errors&quot;),
+    (&quot;route__antenna_violation__count&quot;, &quot;==&quot;, 0, &quot;antenna&quot;),
+    (&quot;design__max_slew_violation__count&quot;, &quot;==&quot;, 0, &quot;max slew&quot;),
+    (&quot;design__max_cap_violation__count&quot;, &quot;==&quot;, 0, &quot;max capacitance&quot;),
+]
+
+def gate(path):
+    with open(path) as f:
+        m = json.load(f)
+    ok = True
+    for key, rule, limit, meaning in RULES:
+        if key not in m:
+            print(f&quot;MISSING  {meaning:28s} ({key})&quot;)
+            ok = False
+            continue
+        v = m[key]
+        good = v &gt;= limit if rule == &quot;&gt;=&quot; else v == limit
+        ok &amp;= good
+        print(f&quot;{'PASS' if good else 'FAIL':8s} {meaning:28s} {v}&quot;)
+    return ok
+
+if __name__ == &quot;__main__&quot;:
+    sys.exit(0 if gate(sys.argv[1]) else 1)
+</code></pre>
+<p>Note that a missing metric counts as a failure. A gate that passes when the number it needs is absent is worse than no gate at all. A script like this covers the numeric items; it cannot judge whether your constraints are right or your documentation is clear.</p>
+<h2 id="submission-and-precheck">Submission and precheck</h2>
+<p>Shuttle programmes run a <strong>precheck</strong> on submissions: an automated set of checks for the rules of that shuttle, such as the die size and position, the names and positions of the top-level pins, the absence of forbidden layers, and a clean DRC with their deck. Run the precheck yourself, well before the deadline. A design that passes your flow but fails precheck because a pin is on the wrong layer is a common last-day crisis.</p>
+<p>Also confirm:</p>
+<ul>
+<li>the exact files the shuttle requires (GDS, netlists, LEF, documentation, metadata) are all present and from the same run,</li>
+<li>the commit of your design repository and the versions of the PDK and flow are recorded,</li>
+<li>the submission was made from a clean checkout, not from a working directory with local edits.</li>
+</ul>
+<h2 id="documentation-and-bring-up-plan">Documentation and bring-up plan</h2>
+<p>The chip will come back months later, possibly to someone else's desk. Before tape-out, write:</p>
+<ul>
+<li><strong>A pinout table:</strong> every pin, its direction, function, voltage and reset state.</li>
+<li><strong>A register or command map</strong> if the design has one.</li>
+<li><strong>Expected idle and active current</strong>, at least as an estimate, so bring-up can tell normal from abnormal.</li>
+<li><strong>A bring-up plan:</strong> power-up sequence, the first things to check, the simplest test that proves the chip is alive, and the test vectors from simulation that the bench setup will replay.</li>
+<li><strong>Known limitations</strong> and any waived checks, each with the reason and who approved it.</li>
+</ul>
+<p>Writing the bring-up plan before tape-out often exposes design problems: a missing way to observe internal state, a reset that cannot be applied, a test mode that cannot be entered from the pins. Those can still be fixed.</p>
+<h2 id="review-it-with-someone-else">Review it with someone else</h2>
+<p>Go through the list with a reviewer who did not build the design. Their job is to ask "show me" for every line. The questions that feel annoying at this stage are exactly the ones silicon will ask later.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 and run the script above on <code>runs/&lt;tag&gt;/final/metrics.json</code>.</li>
+<li>Deliberately tighten <code>CLOCK_PERIOD</code> until setup fails, rerun, and confirm the gate fails with a non-zero exit code.</li>
+<li>Run <strong>Magic</strong> DRC and <strong>Netgen</strong> LVS yourself on the final GDS and compare with the flow's results.</li>
+<li>Write the pinout table and a one-page bring-up plan for the design, then ask a friend to review both.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>tape-out</li><li>sign-off</li><li>checklist</li><li>precheck</li><li>physical verification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="first-day-of-chip-bring-up.html"><span>Previous in Physical design &amp; tape-out</span>The first day with your chip back from the fab: a bring-up plan</a><a class="next" href="three-open-pdks-compared.html"><span>Next in Physical design &amp; tape-out</span>Three open PDKs and what each is good for</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Advanced</span></div>
+          <h3><a href="debugging-lvs-mismatches.html">Debugging an LVS mismatch without losing a day</a></h3>
+          <p>An LVS failure report can list hundreds of differences caused by one short. Learn a triage order for reading the comparison, isolating shorts and opens, and checking the usual suspects such as pins and well ties.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Beginner</span></div>
+          <h3><a href="drc-lvs-antenna-explained.html">DRC, LVS and antenna checks: what each one protects you from</a></h3>
+          <p>Three checks stand between a layout and the fab. DRC asks whether it can be made, LVS whether it is the circuit you meant, and the antenna check whether manufacturing itself will damage your transistors.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="designing-for-a-shared-shuttle-tile.html">Designing for a shared-shuttle tile: the area, I/O and clock limits that shape your RTL</a></h3>
+          <p>A small fixed tile on a shared chip limits your area, pin count and clock speed. Learn how those limits change RTL choices, with an area budget worked by hand, and what such a tape-out teaches and what it does not.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

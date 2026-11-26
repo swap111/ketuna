@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing reusable Verilog with parameters and generate blocks · Ketuna blog</title>
+  <meta name="description" content="Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing reusable Verilog with parameters and generate blocks · Ketuna blog">
+  <meta property="og:description" content="Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.">
+  <link rel="canonical" href="https://ketuna.online/blog/parameterized-verilog-modules.html">
+  <meta property="og:url" content="https://ketuna.online/blog/parameterized-verilog-modules.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing reusable Verilog with parameters and generate blocks",
+  "description": "Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "verilog, parameters, generate, rtl coding, reuse",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 840,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/parameterized-verilog-modules.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Writing reusable Verilog with parameters and generate blocks</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#parameters-and-localparams">Parameters and localparams</a></li><li><a href="#generate-loops">Generate loops</a></li><li><a href="#generate-if">Generate if</a></li><li><a href="#the-errors-beginners-hit-most-often">The errors beginners hit most often</a></li><li><a href="#parameters-not-macros">Parameters, not macros</a></li><li><a href="#checking-every-configuration">Checking every configuration</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>The first time you need a 16-bit version of an 8-bit counter you wrote last week, you copy the file and change the numbers. The second time, you copy it again. By the third copy, a bug fixed in one version is still alive in the other two. Parameters and generate blocks let one module describe a whole family of circuits, and they are simple to use once you know the few rules that trip people up.</p>
+<h2 id="parameters-and-localparams">Parameters and localparams</h2>
+<p>A <strong>parameter</strong> is a constant that the instantiating module may override. A <strong>localparam</strong> is a constant derived inside the module that nobody outside can change.</p>
+<pre><code class="language-verilog">module shift_reg #(
+  parameter WIDTH = 8,          // data width, overridable
+  parameter DEPTH = 4           // number of stages, overridable
+) (
+  input  wire             clk,
+  input  wire             en,
+  input  wire [WIDTH-1:0] din,
+  output wire [WIDTH-1:0] dout
+);
+  localparam AW = (DEPTH &gt; 1) ? $clog2(DEPTH) : 1;  // derived, fixed
+
+  reg [WIDTH-1:0] stage [0:DEPTH-1];
+  integer i;
+  always @(posedge clk)
+    if (en) begin
+      stage[0] &lt;= din;
+      for (i = 1; i &lt; DEPTH; i = i + 1)
+        stage[i] &lt;= stage[i-1];
+    end
+  assign dout = stage[DEPTH-1];
+endmodule
+</code></pre>
+<p>The ports use <code>WIDTH</code>, so the interface itself changes size. <code>AW</code> is a localparam because it must always agree with <code>DEPTH</code>; letting a user override it separately would only allow inconsistent settings. <code>AW</code> is not used in this small example, but it is the typical pattern for an address width.</p>
+<p><code>$clog2(N)</code> returns the number of bits needed to index N items: <code>$clog2(4)</code> is 2, <code>$clog2(5)</code> is 3. Watch the edge case: <code>$clog2(1)</code> is 0, and a <code>[0-1:0]</code> vector is a bug. That is why the localparam above clamps the width to at least 1.</p>
+<h3 id="overriding-parameters">Overriding parameters</h3>
+<p>Always override by name:</p>
+<pre><code class="language-verilog">shift_reg #(.WIDTH(16), .DEPTH(8)) u_delay (
+  .clk(clk), .en(en), .din(sample), .dout(sample_d8)
+);
+</code></pre>
+<p>Positional overrides, <code>#(16, 8)</code>, work but break silently if someone later reorders or adds a parameter. The older <code>defparam</code> statement lets you change a parameter from anywhere in the hierarchy; avoid it, because it makes a module's configuration impossible to see at the instance.</p>
+<h2 id="generate-loops">Generate loops</h2>
+<p>A <code>for</code> loop inside an <code>always</code> block describes repeated <em>behaviour</em>. A <strong>generate loop</strong> describes repeated <em>structure</em>: instances, <code>assign</code> statements or whole <code>always</code> blocks.</p>
+<pre><code class="language-verilog">module full_adder (
+  input  wire a, b, ci,
+  output wire s, co
+);
+  assign s  = a ^ b ^ ci;
+  assign co = (a &amp; b) | (ci &amp; (a ^ b));
+endmodule
+
+module ripple_add #(parameter N = 8) (
+  input  wire [N-1:0] a, b,
+  input  wire         cin,
+  output wire [N-1:0] s,
+  output wire         cout
+);
+  wire [N:0] c;
+  assign c[0] = cin;
+  genvar k;
+  generate
+    for (k = 0; k &lt; N; k = k + 1) begin : g_bit
+      full_adder u_fa (
+        .a(a[k]), .b(b[k]), .ci(c[k]),
+        .s(s[k]), .co(c[k+1])
+      );
+    end
+  endgenerate
+  assign cout = c[N];
+endmodule
+</code></pre>
+<p>Each iteration creates a named scope, <code>g_bit[0]</code>, <code>g_bit[1]</code> and so on, so the instances have hierarchical names like <code>g_bit[3].u_fa</code>. Those names appear in waveforms, synthesis reports and timing paths, which is why the block label matters.</p>
+<h2 id="generate-if">Generate if</h2>
+<p>A <strong>generate if</strong> picks between structures at elaboration time, based on parameters:</p>
+<pre><code class="language-verilog">generate
+  if (REGISTER_OUT) begin : g_reg
+    always @(posedge clk) y_q &lt;= y_comb;
+    assign y = y_q;
+  end else begin : g_comb
+    assign y = y_comb;
+  end
+endgenerate
+</code></pre>
+<p>Only one branch exists in the elaborated design. This is how one module can offer an optional pipeline stage, an optional parity bit or a choice of implementation without duplicating the file. The <code>generate</code> and <code>endgenerate</code> keywords are optional in Verilog-2005 and later, but many teams keep them for readability.</p>
+<h2 id="the-errors-beginners-hit-most-often">The errors beginners hit most often</h2>
+<p>These show up at <strong>elaboration</strong>, the step after parsing where the tool computes parameter values and builds the hierarchy.</p>
+<ul>
+<li><strong>Using a <code>genvar</code> outside a generate loop, or an <code>integer</code> as a generate index.</strong> The loop variable of a generate <code>for</code> must be a <code>genvar</code>; a behavioural <code>for</code> inside <code>always</code> uses an <code>integer</code> or <code>int</code>.</li>
+<li><strong>Unnamed generate blocks.</strong> Tools accept them and invent names such as <code>genblk1</code>, which change when code is edited. Name every generate block.</li>
+<li><strong>Parameter-dependent widths that become zero or negative.</strong> <code>[$clog2(DEPTH)-1:0]</code> with <code>DEPTH = 1</code> gives <code>[-1:0]</code>, which is a 2-bit vector rather than the empty one you might expect, and some tools reject it outright. Clamp derived widths.</li>
+<li><strong>Overriding a localparam.</strong> The tool will reject or ignore it. If users need to set it, it should be a parameter.</li>
+<li><strong>Width mismatches at the instance.</strong> Changing <code>WIDTH</code> on an instance but connecting a fixed-width signal truncates or zero-pads silently. Lint tools warn about this; read those warnings.</li>
+<li><strong>Non-constant expressions in a parameter or generate condition.</strong> Parameters and generate conditions must be computable at elaboration. A signal value cannot choose a generate branch.</li>
+</ul>
+<h2 id="parameters-not-macros">Parameters, not macros</h2>
+<p>Beginners sometimes reach for <code>`define WIDTH 8</code> instead of a parameter. A macro is a text substitution done by the preprocessor before the compiler sees the code. It has no scope: once defined, it applies to every file compiled after it, in compile order. Two modules that each want a different <code>WIDTH</code> cannot both have one, and the value a module sees can change when someone reorders the file list. A parameter belongs to one module, can differ on every instance, and shows up in the elaborated hierarchy where you can inspect it. Keep macros for things that genuinely are global, such as include guards or a simulation-only switch, and use parameters for anything that describes the size or shape of hardware.</p>
+<h2 id="checking-every-configuration">Checking every configuration</h2>
+<p>A parameterized module is really many modules, and each configuration you intend to support needs to be elaborated and tested. A good habit is a small script that elaborates the module with every interesting parameter combination, including the edge cases such as width 1 and depth 1, and runs a short test on each.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Elaborate <code>shift_reg</code> with several settings using <strong>Icarus Verilog</strong>, overriding parameters from the command line with <code>-P</code>, for example <code>iverilog -g2012 -Pshift_reg.DEPTH=1 -o sim shift_reg.v</code> (parameters of the root module can be overridden this way).</li>
+<li>Run <code>verilator --lint-only -Wall</code> on <code>ripple_add</code> with an unnamed generate block, then name it and compare the warnings.</li>
+<li>Synthesise <code>ripple_add</code> with <strong>Yosys</strong> using <code>chparam -set N 16 ripple_add</code> before <code>synth</code>, and look for the <code>g_bit</code> instance names in the netlist.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>verilog</li><li>parameters</li><li>generate</li><li>rtl coding</li><li>reuse</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="why-a-two-flop-synchronizer-works.html"><span>Previous in Digital &amp; VLSI design</span>Why a two-flop synchronizer works, and when it doesn&#x27;t</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="draw-the-circuit-before-the-code.html">Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></h3>
+          <p>Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

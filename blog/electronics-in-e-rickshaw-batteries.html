@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The electronics inside e-rickshaw battery systems, and where a BMS chip fits · Ketuna blog</title>
+  <meta name="description" content="How a small traction battery pack is built from cells, and how its battery management system measures, protects, balances and reports, with a worked balancing calculation and what a dedicated chip could integrate.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The electronics inside e-rickshaw battery systems, and where a BMS chip fits · Ketuna blog">
+  <meta property="og:description" content="How a small traction battery pack is built from cells, and how its battery management system measures, protects, balances and reports, with a worked balancing calculation and what a dedicated chip could integrate.">
+  <link rel="canonical" href="https://ketuna.online/blog/electronics-in-e-rickshaw-batteries.html">
+  <meta property="og:url" content="https://ketuna.online/blog/electronics-in-e-rickshaw-batteries.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The electronics inside e-rickshaw battery systems, and where a BMS chip fits",
+  "description": "How a small traction battery pack is built from cells, and how its battery management system measures, protects, balances and reports, with a worked balancing calculation and what a dedicated chip could integrate.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "battery management, bms, lithium-ion, electric vehicles, power electronics",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 907,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/electronics-in-e-rickshaw-batteries.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>The electronics inside e-rickshaw battery systems, and where a BMS chip fits</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How a small traction battery pack is built from cells, and how its battery management system measures, protects, balances and reports, with a worked balancing calculation and what a dedicated chip could integrate.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#from-cells-to-a-pack">From cells to a pack</a></li><li><a href="#what-the-battery-management-system-does">What the battery management system does</a></li><li><a href="#balancing-with-a-worked-example">Balancing, with a worked example</a></li><li><a href="#charging-and-monitoring">Charging and monitoring</a></li><li><a href="#where-a-dedicated-chip-fits">Where a dedicated chip fits</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Electric three-wheelers carry passengers and goods through traffic, heat and rain every day, often driven hard and charged wherever a socket is available. Their battery packs live a rough life. Whether the battery is a lead-acid bank or a lithium-ion pack, the electronics around it decide how long it lasts, how far the vehicle goes on a charge and, for lithium-ion, whether a fault ends in a warning light or a fire. This article walks through those electronics and shows where a dedicated battery management chip fits.</p>
+<h2 id="from-cells-to-a-pack">From cells to a pack</h2>
+<p>A lithium-ion cell has a nominal voltage of a few volts, far too low to drive a traction motor. So cells are connected <strong>in series</strong> to raise the voltage and <strong>in parallel</strong> to raise the capacity. A pack described as, say, 16S2P has 16 series groups, each made of 2 cells in parallel.</p>
+<p>The series connection is what makes management necessary. The same current flows through every series group, but no two groups are identical. They differ slightly in capacity, internal resistance and self-discharge, and those differences grow with age and temperature. Over many cycles, one group ends up fuller or emptier than the rest. Because charging must stop when the <em>highest</em> group reaches its limit, and discharging when the <em>lowest</em> reaches its limit, one weak group limits the whole pack.</p>
+<h2 id="what-the-battery-management-system-does">What the battery management system does</h2>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="eb-title eb-desc" font-size="14">
+<title id="eb-title">Battery management system blocks</title>
+<desc id="eb-desc">A column of series cell groups on the left, each with a sense line to an analog front end. The front end connects to a microcontroller, which drives protection switches in the pack's main current path and talks to the charger and vehicle. A current shunt and temperature sensors also feed the front end.</desc>
+<rect x="20" y="20" width="60" height="34" rx="4" class="dg-box"/>
+<rect x="20" y="64" width="60" height="34" rx="4" class="dg-box"/>
+<rect x="20" y="108" width="60" height="34" rx="4" class="dg-box"/>
+<text x="50" y="42" text-anchor="middle" class="dg-text">cell</text>
+<text x="50" y="86" text-anchor="middle" class="dg-text">cell</text>
+<text x="50" y="130" text-anchor="middle" class="dg-text">cell</text>
+<text x="50" y="168" text-anchor="middle" class="dg-muted">...</text>
+<path d="M80,37 H150 M80,81 H150 M80,125 H150" class="dg-dash"/>
+<rect x="150" y="20" width="110" height="130" rx="6" class="dg-core"/>
+<text x="205" y="75" text-anchor="middle" class="dg-text">analog</text>
+<text x="205" y="95" text-anchor="middle" class="dg-text">front end</text>
+<rect x="300" y="20" width="160" height="60" rx="6" class="dg-box"/>
+<text x="380" y="55" text-anchor="middle" class="dg-text">microcontroller</text>
+<path d="M260,50 H294" class="dg-line"/>
+<path d="M294,46 L300,50 L294,54 Z" class="dg-arrow"/>
+<rect x="300" y="110" width="160" height="40" rx="6" class="dg-box"/>
+<text x="380" y="135" text-anchor="middle" class="dg-text">protection switches</text>
+<path d="M380,80 V104" class="dg-line"/>
+<path d="M376,104 L380,110 L384,104 Z" class="dg-arrow"/>
+<rect x="150" y="180" width="110" height="34" rx="4" class="dg-box"/>
+<text x="205" y="202" text-anchor="middle" class="dg-text">shunt, temp</text>
+<path d="M205,180 V156" class="dg-line"/>
+<path d="M201,156 L205,150 L209,156 Z" class="dg-arrow"/>
+<text x="380" y="190" text-anchor="middle" class="dg-muted">to charger and vehicle</text>
+<path d="M380,150 V172" class="dg-dash"/>
+</svg>
+<figcaption>The front end measures every cell group, current and temperature; the microcontroller decides and drives the protection switches.</figcaption>
+</figure>
+
+<p>The battery management system (BMS) has five jobs:</p>
+<ul>
+<li><strong>Measure</strong> every series group's voltage, the pack current and several temperatures</li>
+<li><strong>Protect</strong> by opening switches, usually back-to-back MOSFETs or a contactor, on over-voltage, under-voltage, over-current, short circuit and over- or under-temperature</li>
+<li><strong>Balance</strong> the groups so they stay at similar states of charge</li>
+<li><strong>Estimate</strong> state of charge and state of health from those measurements</li>
+<li><strong>Communicate</strong> with the charger, the motor controller and the driver's display</li>
+</ul>
+<p>Protection must work even if the software hangs. That is why front-end chips usually include hardware comparators for short circuit and over-current that act within microseconds, independently of the microcontroller.</p>
+<h2 id="balancing-with-a-worked-example">Balancing, with a worked example</h2>
+<p>The simplest and most common method is <strong>passive balancing</strong>: a resistor and a switch across each group bleed charge from the fullest groups, usually near the end of charge, until the others catch up. The energy is wasted as heat, but the circuit is cheap and simple. <strong>Active balancing</strong> moves charge from full groups to empty ones with inductors, capacitors or transformers. It wastes less energy but costs more and adds complexity.</p>
+<p>An illustrative calculation, with made-up numbers: one group is 100 mAh fuller than the rest, the bleed resistor is 33 Ω and the group sits at about 3.6 V.</p>
+<blockquote>
+<p>I = 3.6 V ÷ 33 Ω ≈ 109 mA, so t ≈ 100 mAh ÷ 109 mA ≈ 0.92 h, about 55 minutes</p>
+<p>P = 3.6 V × 109 mA ≈ 0.39 W per resistor</p>
+</blockquote>
+<p>That tells you two things. If the vehicle is typically charged for a short time, a small balancing current may never catch up with a growing imbalance. And if many resistors bleed at once on a small board inside a hot pack, the heat matters, so the firmware should limit how many balance at the same time and watch temperature.</p>
+<h2 id="charging-and-monitoring">Charging and monitoring</h2>
+<p>Lithium-ion cells are charged with a constant current until the highest group reaches its maximum voltage, then at constant voltage while the current tapers. The BMS tells the charger what it may do and stops the charge if anything goes out of range. A pack that may be plugged into many different chargers has to protect itself on its own, without trusting the charger.</p>
+<p><strong>State of charge</strong> is commonly estimated by <strong>coulomb counting</strong>, integrating current over time, corrected against the open-circuit voltage when the pack rests. Accurate current sensing, including near zero, matters because small offset errors integrate into large errors over days. <strong>State of health</strong> tracks how capacity and internal resistance change as the pack ages, which is valuable information for owners, fleet operators and battery-swapping services.</p>
+<h2 id="where-a-dedicated-chip-fits">Where a dedicated chip fits</h2>
+<p>Today a typical BMS board combines a multi-cell analog front end chip, a separate microcontroller, a current-sense amplifier, an isolated communication interface and discrete protection drivers. A dedicated chip designed for small traction packs could integrate:</p>
+<ul>
+<li>precise multi-channel cell voltage measurement with a high-resolution ADC</li>
+<li>current measurement and coulomb counting in hardware</li>
+<li>hardware protection comparators and gate drivers for the switches</li>
+<li>balancing switches and their control</li>
+<li>a small processor core with secure firmware and a communication interface</li>
+</ul>
+<p>Integration lowers part count and cost and can improve accuracy, because the measurement path is designed as one system. It is also a good example of a mixed-signal SoC problem: precise analog, robust high-voltage interfaces and careful digital control on one die. Battery safety, though, is never just the chip: cell quality, mechanical design, thermal design and the relevant safety standards all matter. Check the current safety requirements for traction batteries before building a pack, and work with qualified people when handling lithium-ion cells.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Repeat the balancing calculation for your own resistor value and imbalance, and estimate how much charging time is needed each day.</li>
+<li>Write a coulomb counter in Python, add a small current offset and see how quickly the state-of-charge estimate drifts over a simulated week.</li>
+<li>Simulate one balancing channel, a cell model, resistor and MOSFET switch, in <strong>ngspice</strong> and check the bleed current and power.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>battery management</li><li>bms</li><li>lithium-ion</li><li>electric vehicles</li><li>power electronics</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="first-technical-decisions-for-a-chip-startup.html"><span>Previous in India&#x27;s electronics ecosystem</span>Starting a chip-design startup: the first technical decisions</a><a class="next" href="navic-with-other-satellite-systems.html"><span>Next in India&#x27;s electronics ecosystem</span>Using NavIC alongside other satellite systems in one receiver</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

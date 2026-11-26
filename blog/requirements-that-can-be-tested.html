@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Writing requirements that can be tested: shall, measurable, one thing each · Ketuna blog</title>
+  <meta name="description" content="How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Writing requirements that can be tested: shall, measurable, one thing each · Ketuna blog">
+  <meta property="og:description" content="How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.">
+  <link rel="canonical" href="https://ketuna.online/blog/requirements-that-can-be-tested.html">
+  <meta property="og:url" content="https://ketuna.online/blog/requirements-that-can-be-tested.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Writing requirements that can be tested: shall, measurable, one thing each",
+  "description": "How to turn a wish like \"long battery life\" into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "requirements, systems engineering, verification, specification",
+  "articleSection": "Systems & product engineering",
+  "wordCount": 1105,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/requirements-that-can-be-tested.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-systems-product.html">Systems &amp; product engineering</a></p>
+        <h1>Writing requirements that can be tested: shall, measurable, one thing each</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to turn a wish like &quot;long battery life&quot; into a requirement with a number, a unit, a condition and an agreed test, so that everyone can tell whether the product passes.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-makes-a-statement-a-requirement">What makes a statement a requirement</a></li><li><a href="#from-wish-to-requirement-step-by-step">From wish to requirement, step by step</a></li><li><a href="#one-thing-per-requirement">One thing per requirement</a></li><li><a href="#choosing-the-verification-method">Choosing the verification method</a></li><li><a href="#a-small-checker-you-can-run">A small checker you can run</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Every product starts as a list of wishes: it should be cheap, rugged, fast and last a long time on a battery. Wishes are useful for a conversation, but you cannot build or test against them, because two honest engineers will read "long battery life" and picture different numbers. A requirement is a wish rewritten so that a test can say yes or no. Learning to write them well is one of the cheapest skills you can pick up, and it pays off on every project afterwards.</p>
+<h2 id="what-makes-a-statement-a-requirement">What makes a statement a requirement</h2>
+<p>A good requirement has a small number of parts, and you can check each one:</p>
+<ul>
+<li><strong>A subject:</strong> which thing the statement is about (the system, the radio board, the firmware).</li>
+<li><strong>"Shall":</strong> the word that marks a binding requirement.</li>
+<li><strong>One measurable behaviour:</strong> a quantity with a unit, or an observable event.</li>
+<li><strong>Conditions:</strong> temperature, supply voltage, load, operating mode, measurement window.</li>
+<li><strong>A verification method:</strong> how you will prove it, agreed before the design starts.</li>
+<li><strong>A unique ID:</strong> so tests, reviews and change requests can point at it.</li>
+</ul>
+<p>The word choice matters because many teams use a convention: "shall" for something that must be met, "should" for a goal that is desirable but not binding, and "will" for a statement of fact or intent that is not tested (for example, "the enclosure will be supplied by the mechanical team"). If your team uses this convention, use it consistently. Mixing "must", "needs to" and "is required to" in the same document leaves readers guessing which ones count.</p>
+<h2 id="from-wish-to-requirement-step-by-step">From wish to requirement, step by step</h2>
+<p>Take the wish "the sensor node should have long battery life". Ask questions until a number falls out:</p>
+<ol>
+<li><strong>What does the user actually need?</strong> A farmer does not want to replace batteries during a growing season. Ask how long that is for this crop and region, and write the answer down.</li>
+<li><strong>What quantity controls that?</strong> Average supply current, given a battery of known capacity.</li>
+<li><strong>Under what conditions?</strong> A reporting interval, a supply voltage, a temperature range.</li>
+<li><strong>How will we measure it?</strong> Over a fixed window long enough to include sleep, wake-up and transmission.</li>
+</ol>
+<p>The result might read: <em>SR-12: The node shall draw an average supply current of no more than 50 µA at 3.0 V, with one measurement and transmission every 10 minutes, averaged over 24 hours at 25 °C.</em> Notice what it does not say. It does not name a microcontroller or a sleep mode. Those are design choices, and writing them into the requirement would close off better designs before anyone has looked for them.</p>
+<p>Here are a few more rewrites. The numbers are made up for illustration; real ones come from your users and your analysis.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Wish</th>
+<th>Testable requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Should start quickly"</td>
+<td>The display shall show the first reading within 2 s of the power switch being turned on, at supply voltages from 3.0 V to 4.2 V</td>
+</tr>
+<tr>
+<td>"Rugged"</td>
+<td>The unit shall operate normally after six drops from 1.0 m onto concrete, one on each face</td>
+</tr>
+<tr>
+<td>"Accurate temperature"</td>
+<td>The reported temperature shall be within ±0.5 °C of a calibrated reference from 0 °C to 50 °C</td>
+</tr>
+<tr>
+<td>"Easy to charge"</td>
+<td>The battery shall charge from 10 % to 90 % in no more than 3 h from a 5 V, 1 A supply</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="one-thing-per-requirement">One thing per requirement</h2>
+<p>The most common defect in a requirements list is the word "and". Consider: <em>The badge shall detect a fall within 1 s and send an alert to the phone within 3 s.</em> If detection works but the alert takes 5 s, has the requirement passed or failed? Half of it has. The test report now needs a paragraph of explanation, and the tracking spreadsheet cannot show the status honestly. Split it into two IDs, one for detection and one for the alert, and each gets a clean pass or fail.</p>
+<p>The same reasoning applies to ranges hidden in adjectives. "Shall work in hot and humid conditions" is two requirements with no numbers. Write one for temperature and one for humidity, each with limits, and say whether condensation is allowed.</p>
+<h2 id="choosing-the-verification-method">Choosing the verification method</h2>
+<p>Not every requirement is proven by a bench test. Systems engineers usually pick one of four methods, and it is worth recording the choice next to each requirement:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>What it means</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inspection</td>
+<td>Look at the item or its documents</td>
+<td>Connector type, label text, colour</td>
+</tr>
+<tr>
+<td>Analysis</td>
+<td>Calculation or simulation</td>
+<td>Thermal margin, worst-case timing</td>
+</tr>
+<tr>
+<td>Demonstration</td>
+<td>Operate it and observe, without detailed measurement</td>
+<td>The user can pair the device with a phone</td>
+</tr>
+<tr>
+<td>Test</td>
+<td>Controlled stimulus, measured response, pass limit</td>
+<td>Average current, accuracy, drop survival</td>
+</tr>
+</tbody>
+</table></div>
+<p>Writing the method early exposes requirements that nobody can verify. If the only honest method for "the product shall last ten years" is to wait ten years, you need to rewrite it as something you can check now, such as derating rules for parts plus an accelerated life test plan.</p>
+<h2 id="a-small-checker-you-can-run">A small checker you can run</h2>
+<p>A short script will not judge whether a requirement is sensible, but it catches mechanical problems before a human reviewer spends time on them. This one flags vague words, missing "shall", likely compound requirements and missing digits.</p>
+<pre><code class="language-python">import re
+
+VAGUE = [&quot;fast&quot;, &quot;quick&quot;, &quot;easy&quot;, &quot;robust&quot;, &quot;user-friendly&quot;, &quot;low&quot;,
+         &quot;high&quot;, &quot;sufficient&quot;, &quot;adequate&quot;, &quot;approximately&quot;, &quot;etc&quot;]
+
+def check(req_id, text):
+    issues = []
+    t = text.lower()
+    if &quot; shall &quot; not in f&quot; {t} &quot;:
+        issues.append(&quot;no 'shall'&quot;)
+    if re.search(r&quot;\band\b&quot;, t):
+        issues.append(&quot;contains 'and' - one requirement or two?&quot;)
+    for w in VAGUE:
+        if re.search(rf&quot;\b{re.escape(w)}\b&quot;, t):
+            issues.append(f&quot;vague word '{w}'&quot;)
+    if not re.search(r&quot;\d&quot;, t):
+        issues.append(&quot;no number&quot;)
+    return [f&quot;{req_id}: {i}&quot; for i in issues]
+
+reqs = {
+    &quot;SR-12&quot;: &quot;The node shall draw no more than 50 uA average at 3.0 V.&quot;,
+    &quot;SR-13&quot;: &quot;The app should be easy to use.&quot;,
+    &quot;SR-14&quot;: &quot;The badge shall detect a fall and alert the phone quickly.&quot;,
+}
+for rid, text in reqs.items():
+    for line in check(rid, text):
+        print(line)
+</code></pre>
+<p>Running it prints no findings for SR-12, three for SR-13 (no "shall", "easy", no number) and two for SR-14 (the "and" and the missing number). That last result is the point: SR-14 also has a vague word, "quickly", which the script missed because the pattern only matches the whole word "quick". Tools catch the obvious cases; a reviewer catches the rest. Use both.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li><strong>Writing the design as the requirement.</strong> "The node shall use a 2,000 mAh cell" is a design decision. State the need (operating time) and let the architecture choose the cell.</li>
+<li><strong>Numbers without conditions.</strong> "Accuracy ±1 %" means little without the range, temperature and reference.</li>
+<li><strong>Untestable negatives.</strong> "The firmware shall never crash" cannot be proven by testing. Write what must happen instead: a watchdog recovery time, a fault log entry.</li>
+<li><strong>Reusing IDs.</strong> Once SR-12 is deleted, nobody should ever reuse the number, or old test reports will point at the wrong thing.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Pick a device you own, such as a power bank or a fan, and write five testable requirements for it with IDs, conditions and a verification method for each.</li>
+<li>Run the script above on them with Python 3, extend the vague-word list, and see which of your requirements it flags.</li>
+<li>Swap lists with a friend and review each other's requirements for hidden "and"s and missing conditions. Agree on a pass limit for each before you argue about anything else.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>requirements</li><li>systems engineering</li><li>verification</li><li>specification</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="verification-vs-validation.html"><span>Previous in Systems &amp; product engineering</span>Verification and validation: building the right product vs building it right</a><a class="next" href="bldc-controller-requirements.html"><span>Next in Systems &amp; product engineering</span>Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="traceability-from-requirement-to-test.html">Traceability from requirement to test: why it saves projects</a></h3>
+          <p>Linking every requirement up to a need and down to design items and tests makes gaps and the impact of changes visible. A small Python script shows how to find both.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Beginner</span></div>
+          <h3><a href="verification-vs-validation.html">Verification and validation: building the right product vs building it right</a></h3>
+          <p>Verification checks that the product meets its requirements; validation checks that it meets the user&#x27;s real need. Examples of each, the V-model that links them, and how a product can pass one and fail the other.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-systems-product.html">Systems &amp; product engineering</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bldc-controller-requirements.html">Writing the requirements for a BLDC motor controller, from fans to e-mobility</a></h3>
+          <p>How to capture speed range, efficiency, protection, acoustic noise, EMC and certification needs for a BLDC motor controller as testable requirements, and how they change from a ceiling fan to a vehicle.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

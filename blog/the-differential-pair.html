@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The differential pair: why analog designers love it · Ketuna blog</title>
+  <meta name="description" content="Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="The differential pair: why analog designers love it · Ketuna blog">
+  <meta property="og:description" content="Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.">
+  <link rel="canonical" href="https://ketuna.online/blog/the-differential-pair.html">
+  <meta property="og:url" content="https://ketuna.online/blog/the-differential-pair.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The differential pair: why analog designers love it",
+  "description": "Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "differential pair, cmrr, op-amp, small signal, analog design",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 980,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/the-differential-pair.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>The differential pair: why analog designers love it</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Two matched transistors and a tail current amplify the difference between two inputs and ignore what they share. Learn how the pair steers current, its gain, its common-mode rejection, and its role in op-amps.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#two-transistors-sharing-one-current">Two transistors sharing one current</a></li><li><a href="#differential-gain">Differential gain</a></li><li><a href="#why-common-mode-signals-are-rejected">Why common-mode signals are rejected</a></li><li><a href="#inside-op-amps-and-comparators">Inside op-amps and comparators</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Open the schematic of almost any op-amp, comparator or ADC front end and the first thing the input meets is a differential pair. Its job sounds simple: amplify the difference between two voltages and ignore whatever they have in common. That property, called common-mode rejection, is what lets a circuit pick a small signal out of supply noise, ground shifts and interference that hit both inputs equally. This article explains how the pair does it, with numbers.</p>
+<h2 id="two-transistors-sharing-one-current">Two transistors sharing one current</h2>
+<p>The pair is two matched NMOS transistors, M1 and M2, whose sources are joined and fed by a single <strong>tail current source</strong> I<sub>SS</sub>. Each drain has a load, here a resistor R<sub>D</sub> to V<sub>DD</sub>. The inputs go to the two gates.</p>
+<p>The key constraint is that the two drain currents must always add up to I<sub>SS</sub>. The tail does not care how the current splits; it only fixes the total.</p>
+<ul>
+<li><strong>Equal inputs:</strong> by symmetry, each side carries I<sub>SS</sub>/2.</li>
+<li><strong>One input slightly higher:</strong> that transistor gets a bit more V<sub>GS</sub> and takes more current; the other must give up exactly the same amount. The shared source node moves to keep the sum constant.</li>
+<li><strong>Large difference:</strong> eventually one transistor takes all of I<sub>SS</sub> and the other turns off. For a square-law device this happens when the input difference reaches √2 times the balanced overdrive.</li>
+</ul>
+<p>So the pair is a <strong>current steering</strong> circuit. A differential input voltage decides how a fixed current is shared, and the loads turn that sharing into output voltages.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 280" role="img" aria-labelledby="dp-title dp-desc" font-size="14">
+<title id="dp-title">Resistively loaded NMOS differential pair</title>
+<desc id="dp-desc">Two NMOS transistors M1 and M2 with gates at input plus and input minus. Each drain connects through a load resistor to the supply and is an output. The two sources join at a common node that feeds a tail current source to ground.</desc>
+<line x1="60" y1="20" x2="420" y2="20" class="dg-line"/>
+<text x="425" y="25" class="dg-text">VDD</text>
+<rect x="140" y="20" width="20" height="50" class="dg-box"/>
+<rect x="320" y="20" width="20" height="50" class="dg-box"/>
+<text x="100" y="50" class="dg-text">RD</text>
+<text x="350" y="50" class="dg-text">RD</text>
+<line x1="150" y1="70" x2="150" y2="120" class="dg-line"/>
+<line x1="330" y1="70" x2="330" y2="120" class="dg-line"/>
+<line x1="150" y1="95" x2="200" y2="95" class="dg-line"/>
+<line x1="330" y1="95" x2="280" y2="95" class="dg-line"/>
+<text x="204" y="100" class="dg-text">out−</text>
+<text x="238" y="100" class="dg-text">out+</text>
+<line x1="150" y1="120" x2="150" y2="170" class="dg-line" stroke-width="3"/>
+<line x1="330" y1="120" x2="330" y2="170" class="dg-line" stroke-width="3"/>
+<line x1="125" y1="125" x2="125" y2="165" class="dg-line" stroke-width="3"/>
+<line x1="355" y1="125" x2="355" y2="165" class="dg-line" stroke-width="3"/>
+<line x1="70" y1="145" x2="125" y2="145" class="dg-line"/>
+<line x1="355" y1="145" x2="410" y2="145" class="dg-line"/>
+<text x="30" y="140" class="dg-text">in+</text>
+<text x="415" y="140" class="dg-text">in−</text>
+<text x="160" y="150" class="dg-text">M1</text>
+<text x="295" y="150" class="dg-text">M2</text>
+<line x1="150" y1="170" x2="150" y2="195" class="dg-line"/>
+<line x1="330" y1="170" x2="330" y2="195" class="dg-line"/>
+<line x1="150" y1="195" x2="330" y2="195" class="dg-line"/>
+<circle cx="240" cy="195" r="3" class="dg-arrow"/>
+<line x1="240" y1="195" x2="240" y2="215" class="dg-line"/>
+<circle cx="240" cy="232" r="17" class="dg-core"/>
+<path d="M234,226 L240,238 L246,226 Z" class="dg-arrow"/>
+<text x="266" y="237" class="dg-text">tail ISS</text>
+<line x1="240" y1="249" x2="240" y2="268" class="dg-line"/>
+<line x1="210" y1="268" x2="270" y2="268" class="dg-line"/>
+</svg>
+<figcaption>The tail fixes the total current; the input difference only decides how it divides between M1 and M2.</figcaption>
+</figure>
+
+<h2 id="differential-gain">Differential gain</h2>
+<p>For small input differences, write the inputs as a common part plus and minus half the difference: v<sub>in+</sub> = v<sub>cm</sub> + v<sub>d</sub>/2 and v<sub>in−</sub> = v<sub>cm</sub> − v<sub>d</sub>/2. The joined sources sit at a point that does not move for a purely differential signal, because one side's current rises exactly as the other's falls. Each transistor therefore behaves like a common-source stage driven by v<sub>d</sub>/2.</p>
+<p>The current change on each side is g<sub>m</sub>v<sub>d</sub>/2, and the voltage between the two outputs is:</p>
+<blockquote>
+<p>A<sub>d</sub> = v<sub>out</sub> / v<sub>d</sub> = g<sub>m</sub> R<sub>D</sub>  (differential output)</p>
+</blockquote>
+<p>Taking the output from one drain only gives half of that, g<sub>m</sub>R<sub>D</sub>/2.</p>
+<p>Worked example, illustrative numbers: I<sub>SS</sub> = 100 µA, so 50 µA per side; V<sub>OV</sub> = 0.2 V; R<sub>D</sub> = 20 kΩ. Then g<sub>m</sub> = 2 × 50 µA / 0.2 V = 500 µS and the differential gain is 500 µS × 20 kΩ = <strong>10</strong>. The pair switches fully at a difference of √2 × 0.2 V ≈ <strong>0.28 V</strong>; beyond that it is a switch, not an amplifier.</p>
+<h2 id="why-common-mode-signals-are-rejected">Why common-mode signals are rejected</h2>
+<p>Now raise both inputs together by v<sub>cm</sub>. If the tail were an ideal current source, nothing could change: the total is fixed, the split is symmetric, so each side still carries I<sub>SS</sub>/2. Only the shared source node rises, following the inputs. The outputs do not move at all.</p>
+<p>A real tail source has a finite output resistance R<sub>tail</sub>. When the source node rises, a little extra current flows through R<sub>tail</sub>, split equally between the two sides. Each output moves by roughly:</p>
+<blockquote>
+<p>A<sub>cm</sub> ≈ R<sub>D</sub> / (2R<sub>tail</sub>)</p>
+</blockquote>
+<p>Continuing the example with R<sub>tail</sub> = 200 kΩ: A<sub>cm</sub> = 20 kΩ / 400 kΩ = 0.05 at each output. Compare it with the single-ended differential gain from the same drain, g<sub>m</sub>R<sub>D</sub>/2 = 5. The <strong>common-mode rejection ratio</strong> is 5 / 0.05 = <strong>100</strong>, or 40 dB. Divide the two expressions and R<sub>D</sub> cancels, leaving CMRR ≈ g<sub>m</sub>R<sub>tail</sub>. The lesson is in that formula: a better tail source, often a cascode, directly buys rejection.</p>
+<p>With a perfectly matched pair and a differential output, the common-mode movement appears identically on both drains and cancels completely. In practice, mismatch between M1 and M2 or between the two loads turns some common-mode signal into a differential one, and that conversion, not the tail alone, usually sets the real CMRR. Matching is why differential pairs get careful common-centroid layout.</p>
+<h2 id="inside-op-amps-and-comparators">Inside op-amps and comparators</h2>
+<p>A pair with resistor loads is rarely used as is. The classic input stage replaces the resistors with a PMOS <strong>current-mirror load</strong>. The mirror copies M1's current change to the other side, so both halves of the signal add at one output. You get a single-ended output with the full gain g<sub>m</sub>(r<sub>o2</sub> ∥ r<sub>o4</sub>), and the five-transistor circuit (pair, mirror, tail) is the first stage of the standard two-stage op-amp.</p>
+<p>In a comparator, the same pair is a preamplifier ahead of a latch. Its gain makes small input differences large enough for the latch to resolve quickly, and it isolates the inputs from the latch's switching.</p>
+<p>Practical limits to watch:</p>
+<ul>
+<li><strong>Input common-mode range:</strong> the tail source needs its own headroom, so the inputs cannot go too close to ground with an NMOS pair. Rail-to-rail inputs use NMOS and PMOS pairs in parallel.</li>
+<li><strong>Offset:</strong> threshold mismatch between M1 and M2 appears directly as an input offset voltage, so the pair is sized large for matching.</li>
+<li><strong>Linear range:</strong> the pair is linear only for input differences well below √2 V<sub>OV</sub>; larger overdrive extends the range but lowers g<sub>m</sub> per microampere.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build the resistively loaded pair above in <strong>ngspice</strong> with sky130 devices and an ideal 100 µA tail. Sweep the differential input with <code>.dc</code> and plot both drain currents to see the steering and the point of full switching.</li>
+<li>Run an <code>ac</code> analysis with the inputs driven in antiphase, then in phase, and compute the ratio of the two gains.</li>
+<li>Replace the ideal tail with a single NMOS current source, repeat the in-phase run, and see how much the common-mode gain grows.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>differential pair</li><li>cmrr</li><li>op-amp</li><li>small signal</li><li>analog design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="common-source-amplifier-gain.html"><span>Previous in Analog &amp; mixed-signal</span>The common-source amplifier: gain, headroom and the gm-ro trade-off</a><a class="next" href="the-instrumentation-amplifier.html"><span>Next in Analog &amp; mixed-signal</span>The instrumentation amplifier: measuring tiny differences on large common-mode signals</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="the-instrumentation-amplifier.html">The instrumentation amplifier: measuring tiny differences on large common-mode signals</a></h3>
+          <p>The three-op-amp instrumentation amplifier gives high input impedance, gain set by one resistor and strong common-mode rejection. Learn how each stage works and why resistor matching sets the rejection.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="bandgap-reference-intuition.html">How a bandgap reference makes a voltage that ignores temperature</a></h3>
+          <p>A bandgap reference adds a base-emitter voltage that falls with temperature to a scaled thermal voltage that rises, so the sum stays flat. Work through the numbers, the circuit and what limits its accuracy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="biopotential-front-end-for-wearables.html">Designing a biopotential front end for a health wearable: gain, CMRR and input protection</a></h3>
+          <p>Body signals are millivolts riding on large electrode offsets and mains interference. See how input impedance, CMRR, a driven reference and staged gain recover them, and how input protection keeps the wearer safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

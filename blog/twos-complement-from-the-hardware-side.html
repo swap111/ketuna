@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Two&#x27;s complement from the hardware side: why one adder does signed and unsigned · Ketuna blog</title>
+  <meta name="description" content="The same binary adder adds signed and unsigned numbers; only the interpretation and the overflow check differ. Learn the overflow rules, sign extension and the Verilog signed traps.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Two&#x27;s complement from the hardware side: why one adder does signed and unsigned · Ketuna blog">
+  <meta property="og:description" content="The same binary adder adds signed and unsigned numbers; only the interpretation and the overflow check differ. Learn the overflow rules, sign extension and the Verilog signed traps.">
+  <link rel="canonical" href="https://ketuna.online/blog/twos-complement-from-the-hardware-side.html">
+  <meta property="og:url" content="https://ketuna.online/blog/twos-complement-from-the-hardware-side.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Two's complement from the hardware side: why one adder does signed and unsigned",
+  "description": "The same binary adder adds signed and unsigned numbers; only the interpretation and the overflow check differ. Learn the overflow rules, sign extension and the Verilog signed traps.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "twos complement, adders, overflow, verilog, number systems",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 998,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/twos-complement-from-the-hardware-side.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Two&#x27;s complement from the hardware side: why one adder does signed and unsigned</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">The same binary adder adds signed and unsigned numbers; only the interpretation and the overflow check differ. Learn the overflow rules, sign extension and the Verilog signed traps.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#one-bit-pattern-two-meanings">One bit pattern, two meanings</a></li><li><a href="#a-worked-addition">A worked addition</a></li><li><a href="#two-different-overflow-checks">Two different overflow checks</a></li><li><a href="#sign-extension">Sign extension</a></li><li><a href="#the-verilog-signed-traps">The Verilog signed traps</a></li><li><a href="#common-mistakes">Common mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A processor has one adder, yet it adds both <code>unsigned int</code> and <code>int</code> correctly. There is no separate signed adder hiding somewhere. Two's complement is the encoding that makes this possible, and once you see it from the hardware side, overflow flags, sign extension and the odd behaviour of Verilog's <code>signed</code> keyword all make sense.</p>
+<h2 id="one-bit-pattern-two-meanings">One bit pattern, two meanings</h2>
+<p>An 8-bit register holds a pattern of eight bits. Read as <strong>unsigned</strong>, the bits have weights 128, 64, 32, 16, 8, 4, 2, 1, so the range is 0 to 255. Read as <strong>two's complement signed</strong>, the top bit has weight −128 instead of +128, and the range is −128 to +127.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bits</th>
+<th>Unsigned</th>
+<th>Signed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0000_0101</code></td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>0111_1111</code></td>
+<td>127</td>
+<td>127</td>
+</tr>
+<tr>
+<td><code>1000_0000</code></td>
+<td>128</td>
+<td>−128</td>
+</tr>
+<tr>
+<td><code>1111_1101</code></td>
+<td>253</td>
+<td>−3</td>
+</tr>
+<tr>
+<td><code>1111_1111</code></td>
+<td>255</td>
+<td>−1</td>
+</tr>
+</tbody>
+</table></div>
+<p>Notice that the signed and unsigned values of any pattern differ by exactly 256, or not at all. That is the key fact. An 8-bit adder computes the sum modulo 256, discarding the ninth bit. Since both interpretations are equal modulo 256, a sum that is correct modulo 256 is correct for both, as long as the true result fits in the range.</p>
+<p>To negate a number, invert all the bits and add 1. Inverting gives 255 − x; adding one gives 256 − x, which is −x modulo 256. Subtraction is then <code>a + ~b + 1</code>, so the hardware reuses the adder with an inverter on one input and the carry-in set to 1.</p>
+<h2 id="a-worked-addition">A worked addition</h2>
+<p>Add <code>1111_1101</code> and <code>0000_0101</code>:</p>
+<pre><code class="language-text">    1111_1101      unsigned 253   signed -3
+  + 0000_0101      unsigned   5   signed  5
+  -----------
+  1 0000_0010      8-bit result 2, carry-out 1
+</code></pre>
+<p>As signed numbers, −3 + 5 = 2: correct. As unsigned numbers, 253 + 5 = 258, which does not fit in 8 bits; the 8-bit result 2 is 258 − 256. The adder did the same thing in both cases. What differs is how you decide whether the answer is valid.</p>
+<h2 id="two-different-overflow-checks">Two different overflow checks</h2>
+<ul>
+<li><strong>Unsigned overflow</strong> is the carry-out of the top bit. In the example above, carry-out is 1, so the unsigned sum overflowed.</li>
+<li><strong>Signed overflow</strong> happens when two operands of the same sign give a result of the other sign. Adding two positives cannot give a negative, so if it does, the true answer was above 127.</li>
+</ul>
+<p>In hardware, signed overflow is the XOR of the carry <em>into</em> the top bit and the carry <em>out of</em> it. Try <code>0111_1111 + 0000_0001</code>: the result is <code>1000_0000</code>, a carry goes into bit 7 but none comes out, so the XOR is 1. As signed numbers, 127 + 1 has overflowed to −128. As unsigned numbers, 127 + 1 = 128 is perfectly fine and the carry flag is 0.</p>
+<p>This is why processors provide both a carry flag (C) and an overflow flag (V). The adder sets both every time; the program picks the one that matches how it is treating the numbers.</p>
+<p>The same idea gives you comparisons for free. To compare a and b, the hardware computes a − b as <code>a + ~b + 1</code> and looks at the flags, not at the result itself:</p>
+<ul>
+<li><strong>Unsigned: a is less than b</strong> when the subtraction produces no carry-out. A carry-out of 1 means "no borrow was needed", so a was at least b.</li>
+<li><strong>Signed: a is less than b</strong> when the sign bit of the result (N) differs from the overflow flag (V). If there was no overflow, a negative result means a is less than b. If there was overflow, the sign bit is wrong, so you flip the answer.</li>
+</ul>
+<p>Check it with a = −3 (<code>1111_1101</code>) and b = 5. The subtraction gives <code>1111_1000</code> with a carry-out of 1 and no signed overflow. Unsigned, 253 is not less than 5, which matches the carry. Signed, N = 1 and V = 0, so −3 is less than 5. One subtractor, two different answers, both right for their interpretation.</p>
+<h2 id="sign-extension">Sign extension</h2>
+<p>To widen a signed value, copy its top bit into all the new upper bits. −3 in 8 bits is <code>1111_1101</code>; in 16 bits it is <code>1111_1111_1111_1101</code>. Padding with zeros instead would turn it into 253. Unsigned values are widened with zeros. Getting this wrong is one of the most common sources of arithmetic bugs in RTL, because the result looks plausible for positive inputs and only fails for negative ones.</p>
+<h2 id="the-verilog-signed-traps">The Verilog signed traps</h2>
+<p>Verilog decides whether an expression is signed by looking at <strong>all</strong> its operands. If any operand is unsigned, the whole expression is evaluated as unsigned, and smaller operands are zero-extended.</p>
+<pre><code class="language-verilog">module sx_demo (
+  input  wire signed [7:0] a,
+  input  wire        [7:0] b,      // unsigned
+  output wire signed [15:0] y_bad,
+  output wire signed [15:0] y_ok
+);
+  // b is unsigned, so a is zero-extended: -3 becomes 253
+  assign y_bad = a + b;
+  // $signed treats b's bits as signed; a sign-extends correctly
+  assign y_ok  = a + $signed(b);
+endmodule
+</code></pre>
+<p>With <code>a = -3</code> and <code>b = 5</code>, <code>y_bad</code> is 258 and <code>y_ok</code> is 2. Other traps worth knowing:</p>
+<ul>
+<li><strong>Part-selects are unsigned.</strong> <code>a[7:0]</code> is unsigned even when <code>a</code> is declared signed, so it will not sign-extend.</li>
+<li><strong>Unsized literals and concatenations.</strong> <code>{a, 1'b0}</code> is unsigned. Wrap it in <code>$signed()</code> when you need it signed.</li>
+<li><strong>Comparisons.</strong> A less-than comparison with one unsigned operand compares the bit patterns as unsigned, so −1 is "greater than" 5.</li>
+<li><strong><code>$signed</code> on a 1-bit value.</strong> <code>$signed(1'b1)</code> is −1, not +1. Zero-extend first if you mean +1.</li>
+</ul>
+<p>A safe habit is to make every operand in a signed expression explicitly signed and of the result width, and to read the elaborated widths in a lint report rather than assuming.</p>
+<h2 id="common-mistakes">Common mistakes</h2>
+<ul>
+<li>Checking the carry flag for signed overflow, or the overflow flag for unsigned results</li>
+<li>Forgetting to grow the result by one bit when you want the full sum instead of a wrapped one</li>
+<li>Mixing signed and unsigned operands and expecting signed behaviour</li>
+<li>Sign-extending an unsigned quantity, such as an ADC code that is offset binary rather than two's complement</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Work the five rows of the table by hand, then write a Python loop that prints each 8-bit pattern with its unsigned and signed values (<code>x - 256 if x &gt; 127 else x</code>) and check your answers.</li>
+<li>Simulate <code>sx_demo</code> in <strong>Icarus Verilog</strong> with <code>iverilog -g2012</code> and print <code>y_bad</code> and <code>y_ok</code> using <code>%d</code> for several negative values of <code>a</code>.</li>
+<li>Add a signed-overflow output computed as the XOR of the carries into and out of bit 7, and test it on 127 + 1, −128 + −1 and −3 + 5.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>twos complement</li><li>adders</li><li>overflow</li><li>verilog</li><li>number systems</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="valid-ready-handshake-rules.html"><span>Previous in Digital &amp; VLSI design</span>The valid/ready handshake: the rules that keep pipelines from losing data</a><a class="next" href="where-accidental-latches-come-from.html"><span>Next in Digital &amp; VLSI design</span>Where accidental latches come from, and how to read the synthesis warning</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="blocking-vs-nonblocking-assignments.html">Blocking vs non-blocking assignments: the one rule and why it exists</a></h3>
+          <p>Use &lt;= in clocked blocks and = in combinational blocks. A shift register that collapses when written with = shows how the simulator&#x27;s scheduler makes this rule necessary.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="draw-the-circuit-before-the-code.html">Draw the circuit before you write the Verilog: the habit that prevents most RTL bugs</a></h3>
+          <p>Sketch the registers, muxes and logic first, write code that matches the drawing line for line, then check the code with AI and the tools. A moving-average filter shows the whole loop.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Beginner</span></div>
+          <h3><a href="parameterized-verilog-modules.html">Writing reusable Verilog with parameters and generate blocks</a></h3>
+          <p>Width parameters, localparam, generate loops and generate-if let one module serve many sizes. Learn the patterns and the elaboration errors beginners hit most often, with fixes.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

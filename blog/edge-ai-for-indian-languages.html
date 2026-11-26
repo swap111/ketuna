@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edge AI for Indian languages: keyword spotting across languages and accents · Ketuna blog</title>
+  <meta name="description" content="How to build an on-device keyword spotter that works across Indian languages and dialects, from consent-based data collection and small multilingual models to evaluation that reports the worst group, not the average.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Edge AI for Indian languages: keyword spotting across languages and accents · Ketuna blog">
+  <meta property="og:description" content="How to build an on-device keyword spotter that works across Indian languages and dialects, from consent-based data collection and small multilingual models to evaluation that reports the worst group, not the average.">
+  <link rel="canonical" href="https://ketuna.online/blog/edge-ai-for-indian-languages.html">
+  <meta property="og:url" content="https://ketuna.online/blog/edge-ai-for-indian-languages.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Edge AI for Indian languages: keyword spotting across languages and accents",
+  "description": "How to build an on-device keyword spotter that works across Indian languages and dialects, from consent-based data collection and small multilingual models to evaluation that reports the worst group, not the average.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "keyword spotting, tinyml, speech, edge ai, evaluation",
+  "articleSection": "India's electronics ecosystem",
+  "wordCount": 865,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/edge-ai-for-indian-languages.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a></p>
+        <h1>Edge AI for Indian languages: keyword spotting across languages and accents</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">How to build an on-device keyword spotter that works across Indian languages and dialects, from consent-based data collection and small multilingual models to evaluation that reports the worst group, not the average.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#why-multilingual-keyword-spotting-is-harder">Why multilingual keyword spotting is harder</a></li><li><a href="#collecting-data-that-represents-users">Collecting data that represents users</a></li><li><a href="#small-multilingual-models">Small multilingual models</a></li><li><a href="#fair-evaluation-report-the-worst-group">Fair evaluation: report the worst group</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A voice interface on a low-cost device, such as a pump controller, a kiosk or an appliance, must recognise a handful of command words without sending audio to the cloud. That is keyword spotting on a microcontroller, a well-studied problem when the users all speak one language with a narrow range of accents. In India the same product may be used by speakers of several languages, each with many dialects, who code-switch freely and speak in noisy kitchens, fields and streets. A model that scores well on a clean benchmark can fail badly for whole groups of users. This article covers what changes in data, models and evaluation when you design for that reality.</p>
+<h2 id="why-multilingual-keyword-spotting-is-harder">Why multilingual keyword spotting is harder</h2>
+<p>A keyword spotter listens continuously and fires when it hears one of a few target words. Its two failure modes have different costs: a <strong>false reject</strong> ignores a user who spoke the word, and a <strong>false accept</strong> triggers on unrelated speech or noise. Both get worse when speech varies more than the training data did.</p>
+<p>Variation comes from several directions at once. Different languages may use different words for the same command, or share a borrowed word pronounced differently. Within one language, dialects shift vowels, stress and speed. Microphones, rooms and background noise vary from one product to another. Speakers differ in age, gender and voice quality. The model has a tiny memory budget, typically tens to hundreds of kilobytes, so it cannot simply memorise all of this.</p>
+<h2 id="collecting-data-that-represents-users">Collecting data that represents users</h2>
+<p>Data is the real work, and it is where most projects cut corners. A useful collection effort:</p>
+<ul>
+<li><strong>Defines the command set with users,</strong> including the words people actually say for each command in each language, not translations chosen by the engineering team</li>
+<li><strong>Recruits speakers across languages, dialect regions, ages and genders,</strong> in proportions that reflect intended users, and records metadata for each group</li>
+<li><strong>Records on the target hardware or similar microphones,</strong> in realistic rooms and with realistic noise</li>
+<li><strong>Collects negative data:</strong> hours of ordinary speech in each language, including words that sound similar to the keywords, plus everyday noise</li>
+<li><strong>Obtains informed consent,</strong> explains how recordings will be used and stored, and protects speakers' privacy; voice is personal data</li>
+</ul>
+<p>Split the data by <strong>speaker</strong>, so no person appears in both the training and test sets. Otherwise the model learns individual voices and the test score is inflated. Keep a separate test set for every group you care about, collected the same way.</p>
+<h2 id="small-multilingual-models">Small multilingual models</h2>
+<p>The usual pipeline extracts log-mel or MFCC features from short frames of audio, then feeds a window of frames to a compact network such as a depthwise-separable convolutional network, quantized to 8-bit integers to fit the microcontroller. Two design choices matter specifically for multiple languages.</p>
+<p><strong>Shared or separate models.</strong> One shared model with outputs for every keyword in every language is simplest to deploy and lets languages share acoustic knowledge, but its fixed capacity is split across them. Separate per-language models, selected by a setting, give each language the full budget but need the user or installer to choose. A middle path is a shared feature extractor with small per-language output heads.</p>
+<p><strong>Keywords as classes or as sounds.</strong> Treating each keyword as a class is accurate for a fixed set. Models that recognise smaller sound units, then match sequences, can add new keywords without retraining, at some cost in accuracy and compute.</p>
+<p>Augmentation helps: adding recorded noise, room reverberation, speed and pitch changes and gain variation. It does not replace real speakers from under-represented groups; augmentation can stretch the data you have, but it cannot invent a dialect you never recorded.</p>
+<h2 id="fair-evaluation-report-the-worst-group">Fair evaluation: report the worst group</h2>
+<p>A single accuracy figure hides the problem. Report false reject rate and false accepts per hour <strong>for every group</strong>, at the operating threshold you will ship. The made-up counts below show why:</p>
+<pre><code class="language-python"># made-up evaluation counts per language and accent group
+groups = {
+    # group: (keyword clips, missed, hours of other speech, false wakes)
+    &quot;lang A, region 1&quot;:  (400, 12, 20.0, 4),
+    &quot;lang A, region 2&quot;:  (300, 27, 15.0, 6),
+    &quot;lang B, region 1&quot;:  (350, 14, 18.0, 3),
+    &quot;lang B, region 2&quot;:  (250, 40, 12.0, 9),
+}
+
+worst = None
+for name, (n, miss, hrs, fa) in groups.items():
+    frr = miss / n
+    fa_h = fa / hrs
+    print(f&quot;{name:16s} FRR {frr:6.1%}  false wakes/h {fa_h:.2f}&quot;)
+    if worst is None or frr &gt; worst[1]:
+        worst = (name, frr)
+
+n_all = sum(g[0] for g in groups.values())
+miss_all = sum(g[1] for g in groups.values())
+print(f&quot;pooled FRR {miss_all / n_all:.1%}, worst group {worst[0]}&quot;)
+</code></pre>
+<p>The pooled false reject rate is 7.2 percent, which might pass a review. But one group sees 16 percent, more than five times the best group's 3 percent, and also the most false wakes. For those users the product simply does not work well. Set acceptance criteria on the <strong>worst group</strong>, not the average, and on both error types together, because lowering the threshold to help one group usually raises false accepts for everyone.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li>Test sets that share speakers with training data</li>
+<li>Collecting most data from the team's own region and calling it multilingual</li>
+<li>Reporting accuracy on balanced test clips instead of false accepts per hour on long recordings</li>
+<li>Tuning the threshold on the test set</li>
+<li>Shipping a quantized model without re-evaluating it per group after quantization</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Record ten speakers saying two command words and ten minutes of ordinary conversation, with consent, and split them by speaker.</li>
+<li>Compute log-mel features with <strong>numpy</strong> and train a small convolutional model, then quantize it to 8-bit integers and compare per-group results before and after.</li>
+<li>Extend the script above to sweep the detection threshold and plot false reject rate against false accepts per hour for each group with <strong>matplotlib</strong>.</li>
+<li>Run the quantized model on a microcontroller with <strong>Zephyr</strong> and measure inference time and memory use.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>keyword spotting</li><li>tinyml</li><li>speech</li><li>edge ai</li><li>evaluation</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="drone-electronics-for-agriculture-and-mapping.html"><span>Previous in India&#x27;s electronics ecosystem</span>Drone electronics for agriculture and mapping: what the controller must handle</a><a class="next" href="electronics-for-farms.html"><span>Next in India&#x27;s electronics ecosystem</span>Electronics for farms: sensing, connectivity and power in rural deployments</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Beginner</span></div>
+          <h3><a href="bldc-motors-in-fans-and-appliances.html">Why BLDC motors are spreading in fans and appliances, and the chip inside</a></h3>
+          <p>How a brushless DC motor uses electronic commutation instead of an induction motor&#x27;s slip and how that saves energy, with a worked comparison and a walk through what the controller chip actually does.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="college-vlsi-lab-on-open-source-tools.html">Setting up a college VLSI lab on open-source EDA tools</a></h3>
+          <p>How to set up a college VLSI lab that runs on open-source tools, with suitable machines, a containerised and version-pinned toolchain, open PDKs and lab exercises that need no licence server.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-india-ecosystem.html">India&#x27;s electronics ecosystem</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="drone-electronics-for-agriculture-and-mapping.html">Drone electronics for agriculture and mapping: what the controller must handle</a></h3>
+          <p>What a drone&#x27;s flight controller must do for spraying and mapping work, from fast attitude control and navigation to payload control and failsafes, and why drone rules shape the electronics from the start.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

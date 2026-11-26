@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prototyping a small ML accelerator on an FPGA · Ketuna blog</title>
+  <meta name="description" content="Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Prototyping a small ML accelerator on an FPGA · Ketuna blog">
+  <meta property="og:description" content="Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.">
+  <link rel="canonical" href="https://ketuna.online/blog/prototyping-an-ml-accelerator-on-fpga.html">
+  <meta property="og:url" content="https://ketuna.online/blog/prototyping-an-ml-accelerator-on-fpga.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Prototyping a small ML accelerator on an FPGA",
+  "description": "Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "fpga, prototyping, ml accelerators, risc-v, co-design",
+  "articleSection": "Edge AI",
+  "wordCount": 1063,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/prototyping-an-ml-accelerator-on-fpga.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-edge-ai.html">Edge AI</a></p>
+        <h1>Prototyping a small ML accelerator on an FPGA</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-edge-ai.html">Edge AI</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Build a MAC-lane array with on-chip buffers, attach it to a soft RISC-V core as a memory-mapped peripheral, and measure real end-to-end throughput with cycle counters, which is where the data-movement surprises appear.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#the-system-to-build">The system to build</a></li><li><a href="#verify-before-you-measure">Verify before you measure</a></li><li><a href="#measuring-real-throughput">Measuring real throughput</a></li><li><a href="#what-carries-over-to-silicon-and-what-does-not">What carries over to silicon, and what does not</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Simulation tells you an accelerator computes the right numbers. It rarely tells you how fast the whole system runs, because the interesting delays live outside the MAC array: the processor configuring registers, data crossing a bus, a driver waiting on a status bit. An FPGA prototype puts the accelerator next to a real processor running real firmware, at real (if not final) clock speeds, for millions of inferences instead of a few simulated ones. For a small edge accelerator this is the cheapest way to find out whether the design you plan to tape out actually delivers its speed-up end to end.</p>
+<h2 id="the-system-to-build">The system to build</h2>
+<p>Keep the first prototype small and complete rather than large and partial:</p>
+<ul>
+<li><strong>A soft RISC-V core</strong> running bare-metal firmware from block RAM. Open-source cores and SoC generators make this a configuration task rather than a design task; pick one whose bus your accelerator can attach to simply.</li>
+<li><strong>The accelerator as a memory-mapped peripheral</strong>: a register block for control and status, plus three on-chip buffers for inputs, weights and outputs, built from the FPGA's block RAM.</li>
+<li><strong>A MAC-lane array</strong>, for example 8 lanes computing 8 output neurons in parallel from a broadcast input, each lane an 8 × 8-bit multiplier feeding a 24- or 32-bit accumulator, mapped onto the FPGA's hard multiplier blocks.</li>
+<li><strong>A requantization stage</strong> at the array output (multiply by M0, rounding shift, add zero point, clamp) so results go back to the output buffer already in int8.</li>
+<li><strong>Counters</strong>: a free-running cycle counter in the core, and a busy-cycle counter in the accelerator.</li>
+</ul>
+<p>A minimal register map might look like this:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Register</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td>CTRL</td>
+<td>bit 0 START, bit 1 RELU</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>STATUS</td>
+<td>bit 0 DONE, bit 1 OVERFLOW (sticky)</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td>DIMS</td>
+<td>inputs in [15:0], outputs in [31:16]</td>
+</tr>
+<tr>
+<td>0x0C</td>
+<td>QPARAM</td>
+<td>M0 multiplier</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td>SHIFT_ZP</td>
+<td>shift in [5:0], output zero point in [15:8]</td>
+</tr>
+<tr>
+<td>0x14</td>
+<td>BUSY_CYCLES</td>
+<td>cycles the array was busy in the last job</td>
+</tr>
+</tbody>
+</table></div>
+<p>Write the firmware driver against this map <em>before</em> the RTL is final. Awkward sequences or race conditions in the interface show up as awkward driver code, and they are cheap to fix at this stage.</p>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+#define ACC_BASE   0x40000000u
+#define REG(off)   (*(volatile uint32_t *)(ACC_BASE + (off)))
+
+uint32_t run_dense(uint16_t n_in, uint16_t n_out, uint32_t m0,
+                   uint8_t shift, int8_t zp, int relu)
+{
+    REG(0x08) = ((uint32_t)n_out &lt;&lt; 16) | n_in;
+    REG(0x0C) = m0;
+    REG(0x10) = ((uint32_t)(uint8_t)zp &lt;&lt; 8) | (shift &amp; 0x3Fu);
+    REG(0x00) = 1u | (relu ? 2u : 0u);        /* start */
+    while ((REG(0x04) &amp; 1u) == 0)             /* wait for DONE */
+        ;
+    return REG(0x14);                         /* busy cycles */
+}
+</code></pre>
+<p>Polling is fine for the first measurements; an interrupt with the core sleeping comes later, once the numbers are understood.</p>
+<h2 id="verify-before-you-measure">Verify before you measure</h2>
+<p>Bring the same golden model to the FPGA that you used in simulation. The firmware loads test vectors generated by the Python integer reference, runs the accelerator, and compares every output byte, reporting mismatches over a UART. Run this for many random layers and the corner cases, on the board, before trusting any throughput number. A fast wrong answer is not a result.</p>
+<p>The FPGA also catches things simulation misses: a buffer address that wraps on the largest layer, a status bit read one cycle too early, a timing path that fails at the FPGA clock so the array occasionally computes garbage. If results are wrong only on hardware, check the timing report of the FPGA build before debugging the logic.</p>
+<h2 id="measuring-real-throughput">Measuring real throughput</h2>
+<p>Take a dense layer of 256 inputs and 64 outputs: 16,384 MACs. With 8 lanes, the ideal is 16,384 / 8 = 2,048 busy cycles. Suppose the accelerator's own counter reports 2,304, because each of the 64 / 8 = 8 passes spends about 32 cycles on pipeline fill, bias load and requantization. Array utilisation is 16,384 / (8 × 2,304) ≈ 89 %. So far, so good.</p>
+<p>Now read the core's cycle counter around the whole operation, including the firmware copying 16,384 weight bytes into the weight buffer. The numbers in this example are illustrative, of the kind your own counters will produce. If the copy runs as 4,096 word stores at about 3 cycles each, that is 12,288 cycles, plus around 200 cycles of configuration and polling. End to end: 12,288 + 2,304 + 200 = 14,792 cycles, about 1.1 MACs per cycle against a peak of 8.</p>
+<p>Compare with software on the same core at, say, 4 cycles per MAC (loads, multiply-accumulate, loop overhead): 65,536 cycles. The kernel alone is about 28 times faster than software, but end to end the speed-up is only about 4.4 times. The weight copy, not the MAC array, dominates. This is the most common lesson of a first accelerator prototype, and it is invisible in a testbench that preloads the buffers.</p>
+<p>The fixes are architectural, which is exactly why you want to find this before tape-out:</p>
+<ul>
+<li><strong>Keep weights resident.</strong> If the buffers can hold the model's weights, load them once at start-up; per inference only the input moves. In this example that removes 12,288 cycles per call, and the end-to-end speed-up approaches the kernel's.</li>
+<li><strong>Let the accelerator fetch its own data</strong> through a bus master port or a DMA engine, so the core is not the copy engine.</li>
+<li><strong>Batch work per start</strong>: run several layers from one configuration, so the fixed cost of configuring and polling is paid once.</li>
+</ul>
+<h2 id="what-carries-over-to-silicon-and-what-does-not">What carries over to silicon, and what does not</h2>
+<p>Cycle counts, utilisation, the balance between compute and data movement, and the correctness of the driver all transfer from the FPGA to an ASIC implementation of the same RTL. Absolute clock frequency, power and area do not: an FPGA implements logic in lookup tables and routing that behave very differently from standard cells. Report FPGA results in cycles and ratios, and use ASIC synthesis and static timing analysis for frequency and power estimates.</p>
+<p>Common mistakes:</p>
+<ul>
+<li>measuring only the accelerator's busy cycles and calling it the speed-up</li>
+<li>trusting throughput before the on-board bit-exact check passes</li>
+<li>ignoring FPGA timing failures that cause intermittent wrong results</li>
+<li>quoting FPGA clock frequency or power as a prediction for the chip</li>
+<li>designing the register map without writing the driver</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Build a small RISC-V SoC with an open-source SoC generator, synthesise it with Yosys and place and route it with nextpnr for an FPGA board that the open-source flow supports, and run a "hello" program over UART.</li>
+<li>Add a memory-mapped register block with a cycle counter and read it from firmware.</li>
+<li>Add a 4- or 8-lane MAC array with block-RAM buffers, verify it against the Python reference first in Verilator and then on the board.</li>
+<li>Measure kernel-only and end-to-end cycles for a dense layer, then move the weights to load once at start-up and measure again.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>fpga</li><li>prototyping</li><li>ml accelerators</li><li>risc-v</li><li>co-design</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="post-training-vs-quantization-aware.html"><span>Previous in Edge AI</span>Post-training quantization vs quantization-aware training</a><a class="next" href="pruning-and-weight-compression.html"><span>Next in Edge AI</span>Pruning and weight compression for tiny models</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Advanced</span></div>
+          <h3><a href="accelerator-dataflows-compared.html">Weight-stationary, output-stationary and row-stationary dataflows compared</a></h3>
+          <p>An accelerator dataflow is named for the data that stays put in each processing element. Counting buffer accesses for one matrix multiply shows how that choice, and the loop order behind it, sets traffic and energy.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="energy-per-inference.html">Energy per inference: why memory access dominates</a></h3>
+          <p>Fetching an operand usually costs more energy than multiplying it, and the gap grows with distance. A simple energy model, worked for a dense and a convolution layer, shows why designers fight to keep data close.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-edge-ai.html">Edge AI</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="mac-units-and-systolic-arrays.html">MAC units and systolic arrays: how ML accelerators reuse data</a></h3>
+          <p>A systolic array is a grid of multiply-accumulate cells that pass operands to their neighbours, so each value fetched from memory feeds a whole row or column. The PE in Verilog, the skew, and a cycle count.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

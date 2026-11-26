@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building the energy accumulator of a smart meter in fixed-point RTL · Ketuna blog</title>
+  <meta name="description" content="Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Building the energy accumulator of a smart meter in fixed-point RTL · Ketuna blog">
+  <meta property="og:description" content="Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.">
+  <link rel="canonical" href="https://ketuna.online/blog/smart-meter-energy-accumulator.html">
+  <meta property="og:url" content="https://ketuna.online/blog/smart-meter-energy-accumulator.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building the energy accumulator of a smart meter in fixed-point RTL",
+  "description": "Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "smart meter, fixed point, accumulator, metering, dsp",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 942,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/smart-meter-energy-accumulator.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Building the energy accumulator of a smart meter in fixed-point RTL</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Multiply voltage and current samples, accumulate the products without overflow, and emit one calibrated pulse per fixed quantum of energy. A worked sizing of every register, checked with a Python model.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#from-samples-to-energy">From samples to energy</a></li><li><a href="#choosing-the-scale-factors">Choosing the scale factors</a></li><li><a href="#sizing-every-register">Sizing every register</a></li><li><a href="#the-rtl">The RTL</a></li><li><a href="#checking-it-against-a-model">Checking it against a model</a></li><li><a href="#pitfalls">Pitfalls</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>An electricity meter's core job is simple to state: integrate power over time. Digitally, that means multiplying each voltage sample by the matching current sample, adding the products up forever, and producing an output, often a pulse on an LED and a register value, every time a fixed amount of energy has passed. The arithmetic is a few lines of RTL. The engineering is in the widths: every register must be sized so that it never overflows, never loses resolution that matters, and maps cleanly onto a calibrated physical unit.</p>
+<h2 id="from-samples-to-energy">From samples to energy</h2>
+<p>Assume the analog front end delivers signed 16-bit voltage and current codes at a fixed sample rate. Instantaneous power is p = v × i. Energy is the sum of power times the sample interval:</p>
+<blockquote>
+<p>E = Σ v<sub>n</sub> × i<sub>n</sub> × T<sub>s</sub></p>
+</blockquote>
+<p>Active (real) power is the average of v × i, so summing the raw products automatically accounts for the phase difference between voltage and current: a load that draws current out of phase contributes partly negative products, and the sum reflects only the real energy delivered. No explicit power-factor calculation is needed.</p>
+<h2 id="choosing-the-scale-factors">Choosing the scale factors</h2>
+<p>Use these values, made up for illustration:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voltage LSB</td>
+<td>10 mV per code</td>
+</tr>
+<tr>
+<td>Current LSB</td>
+<td>2 mA per code</td>
+</tr>
+<tr>
+<td>Sample rate f<sub>s</sub></td>
+<td>4000 samples per second</td>
+</tr>
+<tr>
+<td>Meter constant</td>
+<td>3200 pulses per kWh</td>
+</tr>
+</tbody>
+</table></div>
+<p>One unit of the product v × i is 10 mV × 2 mA = 20 µW. Each sample covers 1/4000 s, so one product unit accumulated for one sample is 20 µW / 4000 = 5 × 10<sup>−9</sup> J.</p>
+<p>One kilowatt-hour is 3.6 × 10<sup>6</sup> J, so one pulse at 3200 pulses per kWh is 3.6 × 10<sup>6</sup> / 3200 = 1125 J. The accumulator threshold for one pulse is therefore:</p>
+<blockquote>
+<p>TH = 1125 J / 5 × 10<sup>−9</sup> J = 2.25 × 10<sup>11</sup> product-units</p>
+</blockquote>
+<h2 id="sizing-every-register">Sizing every register</h2>
+<p><strong>The product.</strong> Two signed 16-bit numbers give a signed 32-bit product. With the scale chosen above, the full-scale codes are ±327.67 V and ±65.5 A, far beyond what a household line delivers, so the real products are much smaller, but the register must hold the worst case: 32 bits.</p>
+<p><strong>The accumulator.</strong> It holds the running sum until it crosses TH, then TH is subtracted. Its value never exceeds TH plus one maximum product. TH needs log<sub>2</sub>(2.25 × 10<sup>11</sup>) ≈ 37.7, so 38 bits; one product is at most about 2<sup>30</sup>. Their sum stays below 2<sup>38</sup> ≈ 2.75 × 10<sup>11</sup>, so 38 magnitude bits plus a sign bit suffice. Use a 48-bit accumulator: the extra bits cost little and leave room for calibration to raise the threshold, or for a different meter constant.</p>
+<p><strong>The pulse rate.</strong> At the theoretical maximum power, 327.67 V × 65.5 A ≈ 21.5 kW, a pulse comes every 1125 / 21,474 ≈ 52 ms, about 210 samples apart. So at most one pulse can be due per sample, and a single compare-and-subtract per sample is enough. If your scaling made pulses possible more often than once per sample, you would need a loop or a divider instead.</p>
+<h2 id="the-rtl">The RTL</h2>
+<pre><code class="language-systemverilog">module energy_acc (
+  input  logic               clk, rst_n,
+  input  logic               smp_valid,      // one per sample period
+  input  logic signed [15:0] v, i,           // matched samples
+  input  logic        [47:0] th,             // calibrated threshold
+  output logic               pulse           // one cycle per quantum
+);
+  logic signed [31:0] p_q;
+  logic               p_valid;
+  logic signed [47:0] acc;
+
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin
+      p_valid &lt;= 1'b0; acc &lt;= '0; pulse &lt;= 1'b0;
+    end else begin
+      p_valid &lt;= smp_valid;
+      pulse   &lt;= 1'b0;
+      if (smp_valid) p_q &lt;= v * i;           // stage 1: multiply
+      if (p_valid) begin                     // stage 2: accumulate
+        if (acc + p_q &gt;= $signed({1'b0, th[46:0]})) begin
+          acc   &lt;= acc + p_q - $signed({1'b0, th[46:0]});
+          pulse &lt;= 1'b1;
+        end else
+          acc   &lt;= acc + p_q;
+      end
+    end
+endmodule
+</code></pre>
+<p>The multiply and accumulate are in separate stages, so the critical path is one 16 × 16 multiplier or one 48-bit add and compare, never both. At a few thousand samples per second this is nowhere near a timing problem, so the same datapath can easily be shared across phases or channels by time multiplexing. The pulse is a single clock wide; a small timer stretches it to whatever width the LED or opto-isolator needs.</p>
+<p>Because the subtraction keeps the remainder, no energy is lost at each pulse: the residue carries over into the next quantum. That is what makes the long-term pulse count exact, apart from the measurement errors in the front end.</p>
+<h3 id="calibration">Calibration</h3>
+<p>Real sensors have gain errors. Rather than multiplying every sample by a correction factor, put the correction in the threshold: if the current channel reads 2 % high, raise <code>th</code> by 2 %. One register, written during factory calibration, corrects the gain of the whole chain at no per-sample cost. Offset errors are handled before the multiplier, usually with a high-pass filter or offset subtraction on each channel, and phase errors between the voltage and current paths with a small delay or phase correction, because both directly bias the product.</p>
+<h2 id="checking-it-against-a-model">Checking it against a model</h2>
+<p>Write a Python model that feeds a known load and counts pulses. With 230 V rms, 5 A rms and a power factor of 0.8, the load is 920 W, so the expected pulse period is 3600 / (0.92 × 3200) ≈ 1.2228 s.</p>
+<pre><code class="language-python">import numpy as np
+
+FS = 4000                      # samples per second
+V_LSB, I_LSB = 0.010, 0.002    # volts and amps per code
+TH = 225_000_000_000           # product-units per pulse
+
+t = np.arange(10 * FS) / FS                         # 10 seconds
+v = np.round(230 * np.sqrt(2) * np.sin(2*np.pi*50*t) / V_LSB)
+i = np.round(5 * np.sqrt(2) * np.sin(2*np.pi*50*t - np.arccos(0.8)) / I_LSB)
+v, i = v.astype(np.int64), i.astype(np.int64)
+
+acc, pulses = 0, []
+for n, p in enumerate(v * i):
+    acc += int(p)
+    if acc &gt;= TH:
+        acc -= TH
+        pulses.append(n / FS)
+print(len(pulses), np.diff(pulses).mean())   # 8 pulses, about 1.2229 s
+</code></pre>
+<p>The model gives a mean period of about 1.2229 s, matching the hand calculation. Use the same vectors to drive the RTL and compare pulse times sample for sample.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Exported energy.</strong> If power can flow back to the grid, the sum goes negative. Decide whether to keep separate import and export accumulators, as many tariffs require, and add a negative threshold.</li>
+<li><strong>Standards.</strong> Metering accuracy classes, test conditions and pulse output requirements are defined in the relevant IEC standards and Indian Standards for electricity meters. Check the current editions; they drive the design, not the other way round.</li>
+<li><strong>Safety.</strong> Meters connect to mains. Front-end and isolation design and any testing on live mains need qualified supervision.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Redo the sizing for your own scale factors on paper, then check every width with a few lines of Python.</li>
+<li>Run the model above, then simulate <code>energy_acc</code> in <strong>Verilator</strong> with the same integer samples written to a file, and compare pulse indices exactly.</li>
+<li>Change the power factor to 0.5 and to −0.8 (export) and confirm the pulse rate changes as expected, then add the export accumulator.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>smart meter</li><li>fixed point</li><li>accumulator</li><li>metering</li><li>dsp</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="blocking-vs-nonblocking-assignments.html"><span>Previous in Digital &amp; VLSI design</span>Blocking vs non-blocking assignments: the one rule and why it exists</a><a class="next" href="glitch-free-clock-gating.html"><span>Next in Digital &amp; VLSI design</span>Clock gating without glitches: the latch-based integrated clock gate</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="fixed-point-arithmetic-for-rtl.html">Fixed-point arithmetic for RTL designers: Q formats, rounding and saturation</a></h3>
+          <p>Convert a filter coefficient to Q1.15, track how bits grow through a multiply and an accumulate, and choose between truncation, rounding and saturation when you shrink the result back down.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property · Ketuna blog</title>
+  <meta name="description" content="Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property · Ketuna blog">
+  <meta property="og:description" content="Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.">
+  <link rel="canonical" href="https://ketuna.online/blog/sva-first-properties.html">
+  <meta property="og:url" content="https://ketuna.online/blog/sva-first-properties.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property",
+  "description": "Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "sva, assertions, systemverilog, handshake, properties",
+  "articleSection": "Verification",
+  "wordCount": 877,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/sva-first-properties.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-verification.html">Verification</a></p>
+        <h1>SystemVerilog Assertions for beginners: immediate vs concurrent, and your first property</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-verification.html">Verification</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">Learn the difference between immediate and concurrent assertions, exactly which values a concurrent assertion samples on a clock edge, and how to write and read a property for a request/acknowledge handshake.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#immediate-assertions-a-check-at-one-instant">Immediate assertions: a check at one instant</a></li><li><a href="#concurrent-assertions-rules-over-clock-cycles">Concurrent assertions: rules over clock cycles</a></li><li><a href="#what-a-concurrent-assertion-actually-sees">What a concurrent assertion actually sees</a></li><li><a href="#a-small-set-of-handshake-properties">A small set of handshake properties</a></li><li><a href="#common-beginner-mistakes">Common beginner mistakes</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A scoreboard checks results at the end of a transaction. An assertion checks a rule at the moment it is broken, next to the signal that broke it. When an assertion fires, the failure message points at a time and a line of RTL, often many cycles before any wrong output appears. SystemVerilog Assertions (SVA) give you two kinds of assertion, and the difference between them, along with <em>when</em> values are sampled, is what every beginner needs first.</p>
+<h2 id="immediate-assertions-a-check-at-one-instant">Immediate assertions: a check at one instant</h2>
+<p>An immediate assertion lives in procedural code and checks a condition right now, like <code>assert</code> in C or Python.</p>
+<pre><code class="language-systemverilog">always_comb begin
+  assert (!(push &amp;&amp; pop &amp;&amp; empty))
+    else $error(&quot;pop from empty FIFO while pushing&quot;);
+end
+</code></pre>
+<p>It is easy to read and good for simple conditions that must hold whenever the code runs. Its weakness is that it has no idea of time. It cannot say "within three cycles", and in combinational code it may evaluate several times in one time step while signals are still settling, which can produce false failures on glitches. Deferred forms (<code>assert #0</code> and <code>assert final</code>) reduce that problem, but they still check a single instant.</p>
+<h2 id="concurrent-assertions-rules-over-clock-cycles">Concurrent assertions: rules over clock cycles</h2>
+<p>A concurrent assertion is tied to a clock and can describe behaviour across many cycles.</p>
+<pre><code class="language-systemverilog">a_ack_in_time: assert property (
+  @(posedge clk) disable iff (!rst_n)
+  req |-&gt; ##[1:3] ack
+);
+</code></pre>
+<p>Read it as: "On every rising edge of <code>clk</code>, unless reset is active, if <code>req</code> is 1, then <code>ack</code> must be 1 on some edge between one and three cycles later." The pieces:</p>
+<ul>
+<li><code>@(posedge clk)</code> is the sampling clock.</li>
+<li><code>disable iff (!rst_n)</code> switches the check off during reset, when signals are not meaningful.</li>
+<li><code>req</code> is the <strong>antecedent</strong>, the condition that starts a check.</li>
+<li><code>|-&gt;</code> is <strong>overlapping implication</strong>: the consequent starts on the same edge the antecedent matched. <code>|=&gt;</code> would start one edge later.</li>
+<li><code>##[1:3] ack</code> is the <strong>consequent</strong>: <code>ack</code> true one to three cycles later.</li>
+</ul>
+<p>If <code>req</code> is 0 on an edge, the implication passes trivially for that edge. This is called a <strong>vacuous pass</strong>, and it is why you will later pair assertions with cover statements.</p>
+<h2 id="what-a-concurrent-assertion-actually-sees">What a concurrent assertion actually sees</h2>
+<p>This is the part that confuses people. A concurrent assertion samples signal values <strong>just before</strong> the clock edge, in what the standard calls the preponed region. It sees the same values a flip-flop would capture on that edge. A signal that changes slightly after an edge is seen at the <em>next</em> edge.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 230" role="img" aria-labelledby="sva-title sva-desc" font-size="14">
+<title id="sva-title">Sampling of a request and acknowledge handshake</title>
+<desc id="sva-desc">A clock with rising edges numbered 1 to 5. Request rises just after edge 1 and is first sampled high at edge 2, where the check starts. Acknowledge rises just after edge 3 and is first sampled high at edge 4, two cycles after the start, so the property passes.</desc>
+<line x1="90" y1="20" x2="90" y2="200" class="dg-dash"/>
+<line x1="150" y1="20" x2="150" y2="200" class="dg-dash"/>
+<line x1="210" y1="20" x2="210" y2="200" class="dg-dash"/>
+<line x1="270" y1="20" x2="270" y2="200" class="dg-dash"/>
+<line x1="330" y1="20" x2="330" y2="200" class="dg-dash"/>
+<text x="90" y="16" text-anchor="middle" class="dg-muted">1</text>
+<text x="150" y="16" text-anchor="middle" class="dg-muted">2</text>
+<text x="210" y="16" text-anchor="middle" class="dg-muted">3</text>
+<text x="270" y="16" text-anchor="middle" class="dg-muted">4</text>
+<text x="330" y="16" text-anchor="middle" class="dg-muted">5</text>
+<text x="10" y="55" class="dg-text">clk</text>
+<path d="M60,65 H90 V40 H120 V65 H150 V40 H180 V65 H210 V40 H240 V65 H270 V40 H300 V65 H330 V40 H360 V65 H390" class="dg-line" fill="none"/>
+<text x="10" y="115" class="dg-text">req</text>
+<path d="M60,125 H100 V100 H280 V125 H390" class="dg-line" fill="none"/>
+<text x="10" y="175" class="dg-text">ack</text>
+<path d="M60,185 H220 V160 H280 V185 H390" class="dg-line" fill="none"/>
+<circle cx="150" cy="100" r="5" class="dg-amber"/>
+<circle cx="210" cy="185" r="5" class="dg-amber"/>
+<circle cx="270" cy="160" r="5" class="dg-amber"/>
+<text x="400" y="105" class="dg-text">start at 2</text>
+<text x="400" y="165" class="dg-text">pass at 4</text>
+<text x="150" y="222" text-anchor="middle" class="dg-muted">req=1</text>
+<text x="210" y="222" text-anchor="middle" class="dg-muted">ack=0</text>
+<text x="270" y="222" text-anchor="middle" class="dg-muted">ack=1</text>
+</svg>
+<figcaption>Values are taken just before each edge: req is first seen at edge 2, ack at edge 4, two cycles later, inside the 1 to 3 window.</figcaption>
+</figure>
+
+<p>Walk through it edge by edge. At edge 1, <code>req</code> is still 0, so nothing starts. <code>req</code> rises just after edge 1, so edge 2 is the first edge that samples it as 1; the check starts there. At edge 3, <code>ack</code> is 0, so the property keeps waiting. <code>ack</code> rises just after edge 3, so edge 4 sees it as 1. That is two cycles after the start, inside the window, so this attempt passes.</p>
+<p>Notice also that <code>req</code> is still 1 at edges 3 and 4. Each of those edges starts a <em>new</em> attempt. The attempt from edge 3 needs <code>ack</code> at edge 4, 5 or 6, and is satisfied at edge 4. The attempt from edge 4 needs <code>ack</code> at edges 5 to 7, but <code>ack</code> falls before edge 5. If it never comes back, that attempt fails at edge 7. This is a common surprise: an assertion that seems to describe "one handshake" actually starts a fresh check on every edge where the antecedent is true. Writing <code>$rose(req) |-&gt; ##[1:3] ack</code> starts one check per request instead, which is usually what the spec means.</p>
+<h2 id="a-small-set-of-handshake-properties">A small set of handshake properties</h2>
+<p>A spec for this handshake might say: a request is acknowledged within one to three cycles; <code>ack</code> never appears without an outstanding request; <code>ack</code> is a single-cycle pulse. Those turn into three properties and a cover.</p>
+<pre><code class="language-systemverilog">module handshake_props (input logic clk, rst_n, req, ack);
+  default clocking cb @(posedge clk); endclocking
+  default disable iff (!rst_n);
+
+  a_ack_in_time:  assert property ($rose(req) |-&gt; ##[1:3] ack);
+  a_no_stray_ack: assert property (ack |-&gt; req);
+  a_ack_pulse:    assert property (ack |=&gt; !ack);
+
+  c_slowest_ack:  cover property ($rose(req) ##3 ack);
+endmodule
+</code></pre>
+<p>The cover proves the slowest legal case actually happened in your simulation. Without it, every test might acknowledge in one cycle and the three-cycle edge would never be exercised.</p>
+<h2 id="common-beginner-mistakes">Common beginner mistakes</h2>
+<ul>
+<li><strong>Forgetting <code>disable iff</code>.</strong> Signals are often X or arbitrary during reset, and the assertion fails before the test even starts.</li>
+<li><strong>Expecting to see a value on the edge it changed.</strong> Concurrent assertions see the value from just before the edge, like a flip-flop.</li>
+<li><strong>Using <code>|-&gt;</code> where <code>|=&gt;</code> was meant.</strong> <code>a |-&gt; b</code> checks <code>b</code> on the same edge as <code>a</code>; <code>a |=&gt; b</code> checks it on the next edge.</li>
+<li><strong>Trusting a pass without a cover.</strong> If the antecedent never matched, the property passed vacuously and checked nothing.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write a tiny Verilog requester and responder where <code>ack</code> follows <code>req</code> after a parameterised delay, and attach the property module above with a <code>bind</code> statement.</li>
+<li>Simulate it with Verilator and <code>--assert</code>, and confirm the assertions pass for delays of 1 to 3. Open-source SVA support is a subset that grows with each release, so use a recent version and read any "unsupported" message as a hint to rewrite that property in simpler terms.</li>
+<li>Set the delay to 4 and read the failure message: which edge does it report, and why that one?</li>
+<li>Remove <code>$rose</code> from the first property, hold <code>req</code> high for several cycles, and explain from the diagram why it now fails.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>sva</li><li>assertions</li><li>systemverilog</li><li>handshake</li><li>properties</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="hardware-regression-in-ci.html"><span>Previous in Verification</span>Setting up a hardware regression in CI: seeds, triage and flaky tests</a><a class="next" href="apb-register-block-with-pyuvm.html"><span>Next in Verification</span>Testing an APB register block with pyuvm, from sequence to scoreboard</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="assertion-patterns-that-catch-bugs.html">Five assertion patterns that catch real bugs early</a></h3>
+          <p>One-hot state, stable-until-accepted, no overflow, eventual response and no X on outputs. For each pattern, the SVA you write, the bug it catches and the mistake that makes it useless.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="verifying-battery-protection-logic.html">Verifying battery-protection logic: over-voltage, under-voltage and fault latching</a></h3>
+          <p>Assertions and directed corner tests for a battery protection block, covering thresholds, debounce, latched faults and safe reset states, where a single missed case can leave a cell unprotected.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-verification.html">Verification</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="functional-coverage-what-to-measure.html">Functional coverage: deciding what to measure before you measure it</a></h3>
+          <p>Build a coverage model from verification plan items into coverpoints, bins and crosses for a small timer, and see why writing that model is really a design review of the specification.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

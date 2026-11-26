@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Packaging basics: wire bond, flip chip and where chiplets fit · Ketuna blog</title>
+  <meta name="description" content="A die is useless until a package connects it to a board, protects it and removes its heat. Learn how wire bonding and flip chip work, what package parasitics do, and why systems increasingly split into chiplets.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Packaging basics: wire bond, flip chip and where chiplets fit · Ketuna blog">
+  <meta property="og:description" content="A die is useless until a package connects it to a board, protects it and removes its heat. Learn how wire bonding and flip chip work, what package parasitics do, and why systems increasingly split into chiplets.">
+  <link rel="canonical" href="https://ketuna.online/blog/packaging-basics-and-chiplets.html">
+  <meta property="og:url" content="https://ketuna.online/blog/packaging-basics-and-chiplets.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Packaging basics: wire bond, flip chip and where chiplets fit",
+  "description": "A die is useless until a package connects it to a board, protects it and removes its heat. Learn how wire bonding and flip chip work, what package parasitics do, and why systems increasingly split into chiplets.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "packaging, flip chip, wire bond, chiplets, yield",
+  "articleSection": "Analog & mixed-signal",
+  "wordCount": 1062,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/packaging-basics-and-chiplets.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-analog.html">Analog &amp; mixed-signal</a></p>
+        <h1>Packaging basics: wire bond, flip chip and where chiplets fit</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a>
+          <span class="lvl">Beginner</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A die is useless until a package connects it to a board, protects it and removes its heat. Learn how wire bonding and flip chip work, what package parasitics do, and why systems increasingly split into chiplets.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-a-package-has-to-do">What a package has to do</a></li><li><a href="#wire-bonding">Wire bonding</a></li><li><a href="#flip-chip">Flip chip</a></li><li><a href="#thermal-basics">Thermal basics</a></li><li><a href="#why-chiplets">Why chiplets</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>A finished die is a few millimetres of fragile silicon with pads smaller than a hair's width. To become a component you can solder to a board, it needs a package: something that carries signals and power between the die and the board, protects the silicon from moisture and handling, and carries heat away. Designers often treat the package as someone else's problem until a supply rail bounces or the chip runs hot. Knowing the basic options, and why multi-die packages have become common, helps you make better decisions from the floorplan onwards.</p>
+<h2 id="what-a-package-has-to-do">What a package has to do</h2>
+<p>Four jobs, often in tension:</p>
+<ul>
+<li><strong>Electrical connection</strong> for every signal, power and ground pad, with low enough resistance and inductance</li>
+<li><strong>Mechanical protection</strong> from moisture, contamination, light and stress</li>
+<li><strong>Heat removal</strong> from the die to the board or a heat sink</li>
+<li><strong>Testability and assembly:</strong> the package must be testable after assembly and solderable by normal board processes</li>
+</ul>
+<p>The first decision is how the die's pads connect to the package.</p>
+<h2 id="wire-bonding">Wire bonding</h2>
+<p>In <strong>wire bonding</strong>, the die is glued face up onto a lead frame or substrate. A machine then attaches a fine wire, of gold, copper or aluminium, from each pad on the die to a corresponding landing on the package, one bond at a time. The die is then covered in moulding compound.</p>
+<p>Wire bonding is mature, flexible and inexpensive. Its limits come from geometry. Pads must sit around the edge of the die, so the number of connections is limited by the perimeter, and a design with many I/Os can end up "pad-limited", with a die larger than its logic needs just to fit the pads. Each wire is also an inductor; a common rule of thumb is about 1 nH per millimetre of length. A fast current change through that inductance creates a voltage, V = L × di/dt, which appears as noise on supply and ground. Designers counter it with many parallel power and ground pads and with on-die decoupling capacitance.</p>
+<p>Common wire-bonded packages include QFN (a flat package with pads underneath and an exposed thermal pad) and QFP (leads around the edges). They suit microcontrollers, sensors, analog parts and many small chips.</p>
+<h2 id="flip-chip">Flip chip</h2>
+<p>In <strong>flip chip</strong> assembly, small solder or copper bumps are formed on pads across the <em>whole face</em> of the die. The die is flipped face down and the bumps are joined directly to a matching pattern on a package substrate, which then routes the connections to solder balls on its underside, as in a ball grid array (BGA).</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 220" role="img" aria-labelledby="pk-title pk-desc" font-size="14">
+<title id="pk-title">Wire bond and flip chip compared in cross-section</title>
+<desc id="pk-desc">Left: a die mounted face up on a substrate, with curved bond wires from its edge pads down to the substrate. Right: a die mounted face down on a substrate, connected by a row of bumps across its whole face. Both substrates have solder balls underneath.</desc>
+<text x="70" y="25" class="dg-text">wire bond</text>
+<rect x="20" y="140" width="200" height="22" class="dg-box"/>
+<rect x="70" y="105" width="100" height="35" class="dg-core"/>
+<text x="102" y="128" class="dg-text">die</text>
+<path d="M75,105 C60,80 40,100 35,140" class="dg-amber-line"/>
+<path d="M165,105 C180,80 200,100 205,140" class="dg-amber-line"/>
+<text x="5" y="90" class="dg-muted">wires</text>
+<circle cx="45" cy="170" r="7" class="dg-arrow"/><circle cx="85" cy="170" r="7" class="dg-arrow"/><circle cx="125" cy="170" r="7" class="dg-arrow"/><circle cx="165" cy="170" r="7" class="dg-arrow"/><circle cx="200" cy="170" r="7" class="dg-arrow"/>
+<text x="300" y="25" class="dg-text">flip chip</text>
+<rect x="260" y="140" width="200" height="22" class="dg-box"/>
+<rect x="300" y="95" width="120" height="35" class="dg-core"/>
+<text x="320" y="118" class="dg-text">die (face down)</text>
+<circle cx="312" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/><circle cx="332" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/><circle cx="352" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/><circle cx="372" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/><circle cx="392" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/><circle cx="410" cy="135" r="4" class="dg-amber" fill-opacity="0.9"/>
+<text x="425" y="88" class="dg-muted">bumps</text>
+<circle cx="285" cy="170" r="7" class="dg-arrow"/><circle cx="325" cy="170" r="7" class="dg-arrow"/><circle cx="365" cy="170" r="7" class="dg-arrow"/><circle cx="405" cy="170" r="7" class="dg-arrow"/><circle cx="440" cy="170" r="7" class="dg-arrow"/>
+<text x="150" y="205" class="dg-muted">substrate with solder balls to the board</text>
+</svg>
+<figcaption>Wire bonds reach only the die edge; flip-chip bumps cover the whole face, giving more, shorter connections.</figcaption>
+</figure>
+
+<p>Flip chip changes the trade-offs. Connections can come from anywhere on the die, not just the edge, so I/O count scales with area rather than perimeter, and power can be fed straight down into the middle of the die where it is consumed. Bumps are far shorter than wires, so their inductance is much lower. The back of the die faces up, where a heat spreader or heat sink can touch it directly. The costs are a more complex substrate, more expensive assembly, and layout constraints: the bump pattern and the on-die redistribution layer must be planned with the floorplan.</p>
+<p>A third option, the <strong>wafer-level chip-scale package</strong>, puts solder balls directly on the die with a thin redistribution layer and no separate substrate. The package is barely larger than the die, which suits small chips in phones and wearables.</p>
+<h2 id="thermal-basics">Thermal basics</h2>
+<p>Every package has a thermal resistance from the die junction to the surrounding air, written θ<sub>JA</sub> in °C per watt. The junction temperature is then:</p>
+<blockquote>
+<p>T<sub>J</sub> = T<sub>A</sub> + P × θ<sub>JA</sub></p>
+</blockquote>
+<p>For example, with illustrative values, a 1.5 W chip in a package and board with θ<sub>JA</sub> = 40 °C/W at 35 °C ambient runs at 35 + 1.5 × 40 = <strong>95 °C</strong>. θ<sub>JA</sub> depends heavily on the board: copper area, thermal vias under an exposed pad and airflow can change it a lot, which is why datasheets also give junction-to-case values.</p>
+<h2 id="why-chiplets">Why chiplets</h2>
+<p>For decades, the trend was to integrate everything onto one die. Increasingly, large systems go the other way: they are split into several smaller dies, <strong>chiplets</strong>, assembled side by side or stacked in one package.</p>
+<p>The first reason is yield. Defects land randomly on wafers, so the chance that a die is defect-free falls exponentially with its area. A simple model gives yield Y = e<sup>−A·D</sup>, for die area A and defect density D. With an illustrative D of 0.2 defects per cm<sup>2</sup>:</p>
+<ul>
+<li>One 4 cm<sup>2</sup> die: Y = e<sup>−0.8</sup> ≈ 0.45, so each good system consumes about 4 / 0.45 ≈ <strong>8.9 cm<sup>2</sup></strong> of silicon.</li>
+<li>Four 1 cm<sup>2</sup> chiplets: each has Y = e<sup>−0.2</sup> ≈ 0.82. Because chiplets are tested before assembly and bad ones discarded individually, each good system consumes about 4 / 0.82 ≈ <strong>4.9 cm<sup>2</sup></strong>.</li>
+</ul>
+<p>Other reasons add up. Very large dies run into the maximum area one lithography exposure can pattern. Different functions suit different processes: dense logic benefits from the newest node, while analog, I/O and high-voltage circuits often work as well or better in a mature, cheaper node. And a proven chiplet can be reused across products.</p>
+<p>Chiplets bring their own costs: the die-to-die interface consumes area and power on each chiplet, assembly is harder, the package substrate or silicon interposer that connects them adds cost, and heat is harder to remove from stacked dies. Each chiplet must be thoroughly tested before assembly, since one bad die scraps the whole package; this is the <strong>known good die</strong> requirement. To let chiplets from different designs work together, the industry has developed open die-to-die interface specifications such as UCIe and Bunch of Wires.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Compute yield and silicon per good system for one, two, four and eight chiplets making up the same total area, at two defect densities, and plot where splitting stops paying off once you add a fixed interface area per chiplet.</li>
+<li>In <strong>ngspice</strong>, model a ground bond wire as 2 nH, switch 8 outputs of 10 mA each in 1 ns through it, and measure the ground bounce; then put four bond wires in parallel.</li>
+<li>Look at the pad ring of an open-source chip design in <strong>KLayout</strong> and identify the power, ground and signal pads and how many of each were used.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>packaging</li><li>flip chip</li><li>wire bond</li><li>chiplets</li><li>yield</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="op-amp-stability-phase-margin.html"><span>Previous in Analog &amp; mixed-signal</span>Op-amp stability and phase margin without the heavy maths</a><a class="next" href="analog-and-digital-on-one-die.html"><span>Next in Analog &amp; mixed-signal</span>Putting analog and digital on one die: substrate noise, supplies and isolation</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="adc-architecture-for-sensor-fusion.html">Choosing an ADC architecture for a multi-channel sensor-fusion array</a></h3>
+          <p>When several sensors must be combined, when each channel is sampled matters as much as how well. Compare multiplexed and simultaneous sampling, resolution against speed, and area and power per channel.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Beginner</span></div>
+          <h3><a href="adc-datasheet-terms-decoded.html">ADC datasheet terms decoded: ENOB, INL, DNL and SNR</a></h3>
+          <p>An ADC&#x27;s bit count says little on its own. Learn what SNR, SINAD, ENOB, THD, SFDR, DNL and INL each measure, how they relate, and which ones matter for audio, sensing or control.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-analog.html">Analog &amp; mixed-signal</a><span class="lvl">Advanced</span></div>
+          <h3><a href="analog-and-digital-on-one-die.html">Putting analog and digital on one die: substrate noise, supplies and isolation</a></h3>
+          <p>Switching logic injects noise into the shared substrate, supplies and package that sensitive analog circuits sit on. Learn the coupling paths, and how guard rings, separate supplies and floorplanning keep them quiet.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

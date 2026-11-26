@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why a two-flop synchronizer works, and when it doesn&#x27;t · Ketuna blog</title>
+  <meta name="description" content="A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Why a two-flop synchronizer works, and when it doesn&#x27;t · Ketuna blog">
+  <meta property="og:description" content="A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.">
+  <link rel="canonical" href="https://ketuna.online/blog/why-a-two-flop-synchronizer-works.html">
+  <meta property="og:url" content="https://ketuna.online/blog/why-a-two-flop-synchronizer-works.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why a two-flop synchronizer works, and when it doesn't",
+  "description": "A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "cdc, metastability, synchronizer, mtbf",
+  "articleSection": "Digital & VLSI design",
+  "wordCount": 1012,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/why-a-two-flop-synchronizer-works.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-vlsi-design.html">Digital &amp; VLSI design</a></p>
+        <h1>Why a two-flop synchronizer works, and when it doesn&#x27;t</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a>
+          <span class="lvl">Intermediate</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>6 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">A two-flop synchronizer buys a metastable flip-flop one full clock period to settle. Here is the MTBF reasoning behind it, and the buses, pulses and fast-to-slow cases it cannot fix.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#what-metastability-actually-costs-you">What metastability actually costs you</a></li><li><a href="#how-the-second-flop-buys-time">How the second flop buys time</a></li><li><a href="#the-mtbf-intuition-with-numbers">The MTBF intuition, with numbers</a></li><li><a href="#when-two-flops-are-not-enough">When two flops are not enough</a></li><li><a href="#writing-it-so-the-tools-see-it">Writing it so the tools see it</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Any signal that comes from another clock domain will, sooner or later, change inside a flip-flop's setup and hold window. You cannot prevent that with timing constraints, because the two clocks have no fixed phase relationship. What you can do is give the flip-flop time to make up its mind before anyone looks at its output. The two-flop synchronizer is the cheapest way to buy that time, and knowing exactly what it buys tells you when it is not enough.</p>
+<h2 id="what-metastability-actually-costs-you">What metastability actually costs you</h2>
+<p>When D changes inside the window, the flip-flop's internal latch can land near its balance point, halfway between 0 and 1. It will fall to one side eventually, because any small noise or imbalance grows. The growth is exponential: the probability that it is <em>still</em> undecided after a time t falls roughly as e<sup>−t/τ</sup>, where τ (tau) is a time constant of the cell, set by its transistor gain and node capacitance.</p>
+<p>Two things follow from that one exponential:</p>
+<ul>
+<li>The flip-flop will almost always resolve within a small multiple of τ.</li>
+<li>You never get a hard guarantee, only a probability. Each extra τ of waiting divides the failure chance by about 2.7.</li>
+</ul>
+<p>So the design question is never "does it go metastable?" It is "how long do I wait before I use the value, and how rare does that make a failure?"</p>
+<h2 id="how-the-second-flop-buys-time">How the second flop buys time</h2>
+<p>In a two-flop synchronizer the first flop samples the asynchronous signal and the second flop samples the first. Nothing else is connected to the first flop's output.</p>
+<figure class="diagram">
+<svg viewBox="0 0 480 170" role="img" aria-labelledby="tf-title tf-desc" font-size="14">
+<title id="tf-title">Two-flop synchronizer</title>
+<desc id="tf-desc">An asynchronous input enters flip-flop one, whose output goes directly to flip-flop two. Both are clocked by the destination clock. The wire between them is labelled as having a full clock period to resolve. The output of flip-flop two goes to the destination logic.</desc>
+<text x="8" y="62" class="dg-text">async_in</text>
+<line x1="75" y1="58" x2="120" y2="58" class="dg-line"/>
+<path d="M114,54 L120,58 L114,62 Z" class="dg-arrow"/>
+<rect x="120" y="30" width="70" height="60" class="dg-box"/>
+<text x="155" y="64" text-anchor="middle" class="dg-text">FF1</text>
+<line x1="190" y1="58" x2="280" y2="58" class="dg-amber-line" stroke-width="2"/>
+<path d="M274,54 L280,58 L274,62 Z" class="dg-arrow"/>
+<text x="235" y="45" text-anchor="middle" class="dg-muted">resolve</text>
+<rect x="280" y="30" width="70" height="60" class="dg-box"/>
+<text x="315" y="64" text-anchor="middle" class="dg-text">FF2</text>
+<line x1="350" y1="58" x2="400" y2="58" class="dg-line"/>
+<path d="M394,54 L400,58 L394,62 Z" class="dg-arrow"/>
+<text x="404" y="62" class="dg-text">sync_out</text>
+<path d="M40,140 H315 V90 M155,140 V90" class="dg-line"/>
+<text x="8" y="160" class="dg-text">clk_dst</text>
+<text x="235" y="130" text-anchor="middle" class="dg-muted">almost a full period</text>
+</svg>
+<figcaption>FF1 may go metastable; the short wire to FF2 gives it nearly a whole destination clock period to settle before it is sampled again.</figcaption>
+</figure>
+
+<p>The resolution time available to FF1 is the clock period minus FF1's clock-to-Q and FF2's setup time. Because there is no logic on that wire, almost the entire period counts. If FF1 settles in time, FF2 captures a clean value and the rest of the design never sees the problem. FF2's output is late by one or two cycles, which is the price you pay.</p>
+<h2 id="the-mtbf-intuition-with-numbers">The MTBF intuition, with numbers</h2>
+<p>The usual estimate for the mean time between failures is:</p>
+<blockquote>
+<p>MTBF = e<sup>t<sub>r</sub>/τ</sup> / (T<sub>w</sub> × f<sub>clk</sub> × f<sub>data</sub>)</p>
+</blockquote>
+<p>Here t<sub>r</sub> is the resolution time you allow, T<sub>w</sub> is a cell constant describing how wide the "dangerous" window is, f<sub>clk</sub> is the destination clock and f<sub>data</sub> is how often the input toggles. The denominator counts how often you roll the dice; the numerator is how unlikely each roll is to fail.</p>
+<p>Take these values, made up for illustration: τ = 50 ps, T<sub>w</sub> = 50 ps, f<sub>clk</sub> = 100 MHz (10 ns period), f<sub>data</sub> = 1 MHz. The denominator is 50 × 10<sup>−12</sup> × 10<sup>8</sup> × 10<sup>6</sup> = 5000 per second.</p>
+<ul>
+<li><strong>One flop, with logic after it</strong>, leaving t<sub>r</sub> = 1 ns: e<sup>20</sup> ≈ 4.9 × 10<sup>8</sup>, so MTBF ≈ 97,000 s, about 27 hours. A product that fails once a day is broken.</li>
+<li><strong>Two flops</strong>, leaving t<sub>r</sub> ≈ 9.5 ns: e<sup>190</sup> divided by 5000 is around 10<sup>78</sup> seconds, far longer than anything you will ship.</li>
+</ul>
+<p>The jump comes entirely from the exponent. That is why the rule is "no logic between the two flops": every nanosecond of logic you add comes straight out of t<sub>r</sub>. It is also why designs with very fast clocks, or flops with poor τ at low supply voltage, sometimes use three stages. Real τ and T<sub>w</sub> come from the cell library characterisation, and should be checked at the slowest corner.</p>
+<h2 id="when-two-flops-are-not-enough">When two flops are not enough</h2>
+<p>The synchronizer solves exactly one problem: a single bit that stays stable long enough to be sampled. It fails in these cases.</p>
+<p><strong>Multi-bit buses.</strong> If you put a two-flop synchronizer on each bit of an 8-bit value, each bit resolves independently. When the value changes from <code>0x7F</code> to <code>0x80</code>, all eight bits flip together, and on the critical cycle some bits may show the old value and some the new. The receiver can see <code>0xFF</code> or <code>0x00</code>, values that never existed. Use Gray-coded counters, a handshake or an asynchronous FIFO instead.</p>
+<p><strong>Short pulses.</strong> A one-cycle pulse from a 200 MHz domain lasts 5 ns. A 50 MHz destination samples every 20 ns, so it can miss the pulse completely. The synchronizer cannot catch what it never sampled. Convert the pulse to a toggle (a level that flips once per event) in the source domain, synchronize the toggle, and detect its edges in the destination.</p>
+<p><strong>Fast-to-slow levels that change too often.</strong> Even a level signal must stay stable for longer than one destination period plus some margin, or changes get lost. A common rule of thumb is that the source signal should be held for at least about 1.5 destination clock periods. If it changes faster than that, you need a handshake or a FIFO.</p>
+<p><strong>Reconvergence.</strong> Two related bits synchronized separately can arrive one cycle apart. If logic later combines them, it can briefly see an impossible combination. Synchronize one combined signal, or encode the pair so only one bit changes at a time.</p>
+<h2 id="writing-it-so-the-tools-see-it">Writing it so the tools see it</h2>
+<pre><code class="language-systemverilog">module sync2 #(parameter int STAGES = 2) (
+  input  logic clk_dst,
+  input  logic rst_n,
+  input  logic d_async,
+  output logic q_sync
+);
+  (* ASYNC_REG = &quot;TRUE&quot; *) logic [STAGES-1:0] sync_q;
+  always_ff @(posedge clk_dst or negedge rst_n)
+    if (!rst_n) sync_q &lt;= '0;
+    else        sync_q &lt;= {sync_q[STAGES-2:0], d_async};
+  assign q_sync = sync_q[STAGES-1];
+endmodule
+</code></pre>
+<p>Keep synchronizers in one small, named module. CDC checking tools and reviewers can then recognise every crossing by its instance name, and placement tools can be told to keep the flops close together. The attribute shown is one common way of marking them; the exact attribute your flow honours depends on the tool, so check its documentation.</p>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Write <code>sync2</code> above and a testbench in <strong>Icarus Verilog</strong> (<code>iverilog -g2012</code>) with two unrelated clocks, for example 7 ns and 10 ns periods. Watch the two-cycle latency in GTKWave.</li>
+<li>Drive a one-cycle pulse from the fast clock into a slow-clock <code>sync2</code> and count how many pulses the output misses. Then add a toggle and an edge detector and confirm none are lost.</li>
+<li>Put the MTBF formula into a short Python script and plot MTBF against t<sub>r</sub> with numpy. Work one point by hand first, then let the script check you.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>cdc</li><li>metastability</li><li>synchronizer</li><li>mtbf</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="where-dynamic-power-goes.html"><span>Previous in Digital &amp; VLSI design</span>Where dynamic power goes: activity, capacitance, voltage and frequency</a><a class="next" href="parameterized-verilog-modules.html"><span>Next in Digital &amp; VLSI design</span>Writing reusable Verilog with parameters and generate blocks</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="asynchronous-fifo-gray-pointers.html">Inside an asynchronous FIFO: why the pointers cross in Gray code</a></h3>
+          <p>An async FIFO works because each pointer crosses the clock boundary in Gray code, where only one bit changes per step. Learn the synchronization, the full and empty compares, and why the flags are safely pessimistic.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Advanced</span></div>
+          <h3><a href="crossing-multi-bit-values-between-clocks.html">Crossing a multi-bit value between clock domains: handshake, mux recirculation or FIFO</a></h3>
+          <p>Synchronizing bus bits one by one can produce values that never existed. Compare the three safe structures for multi-bit crossings, what each assumes, what it costs, and how to choose.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-vlsi-design.html">Digital &amp; VLSI design</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="async-assert-sync-deassert-reset.html">Synchronous vs asynchronous reset, and why &quot;assert async, release sync&quot; wins</a></h3>
+          <p>Entering reset is easy; leaving it is a timing event. See why asynchronous reset release can break a design, and how a two-flop reset synchronizer makes it safe.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>

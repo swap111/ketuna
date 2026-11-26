@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timing closure when the last few paths will not close · Ketuna blog</title>
+  <meta name="description" content="When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.">
+  <meta name="theme-color" content="#F7F1E3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141B3A" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Ketuna">
+  <meta property="og:title" content="Timing closure when the last few paths will not close · Ketuna blog">
+  <meta property="og:description" content="When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.">
+  <link rel="canonical" href="https://ketuna.online/blog/timing-closure-when-paths-will-not-close.html">
+  <meta property="og:url" content="https://ketuna.online/blog/timing-closure-when-paths-will-not-close.html">
+  <meta property="og:image" content="https://ketuna.online/assets/ketuna_logo.jpg">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="alternate" type="application/rss+xml" title="Ketuna blog" href="feed.xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Timing closure when the last few paths will not close",
+  "description": "When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.",
+  "datePublished": "2026-11-27",
+  "dateModified": "2026-11-27",
+  "inLanguage": "en-IN",
+  "keywords": "timing closure, static timing analysis, floorplanning, pipelining, constraints",
+  "articleSection": "Physical design & tape-out",
+  "wordCount": 983,
+  "author": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ketuna",
+    "url": "https://ketuna.online/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ketuna.online/assets/ketuna_logo.jpg"
+    }
+  },
+  "image": "https://ketuna.online/assets/ketuna_logo.jpg",
+  "mainEntityOfPage": "https://ketuna.online/blog/timing-closure-when-paths-will-not-close.html"
+}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../index.html"><span class="logo-panel"><img src="../assets/ketuna_logo.jpg" alt="Ketuna home" width="166" height="48"></span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <article>
+    <header class="post-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="index.html">Blog</a> › <a href="category-physical-design.html">Physical design &amp; tape-out</a></p>
+        <h1>Timing closure when the last few paths will not close</h1>
+        <div class="post-meta">
+          <a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a>
+          <span class="lvl">Advanced</span>
+          <span><time datetime="2026-11-27">27 Nov 2026</time></span>
+          <span>5 min read</span>
+          <span>By Ketuna</span>
+        </div>
+        <p class="post-lead">When a handful of paths stay negative after every optimisation run, more tool effort rarely helps. A decision order for checking constraints, path structure, floorplan and RTL before touching tool knobs.</p>
+      </div>
+    </header>
+    <div class="wrap post-wrap">
+      <div class="post-body">
+<details class="toc" open><summary>In this article</summary><ol><li><a href="#step-1-is-the-path-real-and-correctly-constrained">Step 1: is the path real and correctly constrained?</a></li><li><a href="#step-2-what-kind-of-path-is-it">Step 2: what kind of path is it?</a></li><li><a href="#step-3-fix-distance-in-the-floorplan">Step 3: fix distance in the floorplan</a></li><li><a href="#step-4-fix-depth-in-the-rtl">Step 4: fix depth in the RTL</a></li><li><a href="#step-5-only-then-tool-settings">Step 5: only then, tool settings</a></li><li><a href="#habits-that-help">Habits that help</a></li><li><a href="#try-it-yourself">Try it yourself</a></li></ol></details>
+<p>Late in a project, timing often looks almost done: thousands of paths pass, and a few dozen remain stubbornly negative. The natural response is to rerun with higher effort, a different seed or a more aggressive repair setting, and sometimes that works. When it does not, each extra run costs hours and the slack moves by a few picoseconds in either direction. At that point the problem is no longer the tool's optimisation. It is in the constraints, the floorplan or the logic, and the fastest way to closure is to work out which, in a fixed order.</p>
+<h2 id="step-1-is-the-path-real-and-correctly-constrained">Step 1: is the path real and correctly constrained?</h2>
+<p>Before changing any hardware, confirm that the failing path is one the chip actually needs to meet in a single cycle.</p>
+<ul>
+<li><strong>Clock relationship.</strong> Is the path between two clocks that are genuinely related? A path between asynchronous domains needs a synchronizer and a clock group or false path, not a timing fix.</li>
+<li><strong>Multicycle intent.</strong> Does the control logic only sample this result every second cycle? If so, a multicycle constraint with its matching hold adjustment is the correct description.</li>
+<li><strong>Static configuration.</strong> Paths from registers written once at start-up and then held constant do not need single-cycle timing, if the design guarantees they are stable before use.</li>
+<li><strong>I/O budgets.</strong> For port paths, check that the input and output delays were agreed with the neighbouring block and were not placeholder guesses.</li>
+<li><strong>Uncertainty and derates.</strong> Check that clock uncertainty after clock tree synthesis reflects jitter and margin only, not an estimate of skew that is now computed for real.</li>
+</ul>
+<p>Every exception added at this step must be justified in writing and reviewed by someone who understands the design's intent. Turning a real path into a false path to meet a deadline is the most expensive mistake in this article, because it passes every report and fails on silicon.</p>
+<h2 id="step-2-what-kind-of-path-is-it">Step 2: what kind of path is it?</h2>
+<p>Read the worst path line by line and classify it. Three patterns cover most cases:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pattern in the report</th>
+<th>Diagnosis</th>
+<th>Leads to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Many cell delays of similar size, few long wires</td>
+<td>Deep logic</td>
+<td>RTL change</td>
+</tr>
+<tr>
+<td>One or two very large wire or buffer delays</td>
+<td>Distance</td>
+<td>Floorplan change</td>
+</tr>
+<tr>
+<td>Large difference between launch and capture clock latency</td>
+<td>Skew</td>
+<td>Clock tree change</td>
+</tr>
+</tbody>
+</table></div>
+<p>As an illustrative example, suppose a path fails by 0.40 ns at a 4.0 ns clock. If 2.6 ns of its 4.2 ns arrival is in buffers and wires between a memory macro on one side of the block and a register bank on the other, no amount of cell sizing will recover 0.40 ns. The cells are not the problem; the distance is.</p>
+<p>If instead the path has eighteen levels of logic each contributing around 0.2 ns, the wires are fine and the logic is simply too deep for the period.</p>
+<p>Also look at the whole group of failing paths, not just the worst. If they all share a start or end point, one structural fix may close them all.</p>
+<h2 id="step-3-fix-distance-in-the-floorplan">Step 3: fix distance in the floorplan</h2>
+<p>Distance problems are fixed by moving things, and moving things is cheapest at the floorplan.</p>
+<ul>
+<li><strong>Move the macro or the pins</strong> so that the endpoints of the critical paths are close together.</li>
+<li><strong>Constrain related logic to a region</strong> so that the placer keeps it near the macro it talks to.</li>
+<li><strong>Rotate a macro</strong> so its pins face the logic that uses them.</li>
+<li><strong>Change the block's shape</strong> if the critical paths run along its long dimension.</li>
+</ul>
+<p>After a floorplan change, the whole flow reruns, so this costs a day rather than an hour. It is still far cheaper than repeated optimisation runs that cannot succeed.</p>
+<h2 id="step-4-fix-depth-in-the-rtl">Step 4: fix depth in the RTL</h2>
+<p>Deep logic needs fewer levels between registers. The main options:</p>
+<ul>
+<li><strong>Pipelining:</strong> add a register stage in the middle of the path, and adjust the surrounding control logic for one extra cycle of latency.</li>
+<li><strong>Restructuring:</strong> compute in parallel what was computed in series. A priority chain of comparisons can often become a balanced tree; a ripple structure can become a carry-lookahead or prefix structure.</li>
+<li><strong>Precomputation:</strong> compute part of the result a cycle early, from values already known, and register it.</li>
+<li><strong>Retiming by hand:</strong> move existing registers across logic so that each stage has a similar delay.</li>
+</ul>
+<pre><code class="language-verilog">// Before: compare and select in one cycle
+always @(posedge clk)
+  y &lt;= (a &gt; b) ? a : b;   // 32-bit compare + 32-bit mux
+
+// After: register the compare, select one cycle later
+always @(posedge clk) begin
+  gt  &lt;= (a &gt; b);
+  a_q &lt;= a;
+  b_q &lt;= b;
+  y   &lt;= gt ? a_q : b_q;
+end
+</code></pre>
+<p>The second version has one more cycle of latency, which the rest of the design must account for. That is why RTL changes need verification to be rerun; a closure fix that introduces a functional bug is not a fix.</p>
+<h2 id="step-5-only-then-tool-settings">Step 5: only then, tool settings</h2>
+<p>With constraints confirmed, distance addressed and depth reasonable, the remaining small violations are what tools are good at. Useful levers include allowing larger drive strengths or a faster cell variant on critical paths, enabling useful skew, prioritising critical nets in routing (upper layers, wider spacing) and running more repair iterations after routing. These recover tens of picoseconds, not nanoseconds. If you find yourself needing nanoseconds from them, go back up the list.</p>
+<h2 id="habits-that-help">Habits that help</h2>
+<ul>
+<li><strong>Track worst and total negative slack per run</strong> in a table, with the change you made. Trends tell you whether you are converging.</li>
+<li><strong>Change one thing per run.</strong> Otherwise you cannot tell which change helped.</li>
+<li><strong>Talk to the RTL author early.</strong> A one-line change in RTL often beats a week of physical design effort.</li>
+</ul>
+<h2 id="try-it-yourself">Try it yourself</h2>
+<ol>
+<li>Harden a small design with <strong>LibreLane</strong> on sky130 and tighten <code>CLOCK_PERIOD</code> until a few paths fail.</li>
+<li>In <strong>OpenSTA</strong>, load the final netlist and SPEF, then use <code>report_wns</code>, <code>report_tns</code> and <code>report_checks -path_delay max -fields {fanout cap slew}</code> to classify each failing path by the table above.</li>
+<li>Apply the matching fix: pipeline the RTL for a deep path, or change pin placement or aspect ratio for a distance path. Rerun and record slack before and after.</li>
+<li>Write down your prediction of the slack change before each run, and compare.</li>
+</ol>
+        <ul class="tags" aria-label="Tags"><li>timing closure</li><li>static timing analysis</li><li>floorplanning</li><li>pipelining</li><li>constraints</li></ul>
+        <aside class="learn-box" aria-labelledby="learn-h">
+          <h2 id="learn-h">Learn this hands-on at Ketuna</h2>
+          <p>Ketuna's mentored programs teach this kind of work by doing it: by hand first, then with AI, on open-source tools, with design reviews every week. First cohort planned for 2027.</p>
+          <p><a class="btn btn-primary" href="../programs.html">See the programs</a></p>
+        </aside>
+        <nav class="prevnext" aria-label="More in this category"><a class="prev" href="three-open-pdks-compared.html"><span>Previous in Physical design &amp; tape-out</span>Three open PDKs and what each is good for</a><a class="next" href="what-logic-synthesis-does.html"><span>Next in Physical design &amp; tape-out</span>What logic synthesis actually does to your RTL</a></nav>
+      </div>
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related articles</h2>
+        <ul class="postgrid">
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="why-hold-violations-are-worse.html">Why hold violations are worse than setup violations, and how tools fix them</a></h3>
+          <p>A setup failure on silicon can be slowed away; a hold failure cannot, because the clock period is not in the hold equation. See why, and what buffer insertion to fix hold costs in area and power.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="writing-your-first-sdc.html">Writing your first SDC: clocks, I/O delays and false paths</a></h3>
+          <p>Timing tools only check what your constraints describe. Build a minimum SDC for a block, line by line, and learn the over-constraints and missing constraints that hide real failing paths.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        <li class="postcard">
+          <div class="meta"><a class="chip" href="category-physical-design.html">Physical design &amp; tape-out</a><span class="lvl">Intermediate</span></div>
+          <h3><a href="building-the-pad-ring.html">Building the pad ring: I/O cells, power pads and padframe planning</a></h3>
+          <p>The pad ring connects the core to the package and protects it from the outside world. Learn how to choose pad order and power pad count, what bonding constrains, and how the ring meets the core grid.</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+        </li>
+        </ul>
+      </section>
+    </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="f-brand">
+        <p><strong>Ketuna</strong></p>
+        <p>Mentoring for Embedded, VLSI, Systems and Products · Partnering for STEM skills</p>
+        <p>First cohort planned for 2027. Open-source tools only.</p>
+        <p>Contact: <a href="mailto:sapreswapnil@yahoo.co.in">sapreswapnil@yahoo.co.in</a> · <a href="https://www.linkedin.com/in/swapnils29/" target="_blank" rel="noopener">LinkedIn</a> · <a href="../about.html">About Ketuna</a></p>
+        <p>The forms on the <a href="../mentoring.html#become">mentoring</a>, <a href="../partners.html#interest">partners</a> and <a href="../workshop.html#signup">workshop</a> pages open soon.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../programs.html">Programs</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html">Blog</a>
+        <a href="../mentoring.html">Mentoring</a>
+        <a href="../partners.html">Partners</a>
+        <a href="../workshop.html">Free workshop</a>
+        <a href="../resources.html">Resources</a>
+        <a href="../privacy.html">Privacy</a>
+      </nav>
+      <p class="fine">Plans described on this site may change before the first cohort. Nothing here is an offer of admission, a placement promise or a certification.</p>
+    </div>
+  </footer>
+</body>
+</html>
