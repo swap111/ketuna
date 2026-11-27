@@ -147,6 +147,41 @@
               <div><dt>Then: FPGA / chip</dt><dd>A dedicated low-power control SoC.</dd></div>
               <div><dt>What you learn</dt><dd>Real-time control, sensor fusion and CPU design.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj1-t pj1-d" font-size="14">
+                <title id="pj1-t">Drone controller concept</title>
+                <desc id="pj1-d">IMU and GPS or NavIC feed sensor fusion, which feeds the control loops, which drive motor PWM to the ESCs and motors. Fusion, control and PWM are the parts planned for a low-power control SoC.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">IMU</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">accel + gyro</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">GPS / NavIC</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">position</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Sensor fusion</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">attitude</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">Control loops</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">stabilise, steer</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Motor PWM</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">per motor</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">ESCs + motors</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">thrust</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M136 129 L154 129 L154 49 L166 49"/>
+                <path class="dg-arrow" d="M173 49L163 54.5L163 43.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p2" data-domain="Agriculture Mobility Industry">
@@ -164,6 +199,36 @@
               <div><dt>Then: FPGA / chip</dt><dd>An image-processing pipeline in an FPGA, then an ASIC.</dd></div>
               <div><dt>What you learn</dt><dd>Image pipelines, low-power AI and interfaces.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj2-t pj2-d" font-size="14">
+                <title id="pj2-t">Vision camera sensor concept</title>
+                <desc id="pj2-d">An image sensor feeds a capture interface, pre-processing and detection of motion, counts or defects, which produce results such as counts and alerts. Capture, pre-processing and detection are the pipeline planned for an FPGA and then an ASIC.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Image sensor</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">camera module</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Capture</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">pixel interface</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">Pre-process</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">clean, scale</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Detection</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">motion, count</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Results</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">counts, alerts</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI</p>
           </article>
           <article class="card project" id="p3" data-domain="Industry Health">
@@ -181,6 +246,36 @@
               <div><dt>Then: FPGA / chip</dt><dd>A mixed-signal chip: an ADC array plus a digital fusion engine.</dd></div>
               <div><dt>What you learn</dt><dd>Analog and mixed-signal design, a skill that is rare and valuable in India.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj3-t pj3-d" font-size="14">
+                <title id="pj3-t">ADC array sensor-fusion concept</title>
+                <desc id="pj3-d">Many sensor channels go through an analog front-end into an ADC array and a digital fusion engine, whose result a controller uses. The front-end, ADC array and fusion engine are planned for one mixed-signal chip.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Sensors</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">many channels</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Analog front-end</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">amplify, filter</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">ADC array</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">multi-channel</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Fusion engine</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">digital</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Controller</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">uses the result</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Analog / mixed-signal (coming later), Embedded &amp; edge AI</p>
           </article>
           <article class="card project" id="p4" data-domain="Navigation Mobility">
@@ -198,6 +293,41 @@
               <div><dt>Then: FPGA / chip</dt><dd>A baseband chip.</dd></div>
               <div><dt>What you learn</dt><dd>Signal processing and receiver design, from FPGA to silicon, on a strategic and visible problem.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj4-t pj4-d" font-size="14">
+                <title id="pj4-t">NavIC receiver concept</title>
+                <desc id="pj4-d">Antenna, RF front end and ADC feed acquisition and tracking, which feed the navigation solution for position and time. Acquisition and tracking run in the FPGA software-defined radio first, and are the parts planned for a baseband chip.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Antenna</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">satellite signals</text>
+                <rect class="dg-box" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">RF front end</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">down-convert</text>
+                <rect class="dg-box" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">ADC</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">sample</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Acquisition</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">find satellites</text>
+                <rect class="dg-soon" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Tracking</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">code + carrier</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">Nav solution</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">position, time</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Physical design" aria-hidden="true">B</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span></span> Tracks: Design &amp; verification, Physical design, Embedded &amp; edge AI</p>
           </article>
           <article class="card project" id="p5" data-domain="Energy">
@@ -215,6 +345,36 @@
               <div><dt>Then: FPGA / chip</dt><dd>One SoC with the metering front-end, a secure MCU and communication.</dd></div>
               <div><dt>What you learn</dt><dd>Precision measurement, embedded security and communication.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj5-t pj5-d" font-size="14">
+                <title id="pj5-t">Smart energy meter concept</title>
+                <desc id="pj5-d">Voltage and current sensing feed a metering front-end, a secure microcontroller and a communication block that reports to the utility. The front-end, secure MCU and communication are planned as one SoC.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">V and I sensing</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">the mains line</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Metering AFE</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">precision ADC</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">Secure MCU</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">energy, security</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Communication</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">meter link</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Utility</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">DISCOM systems</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p6" data-domain="Energy Mobility">
@@ -232,6 +392,38 @@
               <div><dt>Then: FPGA / chip</dt><dd>A cell-monitor ASIC.</dd></div>
               <div><dt>What you learn</dt><dd>Precise measurement, protection logic and safety thinking, for a high-demand, very India-relevant product.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj6-t pj6-d" font-size="14">
+                <title id="pj6-t">Battery management concept</title>
+                <desc id="pj6-d">The cell monitor measures the battery cells and reports to a controller, which drives balancing back onto the cells and protection that switches off on a fault. The cell monitor is the part planned as an ASIC.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="150" rx="6"/>
+                <text class="dg-text" x="69" y="77.7" text-anchor="middle" font-weight="700">Battery cells</text>
+                <text class="dg-muted" x="69" y="96.7" text-anchor="middle">the pack</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Cell monitor</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">voltage, temp</text>
+                <rect class="dg-box" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">Controller</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">decides, logs</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Balancing</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">even out cells</text>
+                <rect class="dg-box" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Protection</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">switch off faults</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M364 66 L293.4 97.2"/>
+                <path class="dg-arrow" d="M287 100L293.9 90.9L298.4 101Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p7" data-domain="Energy Agriculture">
@@ -249,6 +441,43 @@
               <div><dt>Then: FPGA / chip</dt><dd>A simple, low-cost, high-volume motor-control chip: a good first commercial product.</dd></div>
               <div><dt>What you learn</dt><dd>Motor-control loops, power-electronics basics and cost-driven chip design.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj7-t pj7-d" font-size="14">
+                <title id="pj7-t">BLDC motor controller concept</title>
+                <desc id="pj7-d">A speed command goes to the control loop, then PWM, gate drivers and the motor; position and current sensing feed back into the control loop. The control loop and PWM are the parts planned for a low-cost motor-control chip.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Speed command</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">set point</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Control loop</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">speed, commutate</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">PWM</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">switching</text>
+                <rect class="dg-box" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Gate drivers</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">power stage</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">BLDC motor</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">fan, pump</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">Sensing</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">position, current</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+                <path class="dg-line" d="M69 100 L69 83 L240 83 L240 73"/>
+                <path class="dg-arrow" d="M240 66L245.5 76L234.5 76Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip" title="Design &amp; verification" aria-hidden="true">A</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Design &amp; verification, Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p8" data-domain="Health">
@@ -266,6 +495,41 @@
               <div><dt>Then: FPGA / chip</dt><dd>A low-power biomedical analog front-end (AFE) chip.</dd></div>
               <div><dt>What you learn</dt><dd>Biomedical signals, low-power analog design and wireless links.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj8-t pj8-d" font-size="14">
+                <title id="pj8-t">Health wearable front-end concept</title>
+                <desc id="pj8-d">ECG, SpO2 and temperature sensors feed an analog front-end and ADC, then a low-power microcontroller and a BLE radio to a phone app for telemedicine. The analog front-end and ADC are planned as a biomedical AFE chip.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Sensors</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">ECG, SpO2, temp</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Analog front-end</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">amplify, filter</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">ADC</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">low power</text>
+                <rect class="dg-box" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">Low-power MCU</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">process</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">BLE radio</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">wireless link</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">Phone app</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">telemedicine</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p9" data-domain="Agriculture">
@@ -283,6 +547,41 @@
               <div><dt>Then: FPGA / chip</dt><dd>An integrated low-power sensor and radio SoC.</dd></div>
               <div><dt>What you learn</dt><dd>Low-power firmware, radio links and battery budgets.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj9-t pj9-d" font-size="14">
+                <title id="pj9-t">Rural IoT node concept</title>
+                <desc id="pj9-d">Soil, water, cold-chain or livestock sensors feed a sensor interface, a low-power microcontroller and a long-range radio, which reaches a gateway and a dashboard. Interface, MCU and radio are planned as one low-power SoC.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Sensors</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">soil, water, cold</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Sensor interface</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">read, filter</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">Low-power MCU</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">sleeps mostly</text>
+                <rect class="dg-soon" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">LoRa / Sub-GHz</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">long range</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">Gateway</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">collects nodes</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">Dashboard</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">alerts, trends</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
           <article class="card project" id="p10" data-domain="Health Agriculture">
@@ -300,6 +599,41 @@
               <div><dt>Then: FPGA / chip</dt><dd>Later, an integrated sensing chip.</dd></div>
               <div><dt>What you learn</dt><dd>Sensor interfacing and calibration, IoT dashboards and system design.</dd></div>
             </dl>
+            <figure class="diagram">
+              <svg viewBox="0 0 480 166" role="img" aria-labelledby="pj10-t pj10-d" font-size="14">
+                <title id="pj10-t">Water quality sensing concept</title>
+                <desc id="pj10-d">pH, TDS and turbidity probes feed signal conditioning and an ADC, then a microcontroller that calibrates and logs, and an IoT link to a dashboard. Conditioning and the ADC are the parts planned for an integrated sensing chip.</desc>
+                <rect class="dg-box" x="2" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="31.7" text-anchor="middle" font-weight="700">Probes</text>
+                <text class="dg-muted" x="69" y="50.7" text-anchor="middle">pH, TDS, turbidity</text>
+                <rect class="dg-soon" x="173" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="31.7" text-anchor="middle" font-weight="700">Conditioning</text>
+                <text class="dg-muted" x="240" y="50.7" text-anchor="middle">amplify, filter</text>
+                <rect class="dg-soon" x="344" y="8" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="31.7" text-anchor="middle" font-weight="700">ADC</text>
+                <text class="dg-muted" x="411" y="50.7" text-anchor="middle">measure</text>
+                <rect class="dg-box" x="344" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="411" y="123.7" text-anchor="middle" font-weight="700">MCU</text>
+                <text class="dg-muted" x="411" y="142.7" text-anchor="middle">calibrate, log</text>
+                <rect class="dg-box" x="173" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="240" y="123.7" text-anchor="middle" font-weight="700">IoT link</text>
+                <text class="dg-muted" x="240" y="142.7" text-anchor="middle">send readings</text>
+                <rect class="dg-box" x="2" y="100" width="134" height="58" rx="6"/>
+                <text class="dg-text" x="69" y="123.7" text-anchor="middle" font-weight="700">Dashboard</text>
+                <text class="dg-muted" x="69" y="142.7" text-anchor="middle">villages, towns</text>
+                <path class="dg-line" d="M136 37 L166 37"/>
+                <path class="dg-arrow" d="M173 37L163 42.5L163 31.5Z"/>
+                <path class="dg-line" d="M307 37 L337 37"/>
+                <path class="dg-arrow" d="M344 37L334 42.5L334 31.5Z"/>
+                <path class="dg-line" d="M411 66 L411 93"/>
+                <path class="dg-arrow" d="M411 100L405.5 90L416.5 90Z"/>
+                <path class="dg-line" d="M344 129 L314 129"/>
+                <path class="dg-arrow" d="M307 129L317 123.5L317 134.5Z"/>
+                <path class="dg-line" d="M173 129 L143 129"/>
+                <path class="dg-arrow" d="M136 129L146 123.5L146 134.5Z"/>
+              </svg>
+              <figcaption>Concept, work in progress: dashed blocks are the parts planned to move into the dedicated chip.</figcaption>
+            </figure>
             <p class="tracks"><span class="track-chips"><span class="track-chip later" title="Analog / mixed-signal (coming later)" aria-hidden="true">C</span><span class="track-chip" title="Embedded &amp; edge AI" aria-hidden="true">D</span><span class="track-chip" title="Systems &amp; product" aria-hidden="true">E</span></span> Tracks: Analog / mixed-signal (coming later), Embedded &amp; edge AI, Systems &amp; product</p>
           </article>
         </div>

@@ -65,6 +65,218 @@
         <span class="kicker" aria-hidden="true"></span>
         <h2>Toolchain, by job</h2>
         <p class="section-intro">Everything is open source and installs at home; one pinned Docker image keeps everyone on the same versions.</p>
+        <h3 class="mt">Flows at a glance</h3>
+        <div class="dg-pair">
+          <figure class="diagram dg-fit">
+            <svg viewBox="0 0 480 292" role="img" aria-labelledby="rs-gd-t rs-gd-d" font-size="14">
+              <title id="rs-gd-t">RTL to GDS flow</title>
+              <desc id="rs-gd-d">LibreLane runs the open RTL-to-GDS flow: Verilog RTL goes to Yosys for synthesis, OpenROAD for floorplan, placement, clock tree and routing, OpenSTA for timing, Magic and KLayout for DRC, and Netgen for LVS, producing a GDS on an open PDK such as sky130, gf180 or IHP SG13G2.</desc>
+              <rect class="dg-core" x="2" y="6" width="476" height="34" rx="6"/>
+              <text class="dg-text" x="240" y="27.2" text-anchor="middle" font-size="15" font-weight="700">LibreLane: one flow, RTL to GDS</text>
+              <rect class="dg-box" x="2" y="58" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="69" y="80.7" text-anchor="middle" font-weight="700">RTL</text>
+              <text class="dg-muted" x="69" y="99.7" text-anchor="middle">Verilog</text>
+              <rect class="dg-track" x="173" y="58" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="240" y="80.7" text-anchor="middle" font-weight="700">Yosys</text>
+              <text class="dg-muted" x="240" y="99.7" text-anchor="middle">synthesis</text>
+              <rect class="dg-track" x="344" y="58" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="411" y="80.7" text-anchor="middle" font-weight="700">OpenROAD</text>
+              <text class="dg-muted" x="411" y="99.7" text-anchor="middle">place, CTS, route</text>
+              <rect class="dg-track" x="344" y="144" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="411" y="166.7" text-anchor="middle" font-weight="700">OpenSTA</text>
+              <text class="dg-muted" x="411" y="185.7" text-anchor="middle">timing</text>
+              <rect class="dg-track" x="173" y="144" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="240" y="166.7" text-anchor="middle" font-weight="700">Magic, KLayout</text>
+              <text class="dg-muted" x="240" y="185.7" text-anchor="middle">DRC</text>
+              <rect class="dg-track" x="2" y="144" width="134" height="56" rx="6"/>
+              <text class="dg-text" x="69" y="166.7" text-anchor="middle" font-weight="700">Netgen</text>
+              <text class="dg-muted" x="69" y="185.7" text-anchor="middle">LVS</text>
+              <rect class="dg-cap" x="2" y="230" width="134" height="56" rx="6"/>
+              <text class="dg-cap-text" x="69" y="252.7" text-anchor="middle" font-weight="700">GDS</text>
+              <text class="dg-cap-text" x="69" y="271.7" text-anchor="middle">open PDK</text>
+              <path class="dg-line" d="M136 86 L166 86"/>
+              <path class="dg-arrow" d="M173 86L163 91.5L163 80.5Z"/>
+              <path class="dg-line" d="M307 86 L337 86"/>
+              <path class="dg-arrow" d="M344 86L334 91.5L334 80.5Z"/>
+              <path class="dg-line" d="M411 114 L411 137"/>
+              <path class="dg-arrow" d="M411 144L405.5 134L416.5 134Z"/>
+              <path class="dg-line" d="M344 172 L314 172"/>
+              <path class="dg-arrow" d="M307 172L317 166.5L317 177.5Z"/>
+              <path class="dg-line" d="M173 172 L143 172"/>
+              <path class="dg-arrow" d="M136 172L146 166.5L146 177.5Z"/>
+              <path class="dg-line" d="M69 200 L69 223"/>
+              <path class="dg-arrow" d="M69 230L63.5 220L74.5 220Z"/>
+              <text class="dg-muted" x="173" y="264">sky130 · gf180 · IHP SG13G2</text>
+            </svg>
+            <figcaption>Physical design: one LibreLane run strings the open tools together, from RTL to a GDS on an open PDK.</figcaption>
+          </figure>
+          <figure class="diagram dg-fit">
+            <svg viewBox="0 0 500 314" role="img" aria-labelledby="rs-vf-t rs-vf-d" font-size="14">
+              <title id="rs-vf-t">Verification flow</title>
+              <desc id="rs-vf-d">The RTL is checked three ways: lint with Verilator and Verible; simulation with cocotb and pyuvm testbenches on Icarus Verilog or Verilator, measured as coverage against a Python reference model; and formal proofs with SymbiYosys, which give a proof or a counterexample. All of it runs as a regression in CI.</desc>
+              <rect class="dg-core" x="175" y="6" width="150" height="46" rx="6"/>
+              <text class="dg-text" x="250" y="33.2" text-anchor="middle" font-size="15" font-weight="700">RTL</text>
+              <rect class="dg-track" x="2" y="86" width="150" height="58" rx="6"/>
+              <text class="dg-text" x="77" y="109.7" text-anchor="middle" font-weight="700">Lint</text>
+              <text class="dg-muted" x="77" y="128.7" text-anchor="middle">Verilator, Verible</text>
+              <rect class="dg-track" x="175" y="86" width="150" height="58" rx="6"/>
+              <text class="dg-text" x="250" y="109.7" text-anchor="middle" font-weight="700">Simulate</text>
+              <text class="dg-muted" x="250" y="128.7" text-anchor="middle">cocotb, pyuvm</text>
+              <rect class="dg-track" x="348" y="86" width="150" height="58" rx="6"/>
+              <text class="dg-text" x="423" y="109.7" text-anchor="middle" font-weight="700">Formal</text>
+              <text class="dg-muted" x="423" y="128.7" text-anchor="middle">SymbiYosys</text>
+              <rect class="dg-box" x="175" y="174" width="150" height="58" rx="6"/>
+              <text class="dg-text" x="250" y="197.7" text-anchor="middle" font-weight="700">Coverage</text>
+              <text class="dg-muted" x="250" y="216.7" text-anchor="middle">vs Python model</text>
+              <rect class="dg-box" x="348" y="174" width="150" height="58" rx="6"/>
+              <text class="dg-text" x="423" y="197.7" text-anchor="middle" font-weight="700">Proof</text>
+              <text class="dg-muted" x="423" y="216.7" text-anchor="middle">or counterexample</text>
+              <rect class="dg-cap" x="2" y="266" width="496" height="40" rx="6"/>
+              <text class="dg-cap-text" x="250" y="290.2" text-anchor="middle" font-size="15" font-weight="700">Regression in CI, on every push</text>
+              <path class="dg-line" d="M250 52 L250 68 L77 68 L77 79"/>
+              <path class="dg-arrow" d="M77 86L71.5 76L82.5 76Z"/>
+              <path class="dg-line" d="M250 52 L250 79"/>
+              <path class="dg-arrow" d="M250 86L244.5 76L255.5 76Z"/>
+              <path class="dg-line" d="M250 52 L250 68 L423 68 L423 79"/>
+              <path class="dg-arrow" d="M423 86L417.5 76L428.5 76Z"/>
+              <path class="dg-line" d="M250 144 L250 167"/>
+              <path class="dg-arrow" d="M250 174L244.5 164L255.5 164Z"/>
+              <path class="dg-line" d="M423 144 L423 167"/>
+              <path class="dg-arrow" d="M423 174L417.5 164L428.5 164Z"/>
+              <path class="dg-line" d="M77 144 L77 259"/>
+              <path class="dg-arrow" d="M77 266L71.5 256L82.5 256Z"/>
+              <path class="dg-line" d="M250 232 L250 259"/>
+              <path class="dg-arrow" d="M250 266L244.5 256L255.5 256Z"/>
+              <path class="dg-line" d="M423 232 L423 259"/>
+              <path class="dg-arrow" d="M423 266L417.5 256L428.5 256Z"/>
+            </svg>
+            <figcaption>Verification: lint, simulate and prove the same RTL, then run it all in CI on every push.</figcaption>
+          </figure>
+        </div>
+        <div class="dg-pair">
+          <figure class="diagram dg-fit">
+            <svg viewBox="0 0 500 252" role="img" aria-labelledby="rs-fw-t rs-fw-d" font-size="14">
+              <title id="rs-fw-t">Firmware flow</title>
+              <desc id="rs-fw-d">C source on Zephyr or FreeRTOS is compiled and linked with GCC for RISC-V into a firmware image. The image runs on QEMU emulated boards, in Renode whole-system simulation, or is flashed to a real board with OpenOCD. Emulator and simulator runs become automated tests in CI; the real board is for bring-up and debug.</desc>
+              <rect class="dg-core" x="2" y="6" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="77" y="28.7" text-anchor="middle" font-weight="700">C source</text>
+              <text class="dg-muted" x="77" y="47.7" text-anchor="middle">Zephyr or FreeRTOS</text>
+              <rect class="dg-track" x="175" y="6" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="28.7" text-anchor="middle" font-weight="700">GCC for RISC-V</text>
+              <text class="dg-muted" x="250" y="47.7" text-anchor="middle">compile, link</text>
+              <rect class="dg-box" x="348" y="6" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="28.7" text-anchor="middle" font-weight="700">Firmware image</text>
+              <text class="dg-muted" x="423" y="47.7" text-anchor="middle">ELF</text>
+              <path class="dg-line" d="M152 34 L168 34"/>
+              <path class="dg-arrow" d="M175 34L165 39.5L165 28.5Z"/>
+              <path class="dg-line" d="M325 34 L341 34"/>
+              <path class="dg-arrow" d="M348 34L338 39.5L338 28.5Z"/>
+              <rect class="dg-track" x="2" y="104" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="77" y="126.7" text-anchor="middle" font-weight="700">QEMU</text>
+              <text class="dg-muted" x="77" y="145.7" text-anchor="middle">emulated board</text>
+              <rect class="dg-track" x="175" y="104" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="126.7" text-anchor="middle" font-weight="700">Renode</text>
+              <text class="dg-muted" x="250" y="145.7" text-anchor="middle">whole system</text>
+              <rect class="dg-track" x="348" y="104" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="126.7" text-anchor="middle" font-weight="700">OpenOCD</text>
+              <text class="dg-muted" x="423" y="145.7" text-anchor="middle">debug, flash</text>
+              <path class="dg-line" d="M423 62 L423 82 L77 82 L77 97"/>
+              <path class="dg-arrow" d="M77 104L71.5 94L82.5 94Z"/>
+              <path class="dg-line" d="M423 62 L423 82 L250 82 L250 97"/>
+              <path class="dg-arrow" d="M250 104L244.5 94L255.5 94Z"/>
+              <path class="dg-line" d="M423 62 L423 97"/>
+              <path class="dg-arrow" d="M423 104L417.5 94L428.5 94Z"/>
+              <rect class="dg-cap" x="2" y="194" width="323" height="50" rx="6"/>
+              <text class="dg-cap-text" x="163.5" y="223.2" text-anchor="middle" font-size="15" font-weight="700">Automated tests in CI</text>
+              <rect class="dg-box" x="348" y="194" width="150" height="50" rx="6"/>
+              <text class="dg-text" x="423" y="213.7" text-anchor="middle" font-weight="700">Real board</text>
+              <text class="dg-muted" x="423" y="232.7" text-anchor="middle">bring-up</text>
+              <path class="dg-line" d="M77 160 L77 187"/>
+              <path class="dg-arrow" d="M77 194L71.5 184L82.5 184Z"/>
+              <path class="dg-line" d="M250 160 L250 187"/>
+              <path class="dg-arrow" d="M250 194L244.5 184L255.5 184Z"/>
+              <path class="dg-line" d="M423 160 L423 187"/>
+              <path class="dg-arrow" d="M423 194L417.5 184L428.5 184Z"/>
+            </svg>
+            <figcaption>Firmware: the same image runs in emulation, in simulation and on the real board.</figcaption>
+          </figure>
+          <figure class="diagram dg-fit">
+            <svg viewBox="0 0 500 196" role="img" aria-labelledby="rs-pb-t rs-pb-d" font-size="14">
+              <title id="rs-pb-t">Board design flow</title>
+              <desc id="rs-pb-d">In KiCad: schematic, then PCB layout, then design-rule checks and a DFM review; review findings loop back to the schematic. Then fabrication files such as Gerbers and a BOM, a made and assembled board, and bring-up with firmware and tests.</desc>
+              <rect class="dg-core" x="2" y="40" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="77" y="62.7" text-anchor="middle" font-weight="700">Schematic</text>
+              <text class="dg-muted" x="77" y="81.7" text-anchor="middle">KiCad</text>
+              <rect class="dg-track" x="175" y="40" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="62.7" text-anchor="middle" font-weight="700">PCB layout</text>
+              <text class="dg-muted" x="250" y="81.7" text-anchor="middle">KiCad</text>
+              <rect class="dg-track" x="348" y="40" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="62.7" text-anchor="middle" font-weight="700">Checks</text>
+              <text class="dg-muted" x="423" y="81.7" text-anchor="middle">DRC, DFM review</text>
+              <rect class="dg-box" x="348" y="132" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="154.7" text-anchor="middle" font-weight="700">Fab files</text>
+              <text class="dg-muted" x="423" y="173.7" text-anchor="middle">Gerbers, BOM</text>
+              <rect class="dg-box" x="175" y="132" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="154.7" text-anchor="middle" font-weight="700">Board</text>
+              <text class="dg-muted" x="250" y="173.7" text-anchor="middle">made, assembled</text>
+              <rect class="dg-cap" x="2" y="132" width="150" height="56" rx="6"/>
+              <text class="dg-cap-text" x="77" y="154.7" text-anchor="middle" font-weight="700">Bring-up</text>
+              <text class="dg-cap-text" x="77" y="173.7" text-anchor="middle">firmware, tests</text>
+              <path class="dg-line" d="M152 68 L168 68"/>
+              <path class="dg-arrow" d="M175 68L165 73.5L165 62.5Z"/>
+              <path class="dg-line" d="M325 68 L341 68"/>
+              <path class="dg-arrow" d="M348 68L338 73.5L338 62.5Z"/>
+              <path class="dg-line" d="M423 96 L423 125"/>
+              <path class="dg-arrow" d="M423 132L417.5 122L428.5 122Z"/>
+              <path class="dg-line" d="M348 160 L332 160"/>
+              <path class="dg-arrow" d="M325 160L335 154.5L335 165.5Z"/>
+              <path class="dg-line" d="M175 160 L159 160"/>
+              <path class="dg-arrow" d="M152 160L162 154.5L162 165.5Z"/>
+              <path class="dg-dash" d="M423 40 L423 22 L77 22 L77 33"/>
+              <path class="dg-arrow" d="M77 40L71.5 30L82.5 30Z"/>
+              <rect class="dg-box" x="168.0" y="12" width="164" height="20" rx="6" stroke="none"/>
+              <text class="dg-muted" x="250" y="27" text-anchor="middle">fix review findings</text>
+            </svg>
+            <figcaption>Boards: draw, check and review in KiCad before anything is made, then bring the board up with firmware.</figcaption>
+          </figure>
+        </div>
+        <div class="dg-pair">
+          <figure class="diagram dg-fit">
+            <svg viewBox="0 0 500 166" role="img" aria-labelledby="rs-ml-t rs-ml-d" font-size="14">
+              <title id="rs-ml-t">Edge AI flow</title>
+              <desc id="rs-ml-d">Recorded sensor data trains a small model in PyTorch; numpy quantizes it to int8; TensorFlow Lite Micro deploys it to the microcontroller; the output is checked to be bit-exact against the Python reference; then the model is measured on the device.</desc>
+              <rect class="dg-core" x="2" y="8" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="77" y="30.7" text-anchor="middle" font-weight="700">Data</text>
+              <text class="dg-muted" x="77" y="49.7" text-anchor="middle">recorded sensors</text>
+              <rect class="dg-track" x="175" y="8" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="30.7" text-anchor="middle" font-weight="700">Train</text>
+              <text class="dg-muted" x="250" y="49.7" text-anchor="middle">PyTorch</text>
+              <rect class="dg-track" x="348" y="8" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="30.7" text-anchor="middle" font-weight="700">Quantize</text>
+              <text class="dg-muted" x="423" y="49.7" text-anchor="middle">int8, numpy</text>
+              <rect class="dg-track" x="348" y="100" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="423" y="122.7" text-anchor="middle" font-weight="700">Deploy</text>
+              <text class="dg-muted" x="423" y="141.7" text-anchor="middle">TFLite Micro</text>
+              <rect class="dg-box" x="175" y="100" width="150" height="56" rx="6"/>
+              <text class="dg-text" x="250" y="122.7" text-anchor="middle" font-weight="700">Check</text>
+              <text class="dg-muted" x="250" y="141.7" text-anchor="middle">bit-exact vs Python</text>
+              <rect class="dg-cap" x="2" y="100" width="150" height="56" rx="6"/>
+              <text class="dg-cap-text" x="77" y="122.7" text-anchor="middle" font-weight="700">Measure</text>
+              <text class="dg-cap-text" x="77" y="141.7" text-anchor="middle">on the device</text>
+              <path class="dg-line" d="M152 36 L168 36"/>
+              <path class="dg-arrow" d="M175 36L165 41.5L165 30.5Z"/>
+              <path class="dg-line" d="M325 36 L341 36"/>
+              <path class="dg-arrow" d="M348 36L338 41.5L338 30.5Z"/>
+              <path class="dg-line" d="M423 64 L423 93"/>
+              <path class="dg-arrow" d="M423 100L417.5 90L428.5 90Z"/>
+              <path class="dg-line" d="M348 128 L332 128"/>
+              <path class="dg-arrow" d="M325 128L335 122.5L335 133.5Z"/>
+              <path class="dg-line" d="M175 128 L159 128"/>
+              <path class="dg-arrow" d="M152 128L162 122.5L162 133.5Z"/>
+            </svg>
+            <figcaption>Edge AI: train in Python, quantize, deploy, and prove the device matches the reference bit for bit.</figcaption>
+          </figure>
+        </div>
         <div class="toolgrid">
           <div class="table-wrap tooltable"><table>
             <caption>Simulate &amp; lint</caption>

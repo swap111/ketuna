@@ -6,7 +6,7 @@
     <atom:link href="https://ketuna.online/blog/feed.xml" rel="self" type="application/rss+xml"/>
     <description>Practical articles on chips, firmware and products from Ketuna.</description>
     <language>en-in</language>
-    <lastBuildDate>Thu, 26 Nov 2026 20:46:23 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 27 Nov 2026 06:03:24 +0000</lastBuildDate>
     <item>
       <title>Zephyr devicetree for beginners: describing hardware so drivers can find it</title>
       <link>https://ketuna.online/blog/zephyr-devicetree-first-look.html</link>

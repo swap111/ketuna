@@ -77,7 +77,7 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="interrupt-safe-uart-ring-buffer.html">Writing an interrupt-safe ring buffer for UART receive</a></h3>
           <p>A UART interrupt fills a buffer and the main loop empties it. With one writer per index, free-running counters and the right memory ordering, you need no lock and lose no bytes.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
@@ -95,13 +95,13 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="recovering-a-stuck-i2c-bus.html">Why an I2C bus gets stuck low, and how firmware recovers it</a></h3>
           <p>If the controller resets in the middle of a read, a target can hold SDA low forever, waiting for clocks that never come. Clocking out the rest of the byte and sending a STOP releases the bus.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
           <h3><a href="what-volatile-really-does.html">What volatile really does in embedded C, and what it does not</a></h3>
           <p>volatile tells the compiler that every read and write of a variable matters, so hardware registers and ISR flags work. It does not make an access atomic or ordered, and it is not a lock.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
@@ -143,19 +143,19 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
           <h3><a href="six-step-bldc-commutation.html">Six-step BLDC commutation in firmware: Hall sensors, PWM and timing</a></h3>
           <p>How firmware turns three Hall sensor signals into the six switch patterns that spin a brushless DC motor, how to change PWM outputs without shoot-through, how to compute speed, and how to detect a stall.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
           <h3><a href="register-bit-manipulation-in-c.html">Setting, clearing and testing register bits safely in C</a></h3>
           <p>Masks and shifts for single bits and multi-bit fields, why read-modify-write can silently undo another write, and how set/clear registers and write-1-to-clear flags change the code you should write.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 4 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="firmware-ci-with-qemu-and-renode.html">Running firmware without a board: QEMU and Renode in CI</a></h3>
           <p>Emulators let every commit boot the real firmware binary, run its self-tests and check its output. How to make firmware report pass or fail to the emulator, script the run, and know what still needs hardware.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 4 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
@@ -173,7 +173,7 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="race-conditions-between-isrs-and-tasks.html">Race conditions in firmware: shared variables between interrupts and tasks</a></h3>
           <p>Why a 64-bit tick counter read on a 32-bit core can jump 49 days into the future, how read-modify-write loses updates, and the critical sections, retry loops and atomics that make shared data safe.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
@@ -191,7 +191,7 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Intermediate</span></div>
           <h3><a href="low-power-sleep-and-wake.html">Low-power firmware: sleep modes, wake sources and measuring the current you saved</a></h3>
           <p>How to choose a sleep depth from wake-up time and retained state, how to enter sleep without missing a wake-up, and how to measure average current properly instead of trusting a datasheet number.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Beginner</span></div>
@@ -221,7 +221,7 @@
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>
           <h3><a href="smart-meter-firmware-architecture.html">Firmware architecture for a smart energy meter: metering, events and logs</a></h3>
           <p>How to structure smart meter firmware so metering is never disturbed by communication, tamper events are recorded reliably, and energy totals survive sudden power loss, with the hold-up and flash-wear arithmetic.</p>
-          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 5 min read</p>
+          <p class="date"><time datetime="2026-11-27">27 Nov 2026</time> · 6 min read</p>
         </li>
         <li class="postcard">
           <div class="meta"><a class="chip" href="category-embedded.html">Embedded systems</a><span class="lvl">Advanced</span></div>

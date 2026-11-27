@@ -70,6 +70,55 @@
           <li><h3>Harden it</h3><p>Push to GitHub and run the Tiny Tapeout flow: synthesis, place and route, DRC and LVS.</p></li>
           <li><h3>See your chip</h3><p>Open your layout in a GDS viewer and take a screenshot of your own silicon.</p></li>
         </ol>
+        <figure class="diagram dg-fit mt">
+          <svg viewBox="0 0 544 290" role="img" aria-labelledby="ws-fl-t ws-fl-d" font-size="14">
+            <title id="ws-fl-t">From Verilog to GDS in the workshop</title>
+            <desc id="ws-fl-d">Write Verilog, starting from the dice design; test it locally with cocotb and Verilator; synthesize with Yosys; push to GitHub, which runs the Tiny Tapeout flow. If the GDS run is not green, read the reports, fix and push again. When it is green, open your layout and take a screenshot. Submitting to a shuttle is optional and happens after the workshop.</desc>
+            <rect class="dg-core" x="2" y="10" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="82" y="33.7" text-anchor="middle" font-size="15" font-weight="700">Write Verilog</text>
+            <text class="dg-muted" x="82" y="52.7" text-anchor="middle">dice, then yours</text>
+            <rect class="dg-track" x="192" y="10" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="272" y="33.7" text-anchor="middle" font-size="15" font-weight="700">Test locally</text>
+            <text class="dg-muted" x="272" y="52.7" text-anchor="middle">cocotb, Verilator</text>
+            <rect class="dg-track" x="382" y="10" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="462" y="33.7" text-anchor="middle" font-size="15" font-weight="700">Synthesize</text>
+            <text class="dg-muted" x="462" y="52.7" text-anchor="middle">Yosys</text>
+            <rect class="dg-track" x="382" y="110" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="462" y="133.7" text-anchor="middle" font-size="15" font-weight="700">Push to GitHub</text>
+            <text class="dg-muted" x="462" y="152.7" text-anchor="middle">Tiny Tapeout flow</text>
+            <path class="dg-core" d="M272 97L347 139L272 181L197 139Z"/>
+            <text class="dg-text" x="272" y="134" text-anchor="middle" font-weight="700">GDS</text>
+            <text class="dg-text" x="272" y="152" text-anchor="middle" font-weight="700">green?</text>
+            <rect class="dg-cap" x="2" y="110" width="160" height="58" rx="6"/>
+            <text class="dg-cap-text" x="82" y="133.7" text-anchor="middle" font-size="15" font-weight="700">See your chip</text>
+            <text class="dg-cap-text" x="82" y="152.7" text-anchor="middle">layout screenshot</text>
+            <rect class="dg-box" x="192" y="220" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="272" y="243.7" text-anchor="middle" font-size="15" font-weight="700">Fix and push</text>
+            <text class="dg-muted" x="272" y="262.7" text-anchor="middle">read the reports</text>
+            <rect class="dg-soon" x="2" y="220" width="160" height="58" rx="6"/>
+            <text class="dg-text" x="82" y="243.7" text-anchor="middle" font-size="15" font-weight="700">Shuttle</text>
+            <text class="dg-muted" x="82" y="262.7" text-anchor="middle">optional, later</text>
+            <path class="dg-line" d="M162 39 L185 39"/>
+            <path class="dg-arrow" d="M192 39L182 44.5L182 33.5Z"/>
+            <path class="dg-line" d="M352 39 L375 39"/>
+            <path class="dg-arrow" d="M382 39L372 44.5L372 33.5Z"/>
+            <path class="dg-line" d="M462 68 L462 103"/>
+            <path class="dg-arrow" d="M462 110L456.5 100L467.5 100Z"/>
+            <path class="dg-line" d="M382 139 L354 139"/>
+            <path class="dg-arrow" d="M347 139L357 133.5L357 144.5Z"/>
+            <path class="dg-line" d="M197 139 L169 139"/>
+            <path class="dg-arrow" d="M162 139L172 133.5L172 144.5Z"/>
+            <text class="dg-muted" x="166" y="131">Yes</text>
+            <path class="dg-line" d="M272 181 L272 213"/>
+            <path class="dg-arrow" d="M272 220L266.5 210L277.5 210Z"/>
+            <text class="dg-muted" x="280" y="204">No</text>
+            <path class="dg-line" d="M352 249 L462 249 L462 175"/>
+            <path class="dg-arrow" d="M462 168L467.5 178L456.5 178Z"/>
+            <path class="dg-dash" d="M82 168 L82 213"/>
+            <path class="dg-arrow" d="M82 220L76.5 210L87.5 210Z"/>
+          </svg>
+          <figcaption>The loop you practise all weekend: push, read the reports, fix, push again.</figcaption>
+        </figure>
         <div class="grid grid-2 mt">
           <div class="card">
             <h3>By Sunday evening you can</h3>
@@ -136,6 +185,39 @@
             </tbody>
           </table>
         </div>
+        <figure class="diagram dg-fit mt">
+          <svg viewBox="0 0 520 372" role="img" aria-labelledby="ws-su-t ws-su-d" font-size="14">
+            <title id="ws-su-t">If you cannot install the tools</title>
+            <desc id="ws-su-d">Setup instructions arrive about a week before. If you can install the tools, you run the tests on your laptop. If you cannot, the cloud runs the tests and the hardening. Either way you finish the workshop.</desc>
+            <rect class="dg-core" x="160" y="10" width="200" height="56" rx="6"/>
+            <text class="dg-text" x="260" y="32.7" text-anchor="middle" font-size="15" font-weight="700">Setup guide</text>
+            <text class="dg-muted" x="260" y="51.7" text-anchor="middle">about a week before</text>
+            <path class="dg-core" d="M260 96L355 136L260 176L165 136Z"/>
+            <text class="dg-text" x="260" y="131" text-anchor="middle" font-weight="700">Can you</text>
+            <text class="dg-text" x="260" y="149" text-anchor="middle" font-weight="700">install?</text>
+            <rect class="dg-track" x="10" y="206" width="190" height="56" rx="6"/>
+            <text class="dg-text" x="105" y="228.7" text-anchor="middle" font-size="15" font-weight="700">Your laptop</text>
+            <text class="dg-muted" x="105" y="247.7" text-anchor="middle">tests run locally</text>
+            <rect class="dg-track" x="320" y="206" width="190" height="56" rx="6"/>
+            <text class="dg-text" x="415" y="228.7" text-anchor="middle" font-size="15" font-weight="700">The cloud</text>
+            <text class="dg-muted" x="415" y="247.7" text-anchor="middle">tests + hardening</text>
+            <rect class="dg-cap" x="160" y="310" width="200" height="50" rx="6"/>
+            <text class="dg-cap-text" x="260" y="339.2" text-anchor="middle" font-size="15" font-weight="700">You finish</text>
+            <path class="dg-line" d="M260 66 L260 89"/>
+            <path class="dg-arrow" d="M260 96L254.5 86L265.5 86Z"/>
+            <path class="dg-line" d="M165 136 L105 136 L105 199"/>
+            <path class="dg-arrow" d="M105 206L99.5 196L110.5 196Z"/>
+            <text class="dg-muted" x="120" y="128">Yes</text>
+            <path class="dg-line" d="M355 136 L415 136 L415 199"/>
+            <path class="dg-arrow" d="M415 206L409.5 196L420.5 196Z"/>
+            <text class="dg-muted" x="368" y="128">No</text>
+            <path class="dg-line" d="M105 262 L105 335 L153 335"/>
+            <path class="dg-arrow" d="M160 335L150 340.5L150 329.5Z"/>
+            <path class="dg-line" d="M415 262 L415 335 L367 335"/>
+            <path class="dg-arrow" d="M360 335L370 329.5L370 340.5Z"/>
+          </svg>
+          <figcaption>No one is left out by their laptop: the cloud runs what yours cannot.</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -143,6 +225,57 @@
       <div class="wrap">
         <h2>Schedule</h2>
         <p class="section-intro">Day 1 ends with a tested design on your laptop. Day 2 starts the long cloud runs early, so they finish while the afternoon labs go on. Times are a guide.</p>
+        <figure class="diagram dg-fit mt">
+          <svg viewBox="0 0 562 212" role="img" aria-labelledby="ws-dy-t ws-dy-d" font-size="14">
+            <title id="ws-dy-t">The two days at a glance</title>
+            <desc id="ws-dy-d">Day 1: setup and a demo of the dice design, labs 1 and 2 on the dice, labs 3 and 4 on your own design, then show-and-tell. Day 2: stand-up and forking the template, lab 5 starts the GDS run, labs 6 and 7 fix results and test an AI-written variant, and lab 8 ends with a green GDS. The GDS runs work in the cloud while the labs go on.</desc>
+            <text class="dg-text" x="0" y="43" font-size="15" font-weight="700">Day 1</text>
+            <text class="dg-text" x="0" y="123" font-size="15" font-weight="700">Day 2</text>
+            <rect class="dg-core" x="56" y="10" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="113" y="32.7" text-anchor="middle" font-weight="700">Setup, demo</text>
+            <text class="dg-muted" x="113" y="51.7" text-anchor="middle">dice design</text>
+            <rect class="dg-box" x="186" y="10" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="243" y="32.7" text-anchor="middle" font-weight="700">Labs 1–2</text>
+            <text class="dg-muted" x="243" y="51.7" text-anchor="middle">the dice</text>
+            <rect class="dg-box" x="316" y="10" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="373" y="32.7" text-anchor="middle" font-weight="700">Labs 3–4</text>
+            <text class="dg-muted" x="373" y="51.7" text-anchor="middle">your design</text>
+            <rect class="dg-track" x="446" y="10" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="503" y="32.7" text-anchor="middle" font-weight="700">Close</text>
+            <text class="dg-muted" x="503" y="51.7" text-anchor="middle">show and tell</text>
+            <rect class="dg-core" x="56" y="90" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="113" y="112.7" text-anchor="middle" font-weight="700">Stand-up</text>
+            <text class="dg-muted" x="113" y="131.7" text-anchor="middle">fork template</text>
+            <rect class="dg-box" x="186" y="90" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="243" y="112.7" text-anchor="middle" font-weight="700">Lab 5</text>
+            <text class="dg-muted" x="243" y="131.7" text-anchor="middle">start GDS run</text>
+            <rect class="dg-box" x="316" y="90" width="114" height="56" rx="6"/>
+            <text class="dg-text" x="373" y="112.7" text-anchor="middle" font-weight="700">Labs 6–7</text>
+            <text class="dg-muted" x="373" y="131.7" text-anchor="middle">fix, then AI</text>
+            <rect class="dg-cap" x="446" y="90" width="114" height="56" rx="6"/>
+            <text class="dg-cap-text" x="503" y="112.7" text-anchor="middle" font-weight="700">Lab 8</text>
+            <text class="dg-cap-text" x="503" y="131.7" text-anchor="middle">GDS green</text>
+            <path class="dg-line" d="M170 38 L179 38"/>
+            <path class="dg-arrow" d="M186 38L176 43.5L176 32.5Z"/>
+            <path class="dg-line" d="M300 38 L309 38"/>
+            <path class="dg-arrow" d="M316 38L306 43.5L306 32.5Z"/>
+            <path class="dg-line" d="M430 38 L439 38"/>
+            <path class="dg-arrow" d="M446 38L436 43.5L436 32.5Z"/>
+            <path class="dg-line" d="M170 118 L179 118"/>
+            <path class="dg-arrow" d="M186 118L176 123.5L176 112.5Z"/>
+            <path class="dg-line" d="M300 118 L309 118"/>
+            <path class="dg-arrow" d="M316 118L306 123.5L306 112.5Z"/>
+            <path class="dg-line" d="M430 118 L439 118"/>
+            <path class="dg-arrow" d="M446 118L436 123.5L436 112.5Z"/>
+            <path class="dg-line" d="M503 66 L503 78 L113 78 L113 83"/>
+            <path class="dg-arrow" d="M113 90L107.5 80L118.5 80Z"/>
+            <rect class="dg-box" x="186" y="170" width="374" height="32" rx="6" stroke-dasharray="6 5"/>
+            <text class="dg-text" x="373" y="190.2" text-anchor="middle">GDS runs in the cloud</text>
+            <path class="dg-dash" d="M243 146 L243 163"/>
+            <path class="dg-arrow" d="M243 170L237.5 160L248.5 160Z"/>
+          </svg>
+          <figcaption>Day 2 starts the long cloud runs early, so they finish while the afternoon labs go on.</figcaption>
+        </figure>
         <div class="grid grid-2">
           <div>
             <h3>Day 1 · idea to tested Verilog</h3>
