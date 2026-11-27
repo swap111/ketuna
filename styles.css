@@ -499,7 +499,24 @@ a.chip:hover { text-decoration: underline; }
 @media (max-width: 639px) { .prevnext .next { grid-column: auto; } }
 .post-body .tags { padding-left: 0; }
 .post-body figure.diagram { overflow-x: auto; }
-@media (max-width: 520px) { .post-body figure.diagram svg { min-width: 440px; } }
+/* Blog diagrams on phones: fill the screen width (no sideways scroll); tap to enlarge (nav.js) */
+@media (max-width: 699px) {
+  .post-body figure.diagram { margin-inline: -16px; border-radius: 0; border-left: 0; border-right: 0; padding: 12px 6px; overflow: visible; }
+  .post-body figure.diagram figcaption { padding: 0 10px; }
+}
+.dg-zoom { display: none; }
+@media (max-width: 699px) {
+  .dg-zoom { display: inline-flex; align-items: center; gap: 6px; margin: 8px 10px 0; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; }
+}
+.dg-viewer { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column; }
+.dg-viewer[hidden] { display: none; }
+.dg-viewer-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.dg-viewer-bar p { flex: 1; margin: 0; font-size: 0.85rem; color: var(--muted); }
+.dg-viewer-bar button { font: inherit; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 999px; padding: 8px 16px; min-height: 40px; cursor: pointer; }
+.dg-viewer-body { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 16px; touch-action: pan-x pan-y pinch-zoom; }
+.dg-viewer-body svg { display: block; width: max(100%, 680px); max-width: none; height: auto; margin: 0 auto; }
+.dg-viewer-cap { color: var(--muted); font-size: 0.9rem; margin: 12px auto 0; max-width: 680px; }
+body.dg-open { overflow: hidden; }
 .labtracks summary .tag, .tooltable caption .tag { margin: 0 0 0 6px; }
 @media (max-width: 480px) { .pillnav ul { gap: 6px; } .pillnav a { font-size: 0.86rem; padding: 5px 11px; } }
 @media (max-width: 639px) {
